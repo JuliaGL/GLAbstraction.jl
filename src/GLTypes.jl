@@ -1,3 +1,116 @@
+using ImmutableArrays
+##############################################################################
+abstract Shape
+immutable Circle{T <: Real} <: Shape
+    x::T
+    y::T
+    r::T
+end
+
+immutable Rectangle{T <: Real} <: Shape
+    x::T
+    y::T
+    w::T
+    h::T
+end
+export Circle, Rectangle, Shape
+############################################################################
+
+immutable GLProgram
+    id::GLuint
+    fragShaderPath::ASCIIString
+    vertShaderPath::ASCIIString
+    function GLProgram(vertex_file_path::String, fragment_file_path::String)
+        vertexShaderID::GLuint   = readShader(open(vertex_file_path),   GL_VERTEX_SHADER)
+        fragmentShaderID::GLuint = readShader(open(fragment_file_path), GL_FRAGMENT_SHADER)
+        p = glCreateProgram()
+        @assert p > 0
+        glAttachShader(p, vertexShaderID)
+        glAttachShader(p, fragmentShaderID)
+        glLinkProgram(p)
+        printProgramInfoLog(p)
+        glDeleteShader(vertexShaderID)
+        glDeleteShader(fragmentShaderID)
+        return new(p, vertex_file_path, fragment_file_path)
+    end
+end
+
+export GLProgram
+##########################################################################
+
+abstract Camera
+
+type PerspectiveCamera <: Camera
+    #width and height in pixel
+    w::Float32
+    h::Float32
+    nearClip::Float32
+    farClip::Float32
+    horizontalAngle::Float32
+    verticalAngle::Float32
+    rotationSpeed::Float32
+    zoomSpeed::Float32
+    moveSpeed::Float32
+    FoV::Float32
+    position::Array{Float32, 1}
+    direction::Array{Float32, 1}
+    right::Array{Float32, 1}
+    up::Array{Float32, 1}
+    mvp::Matrix{Float32}
+    function PerspectiveCamera(
+                    nearClip::Float32,
+                    farClip::Float32,
+                    horizontalAngle::Float32,
+                    verticalAngle::Float32,
+                    rotationSpeed::Float32,
+                    zoomSpeed::Float32,
+                    moveSpeed::Float32,
+                    FoV::Float32,
+                    position::Array{Float32, 1})
+
+        cam = new(500f0, 500f0, nearClip, farClip, horizontalAngle, verticalAngle, 
+            rotationSpeed, zoomSpeed, moveSpeed, FoV, position, [0f0, 0f0, 0f0], 
+            [0f0, 0f0, 0f0], [0f0,1f0,0f0], eye(Float32,4,4))
+
+        rotate(0f0, 0f0, cam)
+        update(cam)
+        return cam
+    end
+end
+
+
+type OrthogonalCamera  <: Camera
+    #width and height in pixel
+    w::Float32
+    h::Float32
+    angle::Float32
+    nearClip::Float32
+    farClip::Float32
+    rotationSpeed::Float32
+    zoomSpeed::Float32
+    moveSpeed::Float32
+    position::Array{Float32, 1}
+    mvp::Matrix{Float32}
+    function OrthogonalCamera(
+                    nearClip::Float32,
+                    farClip::Float32,
+                    angle::Float32,
+                    rotationSpeed::Float32,
+                    zoomSpeed::Float32,
+                    moveSpeed::Float32,
+                    position::Array{Float32, 1})
+
+        cam = new(500f0, 500f0, angle, nearClip, farClip, 
+            rotationSpeed, zoomSpeed, moveSpeed, position, eye(Float32,4,4))
+        update(cam)
+        return cam
+    end
+end
+
+export Camera, OrthogonalCamera, PerspectiveCamera
+
+
+########################################################################################
 import Images.imread
 
 immutable Texture
@@ -65,72 +178,35 @@ immutable Texture
     end
 end
 
-
-immutable GLRenderObject
-    vertexArray::GLVertexArray
-    uniforms::Dict{GLUint, Any}
-    program::GLProgram
-    preRenderFunctions::Arrray{(Function, Tuple), 1}
-    postRenderFunctions::Arrray{(Function, Tuple), 1}
-    function GLRenderObjectC(
-            vertexArray::GLVertexArray,
-            uniforms::Dict{ASCIIString, Any},
-            program::GLProgram,
-            preRenderFunctions::Arrray{(Function, Tuple), 1},
-            postRenderFunctions::Arrray{(Function, Tuple), 1}
-            )
-        #do some checks!
-        #todo: check if all attributes are available in the program
-        for elem in preRenderFunctions
-            @assert method_exists(elem[1], (elem[2]..., GLRenderObject))
-        end
-        for elem in postRenderFunctions
-            @assert method_exists(elem...)
-        end
-        map!(attributes -> (glGetUniformLocation(program.id, attributes), attributes[2]), uniforms)
-        @assert glGetError() == GL_NO_ERROR
-        new(vertexArray, Dict([uniforms...]), program, preRenderFunctions, postRenderFunctions)
-    end
-end
-
-
-function GLRenderObject(program::GLProgram, data::Dict{ASCIIString, Any}
-		;primitiveMode::GLuint16 =  GL_POINTS)
-
-    buffers         = filter((key, value) -> isa(value, GLBuffer), data)
-    vertexArray 	= GLVertexArray(buffers, program, primitiveMode)
-
-    uniforms        = filter((key, value) -> !isa(value, GLBuffer) && !isa(value, Function), data)
-    new(vertexArray, uniforms, program, (Function, Tuple)[], (Function, Tuple)[])
-end
- 
+export Texture
+########################################################################
 
 immutable GLBuffer{T <: Real}
     id::GLuint
-	buffer::Array{T, 1} #doesn't have to be here, but could be used together with invalidated, to change the buffer
-    usage::Uint16
-    bufferType::Uint16
+    buffer::Array{T, 1} #doesn't have to be here, but could be used together with invalidated, to change the buffer
+    usage::GLenum
+    bufferType::GLenum
     cardinality::Int
     length::Int
     invalidated::Bool
-    function GLBuffer(buffer::Array{T, 1}, format::Int, bufferType::Uint16, usage::Uint16)
-    	@assert length(buffer) % format == 0     
-        length 	= div(length(buffer), format)
-		id 		= glGenBuffers()
-		glBindBuffer(bufferType, id)
-	    glBufferData(bufferType, sizeof(buffer), convert(Ptr{Void}, pointer(buffer)), usage)
-	    glBindBuffer(bufferType, 0)
-        new(id, buffer, usage, bufferType, format, length, true)
-    end
-
-    function GLBuffer(buffer::Array{ImmutableVector{T}, 1}, bufferType::Uint16, usage::Uint16)
-        length = length(buffer)
-        format = length(names(eltype(buffer))
-        id = glGenBuffers()
+    function GLBuffer(buffer::Array{T, 1}, cardinality::Int, bufferType::GLenum = GL_ARRAY_BUFFER, usage::GLenum = GL_STATIC_DRAW)
+        @assert length(buffer) % cardinality == 0     
+        _length  = div(length(buffer), cardinality)
+        id      = glGenBuffers()
         glBindBuffer(bufferType, id)
         glBufferData(bufferType, sizeof(buffer), convert(Ptr{Void}, pointer(buffer)), usage)
         glBindBuffer(bufferType, 0)
-        new(id, buffer, usage, bufferType, format, length, true)
+        new(id, buffer, usage, bufferType, cardinality, _length, true)
+    end
+
+    function GLBuffer(buffer::Array{ImmutableVector{T}, 1}, bufferType::Uint16, usage::Uint16)
+        _length  = length(buffer)
+        cardinality  = length(names(eltype(buffer)))
+        id      = glGenBuffers()
+        glBindBuffer(bufferType, id)
+        glBufferData(bufferType, sizeof(buffer), convert(Ptr{Void}, pointer(buffer)), usage)
+        glBindBuffer(bufferType, 0)
+        new(id, buffer, usage, bufferType, cardinality, _length, true)
     end
 end
  
@@ -138,32 +214,86 @@ immutable GLVertexArray
     program::GLProgram
     id::GLuint
     size::Int
-    primitiveMode::Uint16
+    primitiveMode::GLenum
     #Buffer dict
-    function GLVertexArray(bufferDict::Dict{ASCIIString, GLBuffer}, program::GLProgram, primitiveMode::Uint16)
+    function GLVertexArray(bufferDict::Dict{ASCIIString, GLBuffer}, program::GLProgram, primitiveMode::GLenum)
         @assert !isempty(bufferDict)
         #get the size of the first array, to assert later, that all have the same size
-        size = get(bufferDict, collect(keys(bufferDict))[1], 0).size
+        _length = get(bufferDict, collect(keys(bufferDict))[1], 0).length
         id = glGenVertexArrays()
         glBindVertexArray(id)        
         for elem in bufferDict
             attribute   = elem[1]
             buffer      = elem[2]
-            @assert size == buffer.size
+            @assert _length == buffer.length
             glBindBuffer(buffer.bufferType, buffer.id)
             attribLocation = glGetAttribLocation(program.id, attribute)
-            glVertexAttribPointer(attribLocation, buffer.format, GL_FLOAT, GL_FALSE, 0, 0)
+            glVertexAttribPointer(attribLocation, buffer.cardinality, GL_FLOAT, GL_FALSE, 0, 0)
             glEnableVertexAttribArray(attribLocation)
         end
         glBindVertexArray(0)        
-        new(program, id, size, primitiveMode)
+        new(program, id, _length, primitiveMode)
     end
 end
  
+export GLVertexArray, GLBuffer
+
+##################################################################################
+immutable GLRenderObject
+    vertexArray::GLVertexArray
+    uniforms::Dict{GLint, Any}
+    program::GLProgram
+    preRenderFunctions::Array{(Function, Tuple), 1}
+    postRenderFunctions::Array{(Function, Tuple), 1}
+    function GLRenderObject(
+            vertexArray::GLVertexArray,
+            uniforms::Dict{ASCIIString, Any},
+            program::GLProgram,
+            preRenderFunctions::Array{(Function, Tuple), 1},
+            postRenderFunctions::Array{(Function, Tuple), 1}
+            )
+        #do some checks!
+        #todo: check if all attributes are available in the program
+        for elem in preRenderFunctions
+            @assert method_exists(elem[1], [elem[2]..., GLRenderObject]...)
+        end
+        for elem in postRenderFunctions
+            @assert method_exists(elem..., [elem[2]..., GLRenderObject]...)
+        end
+        uniforms = map(attributes -> begin 
+                loc = glGetUniformLocation(program.id, attributes[1])
+                @assert loc >= 0
+                (glGetUniformLocation(program.id, attributes[1]), attributes[2])
+            end, uniforms)
+
+        uniforms = Dict{GLint, Any}([uniforms...])
+
+        for elem in uniforms
+            #setProgramDefault(elem..., program.id)
+        end
+        #@assert glGetError() == GL_NO_ERROR
+        new(vertexArray, uniforms, program, preRenderFunctions, postRenderFunctions)
+    end
+end
+function GLRenderObject(program::GLProgram, data::Dict{ASCIIString, Any}
+        ;primitiveMode::GLenum =  GL_POINTS)
+
+    buffers         = Dict{ASCIIString,GLBuffer}(filter((key, value) -> isa(value, GLBuffer), data))
+
+    vertexArray     = GLVertexArray(buffers, program, primitiveMode)
+
+    uniforms        = filter((key, value) -> !isa(value, GLBuffer) && !isa(value, Function), data)
+    GLRenderObject(vertexArray, uniforms, program, (Function, Tuple)[], (Function, Tuple)[])
+end
+export GLRenderObject
+####################################################################################
 
 
 
-delete!(a) = nothing # silent failure, if delete is called on something, where no delete is defined for
+###############################################################
+
+
+delete!(a) = println("warning: delete! called with wrong argument: args: $(a)") # silent failure, if delete is called on something, where no delete is defined for
 delete!(v::GLVertexArray) 	= glDeleteVertexArrays(1, [v.id])
 function delete!(b::GLBuffer)
 	glDeleteBuffers(1, [b.id])
@@ -177,3 +307,5 @@ function delete!(g::GLRenderObject)
 	end
 	empty!(uniforms)
 end
+
+export delete!

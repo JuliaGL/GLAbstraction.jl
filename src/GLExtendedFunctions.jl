@@ -1,4 +1,4 @@
-import OpenGL.glGetAttribLocation, OpenGL.glGetIntegerv, OpenGL.glGenBuffers, OpenGL.glGenVertexArrays, OpenGL.glGenTextures
+import ModernGL.glGetAttribLocation, ModernGL.glGetIntegerv, ModernGL.glGenBuffers, ModernGL.glGenVertexArrays, ModernGL.glGenTextures
 
 #function glGetAttribLocation(program::GLuint, name::ASCIIString)
 #    location = glGetAttribLocation(program, name)

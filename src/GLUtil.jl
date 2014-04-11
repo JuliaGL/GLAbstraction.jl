@@ -1,5 +1,14 @@
 module GLUtil
+using ModernGL
 
-# package code goes here
+
+include("GLExtendedFunctions.jl")
+
+include("GLTypes.jl")
+include("GLMatrixMath.jl")
+include("GLRender.jl")
+include("GLShader.jl")
+include("GLCamera.jl")
+
 
 end # module

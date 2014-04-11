@@ -1,3 +1,33 @@
+export render
+function render(x::GLRenderObject)
+    for elem in x.preRenderFunctions
+        apply(elem...)
+    end
+
+    glUseProgram(x.program.id)
+    glBindVertexArray(x.vertexArray.id)
+    render(x.uniforms)
+    #glUniform4f(glGetUniformLocation(x.program.id, "Color"), 1,1,0,1)
+    for elem in x.postRenderFunctions
+        apply(elem...)
+    end
+end
+
+
+#Render Unifomrs!!
+
+#Render Dicts filled with uniforms
+function render(obj::Dict{String, Any}, shaderId)
+  for elem in obj
+    render(elem..., shaderId)
+  end
+end
+
+function render(obj::Dict{GLint, Any})
+  for elem in obj
+    render(elem...)
+  end
+end
 
 function render(name::String, t::Texture, shaderId)
     glActiveTexture(GL_TEXTURE0)
@@ -5,90 +35,84 @@ function render(name::String, t::Texture, shaderId)
     glUniform1i(glGetUniformLocation(id, name), 0)
 end
 
-
 function render(attribute::String, cam::Camera, shaderId)
-     glUniformMatrix4fv(glGetUniformLocation(shaderId, attribute), 1, GL_FALSE, cam.viewProjMat)
-end
-function render(attribute::String, vector::Vector4{Float32}, shaderId)
-glUniform4fv(glGetUniformLocation(shaderId, attribute), vector)
-end
-function render(attribute::String, vector::Vector3{Float32}, shaderId)
-     glUniform3fv(glGetUniformLocation(shaderId, attribute), vector)
-end
-function render(attribute::String, vector::Vector2{Float32}, shaderId)
-     glUniform2fv(glGetUniformLocation(shaderId, attribute), vector)
-end
-function render(attribute::String, vector::Union(Vector1, Float32), shaderId)
-     glUniform1f(glGetUniformLocation(shaderId, attribute), vector)
+    glUniformMatrix4fv(glGetUniformLocation(shaderId, attribute), 1, GL_FALSE, cam.viewProjMat)
 end
 
-function render(attributeLocation::GLuint, m::Matrix4x4{Float32})
-     glUniform4fv(attributeLocation, m)
-end
-function render(attributeLocation::GLuint, cam::Camera)
-     glUniformMatrix4fv(attributeLocation, 1, GL_FALSE, cam.viewProjMat)
-end
-function render(attributeLocation::GLuint, vector::Vector4{Float32})
-glUniform4fv(attributeLocation, vector)
-end
-function render(attributeLocation::GLuint, vector::Vector3{Float32})
-     glUniform3fv(attributeLocation, vector)
-end
-function render(attributeLocation::GLuint, vector::Vector2{Float32})
-     glUniform2fv(attributeLocation, vector)
-end
-function render(attributeLocation::GLuint, vector::Union(Vector1, Float32))
-     glUniform1f(attributeLocation, vector)
-end
+#handle all remaining uniform funcitons
+setProgramDefault(location::ASCIIString, object::Array, programID) = setProgramDefault(glGetUniformLocation(programID, location), object, programID)
 
-function render(attributeLocation::GLuint, m::Matrix4x4{Float32})
-     glUniform4fv(attributeLocation, m)
-end
- 
-function render(obj::Dict{String, Any}, shaderId)
-  for elem in obj
-    render(elem..., shaderId)
-  end
-end
-
-function render(obj::Dict{GLuint, Any})
-  for elem in obj
-    render(elem...)
-  end
-end
-
-function render(x::RenderObject)
-    for elem in preRenderFunctions
-        apply(elem..., x)
-    end
-
-    glUseProgram(x.shader.id)
-    render(x.uniforms)
-    glBindVertexArray(x.vertArray.id)
-
-    for elem in postRenderFunctions
-        apply(elem..., x)
+function setProgramDefault(location::GLint, object::Array, programID)
+    func = getUniformFunction(object, "Program")
+    D = length(size(object))
+    T = eltype(object)
+    objectPtr = convert(Ptr{T}, pointer(object))
+    if D == 1
+        func(programID, location, 1, objectPtr)
+    elseif D == 2
+        func(programID, location, 1, GL_FALSE, objectPtr)
+    else
+        error("glUniform: unsupported dimensionality")
     end
 end
 
-# macro createUniformFunctions(types)
-  
-#     body = Expr(:call, glFuncName, :attributeLocation, 1, :GL_FALSE, object...)
-#     ret  = Expr(:function, 
-#       Expr(:call, :render, 
-#       Expr(:(::), attribute, ASCIIString), 
-#       Expr(:(::), attributeLocation, GLuint), 
-#       Expr(:(::), object, types), body)
+render(location::ASCIIString, object::Array, programID) = render(glGetUniformLocation(programID, location), object)
+function render(location::GLint, object::Array)
+    func = getUniformFunction(object, "")
+    D = length(size(object))
+    T = eltype(object)
+    objectPtr = convert(Ptr{T}, pointer(object))
+    if D == 1
+        func(location, 1, objectPtr)
+    elseif D == 2
+        func(location, 1, GL_FALSE, object)
+    else
+        error("glUniform: unsupported dimensionality")
+    end
+end
 
-#     return esc(ret)
-# end
 
-# macro createUniformFunctions(types)
-#   glFunc = symbol("glUniform"**"fv")
-#   quote
-#       function render(attributeLocation::GLuint, object::types)
-#         $(glFunc)(attributeLocation, object)
-#     end
-#   end
-#     return esc(ret)
-# end
+function getUniformFunction(object::Array, program::ASCIIString)
+    T = eltype(object)
+    D = length(size(object))
+    @assert(!isempty(object))
+    @assert D <= 2
+    matrix = D == 2
+    if matrix
+        @assert T <: FloatingPoint #There are only functions for Float32 matrixes
+    end
+
+    dims = size(object)
+
+    if D == 1 || dims[1] == dims[2]
+        cardinality = string(dims[1])
+    else
+        cardinality = string(dims[1], "x", dims[2])
+    end
+    if T == GLuint
+        elementType = "uiv"
+    elseif T == GLint
+        elementType = "iv"
+    elseif T == GLfloat
+        elementType = "fv"
+    else
+        error("type not supported")
+    end
+    func = eval(parse("gl" *program* "Uniform" * (matrix ? "Matrix" : "")* cardinality *elementType))
+end
+
+
+
+##############################################################################################
+#  Generic render functions 
+#####
+function enableTransparency()
+    glEnable(GL_BLEND)
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
+end
+
+function drawVertexArray(x::GLRenderObject)    
+    glDrawArrays(x.vertexArray.primitiveMode, 0, x.vertexArray.size)
+end
+
+export enableTransparency, drawVertexArray
