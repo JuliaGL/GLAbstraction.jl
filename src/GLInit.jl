@@ -1,4 +1,13 @@
-function initUtils()
-	flatShader              = GLProgram(rootFolder*"shader/flatShader")
-	RECTANGLE_VERT_ARRAY    = GLVertexArray(["position" => createQuad(0f0, 0f0, 1f0, 1f0), "uv" => createQuadUV()], flatShader, primitiveMode = GL_TRIANGLES)
+const INIT_FUNCTION_LIST = Function[]
+
+export initAfterContextCreation, initGLUtils
+
+function initAfterContextCreation(f::Function)
+	push!(INIT_FUNCTION_LIST, f)
+end
+
+function initGLUtils()
+	for elem in INIT_FUNCTION_LIST
+		elem()
+	end
 end

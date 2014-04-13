@@ -1,4 +1,4 @@
-using ImmutableArrays
+using ModernGL
 ##############################################################################
 abstract Shape
 immutable Circle{T <: Real} <: Shape
@@ -111,6 +111,7 @@ export Camera, OrthogonalCamera, PerspectiveCamera
 
 
 ########################################################################################
+
 import Images.imread
 
 immutable Texture
@@ -199,15 +200,15 @@ immutable GLBuffer{T <: Real}
         new(id, buffer, usage, bufferType, cardinality, _length, true)
     end
 
-    function GLBuffer(buffer::Array{ImmutableVector{T}, 1}, bufferType::Uint16, usage::Uint16)
-        _length  = length(buffer)
-        cardinality  = length(names(eltype(buffer)))
-        id      = glGenBuffers()
-        glBindBuffer(bufferType, id)
-        glBufferData(bufferType, sizeof(buffer), convert(Ptr{Void}, pointer(buffer)), usage)
-        glBindBuffer(bufferType, 0)
-        new(id, buffer, usage, bufferType, cardinality, _length, true)
-    end
+    # function GLBuffer(buffer::Array{ImmutableVector{T}, 1}, bufferType::Uint16, usage::Uint16)
+    #     _length  = length(buffer)
+    #     cardinality  = length(names(eltype(buffer)))
+    #     id      = glGenBuffers()
+    #     glBindBuffer(bufferType, id)
+    #     glBufferData(bufferType, sizeof(buffer), convert(Ptr{Void}, pointer(buffer)), usage)
+    #     glBindBuffer(bufferType, 0)
+    #     new(id, buffer, usage, bufferType, cardinality, _length, true)
+    # end
 end
  
 immutable GLVertexArray
