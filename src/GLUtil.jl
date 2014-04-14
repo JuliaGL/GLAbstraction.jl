@@ -8,5 +8,6 @@ include("GLMatrixMath.jl")
 include("GLRender.jl")
 include("GLShader.jl")
 include("GLCamera.jl")
+include("GLShapes.jl")
 
 end # module

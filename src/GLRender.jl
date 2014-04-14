@@ -7,7 +7,8 @@ function render(x::GLRenderObject)
     glUseProgram(x.program.id)
     glBindVertexArray(x.vertexArray.id)
     render(x.uniforms)
-    #glUniform4f(glGetUniformLocation(x.program.id, "Color"), 1,1,0,1)
+    render(x.textures)
+
     for elem in x.postRenderFunctions
         apply(elem...)
     end
@@ -17,9 +18,9 @@ end
 #Render Unifomrs!!
 
 #Render Dicts filled with uniforms
-function render(obj::Dict{String, Any}, shaderId)
+function render(obj::Dict{String, Any}, programID)
   for elem in obj
-    render(elem..., shaderId)
+    render(elem..., programID)
   end
 end
 
@@ -28,19 +29,37 @@ function render(obj::Dict{GLint, Any})
     render(elem...)
   end
 end
+function render(obj::Array{(GLint, Texture, Int), 1})
+  for elem in obj
+    render(elem...)
+  end
+end
+#handle all uniform objects
 
-function render(name::String, t::Texture, shaderId)
-    glActiveTexture(GL_TEXTURE0)
+setProgramDefault(attribute::ASCIIString, anyUniform, programID::GLuint)    = setProgramDefault(glGetUniformLocation(id, attribute), anyUniform, programID)
+render(attribute::ASCIIString, anyUniform, programID::GLuint)               = render(glGetUniformLocation(id, attribute), anyUniform)
+
+
+
+
+function render(location::GLint, t::Texture, target = 0)
+    activeTarget = GL_TEXTURE0 + uint32(target)
+    glActiveTexture(activeTarget)
+    glActiveTexture(activeTarget)
     glBindTexture(t.textureType, t.id)
-    glUniform1i(glGetUniformLocation(id, name), 0)
+    glUniform1i(location, target)
+end
+function setProgramDefault(location::GLint, t::Texture, programID, target = 0)
+    glProgramUniform1i(location, target, programID)
 end
 
-function render(attribute::String, cam::Camera, shaderId)
-    glUniformMatrix4fv(glGetUniformLocation(shaderId, attribute), 1, GL_FALSE, cam.viewProjMat)
+function render(location::GLint, cam::Camera)
+    render(location, cam.mvp)
+end
+function setProgramDefault(location::GLint, cam::Camera, programID)
+    setProgramDefault(location, cam.mvp, programID)
 end
 
-#handle all remaining uniform funcitons
-setProgramDefault(location::ASCIIString, object::Array, programID) = setProgramDefault(glGetUniformLocation(programID, location), object, programID)
 
 function setProgramDefault(location::GLint, object::Array, programID)
     func = getUniformFunction(object, "Program")
@@ -56,7 +75,6 @@ function setProgramDefault(location::GLint, object::Array, programID)
     end
 end
 
-render(location::ASCIIString, object::Array, programID) = render(glGetUniformLocation(programID, location), object)
 function render(location::GLint, object::Array)
     func = getUniformFunction(object, "")
     D = length(size(object))
@@ -111,7 +129,7 @@ function enableTransparency()
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
 end
 
-function drawVertexArray(x::GLRenderObject)    
+function drawVertexArray(x::GLRenderObject)   
     glDrawArrays(x.vertexArray.primitiveMode, 0, x.vertexArray.size)
 end
 

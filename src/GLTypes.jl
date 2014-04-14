@@ -114,21 +114,25 @@ export Camera, OrthogonalCamera, PerspectiveCamera
 
 import Images.imread
 
+export Texture
+
 immutable Texture
     id::GLuint
-    textureType::Uint16
-    format::Uint16
+    textureType::GLenum
+    format::GLenum
     width::Int
     height::Int
 
-    function Texture(path::ASCIIString; targetFormat::Uint16 = GL_RGB, textureType::Uint16 = GL_TEXTURE_2D, alpha::Float32 = 1f0)
+    function Texture(path::ASCIIString; targetFormat::GLenum = GL_RGB, textureType::GLenum = GL_TEXTURE_2D)
+        #@assert glGetError() == GL_NO_ERROR
+        
         img = imread(path)
         @assert length(img.data) > 0
         imgFormat   = img.properties["colorspace"]
         #glTexImage2D needs to know the pixel data format from imread, the type and the targetFormat
-        pixelDataFormat::Uint16 = 0
+        pixelDataFormat::GLenum = 0
         imgType                 = eltype(img.data)
-        glImgType::Uint16       = 0
+        glImgType::GLenum       = 0
         glImgData1D = imgType[]
         w = 0
         h = 0
@@ -173,13 +177,12 @@ immutable Texture
         glTexParameteri( textureType, GL_TEXTURE_MAG_FILTER,   GL_LINEAR )
         glTexParameteri( textureType, GL_TEXTURE_MIN_FILTER,   GL_LINEAR )
         glTexImage2D(textureType, 0, pixelDataFormat, w, h, 0, pixelDataFormat, glImgType, glImgData1D)
-        @assert glGetError() == GL_NO_ERROR
+        #@assert glGetError() == GL_NO_ERROR
         img = 0
         new(id, textureType, targetFormat, w, h)
     end
 end
 
-export Texture
 ########################################################################
 
 immutable GLBuffer{T <: Real}
@@ -190,7 +193,7 @@ immutable GLBuffer{T <: Real}
     cardinality::Int
     length::Int
     invalidated::Bool
-    function GLBuffer(buffer::Array{T, 1}, cardinality::Int, bufferType::GLenum = GL_ARRAY_BUFFER, usage::GLenum = GL_STATIC_DRAW)
+    function GLBuffer(buffer::Array{T, 1}, cardinality::Int, bufferType::GLenum, usage::GLenum)
         @assert length(buffer) % cardinality == 0     
         _length  = div(length(buffer), cardinality)
         id      = glGenBuffers()
@@ -200,7 +203,7 @@ immutable GLBuffer{T <: Real}
         new(id, buffer, usage, bufferType, cardinality, _length, true)
     end
 
-    # function GLBuffer(buffer::Array{ImmutableVector{T}, 1}, bufferType::Uint16, usage::Uint16)
+    # function GLBuffer(buffer::Ptr{T},_length, cardinality::Int, bufferType::GLenum = GL_ARRAY_BUFFER, usage::GLenum = GL_STATIC_DRAW)
     #     _length  = length(buffer)
     #     cardinality  = length(names(eltype(buffer)))
     #     id      = glGenBuffers()
@@ -210,7 +213,10 @@ immutable GLBuffer{T <: Real}
     #     new(id, buffer, usage, bufferType, cardinality, _length, true)
     # end
 end
- 
+function GLBuffer(buffer::Array, cardinality::Int, bufferType::GLenum = GL_ARRAY_BUFFER, usage::GLenum = GL_STATIC_DRAW) 
+    GLBuffer{eltype(buffer)}(buffer, cardinality, bufferType, usage)
+end
+
 immutable GLVertexArray
     program::GLProgram
     id::GLuint
@@ -243,12 +249,14 @@ export GLVertexArray, GLBuffer
 immutable GLRenderObject
     vertexArray::GLVertexArray
     uniforms::Dict{GLint, Any}
+    textures::Array{(GLint, Texture, Int), 1}
     program::GLProgram
     preRenderFunctions::Array{(Function, Tuple), 1}
     postRenderFunctions::Array{(Function, Tuple), 1}
     function GLRenderObject(
             vertexArray::GLVertexArray,
             uniforms::Dict{ASCIIString, Any},
+            textures::Dict{ASCIIString, Texture},
             program::GLProgram,
             preRenderFunctions::Array{(Function, Tuple), 1},
             postRenderFunctions::Array{(Function, Tuple), 1}
@@ -264,27 +272,36 @@ immutable GLRenderObject
         uniforms = map(attributes -> begin 
                 loc = glGetUniformLocation(program.id, attributes[1])
                 @assert loc >= 0
-                (glGetUniformLocation(program.id, attributes[1]), attributes[2])
+                setProgramDefault(loc, attributes[2], program.id)
+                (loc, attributes[2])
             end, uniforms)
-
         uniforms = Dict{GLint, Any}([uniforms...])
 
-        for elem in uniforms
-            #setProgramDefault(elem..., program.id)
-        end
+        textureTarget = 0
+        textures = map(attributes -> begin 
+                loc = glGetUniformLocation(program.id, attributes[1])
+                @assert loc >= 0
+                setProgramDefault(loc, attributes[2], program.id, textureTarget)
+                textureTarget += 1
+                (loc, attributes[2], textureTarget-1)
+            end, textures)
+
         #@assert glGetError() == GL_NO_ERROR
-        new(vertexArray, uniforms, program, preRenderFunctions, postRenderFunctions)
+        new(vertexArray, uniforms, textures, program, preRenderFunctions, postRenderFunctions)
     end
 end
+
 function GLRenderObject(program::GLProgram, data::Dict{ASCIIString, Any}
         ;primitiveMode::GLenum =  GL_POINTS)
 
-    buffers         = Dict{ASCIIString,GLBuffer}(filter((key, value) -> isa(value, GLBuffer), data))
+    buffers         = Dict{ASCIIString, GLBuffer}(filter((key, value) -> isa(value, GLBuffer), data))
+    textures        = Dict{ASCIIString, Texture}(filter((key, value) -> isa(value, Texture), data))
 
     vertexArray     = GLVertexArray(buffers, program, primitiveMode)
 
-    uniforms        = filter((key, value) -> !isa(value, GLBuffer) && !isa(value, Function), data)
-    GLRenderObject(vertexArray, uniforms, program, (Function, Tuple)[], (Function, Tuple)[])
+    uniforms        = filter((key, value) -> !isa(value, GLBuffer) && !isa(value, Texture), data)
+
+    GLRenderObject(vertexArray, uniforms, textures, program, (Function, Tuple)[], (Function, Tuple)[])
 end
 export GLRenderObject
 ####################################################################################
@@ -293,20 +310,26 @@ export GLRenderObject
 
 ###############################################################
 
-
 delete!(a) = println("warning: delete! called with wrong argument: args: $(a)") # silent failure, if delete is called on something, where no delete is defined for
-delete!(v::GLVertexArray) 	= glDeleteVertexArrays(1, [v.id])
+delete!(v::GLVertexArray) = glDeleteVertexArrays(1, [v.id])
 function delete!(b::GLBuffer)
-	glDeleteBuffers(1, [b.id])
-	empty!(b.buffer)
+    glDeleteBuffers(1, [b.id])
+    empty!(b.buffer)
 end
+delete!(t::Texture) = glDeleteTextures(1, [t.id])
 
 function delete!(g::GLRenderObject)
-	delete!(vertexArray)
-	for elem in uniforms
-		delete!(elem[2])
-	end
-	empty!(uniforms)
+    delete!(g.vertexArray)
+    for elem in g.uniforms
+        delete!(elem[2])
+    end
+    empty!(g.uniforms)
+    for elem in g.textures
+        delete!(elem[2])
+    end
+    empty!(g.textures)
+    empty!(g.preRenderFunctions)
+    empty!(g.postRenderFunctions)
 end
 
 export delete!

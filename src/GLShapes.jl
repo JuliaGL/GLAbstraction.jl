@@ -1,20 +1,4 @@
 
-#Rectangle{T <: Real}(Array{T, 1}; color::GLColor = GLColor(0,0,0,1), texture=Texture(), boder = 0f0) =
-
-function Rectangle(x::Real, y::Real, width::Real, height::Real; 
-        color::GLColor = GLColor(0,0,0), border::Float32 = 0.0f0, texture::Union(Texture, ASCIIString) = Texture())   
-    if isa(texture, ASCIIString)
-        texture = Texture(texture)
-    end
-    Rectangle(float32(x), float32(y), float32(width), float32(height), color, border, texture)
-end
-function Rectangle(t::Union(Texture, ASCIIString))
-
-    if isa(t, ASCIIString)
-        t = Texture(t)
-    end
-    Rectangle(0f0, 0f0, float32(t.width), float32(t.height), color=GLColor(0,0,0,0), border=0f0, texture=t)
-end
 
 # #in developement
 # immutable Polygon{T} <: Shape
@@ -107,25 +91,5 @@ function createQuadStrip(x::GLfloat, y::GLfloat, spacing::GLfloat, width::GLfloa
     end
     return vertices
 end
-render(shape::Rectangle) = render(shape, GLOBAL_ORTHOGONAL_CAM)
-function render(shape::Rectangle, cam::Camera)
-    glDisable(GL_DEPTH_TEST)
-    glEnable(GL_BLEND)
-    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
-    vertArray = RECTANGLE_VERT_ARRAY
 
-    glUniform1f(glGetUniformLocation(vertArray.program.id, "textureOn"), 0.0f0)
-    render(shape.style)
-    render("mvp", 
-        cam.viewProjMat * float32([shape.w 0 0 shape.x ; 0 shape.h 0 shape.y ; 0 0 1 0 ; 0 0 0 1]),
-        vertArray.program.id)
-    render(vertArray)
-end
-
-function initShapes()
-    flatShader              = GLProgram(rootFolder*"shader/flatShader")
-    RECTANGLE_VERT_ARRAY    = GLVertexArray(["position" => createQuad(0f0, 0f0, 1f0, 1f0), "uv" => createQuadUV()], flatShader, primitiveMode = GL_TRIANGLES)
-end
-initAfterContextCreation(initShapes)
-
-export createQuad, createUV, createCircle, createQuadStrip
+export createQuad, createQuadUV, createCircle, createQuadStrip

@@ -88,7 +88,7 @@ function move(event, cam::OrthogonalCamera)
 	update(cam)
 end
 
-resize(event, cam::Camera) = resize(event.w, event.h)
+resize(event, cam::Camera) = resize(event.w, event.h, cam)
 
 function resize(w, h, cam::Camera)
 	cam.w = w
