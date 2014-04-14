@@ -37,7 +37,7 @@ end
 #handle all uniform objects
 
 setProgramDefault(attribute::ASCIIString, anyUniform, programID::GLuint)    = setProgramDefault(glGetUniformLocation(id, attribute), anyUniform, programID)
-render(attribute::ASCIIString, anyUniform, programID::GLuint)               = render(glGetUniformLocation(id, attribute), anyUniform)
+render(attribute::ASCIIString, anyUniform, programID::GLuint)               = render(glGetUniformLocation(programID, attribute), anyUniform)
 
 
 
@@ -133,4 +133,4 @@ function drawVertexArray(x::GLRenderObject)
     glDrawArrays(x.vertexArray.primitiveMode, 0, x.vertexArray.size)
 end
 
-export enableTransparency, drawVertexArray
+export enableTransparency, drawVertexArray, render

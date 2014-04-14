@@ -92,4 +92,4 @@ function createQuadStrip(x::GLfloat, y::GLfloat, spacing::GLfloat, width::GLfloa
     return vertices
 end
 
-export createQuad, createQuadUV, createCircle, createQuadStrip
+export createQuad, createQuadUV, createCircle, createQuadStrip, inside
