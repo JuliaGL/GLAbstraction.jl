@@ -22,7 +22,7 @@ end
 #Render Unifomrs!!
 
 #Render Dicts filled with uniforms
-function render(obj::Dict{String, Any}, programID)
+function render(obj::Dict{ASCIIString, Any}, programID)
   for elem in obj
     render(elem..., programID)
   end
