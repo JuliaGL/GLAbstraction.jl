@@ -246,7 +246,9 @@ end
 export GLVertexArray, GLBuffer
 
 ##################################################################################
-immutable GLRenderObject
+abstract Renderable
+
+immutable GLRenderObject <: Renderable
     vertexArray::GLVertexArray
     uniforms::Dict{GLint, Any}
     textures::Array{(GLint, Texture, Int), 1}
@@ -303,7 +305,12 @@ function GLRenderObject(program::GLProgram, data::Dict{ASCIIString, Any}
 
     GLRenderObject(vertexArray, uniforms, textures, program, (Function, Tuple)[], (Function, Tuple)[])
 end
-export GLRenderObject
+
+type FuncWithArgs{T} <: Renderable
+    f::Function
+    args::T
+end
+export GLRenderObject, Renderable, FuncWithArgs
 ####################################################################################
 
 
@@ -317,6 +324,7 @@ function delete!(b::GLBuffer)
     empty!(b.buffer)
 end
 delete!(t::Texture) = glDeleteTextures(1, [t.id])
+delete!(t::FuncWithArgs) = nothing
 
 function delete!(g::GLRenderObject)
     delete!(g.vertexArray)

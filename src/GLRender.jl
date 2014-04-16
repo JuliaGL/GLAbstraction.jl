@@ -1,4 +1,8 @@
 export render
+
+function render(x::FuncWithArgs)
+    apply(x.f, x.args)
+end
 function render(x::GLRenderObject)
     for elem in x.preRenderFunctions
         apply(elem...)
