@@ -13,7 +13,7 @@ import ModernGL.glGetAttribLocation, ModernGL.glGetIntegerv, ModernGL.glGenBuffe
 #    location
 #end
 
-function glGetIntegerv(variable::Uint16)
+function glGetIntegerv(variable::GLenum)
     result::Ptr{GLint} = int32([-1])
     glGetIntegerv(uint32(variable), result)
     unsafe_load(result)

@@ -41,7 +41,10 @@ end
 #handle all uniform objects
 
 setProgramDefault(attribute::ASCIIString, anyUniform, programID::GLuint)    = setProgramDefault(glGetUniformLocation(id, attribute), anyUniform, programID)
+setProgramDefault(attribute::Symbol, anyUniform, programID::GLuint)         = setProgramDefault(glGetUniformLocation(id, string(attribute)), anyUniform, programID)
+
 render(attribute::ASCIIString, anyUniform, programID::GLuint)               = render(glGetUniformLocation(programID, attribute), anyUniform)
+render(attribute::Symbol, anyUniform, programID::GLuint)                    = render(glGetUniformLocation(programID, string(attribute)), anyUniform)
 
 
 
@@ -78,6 +81,7 @@ function setProgramDefault(location::GLint, object::Array, programID)
         error("glUniform: unsupported dimensionality")
     end
 end
+render(location::GLint, object::Real) = render(location, [object])
 
 function render(location::GLint, object::Array)
     func = getUniformFunction(object, "")
@@ -92,7 +96,6 @@ function render(location::GLint, object::Array)
         error("glUniform: unsupported dimensionality")
     end
 end
-
 
 function getUniformFunction(object::Array, program::ASCIIString)
     T = eltype(object)
@@ -118,7 +121,7 @@ function getUniformFunction(object::Array, program::ASCIIString)
     elseif T == GLfloat
         elementType = "fv"
     else
-        error("type not supported")
+        error("type not supported: ", T)
     end
     func = eval(parse("gl" *program* "Uniform" * (matrix ? "Matrix" : "")* cardinality *elementType))
 end
