@@ -230,7 +230,9 @@ function Texture(img::Union(String, Image);
     elseif imgFormat == "RGB"
         pixelDataFormat = GL_RGB
         dims = [size(img)[2:end]...]
-        glImgData1D = reshape(img.data, dims[1], dims[2] * 3)
+        w = size(img.data)[2]
+        h = size(img.data)[3]
+        glImgData1D = img.data #reshape(img.data, dims[1], dims[2] * 3)
 
     elseif imgFormat == "Gray"
         pixelDataFormat = GL_LUMINANCE
@@ -297,21 +299,24 @@ end
 immutable GLVertexArray
     program::GLProgram
     id::GLuint
-    size::Int
+    length::Int
+    indexLength::Int # is negative if no indexes
     #Buffer dict
     function GLVertexArray(bufferDict::Dict{Symbol, GLBuffer}, program::GLProgram)
         @assert !isempty(bufferDict)
         #get the size of the first array, to assert later, that all have the same size
-        _size = get(bufferDict, collect(keys(bufferDict))[1], 0).length
+        indexSize = -1
+        _length = get(bufferDict, collect(keys(bufferDict))[1], 0).length
         id = glGenVertexArrays()
-        glBindVertexArray(id)       
+        glBindVertexArray(id)      
         for elem in bufferDict
             buffer      = elem[2]
             if buffer.bufferType == GL_ELEMENT_ARRAY_BUFFER
                 glBindBuffer(buffer.bufferType, buffer.id)
+                indexSize = buffer.length
             else 
                 attribute   = string(elem[1])
-                @assert _size == buffer.length
+                @assert _length == buffer.length
                 glBindBuffer(buffer.bufferType, buffer.id)
                 attribLocation = glGetAttribLocation(program.id, attribute)
                 glVertexAttribPointer(attribLocation, buffer.cardinality, GL_FLOAT, GL_FALSE, 0, 0)
@@ -319,7 +324,7 @@ immutable GLVertexArray
             end
         end
         glBindVertexArray(0)        
-        new(program, id, _size)
+        new(program, id, _length, indexSize)
     end
 end
 function GLVertexArray(bufferDict::Dict{ASCIIString, GLBuffer}, program::GLProgram)
