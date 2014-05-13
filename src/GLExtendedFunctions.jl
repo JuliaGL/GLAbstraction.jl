@@ -22,7 +22,7 @@ function glGenBuffers()
     result::Ptr{GLuint} = uint32([0])
     glGenBuffers(1, result)
     id = unsafe_load(result)
-    if id <=0 
+    if id <= 0 
         error("glGenBuffers returned invalid id. OpenGL Context active?")
     end
     id

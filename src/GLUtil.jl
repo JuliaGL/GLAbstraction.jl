@@ -1,6 +1,6 @@
 module GLUtil
 using ModernGL
-
+import Base.delete!
 include("GLInit.jl")
 include("GLExtendedFunctions.jl")
 include("GLTypes.jl")
