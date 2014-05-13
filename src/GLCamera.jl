@@ -36,7 +36,7 @@ function update(cam::PerspectiveCamera)
 					cam.position,           # Camera is here
 					cam.position + cam.direction, # and looks here : at the same position, plus "direction"
 					cam.up)
-	
+
 	cam.mvp 	= projMat * viewMatrix 
 end
 function update(cam::OrthogonalCamera)

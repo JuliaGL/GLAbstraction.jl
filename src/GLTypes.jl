@@ -7,7 +7,7 @@ immutable Circle{T <: Real} <: Shape
     r::T
 end
 
-immutable Rectangle{T <: Real} <: Shape
+type Rectangle{T <: Real} <: Shape
     x::T
     y::T
     w::T
@@ -283,7 +283,6 @@ function GLBuffer(buffer::Vector; bufferType::GLenum = GL_ARRAY_BUFFER, usage::G
     ptrType = eltype(buffer)
     @assert isbits(ptrType)
     T = ptrType.types[1]
-    println(T)
     @assert T <: Real
     @assert all(x -> x == T , ptrType.types)
     
