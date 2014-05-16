@@ -378,7 +378,17 @@ immutable GLRenderObject <: Renderable
         new(vertexArray, uniforms, textures, program, preRenderFunctions, postRenderFunctions)
     end
 end
-
+type RenderObject
+    uniforms::Dict{Symbol, Any}
+    buffers::Dict{Symbol, GLBuffer}
+    vertexArray::GLVertexArray
+    function RenderObject(data::Dict{Symbol, Any}, program::GLProgram)
+        buffers     = Dict{Symbol, GLBuffer}(filter((key, value) -> isa(value, GLBuffer), data))
+        uniforms    = filter((key, value) -> !isa(value, GLBuffer), data)
+        vertexArray = GLVertexArray(buffers, program)
+        new(uniforms, buffers, vertexArray)
+    end
+end
 function GLRenderObject(program::GLProgram, data::Dict{ASCIIString, Any})
 
     buffers         = Dict{ASCIIString, GLBuffer}(filter((key, value) -> isa(value, GLBuffer), data))
@@ -395,7 +405,7 @@ type FuncWithArgs{T} <: Renderable
     f::Function
     args::T
 end
-export GLRenderObject, Renderable, FuncWithArgs
+export GLRenderObject, Renderable, FuncWithArgs, RenderObject
 ####################################################################################
 
 
