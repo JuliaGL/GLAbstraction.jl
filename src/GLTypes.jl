@@ -57,6 +57,7 @@ type PerspectiveCamera <: Camera
     right::Array{Float32, 1}
     up::Array{Float32, 1}
     mvp::Matrix{Float32}
+    lookAt::Array{Float32, 1}
     function PerspectiveCamera(
                     nearClip::Float32,
                     farClip::Float32,
@@ -70,7 +71,7 @@ type PerspectiveCamera <: Camera
 
         cam = new(500f0, 500f0, nearClip, farClip, horizontalAngle, verticalAngle, 
             rotationSpeed, zoomSpeed, moveSpeed, FoV, position, [0f0, 0f0, 0f0], 
-            [0f0, 0f0, 0f0], [0f0,1f0,0f0], eye(Float32,4,4))
+            [0f0, 0f0, 0f0], [0f0,1f0,0f0], eye(Float32,4,4), [0f0, 0f0, 0f0])
 
         rotate(0f0, 0f0, cam)
         update(cam)

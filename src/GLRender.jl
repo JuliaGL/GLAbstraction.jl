@@ -22,6 +22,12 @@ end
 #Render Unifomrs!!
 
 #Render Dicts filled with uniforms
+function render(obj::Dict{Symbol, Any}, programID)
+  for elem in obj
+    render(elem..., programID)
+  end
+end
+
 function render(obj::Dict{ASCIIString, Any}, programID)
   for elem in obj
     render(elem..., programID)

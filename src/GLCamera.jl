@@ -14,9 +14,9 @@ end
 function PerspectiveCamera(;
 	nearClip::Float32 				= 1f0,
 	farClip::Float32 				= 30f0,
-	horizontalAngle::Float32 		= 10f0,
+	horizontalAngle::Float32 		= 0f0,
 	verticalAngle::Float32 			= 0f0,
-	rotationSpeed::Float32 			= 0.00005f0,
+	rotationSpeed::Float32 			= 0.05f0,
 	zoomSpeed::Float32 				= 5f0,
 	moveSpeed::Float32 				= 0.01f0,
 	FoV::Float32 					= 50f0,
@@ -34,8 +34,8 @@ function update(cam::PerspectiveCamera)
 
 	viewMatrix  = lookAt(	
 					cam.position,           # Camera is here
-					cam.position + cam.direction, # and looks here : at the same position, plus "direction"
-					cam.up)
+					cam.lookAt, # and looks here : at the same position, plus "direction"
+					[0f0, 0f0, 1f0])
 
 	cam.mvp 	= projMat * viewMatrix 
 end
@@ -45,12 +45,33 @@ function update(cam::OrthogonalCamera)
 	cam.mvp 		= projMat * viewMatrix
 end
 
-function mouseToRotate(event, cam)
-	rotate(float32(event.start.x - event.x), float32(event.start.y - event.y), cam)
-end
+
+rotate(xDiff, yDiff, cam::Camera) = rotate(float32(xDiff), float32(yDiff), cam)
 
 function rotate(xDiff::Float32, yDiff::Float32, cam::Camera)
-	cam.horizontalAngle += cam.rotationSpeed * xDiff
+	if xDiff > 0
+		rotMatrixX = rotatationMatrix(deg2rad(xDiff), [0,0,1])
+	else
+		rotMatrixX = inv(rotatationMatrix(deg2rad(abs(xDiff)), [0,0,1]))
+	end
+	if yDiff > 0
+		rotMatrixY = rotatationMatrix(deg2rad(yDiff), cam.right)
+	else
+		rotMatrixY = inv(rotatationMatrix(deg2rad(abs(yDiff)), cam.right))
+	end
+	println(xDiff)
+	position = [cam.position..., 1f0]'
+	position *= rotMatrixY
+	position *= rotMatrixX
+	cam.position = position[1:3]
+
+	cam.direction 	= cam.position - cam.lookAt
+	cam.right 		= cross(cam.direction, [0f0, 0f0, 1f0])
+	cam.right 		/= norm(cam.right)
+
+	update(cam)
+end
+function rotate2(xDiff::Float32, yDiff::Float32, cam::Camera)
 	cam.verticalAngle   += cam.rotationSpeed * yDiff
 	cam.direction = [
 		cos(cam.verticalAngle) * sin(cam.horizontalAngle), 
@@ -58,31 +79,20 @@ function rotate(xDiff::Float32, yDiff::Float32, cam::Camera)
 		cos(cam.verticalAngle) * cos(cam.horizontalAngle)]
 	
 	# Right vector
-	cam.right = [
-		sin(cam.horizontalAngle - 3.14f0/2.0f0), 
-		0,
-		cos(cam.horizontalAngle - 3.14f0/2.0f0)]
+	cam.right = cross(cam.direction, [0f0, 0f0, 1f0])
 
-	cam.up = cross(cam.right, cam.direction)
 	update(cam)
 end
-
 function zoom(event, cam::Camera)
 	cam.FoV += event.key == 4 ? -cam.zoomSpeed : cam.zoomSpeed
 	update(cam)
 end
-
-function move(event, cam::PerspectiveCamera)
-	global lastX = 0
-	global lastY = 0
-
-	cam.position += cam.right 		* (event.start.x - event.x) * cam.moveSpeed
-	cam.position += cam.direction 	* (event.start.y - event.y) * cam.moveSpeed
-
-	lastX = event.x
-	lastY = event.y
+function move(xDiff, yDiff, cam::PerspectiveCamera)
+	cam.position += cam.right 		* xDiff * cam.moveSpeed
+	cam.position += cam.direction 	* yDiff * cam.moveSpeed
 	update(cam)
 end
+
 function move(event, cam::OrthogonalCamera)
 	cam.position[2] += event.key == 4 ? -cam.moveSpeed : cam.moveSpeed
 	update(cam)

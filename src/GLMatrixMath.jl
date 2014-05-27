@@ -131,6 +131,18 @@ function rotatationMatrixZ(angle::Float32)
      0 0 1 0;
      0 0 0 1]
 end
+function rotatationMatrix(angle::Float32, axis)
+    x = axis[1]
+    y = axis[2]
+    z = axis[3]
+    a = angle
+    m1 = Float32[ x^2 * (1 - cos(a)) + cos(a)  ,  x*y * (1 - cos(a)) - z*sin(a),  x*z * (1 - cos(a)) + y*sin(a), 0]
+    m2 = Float32[ x*y * (1 - cos(a)) + z*sin(a),  y^2 * (1 - cos(a)) + cos(a)  ,  y*z * (1 - cos(a)) - x*sin(a), 0]
+    m3 = Float32[ x*z * (1 - cos(a)) - y*sin(a),  y*z * (1 - cos(a)) + x*sin(a),  z^2 * (1 - cos(a)) + cos(a)  , 0]
+    
+    [m1'; m2'; m3';
+     0f0 0f0 0f0 1f0]
+end
 #intended usage index 1,2,3 = x,y,z
 immutable Vec{Cardinality, T}
     v::Array{T, 1}
