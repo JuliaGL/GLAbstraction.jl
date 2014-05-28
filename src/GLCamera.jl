@@ -31,7 +31,6 @@ end
 
 function update(cam::PerspectiveCamera)
 	projMat 	= pProj(cam.FoV, cam.w / cam.h,  1.0f0, 30.0f0)
-
 	viewMatrix  = lookAt(	
 					cam.position,           # Camera is here
 					cam.lookAt, # and looks here : at the same position, plus "direction"
@@ -59,7 +58,6 @@ function rotate(xDiff::Float32, yDiff::Float32, cam::Camera)
 	else
 		rotMatrixY = inv(rotatationMatrix(deg2rad(abs(yDiff)), cam.right))
 	end
-	println(xDiff)
 	position = [cam.position..., 1f0]'
 	position *= rotMatrixY
 	position *= rotMatrixX
