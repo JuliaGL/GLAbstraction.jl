@@ -15,26 +15,49 @@ type Rectangle{T <: Real} <: Shape
 end
 export Circle, Rectangle, Shape
 ############################################################################
+type GLShader
+    id::GLuint
+    state::String
+    source::String
+    shaderType::GLenum
+    uniforms::Dict{Symbol, DataType}
+    outs::Dict{Symbol, DataType}
+    ins::Dict{Symbol, DataType}
+end
 
 immutable GLProgram
     id::GLuint
-    fragShaderPath::ASCIIString
-    vertShaderPath::ASCIIString
-    function GLProgram(vertex_file_path::String, fragment_file_path::String)
-        vertexShaderID::GLuint   = readShader(open(vertex_file_path),   GL_VERTEX_SHADER)
-        fragmentShaderID::GLuint = readShader(open(fragment_file_path), GL_FRAGMENT_SHADER)
-        p = glCreateProgram()
-        @assert p > 0
-        glAttachShader(p, vertexShaderID)
-        glAttachShader(p, fragmentShaderID)
-        glLinkProgram(p)
-        printProgramInfoLog(p)
-        glDeleteShader(vertexShaderID)
-        glDeleteShader(fragmentShaderID)
-        return new(p, vertex_file_path, fragment_file_path)
-    end
+    frag
+    vert
 end
 
+
+function GLProgram(vertex::ASCIIString, fragment::ASCIIString, name::String)
+    vertexShaderID::GLuint   = readShader(vertex, GL_VERTEX_SHADER, name)
+    fragmentShaderID::GLuint = readShader(fragment, GL_FRAGMENT_SHADER, name)
+    p = glCreateProgram()
+    @assert p > 0
+    glAttachShader(p, vertexShaderID)
+    glAttachShader(p, fragmentShaderID)
+    glLinkProgram(p)
+    printProgramInfoLog(p, name)
+    glDeleteShader(vertexShaderID)
+    glDeleteShader(fragmentShaderID)
+    return GLProgram(p, name, name)
+end
+function GLProgram(vertex_file_path, fragment_file_path)
+    vertexShaderID::GLuint   = readShader(open(vertex_file_path),   GL_VERTEX_SHADER, vertex_file_path)
+    fragmentShaderID::GLuint = readShader(open(fragment_file_path), GL_FRAGMENT_SHADER, fragment_file_path)
+    p = glCreateProgram()
+    @assert p > 0
+    glAttachShader(p, vertexShaderID)
+    glAttachShader(p, fragmentShaderID)
+    glLinkProgram(p)
+    printProgramInfoLog(p, vertex_file_path)
+    glDeleteShader(vertexShaderID)
+    glDeleteShader(fragmentShaderID)
+    return GLProgram(p, vertex_file_path, fragment_file_path)
+end
 export GLProgram
 ##########################################################################
 
@@ -412,7 +435,7 @@ export GLRenderObject, Renderable, FuncWithArgs, RenderObject
 
 
 ###############################################################
-
+import Base.delete!
 delete!(a) = println("warning: delete! called with wrong argument: args: $(a)") # silent failure, if delete is called on something, where no delete is defined for
 delete!(v::GLVertexArray) = glDeleteVertexArrays(1, [v.id])
 function delete!(b::GLBuffer)
@@ -435,5 +458,8 @@ function delete!(g::GLRenderObject)
     empty!(g.preRenderFunctions)
     empty!(g.postRenderFunctions)
 end
-
+function delet!(s::GLShader)
+    glDeleteShader(s.id)
+    s.state = "deleted"
+end
 export delete!
