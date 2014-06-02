@@ -1,4 +1,3 @@
-using ModernGL
 ##############################################################################
 abstract Shape
 immutable Circle{T <: Real} <: Shape
@@ -135,10 +134,11 @@ export Camera, OrthogonalCamera, PerspectiveCamera
 
 
 ########################################################################################
-
+println("images:")
+tic()
 import Images.imread
 import Images.Image
-
+toc()
 export Texture
 
 immutable Texture
