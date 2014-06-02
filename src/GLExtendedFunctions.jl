@@ -1,5 +1,5 @@
 import ModernGL.glGetAttribLocation, ModernGL.glGetIntegerv, ModernGL.glGenBuffers, ModernGL.glGenVertexArrays, ModernGL.glGenTextures
-
+#import ModernGL.glTexImage1D, ModernGL.glTexImage2D, ModernGL.glTexImage3D
 #function glGetAttribLocation(program::GLuint, name::ASCIIString)
 #    location = glGetAttribLocation(program, name)
 #    if location == -1 
@@ -45,3 +45,8 @@ function glGenTextures()
     end
     id
 end
+
+glTexImage(level::Integer, internalFormat::GLenum, w::Integer, h::Integer, d::Integer, border::Integer, format::GLenum, datatype::GLenum, data) = glTexImage3D(GL_TEXTURE_3D, level, internalFormat, w, h, d, border, format, datatype, data) 
+glTexImage(level::Integer, internalFormat::GLenum, w::Integer, h::Integer, border::Integer, format::GLenum, datatype::GLenum, data) = glTexImage2D(GL_TEXTURE_2D, level, internalFormat, w, h, border, format, datatype, data) 
+glTexImage(level::Integer, internalFormat::GLenum, w::Integer, border::Integer, format::GLenum, datatype::GLenum, data) = glTexImage1D(GL_TEXTURE_1D, level, internalFormat, w, border, format, datatype, data) 
+export glTexImage

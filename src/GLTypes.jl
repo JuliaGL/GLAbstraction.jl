@@ -134,11 +134,11 @@ export Camera, OrthogonalCamera, PerspectiveCamera
 
 
 ########################################################################################
-println("images:")
-tic()
+#Terrible 12 seconds loading are wasted here
+
 import Images.imread
 import Images.Image
-toc()
+
 export Texture
 
 immutable Texture
@@ -163,33 +163,32 @@ immutable Texture
         end
 
         id = glGenTextures()
-
         glBindTexture(textureType, id)
 
         for elem in parameters
             glTexParameteri(textureType, elem...)
         end
-
-        if textureType == GL_TEXTURE_1D
-            texImageFunc = glTexImage1D
-        elseif textureType == GL_TEXTURE_2D
-            texImageFunc = glTexImage2D
-        elseif textureType == GL_TEXTURE_3D
-            texImageFunc = glTexImage3D
-        else
-            error("wrong target texture type. valid are: GL_Texture_1D, GL_Texture_2D, GL_Texture_3D")
-        end
-
-        texImageFunc(textureType, 0, pixelDataFormat, dims..., 0, pixelDataFormat, glImgType, data)
+        glTexImage(0, pixelDataFormat, dims..., 0, pixelDataFormat, glImgType, data)
         #@assert glGetError() == GL_NO_ERROR
         new(id, textureType, pixelDataFormat, dims)
     end
 
 end
-
+errorData = 
+[
+    GL_INVALID_ENUM => "GL_INVALID_ENUM",
+    GL_INVALID_VALUE => "GL_INVALID_VALUE",
+    GL_INVALID_OPERATION => "GL_INVALID_OPERATION",
+    GL_NO_ERROR => "GL_NO_ERROR"
+]
 
 function Texture(data::Array, textureType::GLenum;
-                    parameters::Vector{(GLenum, GLenum)} = [(GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE), (GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE), (GL_TEXTURE_MIN_FILTER, GL_LINEAR)])
+                    parameters::Vector{(GLenum, GLenum)} = [
+                    (GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE), 
+                    (GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE), 
+                    (GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE), 
+                    (GL_TEXTURE_MIN_FILTER, GL_LINEAR),
+                    (GL_TEXTURE_MAG_FILTER, GL_LINEAR)])
     dims = [size(data)...]
     glDims = Int[0]
     dimOffset = 0
@@ -203,7 +202,6 @@ function Texture(data::Array, textureType::GLenum;
     else
         error("wrong target texture type. valid are: GL_Texture_1D, GL_Texture_2D, GL_Texture_3D")
     end
-
     if length(dims) == 2 + dimOffset
         glDims = dims
         pixelDataFormat = GL_LUMINANCE
@@ -220,6 +218,9 @@ function Texture(data::Array, textureType::GLenum;
     else
         error("wrong image dimensions. dims: $(dims)")
     end
+    error = glGetError()
+    println(get(errorData, error, "lol?"))
+
     Texture(data, glDims, textureType, pixelDataFormat, parameters)
 end
 
@@ -227,7 +228,7 @@ end
 
 function Texture(img::Union(String, Image);
                     targetFormat::GLenum = GL_RGB, textureType::GLenum = GL_TEXTURE_2D, 
-                    parameters = [(GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE), (GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE), (GL_TEXTURE_MIN_FILTER, GL_LINEAR)])
+                    parameters = [(GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE), (GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE), (GL_TEXTURE_MIN_FILTER, GL_LINEAR), (GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE)])
     #@assert glGetError() == GL_NO_ERROR
     if isa(img, String)
         img = imread(img)
