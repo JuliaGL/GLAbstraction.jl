@@ -97,6 +97,11 @@ function move(event, cam::OrthogonalCamera)
 end
 
 resize(event, cam::Camera) = resize(event.w, event.h, cam)
+function resize2(event, cam)
+	cam.w = 1.0
+	cam.h = event.h / event.w
+	update(cam)
+end
 
 function resize(w, h, cam::Camera)
 	cam.w = w
@@ -104,4 +109,4 @@ function resize(w, h, cam::Camera)
 	update(cam)
 end
 
-export resize, move, zoom, rotate, mouseToRotate
+export resize, move, zoom, rotate, mouseToRotate, resize2

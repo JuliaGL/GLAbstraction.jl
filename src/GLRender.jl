@@ -1,4 +1,6 @@
 export render
+using React
+
 
 function render(x::FuncWithArgs)
     apply(x.f, x.args)
@@ -53,13 +55,11 @@ render(attribute::ASCIIString, anyUniform, programID::GLuint)               = re
 render(attribute::Symbol, anyUniform, programID::GLuint)                    = render(glGetUniformLocation(programID, string(attribute)), anyUniform)
 
 
-
-
 function render(location::GLint, t::Texture, target = 0)
     activeTarget = GL_TEXTURE0 + uint32(target)
-   # glActiveTexture(activeTarget)
+    glActiveTexture(activeTarget)
     glBindTexture(t.textureType, t.id)
-    #glUniform1i(location, target)
+    glUniform1i(location, target)
 end
 function setProgramDefault(location::GLint, t::Texture, programID, target = 0)
     glProgramUniform1i(location, target, programID)
@@ -71,7 +71,9 @@ end
 function setProgramDefault(location::GLint, cam::Camera, programID)
     setProgramDefault(location, cam.mvp, programID)
 end
-
+function render(location::GLint, input::Input)
+    render(location, input.value)
+end
 
 function setProgramDefault(location::GLint, object::Array, programID)
     func = getUniformFunction(object, "Program")
