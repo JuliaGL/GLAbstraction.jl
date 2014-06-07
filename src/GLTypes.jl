@@ -164,8 +164,8 @@ end
 function getDefaultTextureParameters(textureType::GLenum)
     const parameters = [
         (GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE),
-        (GL_TEXTURE_MAG_FILTER, GL_NEAREST),
-        (GL_TEXTURE_MIN_FILTER, GL_NEAREST)
+        (GL_TEXTURE_MAG_FILTER, GL_LINEAR),
+        (GL_TEXTURE_MIN_FILTER, GL_LINEAR)
     ]
     if textureType == GL_TEXTURE_2D || textureType == GL_TEXTURE_3D
         push!(parameters, (GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE))
@@ -182,10 +182,13 @@ errorData =
     GL_INVALID_OPERATION => "GL_INVALID_OPERATION",
     GL_NO_ERROR => "GL_NO_ERROR"
 ]
-function Texture(   data::Array, dims::Vector{Int}, textureType::GLenum, pixelDataFormat::GLenum; 
+
+function Texture(   data::Array, textureType::GLenum;
                     parameters::Vector{(GLenum, GLenum)} = getDefaultTextureParameters(textureType))
 
-    @assert all(x -> x > 0, dims) && length(data) > 0
+    dims = [size(data)...]
+    glDims = Int[0]
+    dimOffset = 0
     imgType = eltype(data)
     if imgType == Uint8
         texelDataType = GL_UNSIGNED_BYTE
@@ -196,15 +199,6 @@ function Texture(   data::Array, dims::Vector{Int}, textureType::GLenum, pixelDa
     else 
         error("Type: $(imgType) not supported")
     end
-end
-
-function Texture(   data::Array, textureType::GLenum;
-                    parameters::Vector{(GLenum, GLenum)} = getDefaultTextureParameters(textureType))
-
-    dims = [size(data)...]
-    glDims = Int[0]
-    dimOffset = 0
-
     if textureType == GL_TEXTURE_1D
         dimOffset = -1
     elseif textureType == GL_TEXTURE_2D
@@ -232,8 +226,7 @@ function Texture(   data::Array, textureType::GLenum;
     end
     error = glGetError()
     println(get(errorData, error, "lol?"))
-
-    Texture(data, glDims, textureType, pixelDataFormat, parameters)
+    Texture(convert(Ptr{Void},pointer(data)), textureType, pixelDataFormat, glDims, pixelDataFormat, texelDataType, parameters=parameters)
 end
 
 
