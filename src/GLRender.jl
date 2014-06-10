@@ -24,7 +24,7 @@ end
 #Render Unifomrs!!
 
 #Render Dicts filled with uniforms
-function render(obj::Dict{Symbol, Any}, programID)
+function render(obj::AbstractArray, programID)
   for elem in obj
     render(elem..., programID)
   end
@@ -36,16 +36,12 @@ function render(obj::Dict{ASCIIString, Any}, programID)
   end
 end
 
-function render(obj::Dict{GLint, Any})
+function render(obj::AbstractArray)
   for elem in obj
     render(elem...)
   end
 end
-function render(obj::Array{(GLint, Texture, Int), 1})
-  for elem in obj
-    render(elem...)
-  end
-end
+
 #handle all uniform objects
 
 setProgramDefault(attribute::ASCIIString, anyUniform, programID::GLuint)    = setProgramDefault(glGetUniformLocation(id, attribute), anyUniform, programID)
@@ -88,7 +84,8 @@ function setProgramDefault(location::GLint, object::Array, programID)
         error("glUniform: unsupported dimensionality")
     end
 end
-render(location::GLint, object::Real) = render(location, [object])
+render(location::GLint, object::Real)               = render(location, [object])
+setProgramDefault(location::GLint, object::Real, programID)    = setProgramDefault(location, [object], programID)
 
 function render(location::GLint, object::Array)
     func = getUniformFunction(object, "")

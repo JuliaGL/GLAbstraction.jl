@@ -1,4 +1,5 @@
 import ModernGL.glGetAttribLocation, ModernGL.glGetIntegerv, ModernGL.glGenBuffers, ModernGL.glGenVertexArrays, ModernGL.glGenTextures
+import ModernGL.glGetProgramiv, ModernGL.glGetActiveAttrib, ModernGL.glGetActiveUniform
 #import ModernGL.glTexImage1D, ModernGL.glTexImage2D, ModernGL.glTexImage3D
 #function glGetAttribLocation(program::GLuint, name::ASCIIString)
 #    location = glGetAttribLocation(program, name)
@@ -12,11 +13,27 @@ import ModernGL.glGetAttribLocation, ModernGL.glGetIntegerv, ModernGL.glGenBuffe
 #    end
 #    location
 #end
-
+function glGetActiveUniform(programID::GLuint, index::Integer)
+    const name = Array(GLchar, 512)
+    const typ = Array(GLenum,1 )
+    glGetActiveUniform(programID, index, 512, C_NULL, C_NULL, typ, name)
+    (name, index, typ)
+end
+function glGetActiveAttrib(programID::GLuint, index::Integer)
+    const name = Array(GLchar, 512)
+    const typ = Array(GLenum, 1)
+    glGetActiveAttrib(programID, index, 512, C_NULL, C_NULL, typ, name)
+    (name, index, typ)
+end
+function glGetProgramiv(programID::GLuint, variable::GLenum)
+    const result = GLint[-1]
+    glGetProgramiv(programID, variable, result)
+    result[1]
+end
 function glGetIntegerv(variable::GLenum)
-    result::Ptr{GLint} = int32([-1])
+    const result = GLint[-1]
     glGetIntegerv(uint32(variable), result)
-    unsafe_load(result)
+    result[1]
 end
 function glGenBuffers()
     result::Ptr{GLuint} = uint32([0])

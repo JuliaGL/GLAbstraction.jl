@@ -1,3 +1,10 @@
+errorData = 
+[
+    GL_INVALID_ENUM => "GL_INVALID_ENUM",
+    GL_INVALID_VALUE => "GL_INVALID_VALUE",
+    GL_INVALID_OPERATION => "GL_INVALID_OPERATION",
+    GL_NO_ERROR => "GL_NO_ERROR"
+]
 ##############################################################################
 abstract Shape
 immutable Circle{T <: Real} <: Shape
@@ -55,6 +62,8 @@ function GLProgram(vertex_file_path, fragment_file_path)
     printProgramInfoLog(p, vertex_file_path)
     glDeleteShader(vertexShaderID)
     glDeleteShader(fragmentShaderID)
+    error = glGetError()
+    println(get(errorData, error, "lol?"))
     return GLProgram(p, vertex_file_path, fragment_file_path)
 end
 export GLProgram
@@ -134,7 +143,7 @@ export Camera, OrthogonalCamera, PerspectiveCamera
 
 
 ########################################################################################
-#Terrible 12 seconds loading are wasted here
+#12 seconds loading are wasted here
 
 import Images.imread
 import Images.Image
@@ -175,13 +184,7 @@ function getDefaultTextureParameters(textureType::GLenum)
     end
     parameters
 end
-errorData = 
-[
-    GL_INVALID_ENUM => "GL_INVALID_ENUM",
-    GL_INVALID_VALUE => "GL_INVALID_VALUE",
-    GL_INVALID_OPERATION => "GL_INVALID_OPERATION",
-    GL_NO_ERROR => "GL_NO_ERROR"
-]
+
 
 function Texture(   data::Array, textureType::GLenum;
                     parameters::Vector{(GLenum, GLenum)} = getDefaultTextureParameters(textureType))
@@ -295,6 +298,7 @@ immutable GLBuffer{T <: Real}
 
     function GLBuffer(ptr::Ptr{T}, size::Int, cardinality::Int, bufferType::GLenum, usage::GLenum)
         id = glGenBuffers()
+        @assert id >= 0
         @assert size % sizeof(T) == 0
         _length = div(size, sizeof(T))
         @assert _length % cardinality == 0
@@ -408,15 +412,37 @@ immutable GLRenderObject <: Renderable
         new(vertexArray, uniforms, textures, program, preRenderFunctions, postRenderFunctions)
     end
 end
-type RenderObject
-    uniforms::Dict{Symbol, Any}
-    buffers::Dict{Symbol, GLBuffer}
+
+
+
+immutable RenderObject
+    uniforms::Vector{(GLint, Any)}
+    #buffers::Vector{(GLint, GLBuffer)}
+    #textures::Array{(GLint, Texture, GLint)}
     vertexArray::GLVertexArray
     function RenderObject(data::Dict{Symbol, Any}, program::GLProgram)
-        buffers     = Dict{Symbol, GLBuffer}(filter((key, value) -> isa(value, GLBuffer), data))
-        uniforms    = filter((key, value) -> !isa(value, GLBuffer), data)
-        vertexArray = GLVertexArray(buffers, program)
-        new(uniforms, buffers, vertexArray)
+        
+        buffers     = filter((key, value) -> isa(value, GLBuffer), data)
+        uniforms    = filter((key, value) -> !isa(value, Union(GLBuffer,Texture)), data)
+        textures    = filter((key, value) -> isa(value, Texture), data)
+
+        vertexArray = GLVertexArray(Dict{Symbol, GLBuffer}(buffers), program)
+
+        uniforms = map(attributes -> begin 
+                loc = glGetUniformLocation(program.id, attributes[1])
+                @assert loc >= 0
+                setProgramDefault(loc, attributes[2], program.id)
+                (loc, attributes[2])
+            end, uniforms)
+        textureTarget = 0
+        textures = map(attributes -> begin 
+                loc = glGetUniformLocation(program.id, attributes[1])
+                @assert loc >= 0
+                setProgramDefault(loc, attributes[2], program.id, textureTarget)
+                textureTarget += 1
+                (loc, attributes[2], textureTarget-1)
+            end, textures)
+        new(uniforms, vertexArray)
     end
 end
 function GLRenderObject(program::GLProgram, data::Dict{ASCIIString, Any})
@@ -440,32 +466,3 @@ export GLRenderObject, Renderable, FuncWithArgs, RenderObject
 
 
 
-###############################################################
-import Base.delete!
-delete!(a) = println("warning: delete! called with wrong argument: args: $(a)") # silent failure, if delete is called on something, where no delete is defined for
-delete!(v::GLVertexArray) = glDeleteVertexArrays(1, [v.id])
-function delete!(b::GLBuffer)
-    glDeleteBuffers(1, [b.id])
-    empty!(b.buffer)
-end
-delete!(t::Texture) = glDeleteTextures(1, [t.id])
-delete!(t::FuncWithArgs) = nothing
-
-function delete!(g::GLRenderObject)
-    delete!(g.vertexArray)
-    for elem in g.uniforms
-        delete!(elem[2])
-    end
-    empty!(g.uniforms)
-    for elem in g.textures
-        delete!(elem[2])
-    end
-    empty!(g.textures)
-    empty!(g.preRenderFunctions)
-    empty!(g.postRenderFunctions)
-end
-function delet!(s::GLShader)
-    glDeleteShader(s.id)
-    s.state = "deleted"
-end
-export delete!

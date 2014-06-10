@@ -109,4 +109,4 @@ function resize(w, h, cam::Camera)
 	update(cam)
 end
 
-export resize, move, zoom, rotate, mouseToRotate, resize2
+export resize, move, zoom, rotate, mouseToRotate, resize2, update
