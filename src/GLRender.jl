@@ -2,6 +2,16 @@ export render
 #using React
 
 
+
+function render(vao::GLVertexArray)
+    glBindVertexArray(vao.id)
+    if vao.indexLength > 0
+        glDrawElements(GL_TRIANGLES, vao.indexLength, GL_UNSIGNED_INT, GL_NONE)
+    else
+        glDrawArrays(GL_TRIANGLES, 0, vao.length)
+    end
+end
+
 function render(x::FuncWithArgs)
     apply(x.f, x.args)
 end
@@ -21,14 +31,7 @@ function render(x::GLRenderObject)
 end
 
 
-#Render Unifomrs!!
-
-#Render Dicts filled with uniforms
-function render(obj::AbstractArray, programID)
-  for elem in obj
-    render(elem..., programID)
-  end
-end
+#Render Uniforms
 
 function render(obj::Dict{ASCIIString, Any}, programID)
   for elem in obj
@@ -51,11 +54,11 @@ render(attribute::ASCIIString, anyUniform, programID::GLuint)               = re
 render(attribute::Symbol, anyUniform, programID::GLuint)                    = render(glGetUniformLocation(programID, string(attribute)), anyUniform)
 
 
-function render(location::GLint, t::Texture, target = 0)
-    activeTarget = GL_TEXTURE0 + uint32(target)
+function render(location::GLint, t::Texture)
+    activeTarget = GL_TEXTURE0 + uint32(location)
     glActiveTexture(activeTarget)
     glBindTexture(t.textureType, t.id)
-    glUniform1i(location, target)
+    glUniform1i(t.id, location)
 end
 function setProgramDefault(location::GLint, t::Texture, programID, target = 0)
     glProgramUniform1i(location, target, programID)

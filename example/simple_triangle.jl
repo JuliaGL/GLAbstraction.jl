@@ -26,12 +26,9 @@ const triangle = RenderObject(
 	[:position => GLBuffer(GLfloat[0.0, 0.5, 0.5, -0.5, -0.5,-0.5], 2),], 
 	GLProgram(vsh, fsh, "simpleshader"))
 
-global t = 0
 
 function test(x::RenderObject)
-	global t
-	t += 1
-	glClearColor(0.0, 0.0, 0.5 * (1 + sin(t * 0.02)), 1.0)
+	glClearColor(0.0, 0.0,0.0, 1.0)
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
 
 	programID = x.vertexArray.program.id

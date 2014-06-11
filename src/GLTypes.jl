@@ -1,10 +1,3 @@
-errorData = 
-[
-    GL_INVALID_ENUM => "GL_INVALID_ENUM",
-    GL_INVALID_VALUE => "GL_INVALID_VALUE",
-    GL_INVALID_OPERATION => "GL_INVALID_OPERATION",
-    GL_NO_ERROR => "GL_NO_ERROR"
-]
 ##############################################################################
 abstract Shape
 immutable Circle{T <: Real} <: Shape
@@ -62,8 +55,6 @@ function GLProgram(vertex_file_path, fragment_file_path)
     printProgramInfoLog(p, vertex_file_path)
     glDeleteShader(vertexShaderID)
     glDeleteShader(fragmentShaderID)
-    error = glGetError()
-    println(get(errorData, error, "lol?"))
     return GLProgram(p, vertex_file_path, fragment_file_path)
 end
 export GLProgram
@@ -227,8 +218,6 @@ function Texture(   data::Array, textureType::GLenum;
     else
         error("wrong image dimensions. dims: $(dims)")
     end
-    error = glGetError()
-    println(get(errorData, error, "lol?"))
     Texture(convert(Ptr{Void},pointer(data)), textureType, pixelDataFormat, glDims, pixelDataFormat, texelDataType, parameters=parameters)
 end
 
@@ -423,25 +412,23 @@ immutable RenderObject
     function RenderObject(data::Dict{Symbol, Any}, program::GLProgram)
         
         buffers     = filter((key, value) -> isa(value, GLBuffer), data)
-        uniforms    = filter((key, value) -> !isa(value, Union(GLBuffer,Texture)), data)
-        textures    = filter((key, value) -> isa(value, Texture), data)
+        uniforms    = filter((key, value) -> !isa(value, GLBuffer), data)
 
         vertexArray = GLVertexArray(Dict{Symbol, GLBuffer}(buffers), program)
-
+        textureTarget::GLint = -1
         uniforms = map(attributes -> begin 
-                loc = glGetUniformLocation(program.id, attributes[1])
-                @assert loc >= 0
-                setProgramDefault(loc, attributes[2], program.id)
-                (loc, attributes[2])
+                if isa(attributes[2], Texture)
+                    textureTarget += 1
+                    return (textureTarget, attributes[2])
+                else
+                    loc = glGetUniformLocation(program.id, attributes[1])
+                    if loc < 0
+                        error("$(attributes[1]): is not an active shader uniform")
+                    end
+                    return (loc, attributes[2])
+                end
             end, uniforms)
-        textureTarget = 0
-        textures = map(attributes -> begin 
-                loc = glGetUniformLocation(program.id, attributes[1])
-                @assert loc >= 0
-                setProgramDefault(loc, attributes[2], program.id, textureTarget)
-                textureTarget += 1
-                (loc, attributes[2], textureTarget-1)
-            end, textures)
+       
         new(uniforms, vertexArray)
     end
 end
