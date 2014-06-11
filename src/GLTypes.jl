@@ -445,6 +445,9 @@ immutable RenderObject
         new(uniforms, vertexArray)
     end
 end
+
+RenderObject{T}(data::Dict{Symbol, T}, program::GLProgram) = RenderObject(Dict{Symbol, Any}(data), program)
+
 function GLRenderObject(program::GLProgram, data::Dict{ASCIIString, Any})
 
     buffers         = Dict{ASCIIString, GLBuffer}(filter((key, value) -> isa(value, GLBuffer), data))
