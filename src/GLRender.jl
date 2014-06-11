@@ -1,5 +1,5 @@
 export render
-using React
+#using React
 
 
 function render(x::FuncWithArgs)
@@ -67,10 +67,11 @@ end
 function setProgramDefault(location::GLint, cam::Camera, programID)
     setProgramDefault(location, cam.mvp, programID)
 end
+#=
 function render(location::GLint, input::Input)
     render(location, input.value)
 end
-
+=#
 function setProgramDefault(location::GLint, object::Array, programID)
     func = getUniformFunction(object, "Program")
     D = length(size(object))
