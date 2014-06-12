@@ -405,7 +405,7 @@ end
 
 
 immutable RenderObject
-    uniforms::Vector{(GLint, Any)}
+    uniforms::Vector{Any}
     #buffers::Vector{(GLint, GLBuffer)}
     #textures::Array{(GLint, Texture, GLint)}
     vertexArray::GLVertexArray
@@ -417,14 +417,14 @@ immutable RenderObject
         vertexArray = GLVertexArray(Dict{Symbol, GLBuffer}(buffers), program)
         textureTarget::GLint = -1
         uniforms = map(attributes -> begin 
+                loc = glGetUniformLocation(program.id, attributes[1])
+                if loc < 0
+                        error("$(attributes[1]): is not an active shader uniform")
+                end
                 if isa(attributes[2], Texture)
                     textureTarget += 1
-                    return (textureTarget, attributes[2])
+                    return (loc, textureTarget, attributes[2])
                 else
-                    loc = glGetUniformLocation(program.id, attributes[1])
-                    if loc < 0
-                        error("$(attributes[1]): is not an active shader uniform")
-                    end
                     return (loc, attributes[2])
                 end
             end, uniforms)

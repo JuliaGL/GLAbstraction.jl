@@ -60,11 +60,11 @@ render(attribute::ASCIIString, anyUniform, programID::GLuint)               = re
 render(attribute::Symbol, anyUniform, programID::GLuint)                    = render(glGetUniformLocation(programID, string(attribute)), anyUniform)
 
 
-function render(location::GLint, t::Texture)
-    activeTarget = GL_TEXTURE0 + uint32(location)
+function render(location::GLint, target::GLint, t::Texture)
+    activeTarget = GL_TEXTURE0 + uint32(target)
     glActiveTexture(activeTarget)
     glBindTexture(t.textureType, t.id)
-    glUniform1i(t.id, location)
+    glUniform1i(location, target)
 end
 function setProgramDefault(location::GLint, t::Texture, programID, target = 0)
     glProgramUniform1i(location, target, programID)
