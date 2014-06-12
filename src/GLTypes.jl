@@ -74,12 +74,12 @@ type PerspectiveCamera <: Camera
     zoomSpeed::Float32
     moveSpeed::Float32
     FoV::Float32
-    position::Array{Float32, 1}
-    direction::Array{Float32, 1}
-    right::Array{Float32, 1}
-    up::Array{Float32, 1}
+    position::Vector{Float32}
+    direction::Vector{Float32}
+    right::Vector{Float32}
+    up::Vector{Float32}
     mvp::Matrix{Float32}
-    lookAt::Array{Float32, 1}
+    lookAt::Vector{Float32}
     function PerspectiveCamera(
                     nearClip::Float32,
                     farClip::Float32,
@@ -89,11 +89,12 @@ type PerspectiveCamera <: Camera
                     zoomSpeed::Float32,
                     moveSpeed::Float32,
                     FoV::Float32,
-                    position::Array{Float32, 1})
+                    position::Vector{Float32},
+                    lookAt::Vector{Float32})
 
         cam = new(500f0, 500f0, nearClip, farClip, horizontalAngle, verticalAngle, 
             rotationSpeed, zoomSpeed, moveSpeed, FoV, position, [0f0, 0f0, 0f0], 
-            [0f0, 0f0, 0f0], [0f0,1f0,0f0], eye(Float32,4,4), [0f0, 0f0, 0f0])
+            [0f0, 0f0, 0f0], [0f0,1f0,0f0], eye(Float32,4,4), lookAt)
 
         rotate(0f0, 0f0, cam)
         update(cam)
@@ -340,7 +341,8 @@ immutable GLVertexArray
                 attribute   = string(elem[1])
                 @assert _length == buffer.length
                 glBindBuffer(buffer.bufferType, buffer.id)
-                attribLocation = glGetAttribLocation(program.id, attribute)
+                attribLocation = get_attribute_location(program.id, attribute)
+
                 glVertexAttribPointer(attribLocation, buffer.cardinality, GL_FLOAT, GL_FALSE, 0, 0)
                 glEnableVertexAttribArray(attribLocation)
             end
@@ -381,7 +383,7 @@ immutable GLRenderObject <: Renderable
             @assert method_exists(elem..., [elem[2]..., GLRenderObject]...)
         end
         uniforms = map(attributes -> begin 
-                loc = glGetUniformLocation(program.id, attributes[1])
+                loc = get_uniform_location(program.id, attributes[1])
                 @assert loc >= 0
                 setProgramDefault(loc, attributes[2], program.id)
                 (loc, attributes[2])
@@ -390,7 +392,7 @@ immutable GLRenderObject <: Renderable
 
         textureTarget = 0
         textures = map(attributes -> begin 
-                loc = glGetUniformLocation(program.id, attributes[1])
+                loc = get_uniform_location(program.id, attributes[1])
                 @assert loc >= 0
                 setProgramDefault(loc, attributes[2], program.id, textureTarget)
                 textureTarget += 1
@@ -417,10 +419,8 @@ immutable RenderObject
         vertexArray = GLVertexArray(Dict{Symbol, GLBuffer}(buffers), program)
         textureTarget::GLint = -1
         uniforms = map(attributes -> begin 
-                loc = glGetUniformLocation(program.id, attributes[1])
-                if loc < 0
-                        error("$(attributes[1]): is not an active shader uniform")
-                end
+                loc = get_uniform_location(program.id, attributes[1])
+
                 if isa(attributes[2], Texture)
                     textureTarget += 1
                     return (loc, textureTarget, attributes[2])
