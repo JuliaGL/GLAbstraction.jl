@@ -20,10 +20,10 @@ function PerspectiveCamera(;
 	zoomSpeed::Float32 				= 5f0,
 	moveSpeed::Float32 				= 0.01f0,
 	FoV::Float32 					= 50f0,
-	position::Array{Float32, 1}		= [0f0,50f0,0f0],
-	id::Int							= 0)  
+	position::Vector{Float32}		= [0f0,50f0,0f0],  
+	lookAt::Vector{Float32}			= [0f0,0f0,0f0])  
 	
-	PerspectiveCamera(nearClip,farClip,horizontalAngle,verticalAngle,rotationSpeed,zoomSpeed,moveSpeed,FoV,position)
+	PerspectiveCamera(nearClip,farClip,horizontalAngle,verticalAngle,rotationSpeed,zoomSpeed,moveSpeed,FoV,position, lookAt)
 end
 
 
