@@ -1,7 +1,13 @@
 export render
 #using React
 
-
+function render(renderObject::RenderObject)
+    programID = renderObject.vertexArray.program.id
+    glUseProgram(programID)
+    render(renderObject.uniforms)
+    println(renderObject.uniforms)
+    render(renderObject.vertexArray)
+end
 
 function render(vao::GLVertexArray)
     glBindVertexArray(vao.id)
