@@ -1,5 +1,11 @@
 
 
+
+
+
+
+
+
 get_attribute_location(program::GLuint, name::Symbol) = get_attribute_location(program, string(name))
 
 function get_attribute_location(program::GLuint, name::ASCIIString)
@@ -84,7 +90,15 @@ function ModernGL.glGenTextures()
     end
     id
 end
-
+function ModernGL.glGenFramebuffers()
+    const result = GLuint[0]
+    glGenFramebuffers(1, result)
+    id = result[1]
+    if id <= 0 
+        error("glGenFramebuffers returned invalid id. OpenGL Context active?")
+    end
+    id
+end
 glTexImage(level::Integer, internalFormat::GLenum, w::Integer, h::Integer, d::Integer, border::Integer, format::GLenum, datatype::GLenum, data) = glTexImage3D(GL_TEXTURE_3D, level, internalFormat, w, h, d, border, format, datatype, data) 
 glTexImage(level::Integer, internalFormat::GLenum, w::Integer, h::Integer, border::Integer, format::GLenum, datatype::GLenum, data) = glTexImage2D(GL_TEXTURE_2D, level, internalFormat, w, h, border, format, datatype, data) 
 glTexImage(level::Integer, internalFormat::GLenum, w::Integer, border::Integer, format::GLenum, datatype::GLenum, data) = glTexImage1D(GL_TEXTURE_1D, level, internalFormat, w, border, format, datatype, data) 

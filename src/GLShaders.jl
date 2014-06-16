@@ -1,9 +1,14 @@
 using GLFW, React, ImmutableArrays, ModernGL, GLUtil, GLWindow
 
 
+GLFW.Init()
+GLFW.WindowHint(GLFW.SAMPLES, 4)
 
+GLFW.WindowHint(GLFW.OPENGL_DEBUG_CONTEXT, 1)
 
-createWindow(:lol, 10, 10)
+window = GLFW.CreateWindow(10,10, "lol, ey")
+GLFW.MakeContextCurrent(window)
+
 
 cam = OrthogonalCamera()
 immutable GLSLVariable
@@ -25,7 +30,6 @@ if uniformLength > 0
 		println(uniforms[i+1])
 	end
 end
-println(attributeLength)
 if attributeLength > 0
 	attributes 		= Array(GLSLVariable, attributeLength)
 	for i::GLint=0:attributeLength-1
