@@ -38,6 +38,6 @@ function test(x::RenderObject)
 	glDrawArrays(GL_TRIANGLES, 0, x.vertexArray.length)
 end
 
-glDisplay(:triangle, FuncWithArgs(test, (triangle,)))
+glDisplay(:triangle, test, triangle)
 
 renderloop(window)
