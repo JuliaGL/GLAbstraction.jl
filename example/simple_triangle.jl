@@ -1,7 +1,7 @@
 using ModernGL, GLWindow, GLUtil
 
 
-const window = createWindow(:Example, 512, 512)
+const window = createWindow("Example", 512, 512)
 
 
 const vsh = """
