@@ -78,7 +78,8 @@ type PerspectiveCamera <: Camera
     direction::Vector{Float32}
     right::Vector{Float32}
     up::Vector{Float32}
-    mvp::Matrix{Float32}
+    view::Matrix{Float32}
+    projection::Matrix{Float32}
     lookAt::Vector{Float32}
     function PerspectiveCamera(
                     nearClip::Float32,
@@ -94,7 +95,7 @@ type PerspectiveCamera <: Camera
 
         cam = new(500f0, 500f0, nearClip, farClip, horizontalAngle, verticalAngle, 
             rotationSpeed, zoomSpeed, moveSpeed, FoV, position, [0f0, 0f0, 0f0], 
-            [0f0, 0f0, 0f0], [0f0,1f0,0f0], eye(Float32,4,4), lookAt)
+            [0f0, 0f0, 0f0], [0f0,1f0,0f0], eye(Float32,4,4), eye(Float32,4,4), lookAt)
 
         rotate(0f0, 0f0, cam)
         update(cam)

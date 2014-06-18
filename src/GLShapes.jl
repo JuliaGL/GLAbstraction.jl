@@ -92,4 +92,47 @@ function createQuadStrip(x::GLfloat, y::GLfloat, spacing::GLfloat, width::GLfloa
     return vertices
 end
 
-export createQuad, createQuadUV, createCircle, createQuadStrip, inside
+function gencube(x,y,z)
+    vertices = Float32[
+    0.0, 0.0,  z,
+     x, 0.0,  z,
+     x,  y,  z,
+    0.0,  y,  z,
+    # back
+    0.0, 0.0, 0.0,
+     x, 0.0, 0.0,
+     x,  y, 0.0,
+    0.0,  y, 0.0
+    ]
+    uv = Float32[
+    0.0, 0.0,  1.0,
+     1.0, 0.0,  1.0,
+     1.0,  1.0,  1.0,
+    0.0,  1.0,  1.0,
+    # back
+    0.0, 0.0, 0.0,
+     1.0, 0.0, 0.0,
+     1.0,  1.0, 0.0,
+    0.0,  1.0, 0.0
+    ]
+    indexes = GLuint[
+     0, 1, 2,
+    2, 3, 0,
+    # top
+    3, 2, 6,
+    6, 7, 3,
+    # back
+    7, 6, 5,
+    5, 4, 7,
+    # bottom
+    4, 5, 1,
+    1, 0, 4,
+    # left
+    4, 0, 3,
+    3, 7, 4,
+    # right
+    1, 5, 6,
+    6, 2, 1]
+    return (vertices, uv, indexes)
+end
+export createQuad, createQuadUV, createCircle, createQuadStrip, inside, gencube

@@ -22,15 +22,15 @@ function orthographicprojection{T}(
     Matrix4x4{T}(matrix)
 end
 
-translateXMatrix{T}(x::T) = translationMatrix( Vector3{T}(x, 0, 0))
-translateYMatrix{T}(y::T) = translationMatrix( Vector3{T}(0, y, 0))
-translateZMatrix{T}(z::T) = translationMatrix( Vector3{T}(0, 0, z))
+translateXMatrix{T}(x::T) = translationmatrix( Vector3{T}(x, 0, 0))
+translateYMatrix{T}(y::T) = translationmatrix( Vector3{T}(0, y, 0))
+translateZMatrix{T}(z::T) = translationmatrix( Vector3{T}(0, 0, z))
 
-function translationMatrix{T}(translation::Vector3{T})
+function translationmatrix{T}(translation::Vector3{T})
     result          = eye(T, 4, 4)
     result[1:3,4]   = translation
 
-    return Matrix4x4{T}(result)
+    return Matrix4x4(result)
 end
 
 
@@ -69,7 +69,7 @@ function frustum{T}(left::T, right::T, bottom::T, top::T, znear::T, zfar::T)
     M[3, 3] = -(zfar + znear) / (zfar - znear)
     M[4, 3] = -2.0 * znear * zfar / (zfar - znear)
     M[3, 4] = -1.0
-    return Matrix4x4{T}(M)
+    return Matrix4x4(M)
 end
 
 function perspectiveprojection{T}(fovy::T, aspect::T, znear::T, zfar::T)
@@ -92,9 +92,9 @@ function perspectiveprojection{T}(fovy::T, aspect::T, znear::T, zfar::T)
     #     Perspective projection matrix (4x4).
     # 
     @assert znear != zfar
-    h = tan(fovy / 360.0 * pi) * znear
-    w = h * aspect
-    return frustum{T}(-w, w, -h, h, znear, zfar)
+    h = convert(T, tan(fovy / 360.0 * pi) * znear)
+    w = convert(T, h * aspect)
+    return frustum(-w, w, -h, h, znear, zfar)
 end
 function lookat{T}(eyePos::Vector3{T}, lookAt::Vector3{T}, up::Vector3{T}) 
  
@@ -104,35 +104,35 @@ function lookat{T}(eyePos::Vector3{T}, lookAt::Vector3{T}, up::Vector3{T})
     xaxis  *= 1.0 / norm(xaxis)
     yaxis  = cross(zaxis, xaxis)
 
-    viewMatrix = eye(Float32, 4,4)
+    viewMatrix = eye(T, 4,4)
     viewMatrix[1,1:3]  = xaxis
     viewMatrix[2,1:3]  = yaxis
     viewMatrix[3,1:3]  = zaxis
 
-    Matrix4x4(viewMatrix) * translationMatrix(-eyePos)
+    Matrix4x4(viewMatrix) * translationmatrix(-eyePos)
 end
-function rotatationMatrixX{T}(angle::T)
+function rotationmatrixX{T}(angle::T)
     Matrix4x4{T}(
         Vector4{T}(1, 0, 0, 0),
         Vector4{T}(0, cos(angle), -sin(angle), 0),
         Vector4{T}(0, sin(angle), cos(angle), 0),
         Vector4{T}(0, 0, 0, 1))
 end
-function rotatationMatrixY{T}(angle::T)
+function rotationmatrixY{T}(angle::T)
     Matrix4x4{T}(
         Vector4{T}(cos(angle), 0, sin(angle), 0),
         Vector4{T}(0, 1, 0, 0),
         Vector4{T}(-sin(angle), 0, cos(angle), 0),
         Vector4{T}(0, 0, 0, 1))
 end
-function rotatationMatrixZ{T}(angle::T)
+function rotationmatrixZ{T}(angle::T)
     Matrix4x4{T}(
         Vector4{T}(cos(angle), -sin(angle), 0, 0),
         Vector4{T}(sin(angle), cos(angle), 0,  0),
         Vector4{T}(0, 0, 1, 0),
         Vector4{T}(0, 0, 0, 1))
 end
-function rotatationMatrix{T}(angle::T, axis::Vector3{T})
+function rotationmatrix{T}(angle::T, axis::Vector3{T})
     x = axis[1]
     y = axis[2]
     z = axis[3]
@@ -146,4 +146,4 @@ end
 
 
 
-export lookAt, computeFOVProjection, computeFOVProjection!, computeOrthographicProjection, computeOrthographicProjection!, translateXMatrix, translationMatrix, pProj
+export lookat, rotationmatrix, rotationmatrixX, rotationmatrixY, rotationmatrixZ, perspectiveprojection, orthographicprojection, translateXMatrix, translationMatrix 

@@ -1,5 +1,7 @@
 export render
-#using React
+using React
+
+render(location::GLint, signal::Signal) = render(location, signal.value)
 
 function render(renderObject::RenderObject)
     programID = renderObject.vertexArray.program.id
@@ -80,7 +82,7 @@ function render(location::GLint, input::Input)
     render(location, input.value)
 end
 =#
-function setProgramDefault(location::GLint, object::Array, programID)
+function setProgramDefault(location::GLint, object::AbstractArray, programID)
     func = getUniformFunction(object, "Program")
     D = length(size(object))
     T = eltype(object)
@@ -96,21 +98,21 @@ end
 render(location::GLint, object::Real)               = render(location, [object])
 setProgramDefault(location::GLint, object::Real, programID)    = setProgramDefault(location, [object], programID)
 
-function render(location::GLint, object::Array)
+function render(location::GLint, object::AbstractArray)
     func = getUniformFunction(object, "")
     D = length(size(object))
     T = eltype(object)
-    objectPtr = convert(Ptr{T}, pointer(object))
+    objectPtr = convert(Ptr{T}, pointer([object]))
     if D == 1
         func(location, 1, objectPtr)
     elseif D == 2
-        func(location, 1, GL_FALSE, object)
+        func(location, 1, GL_FALSE, objectPtr)
     else
         error("glUniform: unsupported dimensionality")
     end
 end
 
-function getUniformFunction(object::Array, program::ASCIIString)
+function getUniformFunction(object::AbstractArray, program::ASCIIString)
     T = eltype(object)
     D = length(size(object))
     @assert(!isempty(object))
