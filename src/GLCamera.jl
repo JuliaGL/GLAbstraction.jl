@@ -27,21 +27,94 @@ function PerspectiveCamera(;
 end
 
 
+function move{T}(point::Vector3{T}, angleX::T, angleY::T, zoom::T, lookatvec::Vector3{T}, up::Vector3{T})
+	println(angleX)
+	dir 		= point - lookatvec
+	right 		= unit(cross(dir, up))
+
+	xrotation 	= rotate(angleX, up)
+	yrotation 	= rotate(angleY, right)
+	zoomdir		= unit(dir)*zoom
+ 	Vector3(xrotation * yrotation * (Vector4((point-zoomdir)..., 0f0)))
+end
+
+function rotate(angle, axis)
+	if angle > 0
+		rotation = rotationmatrix(float32(deg2rad(angle)), axis)
+	else
+		# dirty workaround, because inv(Matrix4x4) is not working
+		rotation = rotationmatrix(float32(deg2rad(abs(angle))), axis)
+		tmp 	 	= zeros(Float32, 4,4)
+		tmp[1:4, 1] = [rotation.c1...]
+		tmp[1:4, 2] = [rotation.c2...]
+		tmp[1:4, 3] = [rotation.c3...]
+		tmp[1:4, 4] = [rotation.c4...]
+		rotation = inv(tmp)
+		rotation = Matrix4x4(rotation)
+	end
+end
+function rotate(point::Vector3, rotationmatrix::Matrix4x4)
+	Vector3(rotationmatrix * Vector4(point..., 0f0))
+end
+immutable Cam{T}
+	window_size::Signal{Vector2{Int}}
+	nearclip::Signal{T}
+    farclip::Signal{T}
+    fov::Signal{T}
+	view::Signal{Matrix4x4{T}}
+	projection::Signal{Matrix4x4{T}} 
+	projectionview::Signal{Matrix4x4{T}} 
+	eyeposition::Signal{Vector3{T}} 
+	lookat::Signal{Vector3{T}} 
+	up::Signal{Vector3{T}}
+end
+
+
+function Cam{T}(window_size::Input{Vector2{Int}}, xdiff, ydiff, zoom, eyeposition::Vector3{T}, lookatvec::Input{Vector3{T}})
+	
+	nearclip 		= Input(convert(T, 1))
+	farclip 		= Input(convert(T, 30))
+	up 				= Input(Vector3{T}(0, 0, 1))
+	fov 			= Input(convert(T, 76))
+
+	rotationData	= lift(tuple, (T, T, T, Vector3{T}, Vector3{T}), xdiff, ydiff, zoom, lookatvec, up)
+
+	positionvec		= foldl((pos, data) -> move(pos, data...), eyeposition, rotationData)
+
+
+	window_ratio 	= lift(x -> x[1] / x[2], T, window_size)
+
+	viewmat 		= lift(lookat, Matrix4x4{T}, positionvec, lookatvec, up)
+
+	projection 		= lift(perspectiveprojection, Matrix4x4{T}, fov, window_ratio, nearclip, farclip)
+	projectionview 	= lift(*, Matrix4x4{T}, projection, viewmat)
+
+	Cam{T}(
+			window_size, 
+			nearclip,
+			farclip,
+			fov,
+			viewmat, 
+			projection,
+			projectionview,
+			positionvec,
+			lookatvec,
+			up
+		)
+end
 
 
 function update(cam::PerspectiveCamera)
-	projMat 	= pProj(cam.FoV, cam.w / cam.h,  1.0f0, 30.0f0)
-	viewMatrix  = lookAt(	
+	cam.projection 	= perspectiveprojection(76, cam.w / cam.h,  1.0f0, 30.0f0)
+	cam.view   		= lookAt(	
 					cam.position,           # Camera is here
 					cam.lookAt, # and looks here : at the same position, plus "direction"
 					[0f0, 0f0, 1f0])
 
-	cam.mvp 	= projMat * viewMatrix 
 end
 function update(cam::OrthogonalCamera)
-	projMat 		= computeOrthographicProjection(0f0, cam.w, 0f0, cam.h, cam.nearClip,  cam.farClip)
-	viewMatrix 		= translationMatrix(cam.position)
-	cam.mvp 		= projMat * viewMatrix
+	cam.projection 		= computeOrthographicProjection(0f0, cam.w, 0f0, cam.h, cam.nearClip, cam.farClip)
+	cam.view 			= translationMatrix(cam.position)
 end
 
 
@@ -109,4 +182,4 @@ function resize(w, h, cam::Camera)
 	update(cam)
 end
 
-export resize, move, zoom, rotate, mouseToRotate, resize2, update
+export resize, move, zoom, rotate, mouseToRotate, resize2, update, Cam
