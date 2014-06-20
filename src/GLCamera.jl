@@ -132,6 +132,8 @@ function Cam{T}(
 
 	window_ratio 	= lift(x -> x[1] / x[2], T, window_size)
 
+	lift(x -> glViewport(0,0, x[1], x[2]), window_size)
+
 	viewmat 		= lift(lookat, Matrix4x4{T}, positionvec, lookatvec, up)
 
 	projection 		= lift(perspectiveprojection, Matrix4x4{T}, fov, window_ratio, nearclip, farclip)
