@@ -26,19 +26,36 @@ function PerspectiveCamera(;
 	PerspectiveCamera(nearClip,farClip,horizontalAngle,verticalAngle,rotationSpeed,zoomSpeed,moveSpeed,FoV,position, lookAt)
 end
 
+immutable Rotatable{T}
+	position::Vector3{T}
+	lookat::Vector3{T}
+	up::Vector3{T}
 
-function move{T}(point::Vector3{T}, angleX::T, angleY::T, zoom::T, lookatvec::Vector3{T}, up::Vector3{T})
-	println(angleX)
-	dir 		= point - lookatvec
-	right 		= unit(cross(dir, up))
+	xangle::T
+	yangle::T
+	zoom::T
+end
+function rotatable{T}(position::Vector3{T}, lookat::Vector3{T}, up::Vector3{T}, xangle::T, yangle::T, zoom::T)
+	Rotatable{T}(position, lookat, up, xangle, yangle, zoom)
+end
+function movecam{T}(state0::Rotatable{T}, state1::Rotatable{T})
+	xangle 		= state0.xangle - state1.xangle
+	yangle 		= state0.yangle - state1.yangle
+	zoom 		= state0.zoom 	- state1.zoom
 
-	xrotation 	= rotate(angleX, up)
-	yrotation 	= rotate(angleY, right)
+	dir 		= state0.position - state1.lookat
+	right 		= unit(cross(dir, state1.up))
+
+	xrotation 	= rotate(xangle, state1.up)
+	yrotation 	= rotate(yangle, right)
 	zoomdir		= unit(dir)*zoom
- 	Vector3(xrotation * yrotation * (Vector4((point-zoomdir)..., 0f0)))
+
+ 	pos1 		= Vector3(xrotation * yrotation * (Vector4((state0.position-zoomdir)..., 0f0)))
+ 	Rotatable(pos1, state1.lookat, state1.up, state1.xangle, state1.yangle, state1.zoom)
 end
 
-function rotate(angle, axis)
+
+function rotate{T}(angle::T, axis::Vector3{T})
 	if angle > 0
 		rotation = rotationmatrix(float32(deg2rad(angle)), axis)
 	else
@@ -53,9 +70,7 @@ function rotate(angle, axis)
 		rotation = Matrix4x4(rotation)
 	end
 end
-function rotate(point::Vector3, rotationmatrix::Matrix4x4)
-	Vector3(rotationmatrix * Vector4(point..., 0f0))
-end
+	
 immutable Cam{T}
 	window_size::Signal{Vector2{Int}}
 	nearclip::Signal{T}
@@ -69,18 +84,51 @@ immutable Cam{T}
 	up::Signal{Vector3{T}}
 end
 
+function Cam(inputs, eyeposition)
+	dragging 	= inputs[:mousedragged]
+	clicked 	= inputs[:mousepressed]
 
-function Cam{T}(window_size::Input{Vector2{Int}}, xdiff, ydiff, zoom, eyeposition::Vector3{T}, lookatvec::Input{Vector3{T}})
+
+	draggedlast = lift(x -> x[1], foldl((a,b) -> (a[2], b), (Vector2(0.0), Vector2(0.0)), dragging))
+	dragdiff 	= lift(-, dragging, draggedlast)
+
+	draggx 	= lift(x -> float32(x[1]), Float32, dragging)
+	draggy 	= lift(x -> float32(x[2]), Float32, dragging)
+	zoom 	= foldl((a,b) -> float32(a+(b*0.1f0)) , 0f0, inputs[:scroll_y])
+
+	fov 	= foldl((a,b) -> begin
+				if b == 265
+					return a-5f0
+				elseif b == 264
+					return a+5f0
+				end
+				a
+			end, 41f0, inputs[:keyboardpressed])
+
+
+	Cam(inputs[:window_size], draggx, draggy, zoom, eyeposition, Input(Vector3(0f0)), fov)
+end
+function Cam{T}(
+					window_size::Input{Vector2{Int}}, 
+					xangle, 
+					ydiff, 
+					zoom, 
+					eyeposition::Vector3{T}, 
+					lookatvec::Input{Vector3{T}}, 
+					fov::Signal{T}
+				)
 	
 	nearclip 		= Input(convert(T, 1))
-	farclip 		= Input(convert(T, 30))
-	up 				= Input(Vector3{T}(0, 0, 1))
-	fov 			= Input(convert(T, 76))
+	farclip 		= Input(convert(T, 100))
 
-	rotationData	= lift(tuple, (T, T, T, Vector3{T}, Vector3{T}), xdiff, ydiff, zoom, lookatvec, up)
+	up				= Input(Vector3{T}(0, 0, 1))
 
-	positionvec		= foldl((pos, data) -> move(pos, data...), eyeposition, rotationData)
+	v0				= Rotatable(eyeposition,  lookatvec.value, up.value, xangle.value, ydiff.value, zoom.value)
+	states			= lift(rotatable,  Input(eyeposition), lookatvec, up, xangle, ydiff, zoom)
+	stateSignal		= foldl(movecam, v0, states)
 
+
+	positionvec		= lift(x -> x.position, Vector3{T}, stateSignal)
 
 	window_ratio 	= lift(x -> x[1] / x[2], T, window_size)
 
