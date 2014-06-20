@@ -4,10 +4,18 @@ using React
 render(location::GLint, signal::Signal) = render(location, signal.value)
 
 function render(renderObject::RenderObject)
+    for elem in renderObject.preRenderFunctions
+        apply(elem...)
+    end
+    
     programID = renderObject.vertexArray.program.id
     glUseProgram(programID)
     render(renderObject.uniforms)
     render(renderObject.vertexArray)
+
+    for elem in renderObject.postRenderFunctions
+        apply(elem...)
+    end
 end
 
 function render(vao::GLVertexArray)
