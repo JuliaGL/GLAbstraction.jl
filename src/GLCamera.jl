@@ -103,7 +103,7 @@ function Cam(inputs, eyeposition)
 					return a+5f0
 				end
 				a
-			end, 41f0, inputs[:keyboardpressed])
+			end, 41f0, inputs[:keypressed])
 
 
 	Cam(inputs[:window_size], draggx, draggy, zoom, eyeposition, Input(Vector3(0f0)), fov)
