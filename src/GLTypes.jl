@@ -409,9 +409,10 @@ end
 
 immutable RenderObject
     uniforms::Vector{Any}
-    #buffers::Vector{(GLint, GLBuffer)}
-    #textures::Array{(GLint, Texture, GLint)}
     vertexArray::GLVertexArray
+    preRenderFunctions::Array{(Function, Tuple), 1}
+    postRenderFunctions::Array{(Function, Tuple), 1}
+
     function RenderObject(data::Dict{Symbol, Any}, program::GLProgram)
         
         buffers     = filter((key, value) -> isa(value, GLBuffer), data)
@@ -430,9 +431,26 @@ immutable RenderObject
                 end
             end, uniforms)
        
-        new(uniforms, vertexArray)
+        new(uniforms, vertexArray, (Function, Tuple)[], (Function, Tuple)[])
     end
 end
+function pushfunction!(target::Vector{(Function, Tuple)}, fs...)
+    func = fs[1]
+    args = {}
+    for i=2:length(fs)
+        elem = fs[i]
+        if isa(elem, Function)
+            push!(target, (func, tuple(args...)))
+            func = elem
+            args = {}
+        else
+            push!(args, elem)
+        end
+    end
+    push!(target, (func, tuple(args...)))
+end
+prerender!(x::RenderObject, fs...)   = pushfunction!(x.preRenderFunctions, fs...)
+postrender!(x::RenderObject, fs...)  = pushfunction!(x.posRenderFunctions, fs...)
 
 RenderObject{T}(data::Dict{Symbol, T}, program::GLProgram) = RenderObject(Dict{Symbol, Any}(data), program)
 
@@ -452,7 +470,7 @@ type FuncWithArgs{T} <: Renderable
     f::Function
     args::T
 end
-export GLRenderObject, Renderable, FuncWithArgs, RenderObject
+export Renderable, RenderObject, prerender!, postrender!
 ####################################################################################
 
 
