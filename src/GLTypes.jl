@@ -417,7 +417,7 @@ immutable RenderObject
         
         buffers     = filter((key, value) -> isa(value, GLBuffer), data)
         uniforms    = filter((key, value) -> !isa(value, GLBuffer), data)
-        if length(buffers > 0)
+        if length(buffers) > 0
             vertexArray = GLVertexArray(Dict{Symbol, GLBuffer}(buffers), program)
         end
         textureTarget::GLint = -1
