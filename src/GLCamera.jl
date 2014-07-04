@@ -60,8 +60,14 @@ function rotate{T}(angle::T, axis::Vector3{T})
 		rotation = rotationmatrix(float32(deg2rad(angle)), axis)
 	else
 		# dirty workaround, because inv(Matrix4x4) is not working
-		rotation = convert(Array, rotationmatrix(float32(deg2rad(abs(angle))), axis))
-		rotation = Matrix4x4(inv(rotation))
+		rotation = rotationmatrix(float32(deg2rad(abs(angle))), axis)
+		tmp 	 	= zeros(Float32, 4,4)
+		tmp[1:4, 1] = [rotation.c1...]
+		tmp[1:4, 2] = [rotation.c2...]
+		tmp[1:4, 3] = [rotation.c3...]
+		tmp[1:4, 4] = [rotation.c4...]
+		rotation = inv(tmp)
+		rotation = Matrix4x4(rotation)
 	end
 end
 	
@@ -81,6 +87,10 @@ end
 function Cam(inputs, eyeposition)
 	dragging 	= inputs[:mousedragged]
 	clicked 	= inputs[:mousepressed]
+
+
+	draggedlast = lift(x -> x[1], foldl((a,b) -> (a[2], b), (Vector2(0.0), Vector2(0.0)), dragging))
+	dragdiff 	= lift(-, dragging, draggedlast)
 
 	draggx 	= lift(x -> float32(x[1]), Float32, dragging)
 	draggy 	= lift(x -> float32(x[2]), Float32, dragging)
