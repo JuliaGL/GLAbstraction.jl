@@ -1,5 +1,6 @@
 export render
 using React
+export enabletransparency, drawVertexArray
 
 render(location::GLint, signal::Signal) = render(location, signal.value)
 
@@ -7,11 +8,11 @@ function render(renderObject::RenderObject)
     for elem in renderObject.preRenderFunctions
         apply(elem...)
     end
-    
-    programID = renderObject.vertexArray.program.id
+
+    programID = renderObject.vertexarray.program.id
     glUseProgram(programID)
     render(renderObject.uniforms)
-    render(renderObject.vertexArray)
+    #render(renderObject.vertexarray)
 
     for elem in renderObject.postRenderFunctions
         apply(elem...)
@@ -20,30 +21,21 @@ end
 
 function render(vao::GLVertexArray)
     glBindVertexArray(vao.id)
-    if vao.indexLength > 0
-        glDrawElements(GL_TRIANGLES, vao.indexLength, GL_UNSIGNED_INT, GL_NONE)
+    if vao.indexlength > 0
+        glDrawElements(GL_TRIANGLES, vao.indexlength, GL_UNSIGNED_INT, GL_NONE)
     else
         glDrawArrays(GL_TRIANGLES, 0, vao.length)
     end
 end
-
-function render(x::FuncWithArgs)
-    apply(x.f, x.args)
-end
-function render(x::GLRenderObject)
-    for elem in x.preRenderFunctions
-        apply(elem...)
-    end
-
-    glUseProgram(x.program.id)
-    glBindVertexArray(x.vertexArray.id)
-    render(x.uniforms)
-    render(x.textures)
-
-    for elem in x.postRenderFunctions
-        apply(elem...)
+function render(vao::GLVertexArray, mode)
+    glBindVertexArray(vao.id)
+    if vao.indexlength > 0
+        glDrawElements(mode, vao.indexlength, GL_UNSIGNED_INT, GL_NONE)
+    else
+        glDrawArrays(mode, 0, vao.length)
     end
 end
+
 
 
 #Render Uniforms
@@ -72,7 +64,7 @@ render(attribute::Symbol, anyUniform, programID::GLuint)                    = re
 function render(location::GLint, target::GLint, t::Texture)
     activeTarget = GL_TEXTURE0 + uint32(target)
     glActiveTexture(activeTarget)
-    glBindTexture(t.textureType, t.id)
+    glBindTexture(t.texturetype, t.id)
     glUniform1i(location, target)
 end
 function setProgramDefault(location::GLint, t::Texture, programID, target = 0)
@@ -152,15 +144,10 @@ end
 
 
 ##############################################################################################
-#  Generic render functions 
+#  Generic render functions
 #####
-function enableTransparency()
+function enabletransparency()
     glEnable(GL_BLEND)
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
 end
 
-function drawVertexArray(x::GLRenderObject)   
-    glDrawArrays(x.vertexArray.primitiveMode, 0, x.vertexArray.size)
-end
-
-export enableTransparency, drawVertexArray, render

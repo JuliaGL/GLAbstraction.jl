@@ -28,7 +28,7 @@
 # end
 
 
-# function inside(polygon::Polygon, x::Real, y::Real)
+# function isinside(polygon::Polygon, x::Real, y::Real)
 #     a = polygon.points
 #     c = false
 #     i = length(a) - 1
@@ -43,37 +43,57 @@
 #     return c
 # end
 
-function inside(circle::Circle, x::Real, y::Real)
+function isinside(circle::Circle, x::Real, y::Real)
     xD = abs(circle.x - x) - circle.r 
     yD = abs(circle.y - y) - circle.r
     xD <= 0 && yD <= 0
 end
 
-function inside(rect::Rectangle, x::Real, y::Real)
+function isinside(rect::Rectangle, x::Real, y::Real)
     rect.x <= x && rect.y <= y && rect.x + rect.w >= x && rect.y + rect.h >= y 
 end
 
-function createQuad{T <: Real}(x::T, y::T, width::T, height::T)
+function genquad{T <: Real}(x::T, y::T, width::T, height::T)
     v = T[
     x, y,
     x, y + height,
-    x + width,  y,
-    x + width,  y,
-    x, y + height,
-    x+ width, y + height]
-end
+    x+ width, y + height,
+    x + width,  y]
 
-function createQuadUV()
-    v = float32([
+    uv = T[
     0, 1,
     0, 0,
-    1, 1,
-    1, 1,
-    0, 0,
-    1, 0])
+    1, 0,
+    1, 1
+    ]
+
+    indexes = GLuint[0,1,2,2,3,0]
+    v, uv , indexes
+end
+genquad(x::Real) = genquad(x, x)
+genquad(x::Real, y::Real) = genquad(0, 0, promote(x, y)...)
+genquad(x::Real, y::Real, width::Real, height::Real) = genquad(promote(x, x, width, height)...)
+
+function genquad{T}(downleft::Vector3{T}, width::Vector3{T}, height::Vector3{T})
+    v = [
+        downleft,
+        downleft + height,
+        downleft + width + height,
+        downleft + width 
+    ]
+    uv = T[
+        0, 1,
+        0, 0,
+        1, 0,
+        1, 1
+    ]
+    indexes = GLuint[0,1,2,2,3,0]
+
+    normal = unit(cross(width, height))
+    v, uv, indexes, [normal for i=1:4]
 end
 
-function createCircle(r, x, y, amount)
+function gencircle(r, x, y, amount)
     slice = (2*pi) / amount
     result = float32([x,y])
     for i = 0:amount-1
@@ -83,7 +103,7 @@ function createCircle(r, x, y, amount)
     push!(result, float32(x + r * cos(0)), float32(y + r * sin(0)))
     return result
 end
-function createQuadStrip(x::GLfloat, y::GLfloat, spacing::GLfloat, width::GLfloat, height::GLfloat, amount::Int)
+function genquadstrip(x::GLfloat, y::GLfloat, spacing::GLfloat, width::GLfloat, height::GLfloat, amount::Int)
     vertices         = Array(GLfloat, amount * 2 * 6)
     for i = 1:amount
         vTemp = createQuad(x + ((width+ spacing) * (i-1)) , y, width, height)
@@ -91,7 +111,23 @@ function createQuadStrip(x::GLfloat, y::GLfloat, spacing::GLfloat, width::GLfloa
     end
     return vertices
 end
+function gencubenormals{T}(base_edge::Vector3{T}, wx::Vector3{T}, wy::Vector3{T}, hz::Vector3{T})
+    top_v, top_uv, top_ind, top_norm                = genquad(base_edge + hz, wx, wy)
+    bottom_v, bottom_uv, bottom_ind, bottom_norm    = genquad(base_edge, wx, wy)
 
+    front_v, front_uv, front_ind, front_norm        = genquad(base_edge + wx, wy, hz)
+    back_v, back_uv, back_ind, back_norm            = genquad(base_edge, wy, hz)
+
+    left_v, left_uv, left_ind, left_norm            = genquad(base_edge, wx, hz)
+    right_v, right_uv, right_ind, right_norm        = genquad(base_edge + wy, wx, hz)
+
+    v = [top_v..., bottom_v..., front_v..., back_v..., left_v..., right_v...]
+    uv = [top_uv..., bottom_uv..., front_uv..., back_uv..., left_uv..., right_uv...]
+    normals = [top_norm..., bottom_norm..., front_norm..., back_norm..., left_norm..., right_norm...]
+    runner = 4
+    indexes = GLuint[top_ind..., (bottom_ind .+ runner)..., (front_ind .+ 2*runner)..., (back_ind .+ 3*runner)..., (left_ind .+ 4*runner)..., (right_ind .+ 5*runner)...]
+    (v, uv, normals, indexes)
+end
 function gencube(x,y,z)
     vertices = Float32[
     0.0, 0.0,  z,
@@ -116,6 +152,7 @@ function gencube(x,y,z)
     0.0,  1.0, 0.0
     ]
     indexes = GLuint[
+     #front
      0, 1, 2,
     2, 3, 0,
     # top
@@ -135,4 +172,4 @@ function gencube(x,y,z)
     6, 2, 1]
     return (vertices, uv, indexes)
 end
-export createQuad, createQuadUV, createCircle, createQuadStrip, inside, gencube
+export gencircle, genquadstrip, isinside, gencube, genquad, gencubenormals

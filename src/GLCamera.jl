@@ -1,4 +1,4 @@
-
+using Quaternions
 function OrthogonalCamera(;
 	nearClip::Float32 				= -10f0,
 	farClip::Float32 				= 10f0,
@@ -7,8 +7,8 @@ function OrthogonalCamera(;
 	zoomSpeed::Float32 				= 5f0,
 	moveSpeed::Float32 				= 10f0,
 	position::Array{Float32, 1}		= [0f0,0f0,0f0],
-	id::Int							= 0) 
-	
+	id::Int							= 0)
+
 	OrthogonalCamera(nearClip, farClip, angle, rotationSpeed, zoomSpeed,moveSpeed, position)
 end
 function PerspectiveCamera(;
@@ -20,9 +20,9 @@ function PerspectiveCamera(;
 	zoomSpeed::Float32 				= 5f0,
 	moveSpeed::Float32 				= 0.01f0,
 	FoV::Float32 					= 50f0,
-	position::Vector{Float32}		= [0f0,50f0,0f0],  
-	lookAt::Vector{Float32}			= [0f0,0f0,0f0])  
-	
+	position::Vector{Float32}		= [0f0,50f0,0f0],
+	lookAt::Vector{Float32}			= [0f0,0f0,0f0])
+
 	PerspectiveCamera(nearClip,farClip,horizontalAngle,verticalAngle,rotationSpeed,zoomSpeed,moveSpeed,FoV,position, lookAt)
 end
 
@@ -30,13 +30,16 @@ immutable Rotatable{T}
 	position::Vector3{T}
 	lookat::Vector3{T}
 	up::Vector3{T}
-
+	dirup::Vector3{T}
 	xangle::T
 	yangle::T
 	zoom::T
 end
 function rotatable{T}(position::Vector3{T}, lookat::Vector3{T}, up::Vector3{T}, xangle::T, yangle::T, zoom::T)
-	Rotatable{T}(position, lookat, up, xangle, yangle, zoom)
+	dir 		= position - lookat
+	right 		= unit(cross(dir, up))
+	dirup		= unit(cross(dir, right))
+	Rotatable{T}(position, lookat, up, dirup, xangle, yangle, zoom)
 end
 function movecam{T}(state0::Rotatable{T}, state1::Rotatable{T})
 	xangle 		= state0.xangle - state1.xangle
@@ -44,43 +47,38 @@ function movecam{T}(state0::Rotatable{T}, state1::Rotatable{T})
 	zoom 		= state0.zoom 	- state1.zoom
 
 	dir 		= state0.position - state1.lookat
-	right 		= unit(cross(dir, state1.up))
-
-	xrotation 	= rotate(xangle, state1.up)
-	yrotation 	= rotate(yangle, right)
+	posdelta	= state0.position - state1.position
+	right 		= unit(cross(dir, posdelta))
+	dirup		= unit(cross(dir, right))
+	xrotation 	= rotate2(deg2rad(xangle), state1.up)
+	yrotation 	= rotate2(deg2rad(yangle), right)
 	zoomdir		= unit(dir)*zoom
 
- 	pos1 		= Vector3(xrotation * yrotation * (Vector4((state0.position-zoomdir)..., 0f0)))
- 	Rotatable(pos1, state1.lookat, state1.up, state1.xangle, state1.yangle, state1.zoom)
+ 	pos1 		= Vector3(yrotation * xrotation* [(state0.position-zoomdir)...])
+ 	Rotatable(pos1, state1.lookat, state1.up, dirup, state1.xangle, state1.yangle, state1.zoom)
 end
-
-
+function rotate2{T}(angle::T, axis::Vector3{T})
+ 	rotationmatrix(qrotation(convert(Array, axis), angle))
+end
 function rotate{T}(angle::T, axis::Vector3{T})
 	if angle > 0
-		rotation = rotationmatrix(float32(deg2rad(angle)), axis)
+		return rotationmatrix(float32(deg2rad(angle)), axis)
 	else
-		# dirty workaround, because inv(Matrix4x4) is not working
-		rotation = rotationmatrix(float32(deg2rad(abs(angle))), axis)
-		tmp 	 	= zeros(Float32, 4,4)
-		tmp[1:4, 1] = [rotation.c1...]
-		tmp[1:4, 2] = [rotation.c2...]
-		tmp[1:4, 3] = [rotation.c3...]
-		tmp[1:4, 4] = [rotation.c4...]
-		rotation = inv(tmp)
-		rotation = Matrix4x4(rotation)
+		return inv(rotationmatrix(float32(deg2rad(abs(angle))), axis))
 	end
 end
-	
+
 immutable Cam{T}
 	window_size::Signal{Vector2{Int}}
 	nearclip::Signal{T}
-    farclip::Signal{T}
-    fov::Signal{T}
+  	farclip::Signal{T}
+  	fov::Signal{T}
 	view::Signal{Matrix4x4{T}}
-	projection::Signal{Matrix4x4{T}} 
-	projectionview::Signal{Matrix4x4{T}} 
-	eyeposition::Signal{Vector3{T}} 
-	lookat::Signal{Vector3{T}} 
+	projection::Signal{Matrix4x4{T}}
+	projectionview::Signal{Matrix4x4{T}}
+	normalmatrix::Signal{Matrix3x3{T}}
+	eyeposition::Signal{Vector3{T}}
+	lookat::Signal{Vector3{T}}
 	up::Signal{Vector3{T}}
 end
 
@@ -109,27 +107,28 @@ function Cam(inputs, eyeposition)
 	Cam(inputs[:window_size], draggx, draggy, zoom, eyeposition, Input(Vector3(0f0)), fov)
 end
 function Cam{T}(
-					window_size::Input{Vector2{Int}}, 
-					xangle, 
-					ydiff, 
-					zoom, 
-					eyeposition::Vector3{T}, 
-					lookatvec::Input{Vector3{T}}, 
+					window_size::Input{Vector2{Int}},
+					xangle,
+					ydiff,
+					zoom,
+					eyeposition::Vector3{T},
+					lookatvec::Input{Vector3{T}},
 					fov::Signal{T}
 				)
-	
+
 	nearclip 		= Input(convert(T, 1))
 	farclip 		= Input(convert(T, 100))
 
 	up				= Input(Vector3{T}(0, 0, 1))
-
-	v0				= Rotatable(eyeposition,  lookatvec.value, up.value, xangle.value, ydiff.value, zoom.value)
+	dir 			= eyeposition - lookatvec.value
+	right 			= unit(cross(dir, up.value))
+	dirup			= unit(cross(dir, right))
+	v0				= Rotatable(eyeposition,  lookatvec.value, up.value,dirup, xangle.value, ydiff.value, zoom.value)
 	states			= lift(rotatable,  Input(eyeposition), lookatvec, up, xangle, ydiff, zoom)
-	stateSignal		= foldl(movecam, v0, states)
+	stateSignal 	= foldl(movecam, v0, states)
 
 
 	positionvec		= lift(x -> x.position, Vector3{T}, stateSignal)
-
 	window_ratio 	= lift(x -> x[1] / x[2], T, window_size)
 
 	lift(x -> glViewport(0,0, x[1], x[2]), window_size)
@@ -138,15 +137,16 @@ function Cam{T}(
 
 	projection 		= lift(perspectiveprojection, Matrix4x4{T}, fov, window_ratio, nearclip, farclip)
 	projectionview 	= lift(*, Matrix4x4{T}, projection, viewmat)
-
+	normalmatrix 	= lift(x -> inv(Matrix3x3(x))', Matrix3x3{T}, projectionview)
 	Cam{T}(
-			window_size, 
+			window_size,
 			nearclip,
 			farclip,
 			fov,
-			viewmat, 
+			viewmat,
 			projection,
 			projectionview,
+			normalmatrix,
 			positionvec,
 			lookatvec,
 			up
@@ -156,7 +156,7 @@ end
 
 function update(cam::PerspectiveCamera)
 	cam.projection 	= perspectiveprojection(76, cam.w / cam.h,  1.0f0, 30.0f0)
-	cam.view   		= lookAt(	
+	cam.view   		= lookAt(
 					cam.position,           # Camera is here
 					cam.lookAt, # and looks here : at the same position, plus "direction"
 					[0f0, 0f0, 1f0])
@@ -195,10 +195,10 @@ end
 function rotate2(xDiff::Float32, yDiff::Float32, cam::Camera)
 	cam.verticalAngle   += cam.rotationSpeed * yDiff
 	cam.direction = [
-		cos(cam.verticalAngle) * sin(cam.horizontalAngle), 
+		cos(cam.verticalAngle) * sin(cam.horizontalAngle),
 		sin(cam.verticalAngle),
 		cos(cam.verticalAngle) * cos(cam.horizontalAngle)]
-	
+
 	# Right vector
 	cam.right = cross(cam.direction, [0f0, 0f0, 1f0])
 

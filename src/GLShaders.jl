@@ -18,7 +18,7 @@ immutable GLSLVariable
 end
 
 
-flatshader 		= GLProgram("/home/s/.julia/v0.3/GLPlot/src/volumeShader")
+flatshader 		  = GLProgram("/home/s/.julia/v0.3/GLPlot/src/volumeShader")
 uniformLength 	= glGetProgramiv(flatshader.id, GL_ACTIVE_UNIFORMS)
 attributeLength = glGetProgramiv(flatshader.id, GL_ACTIVE_ATTRIBUTES)
 

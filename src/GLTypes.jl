@@ -26,14 +26,13 @@ end
 
 immutable GLProgram
     id::GLuint
-    frag
-    vert
+    name::String
 end
 
 
 function GLProgram(vertex::ASCIIString, fragment::ASCIIString, name::String)
-    vertexShaderID::GLuint   = readShader(vertex, GL_VERTEX_SHADER, name)
-    fragmentShaderID::GLuint = readShader(fragment, GL_FRAGMENT_SHADER, name)
+    vertexShaderID::GLuint   = readshader(vertex, GL_VERTEX_SHADER, name)
+    fragmentShaderID::GLuint = readshader(fragment, GL_FRAGMENT_SHADER, name)
     p = glCreateProgram()
     @assert p > 0
     glAttachShader(p, vertexShaderID)
@@ -42,20 +41,15 @@ function GLProgram(vertex::ASCIIString, fragment::ASCIIString, name::String)
     printProgramInfoLog(p, name)
     glDeleteShader(vertexShaderID)
     glDeleteShader(fragmentShaderID)
-    return GLProgram(p, name, name)
+    return GLProgram(p, name)
 end
-function GLProgram(vertex_file_path, fragment_file_path)
-    vertexShaderID::GLuint   = readShader(open(vertex_file_path),   GL_VERTEX_SHADER, vertex_file_path)
-    fragmentShaderID::GLuint = readShader(open(fragment_file_path), GL_FRAGMENT_SHADER, fragment_file_path)
-    p = glCreateProgram()
-    @assert p > 0
-    glAttachShader(p, vertexShaderID)
-    glAttachShader(p, fragmentShaderID)
-    glLinkProgram(p)
-    printProgramInfoLog(p, vertex_file_path)
-    glDeleteShader(vertexShaderID)
-    glDeleteShader(fragmentShaderID)
-    return GLProgram(p, vertex_file_path, fragment_file_path)
+function GLProgram(vertex_file_path::ASCIIString, fragment_file_path::ASCIIString)
+    
+    vertsource  = readall(open(vertex_file_path))
+    fragsource  = readall(open(fragment_file_path))
+    vertname    = basename(vertex_file_path)
+    fragname    = basename(fragment_file_path)
+    GLProgram(vertsource, fragsource, vertname * ", " * fragname)
 end
 export GLProgram
 ##########################################################################
@@ -93,8 +87,8 @@ type PerspectiveCamera <: Camera
                     position::Vector{Float32},
                     lookAt::Vector{Float32})
 
-        cam = new(500f0, 500f0, nearClip, farClip, horizontalAngle, verticalAngle, 
-            rotationSpeed, zoomSpeed, moveSpeed, FoV, position, [0f0, 0f0, 0f0], 
+        cam = new(500f0, 500f0, nearClip, farClip, horizontalAngle, verticalAngle,
+            rotationSpeed, zoomSpeed, moveSpeed, FoV, position, [0f0, 0f0, 0f0],
             [0f0, 0f0, 0f0], [0f0,1f0,0f0], eye(Float32,4,4), eye(Float32,4,4), lookAt)
 
         rotate(0f0, 0f0, cam)
@@ -125,7 +119,7 @@ type OrthogonalCamera  <: Camera
                     moveSpeed::Float32,
                     position::Array{Float32, 1})
 
-        cam = new(500f0, 500f0, angle, nearClip, farClip, 
+        cam = new(500f0, 500f0, angle, nearClip, farClip,
             rotationSpeed, zoomSpeed, moveSpeed, position, eye(Float32,4,4))
         update(cam)
         return cam
@@ -140,288 +134,265 @@ export Camera, OrthogonalCamera, PerspectiveCamera
 
 import Images.imread
 import Images.Image
-
 export Texture
 
-immutable Texture
-    id::GLuint
-    textureType::GLenum
-    pixelDataFormat::GLenum
-    dims::Vector{Int}
-    function Texture(data::Ptr{Void}, textureType::GLenum, internalformat::GLenum, dims::Vector{Int}, format::GLenum, texelDataType::GLenum;
-                     parameters::Vector{(GLenum, GLenum)} = getDefaultTextureParameters(textureType))
-        @assert all(x -> x > 0, dims)
-        id = glGenTextures()
-        glBindTexture(textureType, id)
-        for elem in parameters
-            glTexParameteri(textureType, elem...)
-        end
-        glTexImage(0, internalformat, dims..., 0, format, texelDataType, data)
-        #@assert glGetError() == GL_NO_ERROR
-        new(id, textureType, internalformat, dims)
-    end
-
-
+#Supported datatypes
+const TO_GL_TYPE = [
+    Uint8   => GL_UNSIGNED_BYTE,
+    Int8    => GL_BYTE,
+    Float32 => GL_FLOAT
+]
+#Supported texture modes/dimensions
+const TO_GL_TEXTURE_TYPE = [
+    1 => GL_TEXTURE_1D,
+    2 => GL_TEXTURE_2D,
+    3 => GL_TEXTURE_3D
+]
+const DEFAULT_GL_COLOR_FORMAT = [
+    1 => GL_LUMINANCE,
+    2 => GL_RG,
+    3 => GL_RGB,
+    4 => GL_RGBA,
+]
+glpixelformat(x::DataType) = get(TO_GL_TYPE, x) do
+    error("Type: $(x) not supported as pixel datatype")
 end
-function getDefaultTextureParameters(textureType::GLenum)
-    const parameters = [
-        (GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE),
-        (GL_TEXTURE_MAG_FILTER, GL_LINEAR),
-        (GL_TEXTURE_MIN_FILTER, GL_LINEAR)
+glpixelformat(x::AbstractArray) = glpixelformat(eltype(x))
+
+gltexturetype(dim::Int) = get(TO_GL_TEXTURE_TYPE, dim) do
+    error("$(dim)-dimensional textures not supported")
+end
+glcolorformat(colordim::Int) = get(DEFAULT_GL_COLOR_FORMAT, colordim) do
+    error("$(colordim)-dimensional colors not supported")
+end
+
+function getDefaultTextureParameters(dim::Int)
+    parameters = [
+        (GL_TEXTURE_WRAP_S,  GL_CLAMP_TO_EDGE ),
+        (GL_TEXTURE_MIN_FILTER, GL_NEAREST),
+        (GL_TEXTURE_MAG_FILTER, GL_NEAREST)
     ]
-    if textureType == GL_TEXTURE_2D || textureType == GL_TEXTURE_3D
-        push!(parameters, (GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE))
-        if textureType == GL_TEXTURE_3D
-            push!(parameters, (GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE))
-        end
+    if dim <= 3 && dim > 1
+        push!(parameters, (GL_TEXTURE_WRAP_T,  GL_CLAMP_TO_EDGE ))
+    end
+    if dim == 3
+        push!(parameters, (GL_TEXTURE_WRAP_R,  GL_CLAMP_TO_EDGE ))
     end
     parameters
 end
 
 
-function Texture(   data::Array, textureType::GLenum;
-                    parameters::Vector{(GLenum, GLenum)} = getDefaultTextureParameters(textureType))
+immutable Texture
+    id::GLuint
+    texturetype::GLenum
+    pixeltype::GLenum
+    internalformat::GLenum
+    format::GLenum
+    dims::Vector{Int}
+    function Texture{T}(data::Ptr{T}, colordim, dims, internalformat, format, parameters::Vector{(GLenum, GLenum)})
 
-    dims = [size(data)...]
-    glDims = Int[0]
-    dimOffset = 0
-    imgType = eltype(data)
-    if imgType == Uint8
-        texelDataType = GL_UNSIGNED_BYTE
-    elseif imgType == Float32
-        texelDataType = GL_FLOAT
-    elseif imgType == Int8
-        texelDataType = GL_BYTE
-    else 
-        error("Type: $(imgType) not supported")
-    end
-    if textureType == GL_TEXTURE_1D
-        dimOffset = -1
-    elseif textureType == GL_TEXTURE_2D
-        dimOffset = 0
-    elseif textureType == GL_TEXTURE_3D
-        dimOffset = 1
-    else
-        error("wrong target texture type. valid are: GL_Texture_1D, GL_Texture_2D, GL_Texture_3D")
-    end
-    if length(dims) == 2 + dimOffset
-        glDims = dims
-        pixelDataFormat = GL_LUMINANCE
-    elseif length(dims) == 3 + dimOffset
-        if dims[1] == 3
-            glDims = dims[2:end]
-            pixelDataFormat = GL_RGB
-        elseif dims[1] == 4
-            glDims = dims[2:end]
-            pixelDataFormat = GL_RGBA
-        else 
-            error("wrong color dimensions. dims: $(dims[1])")
+        @assert all(x -> x > 0, dims)
+
+        if isempty(parameters)
+            parameters = getDefaultTextureParameters(length(dims))
         end
-    else
-        error("wrong image dimensions. dims: $(dims)")
+
+        internalformat  = internalformat==0? glcolorformat(colordim) : internalformat
+        format          = format==0? glcolorformat(colordim) : format
+
+        texturetype     = gltexturetype(length(dims)) # Dimensionality of texture
+
+        id = glGenTextures()
+        glBindTexture(texturetype, id)
+        for elem in parameters
+            glTexParameteri(texturetype, elem...)
+        end
+        pixeltype = glpixelformat(T)
+        glTexImage(0, internalformat, dims..., 0, format, pixeltype, data)
+        new(id, texturetype, pixeltype, internalformat, format, [colordim..., dims...])
     end
-    Texture(convert(Ptr{Void},pointer(data)), textureType, pixelDataFormat, glDims, pixelDataFormat, texelDataType, parameters=parameters)
 end
 
 
 
-function Texture(img::Union(String, Image);
-                    targetFormat::GLenum = GL_RGB, textureType::GLenum = GL_TEXTURE_2D, 
-                    parameters::Vector{(GLenum, GLenum)} = getDefaultTextureParameters(textureType))
-    #@assert glGetError() == GL_NO_ERROR
+#intended usage: Array(Vector1/2/3/4{Uniont(Float32, Uint8, Int8)}, 1/2/3)
+#1-3 dimensional array, with 1-4 dimensional color values
+function Texture{T}(
+                        data::Array{T};
+                        internalformat=0, format=0, parameters::Vector{(GLenum, GLenum)}=(GLenum, GLenum)[]
+                    )
+
+    @assert length(data) > 0
+    ptrtype, colordim   = opengl_compatible(T)
+    dims                = [size(data)...]
+
+    Texture(convert(Ptr{ptrtype}, pointer(data)), colordim, dims, internalformat, format, parameters)
+end
+
+function Texture{T <: Real}(
+                    data::Array{T}, colordim;
+                    internalformat = 0, format = 0, parameters::Vector{(GLenum, GLenum)} = (GLenum, GLenum)[]
+                )
+    if colordim == 1
+        dims = [size(data)...]
+    elseif colordim >= 2 && colordim <= 4
+        dims = [size(data)[2:end]...]
+    else
+        error("wrong color dimension. Dimension: $(colordim)")
+    end
+    Texture(convert(Ptr{T}, pointer(data)), colordim, dims, internalformat, format, parameters)
+end
+
+
+function Texture(
+                    img::Union(Image, String);
+                    internalformat = 0, format = 0, parameters::Vector{(GLenum, GLenum)} = (GLenum, GLenum)[]
+                )
     if isa(img, String)
         img = imread(img)
     end
-    
     @assert length(img.data) > 0
+    colordim    = length(img.properties["colorspace"])
     imgFormat   = img.properties["colorspace"]
-    #glTexImage2D needs to know the pixel data format from imread, the type and the targetFormat
-    pixelDataFormat::GLenum = 0
-    imgType                 = eltype(img.data)
-    glImgType::GLenum       = 0
-    glImgData1D = imgType[]
-    dims = [0]
+
     if imgFormat == "ARGB"
-        pixelDataFormat = GL_RGBA
         tmp = img.data[1,1:end, 1:end]
         img.data[1,1:end, 1:end] = img.data[2,1:end, 1:end]
         img.data[2,1:end, 1:end] = img.data[3,1:end, 1:end]
         img.data[3,1:end, 1:end] = img.data[4,1:end, 1:end]
         img.data[4,1:end, 1:end] = tmp
-        glImgData1D  = img.data
-
-        dims = [size(img)[2:end]...]
+        imgdata  = img.data
+        colordim = 4
     elseif imgFormat == "RGB"
-        pixelDataFormat = GL_RGB
-        dims = [size(img)[2:end]...]
-        w = size(img.data)[2]
-        h = size(img.data)[3]
-        glImgData1D = img.data #reshape(img.data, dims[1], dims[2] * 3)
-
+        imgdata = img.data
+        colordim = 3
     elseif imgFormat == "Gray"
-        pixelDataFormat = GL_LUMINANCE
-        glImgData1D = img.data
-        dims = [size(img)[1:end]...]            
-    else 
+        imgdata = img.data
+    else
         error("Color Format $(imgFormat) not supported")
     end
-    if imgType == Uint8
-        glImgType = GL_UNSIGNED_BYTE
-    elseif imgType == Float32
-        glImgType = GL_FLOAT
-    elseif imgType == Int8
-        glImgType = GL_BYTE
-    else 
-        error("Type: $(imgType) not supported")
-    end
-
-    Texture(glImgData1D, dims, textureType, pixelDataFormat, parameters)
+    #
+    Texture(mapslices(reverse,imgdata, [2]), colordim, internalformat=internalformat, format=format, parameters=parameters)
 end
 
 ########################################################################
 
+function opengl_compatible(T::DataType)
+    if !isbits(T)
+        error("only pointer free, immutable types are supported for upload to OpenGL. Found type: $(T)")
+    end
+    elemtype = T.types[1]
+    if !(elemtype <: Real)
+        error("only real numbers are allowed as element types for upload to OpenGL. Found type: $(T) with $(ptrtype)")
+    end
+    if !all(x -> x == elemtype , T.types)
+        error("all values in $(T) need to have the same type to create a GLBuffer")
+    end
+    cardinality = length(names(T))
+    if cardinality > 4
+        error("there should be at most 4 values in $(T) to create a GLBuffer")
+    end
+    elemtype, cardinality
+end
 immutable GLBuffer{T <: Real}
     id::GLuint
     length::Int
     cardinality::Int
-    bufferType::GLenum
+    buffertype::GLenum
     usage::GLenum
 
-    function GLBuffer(ptr::Ptr{T}, size::Int, cardinality::Int, bufferType::GLenum, usage::GLenum)
-        id = glGenBuffers()
-        @assert id >= 0
+    function GLBuffer(ptr::Ptr{T}, size::Int, cardinality::Int, buffertype::GLenum, usage::GLenum)
         @assert size % sizeof(T) == 0
         _length = div(size, sizeof(T))
         @assert _length % cardinality == 0
         _length = div(_length, cardinality)
 
-        glBindBuffer(bufferType, id)
-        glBufferData(bufferType, size, ptr, usage)
-        glBindBuffer(bufferType, 0)
+        id = glGenBuffers()
+        glBindBuffer(buffertype, id)
+        glBufferData(buffertype, size, ptr, usage)
+        glBindBuffer(buffertype, 0)
 
-        new(id, _length, cardinality, bufferType, usage)
+        new(id, _length, cardinality, buffertype, usage)
     end
-
 end
 
-function GLBuffer(buffer::Vector; bufferType::GLenum = GL_ARRAY_BUFFER, usage::GLenum = GL_STATIC_DRAW) 
-    ptrType = eltype(buffer)
-    @assert isbits(ptrType)
-    T = ptrType.types[1]
-    @assert T <: Real
-    @assert all(x -> x == T , ptrType.types)
-    
-    cardinality = length(names(ptrType))
-    @assert cardinality <= 4
-    ptr = convert(Ptr{T}, pointer(buffer))
-    GLBuffer(ptr, sizeof(buffer), cardinality, bufferType, usage)
+
+#Function to deal with any Immutable type with Real as Subtype
+function GLBuffer{T}(
+            buffer::Vector{T};
+            buffertype::GLenum = GL_ARRAY_BUFFER, usage::GLenum = GL_STATIC_DRAW
+        )
+    #This is a workaround, to deal with all kinds of immutable vector types
+    ptrtype, cardinality = opengl_compatible(T)
+    ptr = convert(Ptr{ptrtype}, pointer(buffer))
+    GLBuffer{ptrtype}(ptr, sizeof(buffer), cardinality, buffertype, usage)
 end
-function GLBuffer{T}(buffer::Vector{T}, cardinality::Int; bufferType::GLenum = GL_ARRAY_BUFFER, usage::GLenum = GL_STATIC_DRAW) 
-    GLBuffer{T}(convert(Ptr{T}, pointer(buffer)), sizeof(buffer), cardinality, bufferType, usage)
+
+function GLBuffer{T <: Real}(
+            buffer::Vector{T}, cardinality::Int;
+            buffertype::GLenum = GL_ARRAY_BUFFER, usage::GLenum = GL_STATIC_DRAW
+        )
+    GLBuffer{T}(convert(Ptr{T}, pointer(buffer)), sizeof(buffer), cardinality, buffertype, usage)
+end
+function indexbuffer(buffer; usage::GLenum = GL_STATIC_DRAW)
+    GLBuffer(buffer, 1, buffertype = GL_ELEMENT_ARRAY_BUFFER, usage=usage)
 end
 
 immutable GLVertexArray
-    program::GLProgram
-    id::GLuint
-    length::Int
-    indexLength::Int # is negative if no indexes
-    #Buffer dict
-    function GLVertexArray(bufferDict::Dict{Symbol, GLBuffer}, program::GLProgram)
-        @assert !isempty(bufferDict)
-        #get the size of the first array, to assert later, that all have the same size
-        indexSize = -1
-        _length = get(bufferDict, collect(keys(bufferDict))[1], 0).length
-        id = glGenVertexArrays()
-        glBindVertexArray(id)      
-        for elem in bufferDict
-            buffer      = elem[2]
-            if buffer.bufferType == GL_ELEMENT_ARRAY_BUFFER
-                glBindBuffer(buffer.bufferType, buffer.id)
-                indexSize = buffer.length
-            else 
-                attribute   = string(elem[1])
-                @assert _length == buffer.length
-                glBindBuffer(buffer.bufferType, buffer.id)
-                attribLocation = get_attribute_location(program.id, attribute)
+  program::GLProgram
+  id::GLuint
+  length::Int
+  indexlength::Int # is negative if not indexed
 
-                glVertexAttribPointer(attribLocation, buffer.cardinality, GL_FLOAT, GL_FALSE, 0, 0)
-                glEnableVertexAttribArray(attribLocation)
-            end
-        end
-        glBindVertexArray(0)        
-        new(program, id, _length, indexSize)
+  function GLVertexArray(bufferDict::Dict{Symbol, GLBuffer}, program::GLProgram)
+    @assert !isempty(bufferDict)
+    #get the size of the first array, to assert later, that all have the same size
+    indexSize = -1
+    _length = get(bufferDict, collect(keys(bufferDict))[1], 0).length
+    id = glGenVertexArrays()
+    glBindVertexArray(id)
+    for elem in bufferDict
+      buffer      = elem[2]
+      if buffer.buffertype == GL_ELEMENT_ARRAY_BUFFER
+        glBindBuffer(buffer.buffertype, buffer.id)
+        indexSize = buffer.length
+      else
+        attribute   = string(elem[1])
+        @assert _length == buffer.length
+        glBindBuffer(buffer.buffertype, buffer.id)
+        attribLocation = get_attribute_location(program.id, attribute)
+
+        glVertexAttribPointer(attribLocation, buffer.cardinality, GL_FLOAT, GL_FALSE, 0, 0)
+        glEnableVertexAttribArray(attribLocation)
+      end
     end
+    glBindVertexArray(0)
+    new(program, id, _length, indexSize)
+  end
 end
 function GLVertexArray(bufferDict::Dict{ASCIIString, GLBuffer}, program::GLProgram)
     GLVertexArray(Dict{Symbol, GLBuffer}(map(elem -> (symbol(elem[1]), elem[2]), bufferDict)), program)
 end
-export GLVertexArray, GLBuffer
+export GLVertexArray, GLBuffer, indexbuffer
 
 ##################################################################################
-abstract Renderable
-
-immutable GLRenderObject <: Renderable
-    vertexArray::GLVertexArray
-    uniforms::Dict{GLint, Any}
-    textures::Array{(GLint, Texture, Int), 1}
-    program::GLProgram
-    preRenderFunctions::Array{(Function, Tuple), 1}
-    postRenderFunctions::Array{(Function, Tuple), 1}
-    function GLRenderObject(
-            vertexArray::GLVertexArray,
-            uniforms::Dict{ASCIIString, Any},
-            textures::Dict{ASCIIString, Texture},
-            program::GLProgram,
-            preRenderFunctions::Array{(Function, Tuple), 1},
-            postRenderFunctions::Array{(Function, Tuple), 1}
-            )
-        #do some checks!
-        #todo: check if all attributes are available in the program
-        for elem in preRenderFunctions
-            @assert method_exists(elem[1], [elem[2]..., GLRenderObject]...)
-        end
-        for elem in postRenderFunctions
-            @assert method_exists(elem..., [elem[2]..., GLRenderObject]...)
-        end
-        uniforms = map(attributes -> begin 
-                loc = get_uniform_location(program.id, attributes[1])
-                @assert loc >= 0
-                setProgramDefault(loc, attributes[2], program.id)
-                (loc, attributes[2])
-            end, uniforms)
-        uniforms = Dict{GLint, Any}([uniforms...])
-
-        textureTarget = 0
-        textures = map(attributes -> begin 
-                loc = get_uniform_location(program.id, attributes[1])
-                @assert loc >= 0
-                setProgramDefault(loc, attributes[2], program.id, textureTarget)
-                textureTarget += 1
-                (loc, attributes[2], textureTarget-1)
-            end, textures)
-
-        #@assert glGetError() == GL_NO_ERROR
-        new(vertexArray, uniforms, textures, program, preRenderFunctions, postRenderFunctions)
-    end
-end
-
 
 
 immutable RenderObject
     uniforms::Vector{Any}
-    vertexArray::GLVertexArray
+    vertexarray::GLVertexArray
     preRenderFunctions::Array{(Function, Tuple), 1}
     postRenderFunctions::Array{(Function, Tuple), 1}
 
     function RenderObject(data::Dict{Symbol, Any}, program::GLProgram)
-        
+
         buffers     = filter((key, value) -> isa(value, GLBuffer), data)
         uniforms    = filter((key, value) -> !isa(value, GLBuffer), data)
-        if length(buffers > 0)
+        if length(buffers) > 0
             vertexArray = GLVertexArray(Dict{Symbol, GLBuffer}(buffers), program)
         end
         textureTarget::GLint = -1
-        uniforms = map(attributes -> begin 
+        uniforms = map(attributes -> begin
                 loc = get_uniform_location(program.id, attributes[1])
 
                 if isa(attributes[2], Texture)
@@ -431,7 +402,7 @@ immutable RenderObject
                     return (loc, attributes[2])
                 end
             end, uniforms)
-       
+
         new(uniforms, vertexArray, (Function, Tuple)[], (Function, Tuple)[])
     end
 end
@@ -451,27 +422,12 @@ function pushfunction!(target::Vector{(Function, Tuple)}, fs...)
     push!(target, (func, tuple(args...)))
 end
 prerender!(x::RenderObject, fs...)   = pushfunction!(x.preRenderFunctions, fs...)
-postrender!(x::RenderObject, fs...)  = pushfunction!(x.posRenderFunctions, fs...)
+postrender!(x::RenderObject, fs...)  = pushfunction!(x.postRenderFunctions, fs...)
 
 RenderObject{T}(data::Dict{Symbol, T}, program::GLProgram) = RenderObject(Dict{Symbol, Any}(data), program)
 
-function GLRenderObject(program::GLProgram, data::Dict{ASCIIString, Any})
 
-    buffers         = Dict{ASCIIString, GLBuffer}(filter((key, value) -> isa(value, GLBuffer), data))
-    textures        = Dict{ASCIIString, Texture}(filter((key, value) -> isa(value, Texture), data))
-
-    vertexArray     = GLVertexArray(buffers, program)
-
-    uniforms        = filter((key, value) -> !isa(value, GLBuffer) && !isa(value, Texture), data)
-
-    GLRenderObject(vertexArray, uniforms, textures, program, (Function, Tuple)[], (Function, Tuple)[])
-end
-
-type FuncWithArgs{T} <: Renderable
-    f::Function
-    args::T
-end
-export Renderable, RenderObject, prerender!, postrender!
+export RenderObject, prerender!, postrender!
 ####################################################################################
 
 
