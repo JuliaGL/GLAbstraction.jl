@@ -7,7 +7,7 @@ translatematrix_x{T}(x::T) = translationmatrix( Vector3{T}(x, 0, 0))
 translatematrix_y{T}(y::T) = translationmatrix( Vector3{T}(0, y, 0))
 translatematrix_z{T}(z::T) = translationmatrix( Vector3{T}(0, 0, z))
 
-function translationmatrix{T}(translation::Vector3{T})
+function translatematrix{T}(translation::Vector3{T})
     result          = eye(T, 4, 4)
     result[1:3,4]   = translation
 
@@ -124,7 +124,7 @@ function lookat{T}(eyePos::Vector3{T}, lookAt::Vector3{T}, up::Vector3{T})
     viewMatrix[2,1:3]  = yaxis
     viewMatrix[3,1:3]  = zaxis
 
-    Matrix4x4(viewMatrix) * translationmatrix(-eyePos)
+    Matrix4x4(viewMatrix) * translatematrix(-eyePos)
 end
 
 function orthographicprojection{T}(
@@ -151,5 +151,5 @@ end
 
 
 export lookat, perspectiveprojection, orthographicprojection
-export translationmatrix, translatematrix_x, translatematrix_y, translatematrix_z
+export translatematrix, translatematrix_x, translatematrix_y, translatematrix_z
 export  rotationmatrix_x, rotationmatrix_y, rotationmatrix_z #rotationmatrix,

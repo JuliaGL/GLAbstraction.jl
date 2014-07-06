@@ -54,9 +54,6 @@ end
 
 #handle all uniform objects
 
-setProgramDefault(attribute::ASCIIString, anyUniform, programID::GLuint)    = setProgramDefault(glGetUniformLocation(id, attribute), anyUniform, programID)
-setProgramDefault(attribute::Symbol, anyUniform, programID::GLuint)         = setProgramDefault(glGetUniformLocation(id, string(attribute)), anyUniform, programID)
-
 render(attribute::ASCIIString, anyUniform, programID::GLuint)               = render(glGetUniformLocation(programID, attribute), anyUniform)
 render(attribute::Symbol, anyUniform, programID::GLuint)                    = render(glGetUniformLocation(programID, string(attribute)), anyUniform)
 
@@ -67,39 +64,16 @@ function render(location::GLint, target::GLint, t::Texture)
     glBindTexture(t.texturetype, t.id)
     glUniform1i(location, target)
 end
-function setProgramDefault(location::GLint, t::Texture, programID, target = 0)
-    glProgramUniform1i(location, target, programID)
-end
+
 
 function render(location::GLint, cam::Camera)
     render(location, cam.mvp)
 end
-function setProgramDefault(location::GLint, cam::Camera, programID)
-    setProgramDefault(location, cam.mvp, programID)
-end
-#=
-function render(location::GLint, input::Input)
-    render(location, input.value)
-end
-=#
-function setProgramDefault(location::GLint, object::AbstractArray, programID)
-    func = getUniformFunction(object, "Program")
-    D = length(size(object))
-    T = eltype(object)
-    objectPtr = convert(Ptr{T}, pointer(object))
-    if D == 1
-        func(programID, location, 1, objectPtr)
-    elseif D == 2
-        func(programID, location, 1, GL_FALSE, objectPtr)
-    else
-        error("glUniform: unsupported dimensionality")
-    end
-end
+
 render(location::GLint, object::Real)               = render(location, [object])
-setProgramDefault(location::GLint, object::Real, programID)    = setProgramDefault(location, [object], programID)
 
 function render(location::GLint, object::AbstractArray)
-    func = getUniformFunction(object, "")
+    func = uniformfunction(object)
     D = length(size(object))
     T = eltype(object)
     objectPtr = convert(Ptr{T}, pointer([object]))
@@ -112,19 +86,26 @@ function render(location::GLint, object::AbstractArray)
     end
 end
 
-function getUniformFunction(object::AbstractArray, program::ASCIIString)
-    T = eltype(object)
-    D = length(size(object))
-    @assert(!isempty(object))
+
+function uniformfunction(object::Any)
+    T, cardinality = opengl_compatible(T)
+    uniformfunction(T, cardinality, [cardinality])
+end
+function uniformfunction(object::AbstractArray)
+    T           = eltype(object)
+    cardinality = length(size(object))
+    dims        = [size(object)...]
+    uniformfunction(T, cardinality, dims)
+end
+function uniformfunction(T::DataType, cardinality::Integer, dims::AbstractArray)
+    D = length(dims)
     @assert D <= 2
     matrix = D == 2
     if matrix
         @assert T <: FloatingPoint #There are only functions for Float32 matrixes
     end
 
-    dims = size(object)
-
-    if D == 1 || dims[1] == dims[2]
+    if D == 1 || dims[1] == dims[2] # if dimension is one or both dimensions are equal, there is no x between the dims
         cardinality = string(dims[1])
     else
         cardinality = string(dims[1], "x", dims[2])
@@ -135,10 +116,12 @@ function getUniformFunction(object::AbstractArray, program::ASCIIString)
         elementType = "iv"
     elseif T == GLfloat
         elementType = "fv"
+    elseif T == GLdouble
+        elementType = "dv"
     else
-        error("type not supported: ", T)
+        error("type for gl uniform not supported: ", T)
     end
-    func = eval(parse("gl" *program* "Uniform" * (matrix ? "Matrix" : "")* cardinality *elementType))
+    func = eval(parse("gl" * "Uniform" * (matrix ? "Matrix" : "")* cardinality *elementType))
 end
 
 

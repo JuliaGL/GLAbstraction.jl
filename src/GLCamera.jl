@@ -48,7 +48,7 @@ function movecam{T}(state0::Rotatable{T}, state1::Rotatable{T})
 
 	dir 		= state0.position - state1.lookat
 	posdelta	= state0.position - state1.position
-	right 		= unit(cross(dir, posdelta))
+	right 		= unit(cross(dir, state1.up))
 	dirup		= unit(cross(dir, right))
 	xrotation 	= rotate2(deg2rad(xangle), state1.up)
 	yrotation 	= rotate2(deg2rad(yangle), right)

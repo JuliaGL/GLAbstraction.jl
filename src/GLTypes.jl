@@ -26,22 +26,25 @@ end
 
 immutable GLProgram
     id::GLuint
-    name::String
+    vertpath::String
+    fragpath::String
+    #uniformFunc::Function # For performance reasons, all uniforms are set with one function
+    #uniforms::(Symbol...)
 end
 
 
-function GLProgram(vertex::ASCIIString, fragment::ASCIIString, name::String)
-    vertexShaderID::GLuint   = readshader(vertex, GL_VERTEX_SHADER, name)
-    fragmentShaderID::GLuint = readshader(fragment, GL_FRAGMENT_SHADER, name)
+function GLProgram(vertex::ASCIIString, fragment::ASCIIString, vertpath::String, fragpath::String)
+    vertexShaderID::GLuint   = readshader(vertex, GL_VERTEX_SHADER, vertpath)
+    fragmentShaderID::GLuint = readshader(fragment, GL_FRAGMENT_SHADER, fragpath)
     p = glCreateProgram()
     @assert p > 0
     glAttachShader(p, vertexShaderID)
     glAttachShader(p, fragmentShaderID)
     glLinkProgram(p)
-    printProgramInfoLog(p, name)
+
     glDeleteShader(vertexShaderID)
     glDeleteShader(fragmentShaderID)
-    return GLProgram(p, name)
+    return GLProgram(p, vertpath, fragpath)
 end
 function GLProgram(vertex_file_path::ASCIIString, fragment_file_path::ASCIIString)
     
@@ -49,7 +52,7 @@ function GLProgram(vertex_file_path::ASCIIString, fragment_file_path::ASCIIStrin
     fragsource  = readall(open(fragment_file_path))
     vertname    = basename(vertex_file_path)
     fragname    = basename(fragment_file_path)
-    GLProgram(vertsource, fragsource, vertname * ", " * fragname)
+    GLProgram(vertsource, fragsource, vertex_file_path, fragment_file_path)
 end
 export GLProgram
 ##########################################################################
@@ -373,7 +376,7 @@ end
 function GLVertexArray(bufferDict::Dict{ASCIIString, GLBuffer}, program::GLProgram)
     GLVertexArray(Dict{Symbol, GLBuffer}(map(elem -> (symbol(elem[1]), elem[2]), bufferDict)), program)
 end
-export GLVertexArray, GLBuffer, indexbuffer
+export GLVertexArray, GLBuffer, indexbuffer, opengl_compatible
 
 ##################################################################################
 
