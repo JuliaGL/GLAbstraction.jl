@@ -101,7 +101,7 @@ type PerspectiveCamera <: Camera
 end
 
 
-type OrthogonalCamera  <: Camera
+type OrthogonalCamera <: Camera
     #width and height in pixel
     w::Float32
     h::Float32
@@ -137,13 +137,17 @@ export Camera, OrthogonalCamera, PerspectiveCamera
 
 import Images.imread
 import Images.Image
-export Texture
+export Texture, texturetype
 
 #Supported datatypes
 const TO_GL_TYPE = [
-    Uint8   => GL_UNSIGNED_BYTE,
-    Int8    => GL_BYTE,
-    Float32 => GL_FLOAT
+    GLubyte     => GL_UNSIGNED_BYTE,
+    GLbyte      => GL_BYTE,
+    GLuint      => GL_UNSIGNED_INT,
+    GLshort     => GL_UNSIGNED_SHORT,
+    GLushort    => GL_SHORT,
+    GLint       => GL_INT,
+    GLfloat     => GL_FLOAT
 ]
 #Supported texture modes/dimensions
 const TO_GL_TEXTURE_TYPE = [
@@ -152,17 +156,21 @@ const TO_GL_TEXTURE_TYPE = [
     3 => GL_TEXTURE_3D
 ]
 const DEFAULT_GL_COLOR_FORMAT = [
-    1 => GL_LUMINANCE,
+    1 => GL_RED,
     2 => GL_RG,
     3 => GL_RGB,
     4 => GL_RGBA,
 ]
+
+const TEXTURE_COMPATIBLE_NUMBER_TYPES = Union(collect(keys(TO_GL_TYPE))...)
+
 glpixelformat(x::DataType) = get(TO_GL_TYPE, x) do
     error("Type: $(x) not supported as pixel datatype")
 end
 glpixelformat(x::AbstractArray) = glpixelformat(eltype(x))
 
-gltexturetype(dim::Int) = get(TO_GL_TEXTURE_TYPE, dim) do
+
+texturetype(dim::Int) = get(TO_GL_TEXTURE_TYPE, dim) do
     error("$(dim)-dimensional textures not supported")
 end
 glcolorformat(colordim::Int) = get(DEFAULT_GL_COLOR_FORMAT, colordim) do
@@ -185,14 +193,13 @@ function getDefaultTextureParameters(dim::Int)
 end
 
 
-immutable Texture
+immutable Texture{T <: TEXTURE_COMPATIBLE_NUMBER_TYPES, ColorDIM, NDIM}
     id::GLuint
-    texturetype::GLenum
     pixeltype::GLenum
     internalformat::GLenum
     format::GLenum
     dims::Vector{Int}
-    function Texture{T}(data::Ptr{T}, colordim, dims, internalformat, format, parameters::Vector{(GLenum, GLenum)})
+    function Texture{T}(data::Ptr{T}, dims, internalformat, format, parameters::Vector{(GLenum, GLenum)})
 
         @assert all(x -> x > 0, dims)
 
@@ -200,22 +207,23 @@ immutable Texture
             parameters = getDefaultTextureParameters(length(dims))
         end
 
-        internalformat  = internalformat==0? glcolorformat(colordim) : internalformat
-        format          = format==0? glcolorformat(colordim) : format
+        internalformat  = internalformat==0? glcolorformat(ColorDIM) : internalformat
+        format          = format==0? glcolorformat(ColorDIM) : format
 
-        texturetype     = gltexturetype(length(dims)) # Dimensionality of texture
+        ttype     = texturetype(length(dims)) # Dimensionality of texture
 
         id = glGenTextures()
-        glBindTexture(texturetype, id)
+        glBindTexture(ttype, id)
         for elem in parameters
-            glTexParameteri(texturetype, elem...)
+            glTexParameteri(ttype, elem...)
         end
         pixeltype = glpixelformat(T)
         glTexImage(0, internalformat, dims..., 0, format, pixeltype, data)
-        new(id, texturetype, pixeltype, internalformat, format, [colordim..., dims...])
+        new(id, pixeltype, internalformat, format, [ColorDIM, dims...])
     end
 end
 
+texturetype{T,C,D}(t::Texture{T,C,D}) = texturetype(D)
 
 
 #intended usage: Array(Vector1/2/3/4{Uniont(Float32, Uint8, Int8)}, 1/2/3)
@@ -226,10 +234,10 @@ function Texture{T}(
                     )
 
     @assert length(data) > 0
-    ptrtype, colordim   = opengl_compatible(T)
+    ptrtype, colordim   = opengl_compatible(typeof(data[1]))
     dims                = [size(data)...]
 
-    Texture(convert(Ptr{ptrtype}, pointer(data)), colordim, dims, internalformat, format, parameters)
+    Texture{ptrtype, colordim, length(dims)}(convert(Ptr{ptrtype}, pointer(data)), dims, internalformat, format, parameters)
 end
 
 function Texture{T <: Real}(
@@ -243,7 +251,7 @@ function Texture{T <: Real}(
     else
         error("wrong color dimension. Dimension: $(colordim)")
     end
-    Texture(convert(Ptr{T}, pointer(data)), colordim, dims, internalformat, format, parameters)
+    Texture{T, colordim, length(dims)}(convert(Ptr{T}, pointer(data)), colordim, dims, internalformat, format, parameters)
 end
 
 
@@ -274,7 +282,7 @@ function Texture(
     else
         error("Color Format $(imgFormat) not supported")
     end
-    #
+    
     Texture(mapslices(reverse,imgdata, [2]), colordim, internalformat=internalformat, format=format, parameters=parameters)
 end
 
@@ -321,7 +329,7 @@ end
 
 
 #Function to deal with any Immutable type with Real as Subtype
-function GLBuffer{T}(
+function GLBuffer{T <: AbstractArray}(
             buffer::Vector{T};
             buffertype::GLenum = GL_ARRAY_BUFFER, usage::GLenum = GL_STATIC_DRAW
         )
@@ -409,6 +417,8 @@ immutable RenderObject
         new(uniforms, vertexArray, (Function, Tuple)[], (Function, Tuple)[])
     end
 end
+RenderObject{T}(data::Dict{Symbol, T}, program::GLProgram) = RenderObject(Dict{Symbol, Any}(data), program)
+
 function pushfunction!(target::Vector{(Function, Tuple)}, fs...)
     func = fs[1]
     args = {}
@@ -427,7 +437,6 @@ end
 prerender!(x::RenderObject, fs...)   = pushfunction!(x.preRenderFunctions, fs...)
 postrender!(x::RenderObject, fs...)  = pushfunction!(x.postRenderFunctions, fs...)
 
-RenderObject{T}(data::Dict{Symbol, T}, program::GLProgram) = RenderObject(Dict{Symbol, Any}(data), program)
 
 
 export RenderObject, prerender!, postrender!

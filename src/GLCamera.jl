@@ -1,30 +1,4 @@
 using Quaternions
-function OrthogonalCamera(;
-	nearClip::Float32 				= -10f0,
-	farClip::Float32 				= 10f0,
-	angle::Float32 					= 0f0,
-	rotationSpeed::Float32 			= 0.00005f0,
-	zoomSpeed::Float32 				= 5f0,
-	moveSpeed::Float32 				= 10f0,
-	position::Array{Float32, 1}		= [0f0,0f0,0f0],
-	id::Int							= 0)
-
-	OrthogonalCamera(nearClip, farClip, angle, rotationSpeed, zoomSpeed,moveSpeed, position)
-end
-function PerspectiveCamera(;
-	nearClip::Float32 				= 1f0,
-	farClip::Float32 				= 30f0,
-	horizontalAngle::Float32 		= 0f0,
-	verticalAngle::Float32 			= 0f0,
-	rotationSpeed::Float32 			= 0.05f0,
-	zoomSpeed::Float32 				= 5f0,
-	moveSpeed::Float32 				= 0.01f0,
-	FoV::Float32 					= 50f0,
-	position::Vector{Float32}		= [0f0,50f0,0f0],
-	lookAt::Vector{Float32}			= [0f0,0f0,0f0])
-
-	PerspectiveCamera(nearClip,farClip,horizontalAngle,verticalAngle,rotationSpeed,zoomSpeed,moveSpeed,FoV,position, lookAt)
-end
 
 immutable Rotatable{T}
 	position::Vector3{T}

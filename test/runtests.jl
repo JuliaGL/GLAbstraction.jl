@@ -1,10 +1,8 @@
 using GLUtil, ImmutableArrays, ModernGL
 using GLFW # <- need GLFW for context initialization.. Hopefully replaced by some native initialization soon
-reload("GLUtil")
 using Base.Test
-typealias Vec2f Vector2{Float32}
 
-# write your own tests here
+# initilization,  with GLWindow this reduces to "createwindow("name", w,h)"
 GLFW.Init()
 GLFW.WindowHint(GLFW.SAMPLES, 4)
 
@@ -18,7 +16,9 @@ window = GLFW.CreateWindow(512,512, "test")
 GLFW.MakeContextCurrent(window)
 init_glutils()
 
+#vertex and fragment shader
 vsh = "
+#version 130
 in vec2 vertex;
 
 void main() {
@@ -27,6 +27,8 @@ gl_Position = vec4(vertex, 0.0, 1.0);
 "
 
 fsh = "
+#version 130
+
 out vec4 frag_color;
 
 void main() {
@@ -53,17 +55,14 @@ const triangle = RenderObject(
 		:vertex => verts,
 		:name_doesnt_matter_for_indexes => indexes
 	],
-	GLProgram(vsh, fsh, "simpleshader"))
+	GLProgram(vsh, fsh, "vertex", "fragment"))
 
 postrender!(triangle, render, triangle.vertexarray)
 
 glClearColor(0,0,0,1)
 while !GLFW.WindowShouldClose(window)
-	glViewport(100,100,1,1)
-	tic()
   	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
 	render(triangle)
-	println(toq()*1000)
 
 	GLFW.SwapBuffers(window)
 	GLFW.PollEvents()

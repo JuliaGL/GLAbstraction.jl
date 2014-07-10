@@ -13,6 +13,7 @@ include("GLRender.jl")
 include("GLShader.jl")
 include("GLCamera.jl")
 include("GLShapes.jl")
+include("GLUniforms.jl")
 
 
 end # module

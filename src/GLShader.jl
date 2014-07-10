@@ -30,7 +30,7 @@ function validateShader(shader)
 end
 
 function readshader(shadercode::ASCIIString, shaderType, path::String)
-    shadercode = get_glsl_version_string() * shadercode
+
     const source = bytestring(shadercode)
     const sourcePTR::Ptr{GLchar} = convert(Ptr{GLchar}, pointer(source))
 

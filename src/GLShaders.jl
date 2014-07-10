@@ -17,12 +17,15 @@ immutable GLSLVariable
 end
 
 frag = "
+#version 130
 out vec4 fragment_color;
 void main(){
     fragment_color = vec4(0.0);
 }
 "
 vert = "
+#version 130
+
 in vec3 vertex;
 
 uniform mat4 projectionview[10];
@@ -48,52 +51,148 @@ settexture1D(location::GLint, target::GLint, id::GLuint) = settexture(location, 
 settexture2D(location::GLint, target::GLint, id::GLuint) = settexture(location, target, id, GL_TEXTURE_2D)
 settexture3D(location::GLint, target::GLint, id::GLuint) = settexture(location, target, id, GL_TEXTURE_3D)
 
-const UNIFORM_FUNCION_DICT = [
+const UNIFORM_TYPE_ENUM_DICT = [
 
-	GL_FLOAT 		=> glUniform1fv,
-	GL_FLOAT_VEC2	=> glUniform2fv,
-	GL_FLOAT_VEC3	=> glUniform3fv,
-	GL_FLOAT_VEC4	=> glUniform4fv,
+	GL_FLOAT 		=> [GLfloat, vec1],
+	GL_FLOAT_VEC2	=> [vec2],
+	GL_FLOAT_VEC3	=> [vec3],
+	GL_FLOAT_VEC4	=> [vec4],
 
-	GL_INT 			=> glUniform1iv,
-	GL_INT_VEC2		=> glUniform2iv,
-	GL_INT_VEC3		=> glUniform3iv,
-	GL_INT_VEC4		=> glUniform4iv,
+	GL_INT 			=> [GLint, Integer, ivec1],
+	GL_INT_VEC2		=> [ivec2],
+	GL_INT_VEC3		=> [ivec3],
+	GL_INT_VEC4		=> [ivec4],
 
-	GL_BOOL			=> glUniform1iv,
-	GL_BOOL_VEC2	=> glUniform2iv,
-	GL_BOOL_VEC3	=> glUniform3iv,
-	GL_BOOL_VEC4	=> glUniform4iv,
+	GL_BOOL			=> [GLint, Integer, ivec1, Bool],
+	GL_BOOL_VEC2	=> [ivec2],
+	GL_BOOL_VEC3	=> [ivec3],
+	GL_BOOL_VEC4	=> [ivec4],
 
-	GL_FLOAT_MAT2	=> glUniformMatrix2fv,
-	GL_FLOAT_MAT3	=> glUniformMatrix3fv,
-	GL_FLOAT_MAT4	=> glUniformMatrix4fv,
+	GL_FLOAT_MAT2	=> [mat2],
+	GL_FLOAT_MAT3	=> [mat3],
+	GL_FLOAT_MAT4	=> [mat4],
 
-	GL_FLOAT_MAT2x3	=> glUniformMatrix2x3fv,
-	GL_FLOAT_MAT2x4	=> glUniformMatrix2x4fv,
+	GL_FLOAT_MAT2x3	=> [mat2x3],
+	GL_FLOAT_MAT2x4	=> [mat2x4],
 
-	GL_FLOAT_MAT3x2	=> glUniformMatrix3x2fv,
-	GL_FLOAT_MAT3x4	=> glUniformMatrix3x4fv,
+	GL_FLOAT_MAT3x2	=> [mat3x2],
+	GL_FLOAT_MAT3x4	=> [mat3x4],
 
-	GL_FLOAT_MAT4x3	=> glUniformMatrix4x3fv,
-	GL_FLOAT_MAT4x2	=> glUniformMatrix4x2fv,
+	GL_FLOAT_MAT4x3	=> [mat4x3],
+	GL_FLOAT_MAT4x2	=> [mat4x2],
 
 
-	GL_SAMPLER_1D	=> settexture1D,
-	GL_SAMPLER_2D	=> settexture2D,
-	GL_SAMPLER_3D	=> settexture3D,
+	GL_SAMPLER_1D	=> [Texture{GLfloat,1,1}, Texture{GLfloat,2,1}, Texture{GLfloat,3,1}, Texture{GLfloat,4,1}],
+	GL_SAMPLER_2D	=> [Texture{GLfloat,1,2}, Texture{GLfloat,2,2}, Texture{GLfloat,3,2}, Texture{GLfloat,4,2}],
+	GL_SAMPLER_3D	=> [Texture{GLfloat,1,3}, Texture{GLfloat,2,3}, Texture{GLfloat,3,3}, Texture{GLfloat,4,3}],
+
+	GL_UNSIGNED_INT_SAMPLER_1D	=> [Texture{GLuint,1,1}, Texture{GLuint,2,1}, Texture{GLuint,3,1}, Texture{GLuint,4,1}],
+	GL_UNSIGNED_INT_SAMPLER_2D	=> [Texture{GLuint,1,2}, Texture{GLuint,2,2}, Texture{GLuint,3,2}, Texture{GLuint,4,2}],
+	GL_UNSIGNED_INT_SAMPLER_3D	=> [Texture{GLuint,1,3}, Texture{GLuint,2,3}, Texture{GLuint,3,3}, Texture{GLint,4,3}],
+
+	GL_INT_SAMPLER_1D	=> [Texture{GLint,1,1}, Texture{GLint,2,1}, Texture{GLint,3,1}, Texture{GLint,4,1}],
+	GL_INT_SAMPLER_2D	=> [Texture{GLint,1,2}, Texture{GLint,2,2}, Texture{GLint,3,2}, Texture{GLint,4,2}],
+	GL_INT_SAMPLER_3D	=> [Texture{GLint,1,3}, Texture{GLint,2,3}, Texture{GLint,3,3}, Texture{GLint,4,3}],
 ]
-const UNIFORM_SIZE_DICT = [
 
-	"FLOAT" 		=> sizeof(GLfloat),
-	"INT" 			=> sizeof(GLint),
-	"DOUBLE" 		=> sizeof(GLint),
 
-]
+function is_correct_uniform_type{T <: Real}(targetuniform::GLenum, tocheck::Vector{T})
+	shouldbe = uniform_type(targetuniform)
+	return in(shouldbe, T)
+end
+function uniform_type(targetuniform::GLenum)
+	if haskey(UNIFORM_TYPE_ENUM_DICT, targetuniform)
+		UNIFORM_TYPE_ENUM_DICT[targetuniform]
+	else
+		error("Unrecognized Unifom Enum. Enum found: ", GLENUM(targetuniform).name)
+	end
+end
+
+
+
+
+
+#=
+	This functions creates a uniform upload function for a Program
+	which can be used to upload uniforms in the most efficient wayt
+	the function will look like:
+	function upload(uniform1, uniform2, uniform3)
+		gluniform(1, uniform1) # inlined uniform location
+		gluniform(2, uniform2)
+		gluniform(3, 0, uniform3) #if a uniform is a texture, texture targets are inlined as well
+		#this is supposed to be a lot faster than iterating through an array and caling the right functions
+		#with the right locations and texture targets
+	end
+
+=#
+function createuniformfunction(uniformlist::Tuple, typelist::Tuple)
+	uploadfunc 			= {}
+	texturetarget 		= 0
+
+	for i=1:length(uniformlist)
+
+		variablename 	= uniformlist[i]
+		uniformtype 	= typelist[i]
+		uniformlocation = convert(GLint, i-1)
+
+		if uniformtype == GL_SAMPLER_1D || uniformtype == GL_SAMPLER_2D || uniformtype == GL_SAMPLER_3D
+			push!(uploadfunc, :(gluniform($uniformlocation, $texturetarget, $variablename)))
+			texturetarget += 1
+		else
+			push!(uploadfunc, :(gluniform($uniformlocation, $variablename)))
+		end
+
+	end
+	return eval(quote
+		function uniformuploadfunction($(uniformlist...))
+			$(uploadfunc...)
+		end
+	end)
+end
+
+immutable Program
+	uniforms::Tuple
+	#attribues::Vector{Symbol}
+	upload::Function
+end
+function uniforms(program::GLuint)
+    uniformLength   = glGetProgramiv(program, GL_ACTIVE_UNIFORMS)
+    if uniformLength == 0
+        return 
+        return Program((Symbol => GLenum)[], () -> 0)
+    else
+        uniformlist 	= ntuple(uniformLength, i -> glGetActiveUniform(program, i-1)[1])
+        typelist 	= ntuple(uniformLength, i -> glGetActiveUniform(program, i-1)[2])
+        uploadfunction = createuniformfunction(uniformlist, typelist)
+        return Program(uniformlist, uploadfunction)
+    end
+end
+
+program = uniforms(flatshader.id)
+
+program.upload(mat4(1), vec3(1))
+
+
+
+
+#=
+		push!(testfunc, begin 
+			if !is_correct_uniform_type($uniformtype, $variablename)
+				name = $(string(variablename))
+				typ = typeof($variablename)
+				supposedtype = $(uniform_type(uniformtype))
+				error(name * " doesn't have the right type. Required: " *supposedtype * " found: " * typ)
+			end
+		end)
+		=#
+
+
 #=
 	this function puts together the name of the gl uniform function
 	and determines the bit size of the actual uniform
 =#
+#=
+
 function uniformfunction_name_with_size(typ::GLenum)
 	name = string(GLENUM(typ).name)[4:end]
 	elemtype = split(name, "_")
@@ -152,124 +251,4 @@ function uniformfunction_name_with_size(typ::GLenum)
 
 end
 
-
-function fieldtype(x::Any)
-	T = typeof(x)
-	types = T.types
-	@assert !isempty(types)
-	ftype = types[1]
-	if any(t -> t!= ftype, types)
-		error("field types are not homogenious for: ", T)
-	end
-	# We can return one field type, 
-	# this means we can make a more specific function for this type
-	eval(esc( :(fieldtype(x::$T) = $ftype) ))
-	return ftype
-end
-function Base.eltype(x::Any)
-
-end
-
-
-toglpointer{T <: Real}(x::Array{T}, primitivesize) = convert(Ptr{T}, pointer(x))
-function toglpointer{T <: Any}(x::Array{T}, primitivesize)
-	elementT = eltype(T)
-	convert(Ptr{elementT}, pointer(x))
-end
-
-function toglpointer(x::Any, primitivesize)
-	if isa(x, Array)
-		elementype = eltype(x)
-		if isa(elementype, AbstractArray)
-
-		ptr = convert(Ptr{}x
-	else
-		ptr = [$variablename]
-	end
-end
-
-#=
-	This functions creates 2 function for a Program
-	The test functions can be used, to verify the types fed into a program,
-	and the upload function can be called to upload all the uniforms to the
-	program in the most efficient way.
 =#
-function createuniformfunction(uniformlist::Tuple, typelist::Tuple)
-	uploadfunc 			= {}
-	testfunc 			= {}
-	functions_size 		= map(uniformfunction_name_with_size, typelist)
-	texturetarget_count = 0
-
-	for i=1:length(functions_size)
-
-		uniformfunc 	= functions_size[i][1]
-		uniformfunc_sym = symbol(uniformfunc)
-
-		uniformsize 	= functions_size[i][2] 
-		variablename 	= uniformlist[i]
-		uniformlocation = i-1
-		convertpointer = quote
-			if isa($variablename, Signal)
-				$variablename = $variablename.value
-			end
-
-		end
-		if contains(uniformfunc, "Matrix")
-			tmp = quote 
-				$convertpointer
-				$(uniformfunc_sym)($uniformlocation, sizeof($variablename) / $uniformsize, GL_FALSE, ptr)
-			end
-		elseif contains(uniformfunc, "settexture")
-			tmp = quote 
-				$(uniformfunc_sym)($uniformlocation, $texturetarget_count, $variablename)
-			end
-			texturetarget_count += 1
-		else
-			tmp = quote
-				$convertpointer
-				$(uniformfunc_sym)($uniformlocation, sizeof($variablename) / $uniformsize, ptr)
-			end
-		end
-		testf = quote
-			if isa($variablename, Array) || isbits($variablename) 
-			else
-				error("uniform: ", $variablename, "type: ", typeof($variablename)," is neither an Array nor a bitstype")
-			end
-		end
-		push!(uploadfunc, tmp)
-		push!(testfunc, testf)
-	end
-	ufunc = eval(quote
-		function uniformuploadfunction($(uniformlist...))
-			$(uploadfunc...)
-		end
-	end)
-	tfunc = eval(quote
-		function uniformtestfunction($(uniformlist...))
-			$(testfunc...)
-		end
-	end)
-	return (ufunc, tfunc)
-end
-
-function uniforms(program::GLuint)
-    uniformLength   = glGetProgramiv(program, GL_ACTIVE_UNIFORMS)
-    if uniformLength == 0
-        return () -> 0
-    else
-        uniformlist 	= ntuple(uniformLength, i -> glGetActiveUniform(program, i-1)[1])
-
-        typelist 		= ntuple(uniformLength, i -> glGetActiveUniform(program, i-1)[2])
-        sizes			= ntuple(uniformLength, i -> glGetActiveUniform(program, i-1))
-        println(uniformlist)
-        u, t = createuniformfunction(uniformlist, typelist)
-        datet = [
-        	:offset => Vector3(2f0),
-        	:projectionview => [Matrix4x4(2f0)for i=1:10],
-        ]
-        args = map(x -> datet[x], uniformlist)
-        u(args...)
-    end
-end
-println(int(glGetUniformLocation(flatshader.id, "offset")))
-uniforms(flatshader.id)
