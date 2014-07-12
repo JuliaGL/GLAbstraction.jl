@@ -34,9 +34,11 @@ macro genuniformfunctions(maxdim::Integer)
 			push!(expressions, :(gluniform(location::GLint, x::$typ) = $uniformfunc(location, x)))
 		end
 		push!(expressions, :(typealias $glslalias $imalias)) # glsl alike type alias
-		push!(expressions, :(gluniform(location::GLint, x::$imalias) = $uniformfunc(location, 1, [x]))) # uniform function for single uniforms
-		push!(expressions, :(gluniform(location::GLint, x::Vector{$imalias}) = $uniformfunc(location, length(x), pointer(x)))) #uniform function for arrays of uniforms
-		push!(expressions, :($glslalias(x::Real) = $name(convert($typ, x)))) # Single valued constructor
+		push!(expressions, :(gluniform(location::Integer, x::$imalias) = $uniformfunc(location, 1, [x]))) # uniform function for single uniforms
+		push!(expressions, :(gluniform(location::Integer, x::Vector{$imalias}) = $uniformfunc(location, length(x), pointer(x)))) #uniform function for arrays of uniforms
+		if n > 1
+			push!(expressions, :($glslalias(x::Real) = $name(convert($typ, x)))) # Single valued constructor
+		end
 		push!(expressions, Expr(:export, glslalias))
 		
 
@@ -52,8 +54,8 @@ macro genuniformfunctions(maxdim::Integer)
 		uniformfunc = symbol(string("glUniformMatrix", glsldim, GL_POSTFIX[typ]))
 
 		push!(expressions, :(typealias $glslalias $imalias)) #GLSL alike alias
-		push!(expressions, :(gluniform(location::GLint, x::$imalias) = $uniformfunc(location, 1, GL_FALSE, [x]))) # uniform function for single uniforms
-		push!(expressions, :(gluniform(location::GLint, x::Vector{$imalias}) = $uniformfunc(location, length(x), GL_FALSE, pointer(x)))) #uniform function for arrays of uniforms
+		push!(expressions, :(gluniform(location::Integer, x::$imalias) = $uniformfunc(location, 1, GL_FALSE, [x]))) # uniform function for single uniforms
+		push!(expressions, :(gluniform(location::Integer, x::Vector{$imalias}) = $uniformfunc(location, length(x), GL_FALSE, pointer(x)))) #uniform function for arrays of uniforms
 		push!(expressions, :($glslalias(x::Real) = $name(convert($typ, x)))) # Single valued constructor
 		push!(expressions, Expr(:export, glslalias))
 		#########################################################################
@@ -64,6 +66,7 @@ end
 
 @genuniformfunctions 4 
 
+gluniform(location::Integer, target::Integer, t::Texture) = gluniform(convert(GLint, location), convert(GLint, target), t)
 function gluniform(location::GLint, target::GLint, t::Texture)
     activeTarget = GL_TEXTURE0 + uint32(target)
     glActiveTexture(activeTarget)
@@ -76,7 +79,7 @@ toglsl(t::GLfloat) = "float"
 toglsl(t::GLuint) = "uint"
 toglsl(t::GLint) = "int"
 
-gluniform(location::GLint, x::Signal) = gluniform(location, x.value)
+gluniform(location::Integer, x::Signal) = gluniform(location, x.value)
 
 #Uniform upload functions for julia arrays...
 function gluniform{T <: Union(GLSL_COMPATIBLE_NUMBER_TYPES...)}(location::GLint, x::Vector{T})

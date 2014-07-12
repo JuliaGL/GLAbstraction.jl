@@ -40,16 +40,8 @@ void main(){
 
 flatshader 		  = GLProgram(vert, frag, "vert", "frag")
 
-
-function settexture(location::GLint, target::GLint, id::GLuint, texturetype::GLenum)
-    activeTarget = GL_TEXTURE0 + uint32(target)
-    glActiveTexture(activeTarget)
-    glBindTexture(texturetype, id)
-    glUniform1i(location, target)
-end
-settexture1D(location::GLint, target::GLint, id::GLuint) = settexture(location, target, id, GL_TEXTURE_1D)
-settexture2D(location::GLint, target::GLint, id::GLuint) = settexture(location, target, id, GL_TEXTURE_2D)
-settexture3D(location::GLint, target::GLint, id::GLuint) = settexture(location, target, id, GL_TEXTURE_3D)
+flatshader.upload(mat4(1), vec3(1))
+println(flatshader)
 
 const UNIFORM_TYPE_ENUM_DICT = [
 
@@ -150,27 +142,6 @@ function createuniformfunction(uniformlist::Tuple, typelist::Tuple)
 	end)
 end
 
-immutable Program
-	uniforms::Tuple
-	#attribues::Vector{Symbol}
-	upload::Function
-end
-function uniforms(program::GLuint)
-    uniformLength   = glGetProgramiv(program, GL_ACTIVE_UNIFORMS)
-    if uniformLength == 0
-        return 
-        return Program((Symbol => GLenum)[], () -> 0)
-    else
-        uniformlist 	= ntuple(uniformLength, i -> glGetActiveUniform(program, i-1)[1])
-        typelist 	= ntuple(uniformLength, i -> glGetActiveUniform(program, i-1)[2])
-        uploadfunction = createuniformfunction(uniformlist, typelist)
-        return Program(uniformlist, uploadfunction)
-    end
-end
-
-program = uniforms(flatshader.id)
-
-program.upload(mat4(1), vec3(1))
 
 
 

@@ -28,32 +28,12 @@ immutable GLProgram
     id::GLuint
     vertpath::String
     fragpath::String
-    #uniformFunc::Function # For performance reasons, all uniforms are set with one function
-    #uniforms::(Symbol...)
+    nametype::Dict{Symbol, GLenum}
+    uniformloc::Dict{Symbol, Tuple}
 end
 
 
-function GLProgram(vertex::ASCIIString, fragment::ASCIIString, vertpath::String, fragpath::String)
-    vertexShaderID::GLuint   = readshader(vertex, GL_VERTEX_SHADER, vertpath)
-    fragmentShaderID::GLuint = readshader(fragment, GL_FRAGMENT_SHADER, fragpath)
-    p = glCreateProgram()
-    @assert p > 0
-    glAttachShader(p, vertexShaderID)
-    glAttachShader(p, fragmentShaderID)
-    glLinkProgram(p)
 
-    glDeleteShader(vertexShaderID)
-    glDeleteShader(fragmentShaderID)
-    return GLProgram(p, vertpath, fragpath)
-end
-function GLProgram(vertex_file_path::ASCIIString, fragment_file_path::ASCIIString)
-    
-    vertsource  = readall(open(vertex_file_path))
-    fragsource  = readall(open(fragment_file_path))
-    vertname    = basename(vertex_file_path)
-    fragname    = basename(fragment_file_path)
-    GLProgram(vertsource, fragsource, vertex_file_path, fragment_file_path)
-end
 export GLProgram
 ##########################################################################
 
@@ -390,7 +370,7 @@ export GLVertexArray, GLBuffer, indexbuffer, opengl_compatible
 
 
 immutable RenderObject
-    uniforms::Vector{Any}
+    uniforms::Tuple
     vertexarray::GLVertexArray
     preRenderFunctions::Array{(Function, Tuple), 1}
     postRenderFunctions::Array{(Function, Tuple), 1}
@@ -401,20 +381,26 @@ immutable RenderObject
         uniforms    = filter((key, value) -> !isa(value, GLBuffer), data)
         if length(buffers) > 0
             vertexArray = GLVertexArray(Dict{Symbol, GLBuffer}(buffers), program)
+        else
+            vertexarray
         end
         textureTarget::GLint = -1
-        uniforms = map(attributes -> begin
-                loc = get_uniform_location(program.id, attributes[1])
-
-                if isa(attributes[2], Texture)
-                    textureTarget += 1
-                    return (loc, textureTarget, attributes[2])
-                else
-                    return (loc, attributes[2])
-                end
-            end, uniforms)
-
-        new(uniforms, vertexArray, (Function, Tuple)[], (Function, Tuple)[])
+        uniformtypesandnames = uniformdescription(program.id)
+        optimizeduniforms = map(elem -> begin
+            name = elem[1]
+            typ = elem[2]
+            if !haskey(uniforms, name)
+                error("not sufficient uniforms supplied. Missing: ", name, " type: ", uniform_type(typ))
+            end
+            value = uniforms[name]
+            if !is_correct_uniform_type(typ, value)
+                error("Uniform ", name, " not of correct type. Expected: ", uniform_type(typ), ". Got: ", typeof(value))
+            end
+            (name, value)
+        end, uniformtypesandnames)
+        #ordereduniformkeys = program.uniforms # uniform names are ordered acoording to their location
+        #uniformtuple = map(x->uniforms[x], ordereduniformkeys) # order the uniforms correctly
+        new(optimizeduniforms, vertexArray, (Function, Tuple)[], (Function, Tuple)[])
     end
 end
 RenderObject{T}(data::Dict{Symbol, T}, program::GLProgram) = RenderObject(Dict{Symbol, Any}(data), program)

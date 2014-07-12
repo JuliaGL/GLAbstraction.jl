@@ -1,28 +1,22 @@
-export render
-using React
-export enabletransparency, renderinstanced
+export render, enabletransparency, renderinstanced
 
 
 function render(renderobject::RenderObject)
     for elem in renderobject.preRenderFunctions
         apply(elem...)
     end
-
-    glUseProgram(renderobject.vertexarray.program.id)
-
-    for elem in renderobject.uniforms
-        gluniform(elem...)
+    p = renderobject.vertexarray.program
+    glUseProgram(p.id)
+    for (key,value) in renderobject.uniforms
+        gluniform(p.uniformloc[key]..., value)
     end
-
-    #render(renderObject.vertexarray)
-
     for elem in renderobject.postRenderFunctions
         apply(elem...)
     end
 end
 
 
-function render(vao::GLVertexArray, mode::GLenum = GL_TRIANGLES)
+function render(vao::GLVertexArray, mode::GLenum=GL_TRIANGLES)
     glBindVertexArray(vao.id)
     if vao.indexlength > 0
         glDrawElements(mode, vao.indexlength, GL_UNSIGNED_INT, GL_NONE)
@@ -33,7 +27,7 @@ end
 
 function renderinstanced(vao::GLVertexArray, amount::Integer)
     glBindVertexArray(vao.id)
-    glDrawElementsInstancedEXT(GL_TRIANGLES, vao.indexlength, GL_UNSIGNED_INT, C_NULL, amount)
+    glDrawElementsInstanced(GL_TRIANGLES, vao.indexlength, GL_UNSIGNED_INT, C_NULL, amount)
 end
 
 #handle all uniform objects

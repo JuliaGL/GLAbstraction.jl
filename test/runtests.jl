@@ -47,7 +47,7 @@ v = Float32[0.0, 0.5, 0.5, -0.5, -0.5,-0.5]
 verts = GLBuffer(v, 2)
 
 # lets define some uniforms
-# uniforms are shader variables, which are not supposed to stay the same for an entire draw call
+# uniforms are shader variables, which are supposed to stay the same for an entire draw call
 
 
 const triangle = RenderObject(
@@ -58,6 +58,8 @@ const triangle = RenderObject(
 	GLProgram(vsh, fsh, "vertex", "fragment"))
 
 postrender!(triangle, render, triangle.vertexarray)
+
+require("uniforms")
 
 glClearColor(0,0,0,1)
 while !GLFW.WindowShouldClose(window)

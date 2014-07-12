@@ -1,8 +1,4 @@
 
-
-
-
-
 function ModernGL.glGetAttachedShaders(program::GLuint)
     actualLength  = Array(GLsizei, 1)
     shaders = Array(GLuint, 2)
@@ -43,16 +39,21 @@ function get_uniform_location(program::GLuint, name::ASCIIString)
    location
 end
 
-
 function ModernGL.glGetActiveUniform(programID::GLuint, index::Integer)
-    const actualLength  = Array(GLsizei, 1)
-    const uniformSize   = Array(GLint, 1)
-    const typ           = Array(GLenum,1 )
-    const name          = Array(GLchar, 128)
-    glGetActiveUniform(programID, index, 128, actualLength, uniformSize, typ, name)
-    uname = bytestring(pointer(name), actualLength[1])
-    uname = symbol(replace(uname, r"\[\d*\]", ""))
-    (uname, typ[1], uniformSize[1])
+    const actualLength   = GLsizei[1]
+    const uniformSize    = GLint[1]
+    const typ            = GLenum[1]
+    const maxcharsize 	 = glGetProgramiv(programID, GL_ACTIVE_UNIFORM_MAX_LENGTH)
+    const name           = Array(GLchar, maxcharsize)
+
+    glGetActiveUniform(programID, index, maxcharsize, actualLength, uniformSize, typ, name)
+    if actualLength != 0
+    	uname = bytestring(pointer(name), actualLength[1])
+    	uname = symbol(replace(uname, r"\[\d*\]", "")) # replace array brackets. This is not really a good solution.
+    	(uname, typ[1], uniformSize[1])
+    else
+    	error("No active uniform at given index. Index: ", index)
+    end
 end
 function ModernGL.glGetActiveAttrib(programID::GLuint, index::Integer)
     const actualLength  = Array(GLsizei, 1)
