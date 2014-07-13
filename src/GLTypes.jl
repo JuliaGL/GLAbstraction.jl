@@ -385,7 +385,7 @@ immutable RenderObject
             vertexarray
         end
         textureTarget::GLint = -1
-        uniformtypesandnames = uniformdescription(program.id)
+        uniformtypesandnames = uniform_name_type(program.id)
         optimizeduniforms = map(elem -> begin
             name = elem[1]
             typ = elem[2]
@@ -404,6 +404,13 @@ immutable RenderObject
     end
 end
 RenderObject{T}(data::Dict{Symbol, T}, program::GLProgram) = RenderObject(Dict{Symbol, Any}(data), program)
+
+function instancedobject(data, program::GLProgram, amount::Integer, primitive::GLenum=GL_TRIANGLES)
+    obj = RenderObject(data, program)
+    prerender!(obj, glEnable, GL_DEPTH_TEST)
+    postrender!(obj, renderinstanced, obj.vertexarray, amount, primitive)
+    obj
+end
 
 function pushfunction!(target::Vector{(Function, Tuple)}, fs...)
     func = fs[1]
@@ -425,7 +432,7 @@ postrender!(x::RenderObject, fs...)  = pushfunction!(x.postRenderFunctions, fs..
 
 
 
-export RenderObject, prerender!, postrender!
+export RenderObject, prerender!, postrender!, instancedobject
 ####################################################################################
 
 

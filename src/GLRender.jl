@@ -25,9 +25,9 @@ function render(vao::GLVertexArray, mode::GLenum=GL_TRIANGLES)
     end
 end
 
-function renderinstanced(vao::GLVertexArray, amount::Integer)
+function renderinstanced(vao::GLVertexArray, amount::Integer, primitive=GL_TRIANGLES)
     glBindVertexArray(vao.id)
-    glDrawElementsInstanced(GL_TRIANGLES, vao.indexlength, GL_UNSIGNED_INT, C_NULL, amount)
+    glDrawElementsInstanced(primitive, vao.indexlength, GL_UNSIGNED_INT, C_NULL, amount)
 end
 
 #handle all uniform objects
