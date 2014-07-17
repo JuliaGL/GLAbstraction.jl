@@ -144,7 +144,7 @@ function orthographicprojection{T}(
     matrix[3,3] = -2.0/(zfar-znear)
     matrix[3,4] = -(zfar+znear)/(zfar-znear)
     matrix[4,4] = 1.0
-    Matrix4x4{T}(matrix)
+    Matrix4x4(matrix)
 end
 
 

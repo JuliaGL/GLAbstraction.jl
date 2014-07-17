@@ -156,12 +156,18 @@ end
 glcolorformat(colordim::Int) = get(DEFAULT_GL_COLOR_FORMAT, colordim) do
     error("$(colordim)-dimensional colors not supported")
 end
-
+function glinternalcolorformat(colordim::Int, typ::DataType)
+    sym = "GL_"
+    sym *= colordim == 1 ? "R" : colordim == 2 ? "RG" : colordim == 3 ? "RGB" : colordim == 4 ? "RGBA" : error("$(colordim)-dimensional colors not supported")
+    sym *= sizeof(typ) * 8 <= 32 ? string(sizeof(typ) * 8) : error("$(typ) has too many bits")
+    sym *= typ <: FloatingPoint ? "F" : ""#typ <: Signed ? "I" : typ <: Unsigned ? "UI" : error("$(typ) is neither unsigned, signed nor floatingpoint")
+    return eval(symbol(sym))
+end
 function getDefaultTextureParameters(dim::Int)
     parameters = [
-        (GL_TEXTURE_WRAP_S,  GL_CLAMP_TO_EDGE ),
-        (GL_TEXTURE_MIN_FILTER, GL_NEAREST),
-        (GL_TEXTURE_MAG_FILTER, GL_NEAREST)
+        (GL_TEXTURE_WRAP_S,  GL_CLAMP_TO_EDGE),
+        (GL_TEXTURE_MIN_FILTER, GL_LINEAR),
+        (GL_TEXTURE_MAG_FILTER, GL_LINEAR)
     ]
     if dim <= 3 && dim > 1
         push!(parameters, (GL_TEXTURE_WRAP_T,  GL_CLAMP_TO_EDGE ))
@@ -187,8 +193,8 @@ immutable Texture{T <: TEXTURE_COMPATIBLE_NUMBER_TYPES, ColorDIM, NDIM}
             parameters = getDefaultTextureParameters(length(dims))
         end
 
-        internalformat  = internalformat==0? glcolorformat(ColorDIM) : internalformat
-        format          = format==0? glcolorformat(ColorDIM) : format
+        internalformat  = internalformat==0 ? glinternalcolorformat(ColorDIM, T) : internalformat
+        format          = format==0 ? glcolorformat(ColorDIM) : format
 
         ttype     = texturetype(length(dims)) # Dimensionality of texture
 
@@ -221,7 +227,7 @@ function Texture{T}(
 end
 
 function Texture{T <: Real}(
-                    data::Array{T}, colordim;
+                    data::Array{T}, colordim::Int64;
                     internalformat = 0, format = 0, parameters::Vector{(GLenum, GLenum)} = (GLenum, GLenum)[]
                 )
     if colordim == 1
@@ -231,10 +237,15 @@ function Texture{T <: Real}(
     else
         error("wrong color dimension. Dimension: $(colordim)")
     end
-    Texture{T, colordim, length(dims)}(convert(Ptr{T}, pointer(data)), colordim, dims, internalformat, format, parameters)
+    Texture{T, colordim, length(dims)}(convert(Ptr{T}, pointer(data)), dims, internalformat, format, parameters)
 end
 
-
+function Texture(
+                    T::DataType, colordim, dims;
+                    internalformat = 0, format = 0, parameters::Vector{(GLenum, GLenum)} = (GLenum, GLenum)[]
+                )
+    Texture{T, colordim, length(dims)}(convert(Ptr{T}, C_NULL), dims, internalformat, format, parameters)
+end
 function Texture(
                     img::Union(Image, String);
                     internalformat = 0, format = 0, parameters::Vector{(GLenum, GLenum)} = (GLenum, GLenum)[]
@@ -243,9 +254,8 @@ function Texture(
         img = imread(img)
     end
     @assert length(img.data) > 0
-    colordim    = length(img.properties["colorspace"])
     imgFormat   = img.properties["colorspace"]
-
+    println(img)
     if imgFormat == "ARGB"
         tmp = img.data[1,1:end, 1:end]
         img.data[1,1:end, 1:end] = img.data[2,1:end, 1:end]
@@ -259,11 +269,11 @@ function Texture(
         colordim = 3
     elseif imgFormat == "Gray"
         imgdata = img.data
+        colordim = 1
     else
         error("Color Format $(imgFormat) not supported")
     end
-    
-    Texture(mapslices(reverse,imgdata, [2]), colordim, internalformat=internalformat, format=format, parameters=parameters)
+    Texture(mapslices(reverse, imgdata, [3]), colordim, internalformat=internalformat, format=format, parameters=parameters)
 end
 
 ########################################################################
@@ -393,9 +403,9 @@ immutable RenderObject
                 error("not sufficient uniforms supplied. Missing: ", name, " type: ", uniform_type(typ))
             end
             value = uniforms[name]
-            if !is_correct_uniform_type(typ, value)
-                error("Uniform ", name, " not of correct type. Expected: ", uniform_type(typ), ". Got: ", typeof(value))
-            end
+            #if !is_correct_uniform_type(typ, value)
+            #    error("Uniform ", name, " not of correct type. Expected: ", uniform_type(typ), ". Got: ", typeof(value))
+            #end
             (name, value)
         end, uniformtypesandnames)
         #ordereduniformkeys = program.uniforms # uniform names are ordered acoording to their location

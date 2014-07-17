@@ -95,7 +95,7 @@ end
 
 function gencircle(r, x, y, amount)
     slice = (2*pi) / amount
-    result = float32([x,y])
+    result = GLfloat[x,y]
     for i = 0:amount-1
         angle = slice * i
         push!(result, float32(x + r * cos(angle)), float32(y + r * sin(angle)))

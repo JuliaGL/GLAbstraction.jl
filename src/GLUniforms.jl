@@ -1,7 +1,7 @@
 # Uniforms are OpenGL variables that stay the same for the entirety of a drawcall.
 # There are a lot of functions, to upload them, as OpenGL doesn't rely on multiple dispatch
 # here is my approach, to handle all of the uniforms with one function, namely gluniform
-# For uniforms, the vector and matrix types from ImmutableArrays should be used, as they map the relation almost 1:1
+# For uniforms, the Vector and Matrix types from ImmutableArrays should be used, as they map the relation almost 1:1
 GLSL_COMPATIBLE_NUMBER_TYPES = [GLdouble, GLfloat, GLint, GLuint]
 
 GLSL_PREFIX = [
@@ -22,15 +22,15 @@ GL_POSTFIX = [
 # Also it defines glsl alike aliases and constructors.
 # This probably shouldn't be done in the same function, but its for now the easiest solution.
 macro genuniformfunctions(maxdim::Integer)
-	glslvector = "vec"
-	glslmatrix = "mat"
+	glslVector = "Vec"
+	glslMatrix = "Mat"
 
-	imvector = "Vector"
-	immatrix = "Matrix"
+	imVector = "Vector"
+	imMatrix = "Matrix"
 	expressions = {}
 	for n=1:maxdim, typ in GLSL_COMPATIBLE_NUMBER_TYPES
-		glslalias 	= symbol(string(GLSL_PREFIX[typ],glslvector,n)) 
-		name 		= symbol(string(imvector, n))
+		glslalias 	= symbol(string(GLSL_PREFIX[typ],glslVector,n)) 
+		name 		= symbol(string(imVector, n))
 		imalias 	= :($name {$typ})
 		uniformfunc = symbol(string("glUniform", n, GL_POSTFIX[typ]))
 		if n == 1 # define also single valued uniform functions
@@ -47,13 +47,13 @@ macro genuniformfunctions(maxdim::Integer)
 		
 
 		#########################################################################
-		push!(expressions, :(toglsl(x::$imalias) = $(string(glslalias)))) # method for shader type mapping
+		push!(expressions, :(toglsltype_string(x::$imalias) = $(lowercase(string("uniform ", glslalias))))) # method for shader type mapping
 
 	end
 	for n=2:maxdim, n2=2:maxdim, typ in [GLdouble, GLfloat]
 		glsldim 	= n==n2 ? "$n" : "$(n)x$(n2)"
-		glslalias 	= symbol(string(GLSL_PREFIX[typ], glslmatrix, glsldim)) 
-		name 		= symbol(string(immatrix, n,"x",n2))
+		glslalias 	= symbol(string(GLSL_PREFIX[typ], glslMatrix, glsldim)) 
+		name 		= symbol(string(imMatrix, n,"x",n2))
 		imalias 	= :($name {$typ})
 		uniformfunc = symbol(string("glUniformMatrix", glsldim, GL_POSTFIX[typ]))
 
@@ -63,7 +63,7 @@ macro genuniformfunctions(maxdim::Integer)
 		push!(expressions, :($glslalias(x::Real) = $name(convert($typ, x)))) # Single valued constructor
 		push!(expressions, Expr(:export, glslalias))
 		#########################################################################
-		push!(expressions, :(toglsl(x::$imalias) = $(string(glslalias)))) # method for shader type mapping
+		push!(expressions, :(toglsltype_string(x::$imalias) = $(lowercase(string("uniform ", glslalias))))) # method for shader type mapping
 	end
 	return esc(Expr(:block, expressions...))
 end
@@ -90,48 +90,51 @@ function gluniform{T <: Union(GLSL_COMPATIBLE_NUMBER_TYPES...)}(location::GLint,
     elseif d == 3
     	gluniform(location, Vector4(x...))
     else  
-    	error("unsopported vector length!")
+    	error("unsopported Vector length!")
     end
 end
 
 
-toglsl{T, C, D}(t::Texture{T, C, D}) = string(GLSL_PREFIX[T],"sampler", D, "D")
-toglsl(t::GLfloat) = "float"
-toglsl(t::GLuint) = "uint"
-toglsl(t::GLint) = "int"
+toglsltype_string{T, C, D}(t::Texture{T, C, D}) = string("uniform ", GLSL_PREFIX[T],"sampler", D, "D")
+toglsltype_string(t::GLfloat) = "uniform float"
+toglsltype_string(t::GLuint) = "uniform uint"
+toglsltype_string(t::GLint) = "uniform int"
+toglsltype_string(t::GLBuffer) = "$(get_glsl_in_qualifier_string()) vec$(t.cardinality)"
+toglsltype_string(t::Signal) = toglsltype_string(t.value)
+toglsltype_string(t::Range) = toglsltype_string(Vec3(first(t), step(t), last(t)))
 
 
 
 
 const UNIFORM_TYPE_ENUM_DICT = [
 
-    GL_FLOAT        => [GLfloat, vec1],
-    GL_FLOAT_VEC2   => [vec2],
-    GL_FLOAT_VEC3   => [vec3],
-    GL_FLOAT_VEC4   => [vec4],
+    GL_FLOAT        => [GLfloat, Vec1],
+    GL_FLOAT_VEC2   => [Vec2],
+    GL_FLOAT_VEC3   => [Vec3],
+    GL_FLOAT_VEC4   => [Vec4],
 
-    GL_INT          => [GLint, Integer, ivec1],
-    GL_INT_VEC2     => [ivec2],
-    GL_INT_VEC3     => [ivec3],
-    GL_INT_VEC4     => [ivec4],
+    GL_INT          => [GLint, Integer, iVec1],
+    GL_INT_VEC2     => [iVec2],
+    GL_INT_VEC3     => [iVec3],
+    GL_INT_VEC4     => [iVec4],
 
-    GL_BOOL         => [GLint, Integer, ivec1, Bool],
-    GL_BOOL_VEC2    => [ivec2],
-    GL_BOOL_VEC3    => [ivec3],
-    GL_BOOL_VEC4    => [ivec4],
+    GL_BOOL         => [GLint, Integer, iVec1, Bool],
+    GL_BOOL_VEC2    => [iVec2],
+    GL_BOOL_VEC3    => [iVec3],
+    GL_BOOL_VEC4    => [iVec4],
 
-    GL_FLOAT_MAT2   => [mat2],
-    GL_FLOAT_MAT3   => [mat3],
-    GL_FLOAT_MAT4   => [mat4],
+    GL_FLOAT_MAT2   => [Mat2],
+    GL_FLOAT_MAT3   => [Mat3],
+    GL_FLOAT_MAT4   => [Mat4],
 
-    GL_FLOAT_MAT2x3 => [mat2x3],
-    GL_FLOAT_MAT2x4 => [mat2x4],
+    GL_FLOAT_MAT2x3 => [Mat2x3],
+    GL_FLOAT_MAT2x4 => [Mat2x4],
 
-    GL_FLOAT_MAT3x2 => [mat3x2],
-    GL_FLOAT_MAT3x4 => [mat3x4],
+    GL_FLOAT_MAT3x2 => [Mat3x2],
+    GL_FLOAT_MAT3x4 => [Mat3x4],
 
-    GL_FLOAT_MAT4x3 => [mat4x3],
-    GL_FLOAT_MAT4x2 => [mat4x2],
+    GL_FLOAT_MAT4x3 => [Mat4x3],
+    GL_FLOAT_MAT4x2 => [Mat4x2],
 
 
     GL_SAMPLER_1D   => [Texture{GLfloat,1,1}, Texture{GLfloat,2,1}, Texture{GLfloat,3,1}, Texture{GLfloat,4,1}],
@@ -193,5 +196,5 @@ function istexturesampler(typ::GLenum)
 end
 
 
-export gluniform, toglsl
+export gluniform, toglsltype_string
 
