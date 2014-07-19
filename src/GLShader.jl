@@ -85,6 +85,8 @@ function GLProgram(vertex::ASCIIString, fragment::ASCIIString, vertpath::String,
     glDeleteShader(fragmentShaderID)
 
     nametypedict = Dict{Symbol, GLenum}(uniform_name_type(p))
+    attriblist = attribute_name_type(p)
+
     texturetarget = -1
     uniformlocationdict = map( elem -> begin
         name = elem[1]

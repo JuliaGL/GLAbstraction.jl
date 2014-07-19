@@ -25,7 +25,7 @@ function createcontextinfo(dict)
 	if length(glsl) >= 2
 		glsl = VersionNumber(int(glsl[1]), int(glsl[2])) 
 		GLSL_VERSION = string(glsl.major) * rpad(string(glsl.minor),2,"0")
-		if glsl.major > 3
+		if glsl.major >= 1
 			GLSL_VARYING_QUALIFIER = "in"
 		else
 			GLSL_VARYING_QUALIFIER = "varying"

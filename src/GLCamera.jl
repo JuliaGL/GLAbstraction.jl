@@ -1,46 +1,52 @@
 using Quaternions
 
-immutable Rotatable{T}
-	position::Vector3{T}
-	lookat::Vector3{T}
-	up::Vector3{T}
-	dirup::Vector3{T}
-	xangle::T
-	yangle::T
-	zoom::T
-end
-function rotatable{T}(position::Vector3{T}, lookat::Vector3{T}, up::Vector3{T}, xangle::T, yangle::T, zoom::T)
-	dir 		= position - lookat
-	right 		= unit(cross(dir, up))
-	dirup		= unit(cross(dir, right))
-	Rotatable{T}(position, lookat, up, dirup, xangle, yangle, zoom)
-end
-function movecam{T}(state0::Rotatable{T}, state1::Rotatable{T})
-	xangle 		= state0.xangle - state1.xangle
-	yangle 		= state0.yangle - state1.yangle
-	zoom 		= state0.zoom 	- state1.zoom
+immutable Pivot
+	up::Vec3
+	position::Vec3
+	lookat::Vec3
 
-	dir 		= state0.position - state1.lookat
-	posdelta	= state0.position - state1.position
-	right 		= unit(cross(dir, state1.up))
-	dirup		= unit(cross(dir, right))
-	xrotation 	= rotate2(deg2rad(xangle), state1.up)
-	yrotation 	= rotate2(deg2rad(yangle), right)
-	zoomdir		= unit(dir)*zoom
-
- 	pos1 		= Vector3(yrotation * xrotation* [(state0.position-zoomdir)...])
- 	Rotatable(pos1, state1.lookat, state1.up, dirup, state1.xangle, state1.yangle, state1.zoom)
+	xangle::Float32
+	yangle::Float32
+	zoom::Float32	
+	mousepressed::Bool
 end
-function rotate2{T}(angle::T, axis::Vector3{T})
- 	rotationmatrix(qrotation(convert(Array, axis), angle))
+function createpivot(up::Vec3,
+	position::Vec3,
+	lookat::Vec3,
+
+	xangle::Float32,
+	yangle::Float32,
+	zoom::Float32,
+	pressed::Bool)
+	Pivot(up, position, lookat, xangle, yangle, zoom, pressed)
+end
+
+function movecam(state0::Pivot, state1::Pivot)
+
+	if state0.mousepressed
+		xangle 		= state0.xangle - state1.xangle #get the difference from the previous state
+		yangle 		= state0.yangle - state1.yangle
+
+		dir 		= state0.position - state0.lookat
+
+		right 		= unit(cross(dir, state0.up))
+		xrotation 	= rotate(deg2rad(xangle), state0.up) #rotation matrix around up
+		yrotation 	= rotate(deg2rad(yangle), right)
+
+		up 			= Vector3(yrotation * [state0.up...])
+	 	pos1 		= Vector3(yrotation * xrotation * [state0.position...])
+ 		return Pivot(up, pos1, state0.lookat, state1.xangle, state1.yangle, state1.zoom, state1.mousepressed)
+	end	
+	dir 	= state0.position - state0.lookat
+	zoom 	= state0.zoom 	- state1.zoom
+	zoomdir	= unit(dir)*zoom #zoom just shortens the direction vector
+	pos1 	= state0.position-zoomdir
+	return Pivot(state0.up, pos1, state0.lookat, state1.xangle, state1.yangle, state1.zoom, state1.mousepressed)
 end
 function rotate{T}(angle::T, axis::Vector3{T})
-	if angle > 0
-		return rotationmatrix(float32(deg2rad(angle)), axis)
-	else
-		return inv(rotationmatrix(float32(deg2rad(abs(angle))), axis))
-	end
+ 	rotationmatrix(qrotation(convert(Array, axis), angle))
 end
+
 
 immutable Cam{T}
 	window_size::Signal{Vector2{Int}}
@@ -57,16 +63,13 @@ immutable Cam{T}
 end
 
 function Cam(inputs, eyeposition)
-	dragging 	= inputs[:mousedragged]
+	mouseposition 	= inputs[:mouseposition]
 	clicked 	= inputs[:mousepressed]
+	keypressed 	= inputs[:keypressed]
 
-
-	draggedlast = lift(x -> x[1], foldl((a,b) -> (a[2], b), (Vector2(0.0), Vector2(0.0)), dragging))
-	dragdiff 	= lift(-, dragging, draggedlast)
-
-	draggx 	= lift(x -> float32(x[1]), Float32, dragging)
-	draggy 	= lift(x -> float32(x[2]), Float32, dragging)
-	zoom 	= foldl((a,b) -> float32(a+(b*0.1f0)) , 0f0, inputs[:scroll_y])
+	draggx = lift(x-> float32(x[1]), Float32, mouseposition)
+	draggy = lift(x-> float32(x[2]), Float32, mouseposition)
+	zoom = foldl((a,b) -> float32(a+(b*0.1f0)) , 0f0, inputs[:scroll_y])
 
 	fov 	= foldl((a,b) -> begin
 				if b == 265
@@ -77,47 +80,54 @@ function Cam(inputs, eyeposition)
 				a
 			end, 41f0, inputs[:keypressed])
 
-
-	Cam(inputs[:window_size], draggx, draggy, zoom, eyeposition, Input(Vector3(0f0)), fov)
+	Cam(inputs[:window_size], draggx, draggy, zoom, eyeposition, Input(Vector3(0f0)), fov, inputs[:mousepressed])
 end
 function Cam{T}(
 					window_size::Input{Vector2{Int}},
 					xangle,
-					ydiff,
+					yangle,
 					zoom,
 					eyeposition::Vector3{T},
 					lookatvec::Input{Vector3{T}},
-					fov::Signal{T}
+					fov::Signal{T},
+					mousedown::Signal{Bool}
 				)
 
 	nearclip 		= Input(convert(T, 1))
 	farclip 		= Input(convert(T, 100))
 
-	up				= Input(Vector3{T}(0, 0, 1))
-	dir 			= eyeposition - lookatvec.value
-	right 			= unit(cross(dir, up.value))
-	dirup			= unit(cross(dir, right))
-	v0				= Rotatable(eyeposition,  lookatvec.value, up.value,dirup, xangle.value, ydiff.value, zoom.value)
-	states			= lift(rotatable,  Input(eyeposition), lookatvec, up, xangle, ydiff, zoom)
-	stateSignal 	= foldl(movecam, v0, states)
+	#strgmod = lift(x-> x==GLFW.MOD_CONTROL, Bool, inputs[:keymodifiers])
+	#position = keepwhen(strgmod, lift(x-> Vec2(x...), Vec2, mouseposition)
+
+	up 		= Input(Vec3(0,0,1))
+	pos 	= Input(Vec3(1,0,0)) 
+	lookatv = Input(Vec3(0))
+
+	inputs = lift(createpivot, up, pos, lookatv, xangle, yangle, zoom, mousedown)
 
 
-	positionvec		= lift(x -> x.position, Vector3{T}, stateSignal)
-	window_ratio 	= lift(x -> x[1] / x[2], T, window_size)
+	camvecs 	= foldl(movecam, Pivot(Vec3(0,0,1), Vec3(1,0,0), Vec3(0), 0f0, 0f0, 0f0, false) , inputs)
+	positionvec = lift(x-> x.position, Vec3, camvecs)
+	lookatvec 	= lift(x-> x.lookat, Vec3, camvecs)
+	up 			= lift(x-> x.up, Vec3, camvecs)
 
+	camvecs = lift(x-> (x.position, x.lookat, x.up), camvecs)
 	lift(x -> glViewport(0,0, x[1], x[2]), window_size)
 
-	viewmat 		= lift(lookat, Matrix4x4{T}, positionvec, lookatvec, up)
+	view 	= lift(lookat, Mat4, positionvec, lookatvec, up)
 
-	projection 		= lift(perspectiveprojection, Matrix4x4{T}, fov, window_ratio, nearclip, farclip)
-	projectionview 	= lift(*, Matrix4x4{T}, projection, viewmat)
+	window_ratio 	= lift(x -> x[1] / x[2], Float32, window_size)
+	projection 		= lift(perspectiveprojection, Mat4, fov, window_ratio, nearclip, farclip)
+
+	projectionview 	= lift(*, Mat4, projection, view)
+
 	normalmatrix 	= lift(x -> inv(Matrix3x3(x))', Matrix3x3{T}, projectionview)
 	Cam{T}(
 			window_size,
 			nearclip,
 			farclip,
 			fov,
-			viewmat,
+			view,
 			projection,
 			projectionview,
 			normalmatrix,

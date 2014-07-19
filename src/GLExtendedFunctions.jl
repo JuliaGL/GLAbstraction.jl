@@ -47,7 +47,7 @@ function ModernGL.glGetActiveUniform(programID::GLuint, index::Integer)
     const name           = Array(GLchar, maxcharsize)
 
     glGetActiveUniform(programID, index, maxcharsize, actualLength, uniformSize, typ, name)
-    if actualLength != 0
+    if actualLength[1] > 0
     	uname = bytestring(pointer(name), actualLength[1])
     	uname = symbol(replace(uname, r"\[\d*\]", "")) # replace array brackets. This is not really a good solution.
     	(uname, typ[1], uniformSize[1])
@@ -59,10 +59,24 @@ function ModernGL.glGetActiveAttrib(programID::GLuint, index::Integer)
     const actualLength  = Array(GLsizei, 1)
     const attributeSize = Array(GLint, 1)
     const typ           = Array(GLenum,1 )
-    const name          = Array(GLchar, 128)
+    const maxcharsize    = glGetProgramiv(programID, GL_ACTIVE_ATTRIBUTE_MAX_LENGTH)
+    const name           = Array(GLchar, maxcharsize)
 
-    glGetActiveAttrib(programID, index, 128, actualLength, attributeSize, typ, name)
-    (bytestring(pointer(name), actualLength[1]), index, typ[1])
+    glGetActiveAttrib(programID, index, maxcharsize, actualLength, attributeSize, typ, name)
+    if actualLength[1] > 0
+      println(typeof(name))
+      println(size(name))
+      println(length(name))
+      println(name)
+      println(typeof(actualLength))
+      println(size(actualLength))
+      println(actualLength)
+      uname = bytestring(pointer(name), actualLength[1])
+      uname = symbol(replace(uname, r"\[\d*\]", "")) # replace array brackets. This is not really a good solution.
+      (uname, typ[1], attributeSize[1])
+    else
+      error("No active uniform at given index. Index: ", index)
+    end
 end
 function ModernGL.glGetProgramiv(programID::GLuint, variable::GLenum)
     const result = GLint[-1]
