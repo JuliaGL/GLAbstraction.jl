@@ -1,6 +1,6 @@
 using Quaternions
 
-immutable Pivot
+immutable CamVectors
 	up::Vec3
 	position::Vec3
 	lookat::Vec3
@@ -10,18 +10,9 @@ immutable Pivot
 	zoom::Float32	
 	mousepressed::Bool
 end
-function createpivot(up::Vec3,
-	position::Vec3,
-	lookat::Vec3,
 
-	xangle::Float32,
-	yangle::Float32,
-	zoom::Float32,
-	pressed::Bool)
-	Pivot(up, position, lookat, xangle, yangle, zoom, pressed)
-end
 
-function movecam(state0::Pivot, state1::Pivot)
+function movecam(state0::CamVectors, state1::CamVectors)
 
 	if state0.mousepressed
 		xangle 		= state0.xangle - state1.xangle #get the difference from the previous state
@@ -35,13 +26,13 @@ function movecam(state0::Pivot, state1::Pivot)
 
 		up 			= Vector3(yrotation * [state0.up...])
 	 	pos1 		= Vector3(yrotation * xrotation * [state0.position...])
- 		return Pivot(up, pos1, state0.lookat, state1.xangle, state1.yangle, state1.zoom, state1.mousepressed)
+ 		return CamVectors(up, pos1, state0.lookat, state1.xangle, state1.yangle, state1.zoom, state1.mousepressed)
 	end	
 	dir 	= state0.position - state0.lookat
 	zoom 	= state0.zoom 	- state1.zoom
 	zoomdir	= unit(dir)*zoom #zoom just shortens the direction vector
 	pos1 	= state0.position-zoomdir
-	return Pivot(state0.up, pos1, state0.lookat, state1.xangle, state1.yangle, state1.zoom, state1.mousepressed)
+	return CamVectors(state0.up, pos1, state0.lookat, state1.xangle, state1.yangle, state1.zoom, state1.mousepressed)
 end
 function rotate{T}(angle::T, axis::Vector3{T})
  	rotationmatrix(qrotation(convert(Array, axis), angle))
@@ -103,10 +94,10 @@ function Cam{T}(
 	pos 	= Input(Vec3(1,0,0)) 
 	lookatv = Input(Vec3(0))
 
-	inputs = lift(createpivot, up, pos, lookatv, xangle, yangle, zoom, mousedown)
+	inputs = lift((x...) -> CamVectors(x...), up, pos, lookatv, xangle, yangle, zoom, mousedown)
 
 
-	camvecs 	= foldl(movecam, Pivot(Vec3(0,0,1), Vec3(1,0,0), Vec3(0), 0f0, 0f0, 0f0, false) , inputs)
+	camvecs 	= foldl(movecam, CamVectors(Vec3(0,0,1), Vec3(1,0,0), Vec3(0), 0f0, 0f0, 0f0, false) , inputs)
 	positionvec = lift(x-> x.position, Vec3, camvecs)
 	lookatvec 	= lift(x-> x.lookat, Vec3, camvecs)
 	up 			= lift(x-> x.up, Vec3, camvecs)

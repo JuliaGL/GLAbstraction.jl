@@ -166,7 +166,6 @@ is_correct_uniform_type(targetuniform::GLenum, tocheck::Signal) = is_correct_uni
 
 function is_correct_uniform_type(targetuniform::GLenum, tocheck::Texture)
     shouldbe = uniform_type(targetuniform)
-    
     return in(typeof(tocheck), shouldbe)
 end
 function uniform_type(targetuniform::GLenum)

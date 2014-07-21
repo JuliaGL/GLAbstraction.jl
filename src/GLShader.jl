@@ -1,7 +1,3 @@
-GLProgram(name::String) = GLProgram("$(name).vert", "$(name).frag")
-
-
-
 function getinfolog(obj::GLuint)
     # Return the info log for obj, whether it be a shader or a program.
     isShader = glIsShader(obj)
@@ -23,12 +19,15 @@ function getinfolog(obj::GLuint)
         "success"
     end
 end
+
 function validateshader(shader)
     success::Array{GLint, 1} = [0]
     glGetShaderiv(shader, GL_COMPILE_STATUS, success)
     success[1] == GL_TRUE
 end
 
+function readshader(shadercode::ASCIIString, shaderType, path::String)
+end
 function readshader(shadercode::ASCIIString, shaderType, path::String)
 
     const source = bytestring(shadercode)
@@ -51,7 +50,7 @@ function readshader(fileStream::IOStream, shaderType, name)
 end
 
 function update(vertcode::ASCIIString, fragcode::ASCIIString, path::String, program)
-    try
+    try 
         vertid = readshader(vertcode, GL_VERTEX_SHADER, path)
         fragid = readshader(fragcode, GL_FRAGMENT_SHADER, path)
         glUseProgram(0)
@@ -71,6 +70,7 @@ function update(vertcode::ASCIIString, fragcode::ASCIIString, path::String, prog
 end
 
 
+GLProgram(name::String) = GLProgram("$(name).vert", "$(name).frag")
 
 function GLProgram(vertex::ASCIIString, fragment::ASCIIString, vertpath::String, fragpath::String)
     vertexShaderID::GLuint   = readshader(vertex, GL_VERTEX_SHADER, vertpath)
@@ -98,7 +98,7 @@ function GLProgram(vertex::ASCIIString, fragment::ASCIIString, vertpath::String,
         else
             return (name, (loc,))
         end
-    end, nametypedict) 
+    end, nametypedict)
 
     return GLProgram(p, vertpath, fragpath, nametypedict, Dict{Symbol,Tuple}(uniformlocationdict))
 end
@@ -112,44 +112,3 @@ function GLProgram(vertex_file_path::ASCIIString, fragment_file_path::ASCIIStrin
 end
 
 export readshader
-
-
-#=
-
-    This functions creates a uniform upload function for a Program
-    which can be used to upload uniforms in the most efficient wayt
-    the function will look like:
-    function upload(uniform1, uniform2, uniform3)
-        gluniform(1, uniform1) # inlined uniform location
-        gluniform(2, uniform2)
-        gluniform(3, 0, uniform3) #if a uniform is a texture, texture targets are inlined as well
-        #this is supposed to be a lot faster than iterating through an array and caling the right functions
-        #with the right locations and texture targets
-    end
-
-function createuniformfunction(id, uniformlist::Tuple, typelist::Tuple)
-    uploadfunc          = {}
-    texturetarget       = 0
-
-    for i=1:length(uniformlist)
-
-        variablename    = uniformlist[i]
-        uniformtype     = typelist[i]
-        uniformlocation = get_uniform_location(id,string(variablename))
-
-        if uniformtype == GL_SAMPLER_1D || uniformtype == GL_SAMPLER_2D || uniformtype == GL_SAMPLER_3D
-            push!(uploadfunc, :(gluniform($uniformlocation, $(convert(GLint,texturetarget)), $variablename)))
-            texturetarget += 1
-        else
-            push!(uploadfunc, :(gluniform($uniformlocation, $variablename)))
-        end
-
-    end
-    return eval(quote
-        function uniformuploadfunction($(uniformlist...))
-            $(uploadfunc...)
-        end
-    end)
-end
-
-=#
