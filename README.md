@@ -1,7 +1,7 @@
 # GLAbstraction
 
 
-# Readme outdated! I need to rewrite this!
+### Readme outdated, I need to rewrite this!
 
 Abstraction library for OpenGL.
 In example you can find a simple setup of rendering a triangle with GLAbstraction, and GLWindow.
