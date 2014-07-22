@@ -1,5 +1,6 @@
 module GLUtil
 using ImmutableArrays, ModernGL, React
+import Mustache
 import Base.delete!
 
 

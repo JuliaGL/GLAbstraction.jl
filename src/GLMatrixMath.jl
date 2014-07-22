@@ -1,5 +1,12 @@
 
+function scalematrix{T}(scale::Vector3{T})
+    result      = eye(T, 4, 4)
+    result[1,1] = scale[1]
+    result[2,2] = scale[2]
+    result[3,3] = scale[3]
 
+    return Matrix4x4(result)
+end
 
 
 translatematrix_x{T}(x::T) = translationmatrix( Vector3{T}(x, 0, 0))
@@ -148,7 +155,7 @@ function orthographicprojection{T}(
 end
 
 
-
+export scalematrix
 export lookat, perspectiveprojection, orthographicprojection
 export translatematrix, translatematrix_x, translatematrix_y, translatematrix_z
 export  rotationmatrix_x, rotationmatrix_y, rotationmatrix_z #rotationmatrix,

@@ -117,7 +117,7 @@ export Camera, OrthogonalCamera, PerspectiveCamera
 
 import Images.imread
 import Images.Image
-export Texture, texturetype
+export Texture, texturetype, update!
 
 #Supported datatypes
 const TO_GL_TYPE = [
@@ -150,9 +150,6 @@ end
 glpixelformat(x::AbstractArray) = glpixelformat(eltype(x))
 
 
-texturetype(dim::Int) = get(TO_GL_TEXTURE_TYPE, dim) do
-    error("$(dim)-dimensional textures not supported")
-end
 glcolorformat(colordim::Int) = get(DEFAULT_GL_COLOR_FORMAT, colordim) do
     error("$(colordim)-dimensional colors not supported")
 end
@@ -209,8 +206,11 @@ immutable Texture{T <: TEXTURE_COMPATIBLE_NUMBER_TYPES, ColorDIM, NDIM}
     end
 end
 
-texturetype{T,C,D}(t::Texture{T,C,D}) = texturetype(D)
 
+texturetype{T,C,D}(t::Texture{T,C,D}) = texturetype(D)
+texturetype(dim::Int) = get(TO_GL_TEXTURE_TYPE, dim) do
+    error("$(dim)-dimensional textures not supported")
+end
 
 #intended usage: Array(Vector1/2/3/4{Uniont(Float32, Uint8, Int8)}, 1/2/3)
 #1-3 dimensional array, with 1-4 dimensional color values
@@ -255,7 +255,6 @@ function Texture(
     end
     @assert length(img.data) > 0
     imgFormat   = img.properties["colorspace"]
-    println(img)
     if imgFormat == "ARGB"
         tmp = img.data[1,1:end, 1:end]
         img.data[1,1:end, 1:end] = img.data[2,1:end, 1:end]
@@ -276,6 +275,16 @@ function Texture(
     Texture(mapslices(reverse, imgdata, [3]), colordim, internalformat=internalformat, format=format, parameters=parameters)
 end
 
+function update!{T <: Real}(t::Texture{T, 1, 2}, newvalue::Array{Vector1{T}, 2})
+    glBindTexture(texturetype(t), t.id)
+    glTexSubImage2D(texturetype(t), 0, 0, 0, size(newvalue)...,t.format, t.pixeltype, newvalue)
+end
+function update!{T <: Real, D}(t::Texture{T, 2, D}, newvalue::Array{Vector2{T}, D})
+end
+function update!{T <: Real, D}(t::Texture{T, 3, D}, newvalue::Array{Vector3{T}, D})
+end
+function update!{T <: Real, D}(t::Texture{T, 4, D}, newvalue::Array{Vector4{T}, D})
+end
 ########################################################################
 
 function opengl_compatible(T::DataType)
@@ -295,28 +304,28 @@ function opengl_compatible(T::DataType)
     end
     elemtype, cardinality
 end
-immutable GLBuffer{T <: Real}
+
+immutable GLBuffer{T <: Real, C}
     id::GLuint
     length::Int
-    cardinality::Int
     buffertype::GLenum
     usage::GLenum
 
-    function GLBuffer(ptr::Ptr{T}, size::Int, cardinality::Int, buffertype::GLenum, usage::GLenum)
+    function GLBuffer(ptr::Ptr{T}, size::Int, buffertype::GLenum, usage::GLenum)
         @assert size % sizeof(T) == 0
         _length = div(size, sizeof(T))
-        @assert _length % cardinality == 0
-        _length = div(_length, cardinality)
+        @assert _length % C == 0
+        _length = div(_length, C)
 
         id = glGenBuffers()
         glBindBuffer(buffertype, id)
         glBufferData(buffertype, size, ptr, usage)
         glBindBuffer(buffertype, 0)
 
-        new(id, _length, cardinality, buffertype, usage)
+        new(id, _length, buffertype, usage)
     end
 end
-
+cardinality{T, C}(::GLBuffer{T, C}) = C
 
 #Function to deal with any Immutable type with Real as Subtype
 function GLBuffer{T <: AbstractArray}(
@@ -326,17 +335,35 @@ function GLBuffer{T <: AbstractArray}(
     #This is a workaround, to deal with all kinds of immutable vector types
     ptrtype, cardinality = opengl_compatible(T)
     ptr = convert(Ptr{ptrtype}, pointer(buffer))
-    GLBuffer{ptrtype}(ptr, sizeof(buffer), cardinality, buffertype, usage)
+    GLBuffer{ptrtype, cardinality}(ptr, sizeof(buffer), buffertype, usage)
 end
 
 function GLBuffer{T <: Real}(
             buffer::Vector{T}, cardinality::Int;
             buffertype::GLenum = GL_ARRAY_BUFFER, usage::GLenum = GL_STATIC_DRAW
         )
-    GLBuffer{T}(convert(Ptr{T}, pointer(buffer)), sizeof(buffer), cardinality, buffertype, usage)
+    GLBuffer{T, cardinality}(convert(Ptr{T}, pointer(buffer)), sizeof(buffer), buffertype, usage)
 end
 function indexbuffer(buffer; usage::GLenum = GL_STATIC_DRAW)
     GLBuffer(buffer, 1, buffertype = GL_ELEMENT_ARRAY_BUFFER, usage=usage)
+end
+
+
+function update!{T}(b::GLBuffer{T,1}, data::Vector{Vector1{T}})
+    glBindBuffer(b.buffertype, b.id)
+    glBufferSubData(b.buffertype, 0, sizeof(data), data)
+end
+function update!{T}(b::GLBuffer{T,2}, data::Vector{Vector2{T}})
+    glBindBuffer(b.buffertype, b.id)
+    glBufferSubData(b.buffertype, 0, sizeof(data), data)
+end
+function update!{T}(b::GLBuffer{T,3}, data::Vector{Vector3{T}})
+    glBindBuffer(b.buffertype, b.id)
+    glBufferSubData(b.buffertype, 0, sizeof(data), data)
+end
+function update!{T}(b::GLBuffer{T,4}, data::Vector{Vector4{T}})
+    glBindBuffer(b.buffertype, b.id)
+    glBufferSubData(b.buffertype, 0, sizeof(data), data)
 end
 
 immutable GLVertexArray
@@ -363,7 +390,7 @@ immutable GLVertexArray
         glBindBuffer(buffer.buffertype, buffer.id)
         attribLocation = get_attribute_location(program.id, attribute)
 
-        glVertexAttribPointer(attribLocation, buffer.cardinality, GL_FLOAT, GL_FALSE, 0, 0)
+        glVertexAttribPointer(attribLocation,  cardinality(buffer), GL_FLOAT, GL_FALSE, 0, 0)
         glEnableVertexAttribArray(attribLocation)
       end
     end
@@ -374,7 +401,7 @@ end
 function GLVertexArray(bufferDict::Dict{ASCIIString, GLBuffer}, program::GLProgram)
     GLVertexArray(Dict{Symbol, GLBuffer}(map(elem -> (symbol(elem[1]), elem[2]), bufferDict)), program)
 end
-export GLVertexArray, GLBuffer, indexbuffer, opengl_compatible
+export GLVertexArray, GLBuffer, indexbuffer, opengl_compatible, cardinality
 
 ##################################################################################
 

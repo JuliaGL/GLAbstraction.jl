@@ -55,8 +55,8 @@ end
 
 function Cam(inputs, eyeposition)
 	mouseposition 	= inputs[:mouseposition]
-	clicked 	= inputs[:mousepressed]
-	keypressed 	= inputs[:keypressed]
+	clicked 		= inputs[:mousepressed]
+	keypressed 		= inputs[:keypressed]
 
 	draggx = lift(x-> float32(x[1]), Float32, mouseposition)
 	draggy = lift(x-> float32(x[2]), Float32, mouseposition)

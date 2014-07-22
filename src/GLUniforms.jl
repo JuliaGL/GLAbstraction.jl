@@ -99,7 +99,7 @@ toglsltype_string{T, C, D}(t::Texture{T, C, D}) = string("uniform ", GLSL_PREFIX
 toglsltype_string(t::GLfloat) = "uniform float"
 toglsltype_string(t::GLuint) = "uniform uint"
 toglsltype_string(t::GLint) = "uniform int"
-toglsltype_string(t::GLBuffer) = "$(get_glsl_in_qualifier_string()) vec$(t.cardinality)"
+toglsltype_string(t::GLBuffer) = "$(get_glsl_in_qualifier_string()) vec$(cardinality(t))"
 toglsltype_string(t::Signal) = toglsltype_string(t.value)
 toglsltype_string(t::Range) = toglsltype_string(Vec3(first(t), step(t), last(t)))
 
