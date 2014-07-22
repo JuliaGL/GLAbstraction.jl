@@ -62,14 +62,7 @@ function Cam(inputs, eyeposition)
 	draggy = lift(x-> float32(x[2]), Float32, mouseposition)
 	zoom = foldl((a,b) -> float32(a+(b*0.1f0)) , 0f0, inputs[:scroll_y])
 
-	fov 	= foldl((a,b) -> begin
-				if b == 265
-					return a-5f0
-				elseif b == 264
-					return a+5f0
-				end
-				a
-			end, 41f0, inputs[:keypressed])
+	fov 	= Input(41f0)
 
 	Cam(inputs[:window_size], draggx, draggy, zoom, eyeposition, Input(Vector3(0f0)), fov, inputs[:mousepressed])
 end
