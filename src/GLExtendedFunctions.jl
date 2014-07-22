@@ -117,7 +117,25 @@ function ModernGL.glGenFramebuffers()
     end
     id
 end
-glTexImage(level::Integer, internalFormat::GLenum, w::Integer, h::Integer, d::Integer, border::Integer, format::GLenum, datatype::GLenum, data) = glTexImage3D(GL_TEXTURE_3D, level, internalFormat, w, h, d, border, format, datatype, data)
-glTexImage(level::Integer, internalFormat::GLenum, w::Integer, h::Integer, border::Integer, format::GLenum, datatype::GLenum, data) = glTexImage2D(GL_TEXTURE_2D, level, internalFormat, w, h, border, format, datatype, data)
-glTexImage(level::Integer, internalFormat::GLenum, w::Integer, border::Integer, format::GLenum, datatype::GLenum, data) = glTexImage1D(GL_TEXTURE_1D, level, internalFormat, w, border, format, datatype, data)
+function glTexImage(level::Integer, internalFormat::GLenum, w::Integer, h::Integer, d::Integer, border::Integer, format::GLenum, datatype::GLenum, data)  
+  maxsize = glGetIntegerv(GL_MAX_3D_TEXTURE_SIZE)
+  if w > maxsize || h > maxsize || d > maxsize
+    error("Texture too big, please don't use 3D textures with dimensions exceeding: ", maxsize, "x", maxsize, "x", maxsize)
+  end
+  glTexImage3D(GL_TEXTURE_3D, level, internalFormat, w, h, d, border, format, datatype, data)
+end
+function glTexImage(level::Integer, internalFormat::GLenum, w::Integer, h::Integer, border::Integer, format::GLenum, datatype::GLenum, data)
+  maxsize = glGetIntegerv(GL_MAX_TEXTURE_SIZE)
+  if w > maxsize || h > maxsize
+    error("Texture too big, please don't use 2D textures with dimensions exceeding: ", maxsize, "x", maxsize)
+  end
+  glTexImage2D(GL_TEXTURE_2D, level, internalFormat, w, h, border, format, datatype, data)
+end
+function glTexImage(level::Integer, internalFormat::GLenum, w::Integer, border::Integer, format::GLenum, datatype::GLenum, data)
+  maxsize = glGetIntegerv(GL_MAX_TEXTURE_SIZE)
+  if w > maxsize
+    error("Texture too big, please don't use 1D textures with dimensions exceeding: ", maxsize)
+  end
+  glTexImage1D(GL_TEXTURE_1D, level, internalFormat, w, border, format, datatype, data)
+end
 export glTexImage

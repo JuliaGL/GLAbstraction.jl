@@ -27,6 +27,8 @@ end
 
 function renderinstanced(vao::GLVertexArray, amount::Integer, primitive=GL_TRIANGLES)
     glBindVertexArray(vao.id)
+    #If you get an error here, try:
+    #glDrawElementsInstancedEXT(primitive, vao.indexlength, GL_UNSIGNED_INT, C_NULL, amount)
     glDrawElementsInstanced(primitive, vao.indexlength, GL_UNSIGNED_INT, C_NULL, amount)
 end
 
