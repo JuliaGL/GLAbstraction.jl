@@ -1,4 +1,4 @@
-using GLUtil, ImmutableArrays, ModernGL, GLWindow, Images, Color
+using GLAbstraction, ImmutableArrays, ModernGL, GLWindow, Images, Color
 using Base.Test
 
 global const window = createwindow("Mesh Display", 1000, 1000, debugging = false)

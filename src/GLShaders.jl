@@ -1,4 +1,4 @@
-using GLFW, React, ImmutableArrays, ModernGL, GLUtil, GLWindow
+using GLFW, React, ImmutableArrays, ModernGL, GLAbstraction, GLWindow
 
 
 GLFW.Init()

@@ -1,10 +1,10 @@
 # GLAbstraction
 
 Abstraction library for OpenGL.
-In example you can find a simple setup of rendering a triangle with GLUtil, and GLWindow.
+In example you can find a simple setup of rendering a triangle with GLAbstraction, and GLWindow.
 
 
-Some functionality offered by GLUtil:
+Some functionality offered by GLAbstraction:
 
 Example:
 ```julia
@@ -35,7 +35,7 @@ program2 = GLProgram(vertexShaderSource::String, fragmentShaderSource::String, n
 ```
 
 
-There are two camera types given in GLUtil, PerspectiveCamera and OrthogonalCamera, which both have an empty constructor with some standard values.
+There are two camera types given in GLAbstraction, PerspectiveCamera and OrthogonalCamera, which both have an empty constructor with some standard values.
 Also there are a few functions to manipulate the camera, like resize, move and rotate.
 I'll upload a few examples soon.
 

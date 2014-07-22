@@ -1,4 +1,4 @@
-using ModernGL, GLWindow, GLUtil
+using ModernGL, GLWindow, GLAbstraction
 
 
 const window = createWindow("Example", 512, 512)

@@ -1,4 +1,4 @@
-using GLUtil, ImmutableArrays, ModernGL
+using GLAbstraction, ImmutableArrays, ModernGL
 using GLFW # <- need GLFW for context initialization.. Hopefully replaced by some native initialization soon
 using Base.Test
 

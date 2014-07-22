@@ -1,4 +1,4 @@
-module GLUtil
+module GLAbstraction
 using ImmutableArrays, ModernGL, React
 import Mustache
 import Base.delete!
