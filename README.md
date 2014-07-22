@@ -1,6 +1,6 @@
-# GLUtil
+# GLAbstraction
 
-Utility library for OpenGL.
+Abstraction library for OpenGL.
 In example you can find a simple setup of rendering a triangle with GLUtil, and GLWindow.
 
 
