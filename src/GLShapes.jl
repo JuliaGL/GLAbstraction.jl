@@ -75,22 +75,22 @@ genquad(x::Real, y::Real) = genquad(0, 0, promote(x, y)...)
 genquad(x::Real, y::Real, width::Real, height::Real) = genquad(promote(x, x, width, height)...)
 
 function genquad{T}(downleft::Vector3{T}, width::Vector3{T}, height::Vector3{T})
-    v = [
+    v = Vector3{T}[
         downleft,
         downleft + height,
         downleft + width + height,
         downleft + width 
     ]
-    uv = T[
-        0, 1,
-        0, 0,
-        1, 0,
-        1, 1
+    uv = Vector2{T}[
+        Vector2{T}(0, 1),
+        Vector2{T}(0, 0),
+        Vector2{T}(1, 0),
+        Vector2{T}(1, 1)
     ]
     indexes = GLuint[0,1,2,2,3,0]
 
     normal = unit(cross(width, height))
-    v, uv, indexes, [normal for i=1:4]
+    (v, uv, Vector3{T}[normal for i=1:4], indexes)
 end
 
 function gencircle(r, x, y, amount)
@@ -111,22 +111,34 @@ function genquadstrip(x::GLfloat, y::GLfloat, spacing::GLfloat, width::GLfloat, 
     end
     return vertices
 end
+# I just just create a meshtype, but I can't use the one from meshes, as its not parametric, and doesn't have variable vertex attributes
+# I deal with it later...
+function mergemesh{T}(a::(Vector{Vector3{T}}, Vector{Vector2{T}}, Vector{Vector3{T}}, Vector{GLuint}), 
+    (b::(Vector{Vector3{T}}, Vector{Vector2{T}}, Vector{Vector3{T}}, Vector{GLuint}))...)
+    v  = a[1]
+    uv = a[2]
+    n  = a[3]
+    i  = a[4]
+    for elem in b
+        append!(i, elem[4] + length(v))
+        append!(v, elem[1])
+        append!(uv, elem[2])
+        append!(n, elem[3])
+    end
+    
+    return (v, uv, n, i)
+end
+
 function gencubenormals{T}(base_edge::Vector3{T}, wx::Vector3{T}, wy::Vector3{T}, hz::Vector3{T})
-    top_v, top_uv, top_ind, top_norm                = genquad(base_edge + hz, wx, wy)
-    bottom_v, bottom_uv, bottom_ind, bottom_norm    = genquad(base_edge, wx, wy)
+    mergemesh( 
+            genquad(base_edge + hz, wx,wy), # Top
+            genquad(base_edge, wy, wx), # Bottom
+            genquad(base_edge + wx, wy, hz), # Right
+            genquad(base_edge, hz, wy), # Left
+            genquad(base_edge, wx, hz), # Back
+            genquad(base_edge + wy, hz, wx) #Front
+        )
 
-    front_v, front_uv, front_ind, front_norm        = genquad(base_edge + wx, wy, hz)
-    back_v, back_uv, back_ind, back_norm            = genquad(base_edge, wy, hz)
-
-    left_v, left_uv, left_ind, left_norm            = genquad(base_edge, wx, hz)
-    right_v, right_uv, right_ind, right_norm        = genquad(base_edge + wy, wx, hz)
-
-    v = [top_v..., bottom_v..., front_v..., back_v..., left_v..., right_v...]
-    uv = [top_uv..., bottom_uv..., front_uv..., back_uv..., left_uv..., right_uv...]
-    normals = [top_norm..., bottom_norm..., front_norm..., back_norm..., left_norm..., right_norm...]
-    runner = 4
-    indexes = GLuint[top_ind..., (bottom_ind .+ runner)..., (front_ind .+ 2*runner)..., (back_ind .+ 3*runner)..., (left_ind .+ 4*runner)..., (right_ind .+ 5*runner)...]
-    (v, uv, normals, indexes)
 end
 function gencube(x,y,z)
     vertices = Float32[
