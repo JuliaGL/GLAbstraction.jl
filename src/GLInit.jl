@@ -44,7 +44,9 @@ function createcontextinfo(dict)
 	dict[:gl_version] 		= glv
 	dict[:gl_vendor] 		= bytestring(glGetString(GL_VENDOR))
 	dict[:gl_renderer] 		= bytestring(glGetString(GL_RENDERER))
-	#dict[:gl_extensions] 	= split(bytestring(glGetString(GL_EXTENSIONS)))
+	n = GLint[0]
+	glGetIntegerv(GL_NUM_EXTENSIONS, n)
+	dict[:gl_extensions] 	= [ bytestring(glGetStringi(GL_EXTENSIONS, i)) for i = 0:(n[1]-1) ]
 end
 function get_glsl_version_string()
 	if isempty(GLSL_VERSION)
