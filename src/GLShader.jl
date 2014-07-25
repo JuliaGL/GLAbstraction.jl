@@ -53,10 +53,10 @@ function readshader(fileStream::IOStream, shaderType, name)
     return readShader(readall(fileStream), shaderType, name)
 end
 
-function update(vertcode::ASCIIString, fragcode::ASCIIString, path::String, program)
+function update(vertcode::ASCIIString, fragcode::ASCIIString, vpath::String, fpath::String, program)
     try 
-        vertid = readshader(vertcode, GL_VERTEX_SHADER, path)
-        fragid = readshader(fragcode, GL_FRAGMENT_SHADER, path)
+        vertid = readshader(vertcode, GL_VERTEX_SHADER, vpath)
+        fragid = readshader(fragcode, GL_FRAGMENT_SHADER, fpath)
         glUseProgram(0)
         oldid = glGetAttachedShaders(program)
         glDetachShader(program, oldid[1])
@@ -82,8 +82,8 @@ glsl_variable_access(keystring, ::Texture{Float32, 4, 2}) = "texture($(keystring
 
 glsl_variable_access(keystring, ::Union(Real, GLBuffer, AbstractArray)) = keystring*";"
 
-glsl_variable_access(keystring, s::Signal) = glsl_variable_access(keystring, s.value)
-glsl_variable_access(keystring, t::Any) = error("no glsl variable calculation available for ",keystring, " and type ", typeof(t))
+glsl_variable_access(keystring, s::Signal)  = glsl_variable_access(keystring, s.value)
+glsl_variable_access(keystring, t::Any)     = error("no glsl variable calculation available for ",keystring, " and type ", typeof(t))
 
 
 function createview(x::Dict{Symbol, Any}, keys)
@@ -145,6 +145,24 @@ function GLProgram(vertex_file_path::ASCIIString, fragment_file_path::ASCIIStrin
     fragname    = basename(fragment_file_path)
     GLProgram(vertsource, fragsource, vertex_file_path, fragment_file_path)
 end
+
+# REAALLY ugly way of doing this.. I still don't completely know, why my other approaches haven't worked
+function watch_file_react(filename)
+    f = open(filename)
+    firstcontent = readall(f)
+    close(f)
+    file_edited = lift(x->x[1], Bool, foldl((v0, v1) -> begin 
+        t = mtime(filename)
+        (isapprox(0.0, v0[2] - t), t)
+    end, (false, mtime(filename)), Timing.every(1.0)))
+
+    return lift(x -> begin
+        f = open(filename)
+        content = readall(f)
+        close(f)
+        content
+    end, keepwhen(file_edited, false, file_edited))
+end
 function TemplateProgram(vertex_file_path::ASCIIString, fragment_file_path::ASCIIString, view::Dict{ASCIIString, ASCIIString} = (ASCIIString => ASCIIString)[] , attributes::Dict{Symbol, Any} = (Symbol => Any)[])
     if haskey(view, "in") || haskey(view, "out") || haskey(view, "GLSL_VERSION")
         println("warning: using internal keyword \"$(in/out/GLSL_VERSION)\" for shader template. The value will be overwritten")
@@ -155,7 +173,6 @@ function TemplateProgram(vertex_file_path::ASCIIString, fragment_file_path::ASCI
         #for now we just append the extensions
         extension *= "\n" * view["GLSL_EXTENSIONS"]
     end
-
     internaldata = [
         "out"             => get_glsl_out_qualifier_string(),
         "in"              => get_glsl_in_qualifier_string(),
@@ -163,19 +180,20 @@ function TemplateProgram(vertex_file_path::ASCIIString, fragment_file_path::ASCI
         
         "GLSL_EXTENSIONS" => extension
     ]
-    view            = merge(internaldata, view)
+    view    = merge(internaldata, view)
+    sources = lift( (vertex_file_path, fragment_file_path) -> begin
+        vertex_tm       = Mustache.parse(vertex_file_path)
+        fragment_tm     = Mustache.parse(fragment_file_path)
 
-    vertex_tm       = Mustache.template_from_file(vertex_file_path)
-    fragment_tm     = Mustache.template_from_file(fragment_file_path)
-    vertex_view     = createview(attributes, mustachekeys(vertex_tm))
-    fragment_view   = createview(attributes, mustachekeys(fragment_tm))
-
-    merge!(vertex_view, view)
-    merge!(fragment_view, view)
+        vertex_view     = merge(createview(attributes, mustachekeys(vertex_tm)), view)
+        fragment_view   = merge(createview(attributes, mustachekeys(fragment_tm)), view)
+        vertsource      = replace(Mustache.render(vertex_tm, vertex_view), "&#x2F;", "/")
+        fragsource      = replace(Mustache.render(fragment_tm, fragment_view), "&#x2F;", "/")
+        (vertsource, fragsource)
+    end, watch_file_react(vertex_file_path), watch_file_react(fragment_file_path))
 
     #just using one view for vert and frag shader plus workaround for mustache bug
-    vertsource  = replace(Mustache.render(vertex_tm, vertex_view), "&#x2F;", "/")
-    fragsource  = replace(Mustache.render(fragment_tm, fragment_view), "&#x2F;", "/")
-
-    GLProgram(vertsource, fragsource, vertex_file_path, fragment_file_path)
+    p = GLProgram(sources.value[1], sources.value[2], vertex_file_path, fragment_file_path)
+    lift( x-> update(x[1], x[2], vertex_file_path, fragment_file_path, p.id), sources)
+    p
 end
