@@ -1,4 +1,3 @@
-using Quaternions
 
 immutable CamVectors
 	up::Vec3
@@ -79,9 +78,6 @@ function Cam{T}(
 
 	nearclip 		= Input(convert(T, 1))
 	farclip 		= Input(convert(T, 100))
-
-	#strgmod = lift(x-> x==GLFW.MOD_CONTROL, Bool, inputs[:keymodifiers])
-	#position = keepwhen(strgmod, lift(x-> Vec2(x...), Vec2, mouseposition)
 
 	up 		= Input(Vec3(0,0,1))
 	pos 	= Input(Vec3(1,0,0)) 

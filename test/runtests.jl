@@ -1,5 +1,5 @@
 using GLAbstraction, ImmutableArrays, ModernGL
-using GLFW # <- need GLFW for context initialization.. Hopefully replaced by some native initialization soon
+using GLFW # <- need GLFW for context initialization.. Hopefully replaced by some native initialization
 using Base.Test
 
 # initilization,  with GLWindow this reduces to "createwindow("name", w,h)"

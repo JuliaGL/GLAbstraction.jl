@@ -1,5 +1,5 @@
 module GLAbstraction
-using ImmutableArrays, ModernGL, React
+using ImmutableArrays, ModernGL, React, Quaternions
 import Mustache
 import Base.delete!
 
