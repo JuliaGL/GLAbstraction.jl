@@ -227,7 +227,7 @@ function Texture{T}(
 end
 
 function Texture{T <: Real}(
-                    data::Array{T}, colordim::Int64;
+                    data::Array{T}, colordim::Integer;
                     internalformat = 0, format = 0, parameters::Vector{(GLenum, GLenum)} = (GLenum, GLenum)[]
                 )
     if colordim == 1
