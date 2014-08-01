@@ -33,9 +33,6 @@ function movecam(state0::CamVectors, state1::CamVectors)
 	pos1 	= state0.position-zoomdir
 	return CamVectors(state0.up, pos1, state0.lookat, state1.xangle, state1.yangle, state1.zoom, state1.mousepressed)
 end
-function rotate{T}(angle::T, axis::Vector3{T})
- 	rotationmatrix(qrotation(convert(Array, axis), angle))
-end
 
 
 immutable Cam{T}
@@ -118,82 +115,5 @@ function Cam{T}(
 end
 
 
-function update(cam::PerspectiveCamera)
-	cam.projection 	= perspectiveprojection(76, cam.w / cam.h,  1.0f0, 30.0f0)
-	cam.view   		= lookAt(
-					cam.position,           # Camera is here
-					cam.lookAt, # and looks here : at the same position, plus "direction"
-					[0f0, 0f0, 1f0])
 
-end
-function update(cam::OrthogonalCamera)
-	cam.projection 		= computeOrthographicProjection(0f0, cam.w, 0f0, cam.h, cam.nearClip, cam.farClip)
-	cam.view 			= translationMatrix(cam.position)
-end
-
-
-rotate(xDiff, yDiff, cam::Camera) = rotate(float32(xDiff), float32(yDiff), cam)
-
-function rotate(xDiff::Float32, yDiff::Float32, cam::Camera)
-	if xDiff > 0
-		rotMatrixX = rotatationMatrix(deg2rad(xDiff), [0,0,1])
-	else
-		rotMatrixX = inv(rotatationMatrix(deg2rad(abs(xDiff)), [0,0,1]))
-	end
-	if yDiff > 0
-		rotMatrixY = rotatationMatrix(deg2rad(yDiff), cam.right)
-	else
-		rotMatrixY = inv(rotatationMatrix(deg2rad(abs(yDiff)), cam.right))
-	end
-	position = [cam.position..., 1f0]'
-	position *= rotMatrixY
-	position *= rotMatrixX
-	cam.position = position[1:3]
-
-	cam.direction 	= cam.position - cam.lookAt
-	cam.right 		= cross(cam.direction, [0f0, 0f0, 1f0])
-	cam.right 		/= norm(cam.right)
-
-	update(cam)
-end
-function rotate2(xDiff::Float32, yDiff::Float32, cam::Camera)
-	cam.verticalAngle   += cam.rotationSpeed * yDiff
-	cam.direction = [
-		cos(cam.verticalAngle) * sin(cam.horizontalAngle),
-		sin(cam.verticalAngle),
-		cos(cam.verticalAngle) * cos(cam.horizontalAngle)]
-
-	# Right vector
-	cam.right = cross(cam.direction, [0f0, 0f0, 1f0])
-
-	update(cam)
-end
-function zoom(event, cam::Camera)
-	cam.FoV += event.key == 4 ? -cam.zoomSpeed : cam.zoomSpeed
-	update(cam)
-end
-function move(xDiff, yDiff, cam::PerspectiveCamera)
-	cam.position += cam.right 		* xDiff * cam.moveSpeed
-	cam.position += cam.direction 	* yDiff * cam.moveSpeed
-	update(cam)
-end
-
-function move(event, cam::OrthogonalCamera)
-	cam.position[2] += event.key == 4 ? -cam.moveSpeed : cam.moveSpeed
-	update(cam)
-end
-
-resize(event, cam::Camera) = resize(event.w, event.h, cam)
-function resize2(event, cam)
-	cam.w = 1.0
-	cam.h = event.h / event.w
-	update(cam)
-end
-
-function resize(w, h, cam::Camera)
-	cam.w = w
-	cam.h = h
-	update(cam)
-end
-
-export resize, move, zoom, rotate, mouseToRotate, resize2, update, Cam
+export Cam

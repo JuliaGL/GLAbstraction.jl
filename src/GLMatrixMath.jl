@@ -19,6 +19,9 @@ function translatematrix{T}(translation::Vector3{T})
 
     return Matrix4x4(result)
 end
+function rotate{T}(angle::T, axis::Vector3{T})
+    rotationmatrix(qrotation(convert(Array, axis), angle))
+end
 
 function rotationmatrix_x{T}(angle::T)
     Matrix4x4{T}(

@@ -26,6 +26,7 @@ const triangle = RenderObject(
 	[:position => GLBuffer(GLfloat[0.0, 0.5, 0.5, -0.5, -0.5,-0.5], 2)], 
 	GLProgram(vsh, fsh, "vert", "frag"))
 postrender!(triangle, render, triangle.vertexarray)
+
 glClearColor(0, 0, 0, 1)
 
 

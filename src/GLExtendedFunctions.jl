@@ -1,3 +1,7 @@
+#=
+This is the place, where I put functions, which are so annoying in OpenGL, that I felt the need to wrap them and make them more "Julian"
+Its also to do some more complex error handling, not handled by the debug callback
+=#
 
 function ModernGL.glGetAttachedShaders(program::GLuint)
     actualLength  = Array(GLsizei, 1)
@@ -117,6 +121,8 @@ function ModernGL.glGenFramebuffers()
     end
     id
 end
+
+
 function glTexImage(level::Integer, internalFormat::GLenum, w::Integer, h::Integer, d::Integer, border::Integer, format::GLenum, datatype::GLenum, data)  
   maxsize = glGetIntegerv(GL_MAX_3D_TEXTURE_SIZE)
   if w > maxsize || h > maxsize || d > maxsize

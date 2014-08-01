@@ -4,9 +4,9 @@ export readshader, glsl_variable_access, createview, TemplateProgram
 
 function getinfolog(obj::GLuint)
     # Return the info log for obj, whether it be a shader or a program.
-    isShader = glIsShader(obj)
-    getiv = isShader == GL_TRUE ? glGetShaderiv : glGetProgramiv
-    getInfo = isShader == GL_TRUE ? glGetShaderInfoLog : glGetProgramInfoLog
+    isShader    = glIsShader(obj)
+    getiv       = isShader == GL_TRUE ? glGetShaderiv : glGetProgramiv
+    getInfo     = isShader == GL_TRUE ? glGetShaderInfoLog : glGetProgramInfoLog
      
     # Get the maximum possible length for the descriptive error message
     int::Array{GLint, 1} = [0]
@@ -163,6 +163,8 @@ function watch_file_react(filename)
         content
     end, keepwhen(file_edited, false, file_edited))
 end
+
+
 function TemplateProgram(vertex_file_path::ASCIIString, fragment_file_path::ASCIIString, view::Dict{ASCIIString, ASCIIString} = (ASCIIString => ASCIIString)[] , attributes::Dict{Symbol, Any} = (Symbol => Any)[])
     if haskey(view, "in") || haskey(view, "out") || haskey(view, "GLSL_VERSION")
         println("warning: using internal keyword \"$(in/out/GLSL_VERSION)\" for shader template. The value will be overwritten")

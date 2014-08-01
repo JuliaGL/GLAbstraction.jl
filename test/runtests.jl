@@ -14,6 +14,8 @@ GLFW.WindowHint(GLFW.SAMPLES, 4)
 end
 window = GLFW.CreateWindow(512,512, "test")
 GLFW.MakeContextCurrent(window)
+GLFW.ShowWindow(window)
+
 init_glutils()
 
 #vertex and fragment shader
@@ -59,7 +61,7 @@ const triangle = RenderObject(
 
 postrender!(triangle, render, triangle.vertexarray)
 
-require("uniforms")
+#require("uniforms")
 
 glClearColor(0,0,0,1)
 while !GLFW.WindowShouldClose(window)

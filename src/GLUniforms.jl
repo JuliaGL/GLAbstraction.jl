@@ -1,7 +1,8 @@
 # Uniforms are OpenGL variables that stay the same for the entirety of a drawcall.
-# There are a lot of functions, to upload them, as OpenGL doesn't rely on multiple dispatch
+# There are a lot of functions, to upload them, as OpenGL doesn't rely on multiple dispatch.
 # here is my approach, to handle all of the uniforms with one function, namely gluniform
 # For uniforms, the Vector and Matrix types from ImmutableArrays should be used, as they map the relation almost 1:1
+
 GLSL_COMPATIBLE_NUMBER_TYPES = [GLdouble, GLfloat, GLint, GLuint]
 
 GLSL_PREFIX = [
@@ -70,6 +71,7 @@ end
 
 @genuniformfunctions 4 
 
+#Some additional uniform functions, not related to Imutable Arrays
 gluniform(location::Integer, target::Integer, t::Texture) = gluniform(convert(GLint, location), convert(GLint, target), t)
 function gluniform(location::GLint, target::GLint, t::Texture)
     activeTarget = GL_TEXTURE0 + uint32(target)
@@ -78,6 +80,7 @@ function gluniform(location::GLint, target::GLint, t::Texture)
     gluniform(location, target)
 end
 gluniform(location::Integer, x::Signal) = gluniform(location, x.value)
+
 #Uniform upload functions for julia arrays...
 function gluniform{T <: Union(GLSL_COMPATIBLE_NUMBER_TYPES...)}(location::GLint, x::Vector{T})
     d = length(x)
@@ -96,16 +99,16 @@ end
 
 
 toglsltype_string{T, C, D}(t::Texture{T, C, D}) = string("uniform ", GLSL_PREFIX[T],"sampler", D, "D")
-toglsltype_string(t::GLfloat) = "uniform float"
-toglsltype_string(t::GLuint) = "uniform uint"
-toglsltype_string(t::GLint) = "uniform int"
-toglsltype_string(t::GLBuffer) = "$(get_glsl_in_qualifier_string()) vec$(cardinality(t))"
-toglsltype_string(t::Signal) = toglsltype_string(t.value)
-toglsltype_string(t::Range) = toglsltype_string(Vec3(first(t), step(t), last(t)))
+toglsltype_string(t::GLfloat)                   = "uniform float"
+toglsltype_string(t::GLuint)                    = "uniform uint"
+toglsltype_string(t::GLint)                     = "uniform int"
+toglsltype_string(t::GLBuffer)                  = "$(get_glsl_in_qualifier_string()) vec$(cardinality(t))"
+toglsltype_string(t::Signal)                    = toglsltype_string(t.value)
+toglsltype_string(t::StepRange)                 = toglsltype_string(Vec3(first(t), step(t), last(t)))
 
 
-
-
+# Awkwart way of keeping track of all the different type consts and there allowed julia types they represent
+# This is needed to validate, that you upload the correct types to a shader
 const UNIFORM_TYPE_ENUM_DICT = [
 
     GL_FLOAT        => [GLfloat, Vec1],
@@ -170,9 +173,9 @@ function is_correct_uniform_type(targetuniform::GLenum, tocheck::Texture)
 end
 function uniform_type(targetuniform::GLenum)
     if haskey(UNIFORM_TYPE_ENUM_DICT, targetuniform)
-        UNIFORM_TYPE_ENUM_DICT[targetuniform]
+        return UNIFORM_TYPE_ENUM_DICT[targetuniform]
     else
-        error("Unrecognized Unifom Enum. Enum found: ", GLENUM(targetuniform).name)
+        error("Unrecognized Uniform Enum. Enum found: ", GLENUM(targetuniform).name)
     end
 end
 

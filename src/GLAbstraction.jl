@@ -3,8 +3,6 @@ using ImmutableArrays, ModernGL, React, Quaternions
 import Mustache
 import Base.delete!
 
-
-
 include("GLInit.jl")
 include("GLExtendedFunctions.jl")
 include("GLTypes.jl")
