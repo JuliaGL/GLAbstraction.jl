@@ -153,9 +153,8 @@ function watch_file_react(filename)
     close(f)
     file_edited = lift(x->x[1], Bool, foldl((v0, v1) -> begin 
         t = mtime(filename)
-        (isapprox(0.0, v0[2] - t), t)
+        (!isapprox(0.0, v0[2] - t), t)
     end, (false, mtime(filename)), Timing.every(1.0)))
-
     return lift(x -> begin
         f = open(filename)
         content = readall(f)
@@ -163,6 +162,8 @@ function watch_file_react(filename)
         content
     end, keepwhen(file_edited, false, file_edited))
 end
+
+
 function TemplateProgram(vertex_file_path::ASCIIString, fragment_file_path::ASCIIString, view::Dict{ASCIIString, ASCIIString} = (ASCIIString => ASCIIString)[] , attributes::Dict{Symbol, Any} = (Symbol => Any)[])
     if haskey(view, "in") || haskey(view, "out") || haskey(view, "GLSL_VERSION")
         println("warning: using internal keyword \"$(in/out/GLSL_VERSION)\" for shader template. The value will be overwritten")
