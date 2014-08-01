@@ -153,9 +153,8 @@ function watch_file_react(filename)
     close(f)
     file_edited = lift(x->x[1], Bool, foldl((v0, v1) -> begin 
         t = mtime(filename)
-        (isapprox(0.0, v0[2] - t), t)
+        (!isapprox(0.0, v0[2] - t), t)
     end, (false, mtime(filename)), Timing.every(1.0)))
-
     return lift(x -> begin
         f = open(filename)
         content = readall(f)
