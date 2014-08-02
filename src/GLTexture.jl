@@ -7,8 +7,8 @@ const TO_GL_TYPE = [
     GLubyte     => GL_UNSIGNED_BYTE,
     GLbyte      => GL_BYTE,
     GLuint      => GL_UNSIGNED_INT,
-    GLshort     => GL_UNSIGNED_SHORT,
-    GLushort    => GL_SHORT,
+    GLushort    => GL_UNSIGNED_SHORT,
+    GLshort     => GL_SHORT,
     GLint       => GL_INT,
     GLfloat     => GL_FLOAT
 ]

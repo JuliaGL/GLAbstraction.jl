@@ -106,7 +106,6 @@ end
 mustachekeys(mustache::Mustache.MustacheTokens) = map(x->x[2], filter(x-> x[1] == "name", mustache.tokens))
 
 GLProgram(name::String) = GLProgram("$(name).vert", "$(name).frag")
-
 function GLProgram(vertex::ASCIIString, fragment::ASCIIString, vertpath::String, fragpath::String)
     vertexShaderID::GLuint   = readshader(vertex, GL_VERTEX_SHADER, vertpath)
     fragmentShaderID::GLuint = readshader(fragment, GL_FRAGMENT_SHADER, fragpath)
@@ -114,6 +113,38 @@ function GLProgram(vertex::ASCIIString, fragment::ASCIIString, vertpath::String,
     @assert p > 0
     glAttachShader(p, vertexShaderID)
     glAttachShader(p, fragmentShaderID)
+    glLinkProgram(p)
+
+    glDeleteShader(vertexShaderID) # Can be deleted, as they will still be linked to Program and released after program gets released
+    glDeleteShader(fragmentShaderID)
+
+    nametypedict = Dict{Symbol, GLenum}(uniform_name_type(p))
+    attriblist = attribute_name_type(p)
+
+    texturetarget = -1
+    uniformlocationdict = map( elem -> begin
+        name = elem[1]
+        typ = elem[2]
+        loc = get_uniform_location(p, name)
+        if istexturesampler(typ)
+            texturetarget += 1
+            return (name, (loc, texturetarget))
+        else
+            return (name, (loc,))
+        end
+    end, nametypedict)
+
+    return GLProgram(p, vertpath, fragpath, nametypedict, Dict{Symbol,Tuple}(uniformlocationdict))
+end
+function GLProgram2(vertex::ASCIIString, fragment::ASCIIString, vertpath::String, fragpath::String)
+    vertexShaderID::GLuint   = readshader(vertex, GL_VERTEX_SHADER, vertpath)
+    fragmentShaderID::GLuint = readshader(fragment, GL_FRAGMENT_SHADER, fragpath)
+    p = glCreateProgram()
+
+    @assert p > 0
+    glAttachShader(p, vertexShaderID)
+    glAttachShader(p, fragmentShaderID)
+    glBindFragDataLocation(p, 0, "fragment_color")
     glLinkProgram(p)
 
     glDeleteShader(vertexShaderID) # Can be deleted, as they will still be linked to Program and released after program gets released
@@ -162,8 +193,41 @@ function watch_file_react(filename)
         content
     end, keepwhen(file_edited, false, file_edited))
 end
+function TemplateProgram2(vertex_file_path::ASCIIString, fragment_file_path::ASCIIString, view::Dict{ASCIIString, ASCIIString} = (ASCIIString => ASCIIString)[] , attributes::Dict{Symbol, Any} = (Symbol => Any)[])
+    if haskey(view, "in") || haskey(view, "out") || haskey(view, "GLSL_VERSION")
+        println("warning: using internal keyword \"$(in/out/GLSL_VERSION)\" for shader template. The value will be overwritten")
+    end
+    extension = "" #Still empty, but might be replaced by a platform dependant extension string
+    if haskey(view, "GLSL_EXTENSIONS")
+        #to do: check custom extension...
+        #for now we just append the extensions
+        extension *= "\n" * view["GLSL_EXTENSIONS"]
+    end
+    internaldata = [
+        "out"             => get_glsl_out_qualifier_string(),
+        "in"              => get_glsl_in_qualifier_string(),
+        "GLSL_VERSION"    => get_glsl_version_string(),
+        
+        "GLSL_EXTENSIONS" => extension
+    ]
+    view    = merge(internaldata, view)
+    sources = lift( (vertex_file_path, fragment_file_path) -> begin
+        vertex_tm       = Mustache.parse(vertex_file_path)
+        fragment_tm     = Mustache.parse(fragment_file_path)
 
+        vertex_view     = merge(createview(attributes, mustachekeys(vertex_tm)), view)
+        fragment_view   = merge(createview(attributes, mustachekeys(fragment_tm)), view)
+        vertsource      = replace(Mustache.render(vertex_tm, vertex_view), "&#x2F;", "/")
+        fragsource      = replace(Mustache.render(fragment_tm, fragment_view), "&#x2F;", "/")
+        (vertsource, fragsource)
+    end, watch_file_react(vertex_file_path), watch_file_react(fragment_file_path))
 
+    #just using one view for vert and frag shader plus workaround for mustache bug
+    p = GLProgram2(sources.value[1], sources.value[2], vertex_file_path, fragment_file_path)
+    lift( x-> update(x[1], x[2], vertex_file_path, fragment_file_path, p.id), sources)
+    p
+end
+export TemplateProgram2
 function TemplateProgram(vertex_file_path::ASCIIString, fragment_file_path::ASCIIString, view::Dict{ASCIIString, ASCIIString} = (ASCIIString => ASCIIString)[] , attributes::Dict{Symbol, Any} = (Symbol => Any)[])
     if haskey(view, "in") || haskey(view, "out") || haskey(view, "GLSL_VERSION")
         println("warning: using internal keyword \"$(in/out/GLSL_VERSION)\" for shader template. The value will be overwritten")
