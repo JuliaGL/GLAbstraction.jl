@@ -1,4 +1,3 @@
-
 function scalematrix{T}(scale::Vector3{T})
     result      = eye(T, 4, 4)
     result[1,1] = scale[1]
@@ -9,11 +8,11 @@ function scalematrix{T}(scale::Vector3{T})
 end
 
 
-translatematrix_x{T}(x::T) = translationmatrix( Vector3{T}(x, 0, 0))
-translatematrix_y{T}(y::T) = translationmatrix( Vector3{T}(0, y, 0))
-translatematrix_z{T}(z::T) = translationmatrix( Vector3{T}(0, 0, z))
+translationmatrix_x{T}(x::T) = translationmatrix( Vector3{T}(x, 0, 0))
+translationmatrix_y{T}(y::T) = translationmatrix( Vector3{T}(0, y, 0))
+translationmatrix_z{T}(z::T) = translationmatrix( Vector3{T}(0, 0, z))
 
-function translatematrix{T}(translation::Vector3{T})
+function translationmatrix{T}(translation::Vector3{T})
     result          = eye(T, 4, 4)
     result[1:3,4]   = translation
 
@@ -133,7 +132,7 @@ function lookat{T}(eyePos::Vector3{T}, lookAt::Vector3{T}, up::Vector3{T})
     viewMatrix[2,1:3]  = yaxis
     viewMatrix[3,1:3]  = zaxis
 
-    Matrix4x4(viewMatrix) * translatematrix(-eyePos)
+    Matrix4x4(viewMatrix) * translationmatrix(-eyePos)
 end
 
 function orthographicprojection{T}(
@@ -158,7 +157,73 @@ function orthographicprojection{T}(
 end
 
 
+import Base: (*)
+function (*){T}(q::Quaternion{T}, v::Vector3{T}) 
+    t = 2 * cross(Vector3(q.v1, q.v2, q.v3), v)
+    v + q.s * t + cross(Vector3(q.v1, q.v2, q.v3), t)
+end
+function Quaternions.qrotation{T<:Real}(axis::Vector3{T}, theta::T)
+    u = unit(axis)
+    s = sin(theta/2)
+    Quaternion(cos(theta/2), s*u.e1, s*u.e2, s*u.e3, true)
+end
+export qrotation
+
+immutable Pivot{T}
+
+    origin::Vector3{T}
+
+    xaxis::Vector3{T}
+    yaxis::Vector3{T}
+    zaxis::Vector3{T}
+    
+    rotation::Quaternion
+
+    translation::Vector3{T}
+    scale::Vector3{T}
+    
+end
+function rotationmatrix4{T}(q::Quaternion{T})
+    sx, sy, sz = 2q.s*q.v1, 2q.s*q.v2, 2q.s*q.v3
+    xx, xy, xz = 2q.v1^2, 2q.v1*q.v2, 2q.v1*q.v3
+    yy, yz, zz = 2q.v2^2, 2q.v2*q.v3, 2q.v3^2
+
+    Matrix4x4([1-(yy+zz) xy-sz xz+sy 0;
+        xy+sz 1-(xx+zz) yz-sx 0;
+        xz-sy yz+sx 1-(xx+yy) 0;
+        0 0 0 1])
+end
+function transformationmatrix(p::Pivot)
+    (
+    translationmatrix(p.origin)* #go to origin
+        Matrix4x4(rotationmatrix4(p.rotation))*
+        #scalematrix(p.scale)*
+    translationmatrix(-p.origin)* # go back to origin
+    translationmatrix(p.translation)
+
+    ) 
+end
+export transformationmatrix, Pivot, rotationmatrix4
+#Calculate rotation between two vectors
+function rotation{T}(u::Vector3{T}, v::Vector3{T})
+    # It is important that the inputs are of equal length when
+    # calculating the half-way vector.
+    u = unit(u)
+    v = unit(v)
+
+    # Unfortunately, we have to check for when u == -v, as u + v
+    # in this case will be (0, 0, 0), which cannot be normalized.
+    if (u == -v)
+        # 180 degree rotation around any orthogonal vector
+        other = (abs(dot(u, Vector3{T}(1,0,0))) < 1.0) ? Vector3{T}(1,0,0) : Vector3{T}(0,1,0)
+        return qrotation(unit(cross(u, other)), 180)
+    end
+
+    half = unit(u + v)
+    return Quaternion(dot(u, half), cross(u, half)...)
+end
+
 export scalematrix
 export lookat, perspectiveprojection, orthographicprojection
-export translatematrix, translatematrix_x, translatematrix_y, translatematrix_z
-export  rotationmatrix_x, rotationmatrix_y, rotationmatrix_z #rotationmatrix,
+export translationmatrix, translatematrix_x, translatematrix_y, translatematrix_z
+export  rotationmatrix_x, rotationmatrix_y, rotationmatrix_z, rotation#rotationmatrix,
