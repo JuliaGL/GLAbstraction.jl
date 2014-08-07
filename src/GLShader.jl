@@ -168,10 +168,12 @@ function watch_file_react(filename)
     end, keepwhen(file_edited, false, file_edited))
 end
 
-function TemplateProgram(vertex_file_path::ASCIIString, fragment_file_path::ASCIIString, 
-    view::Dict{ASCIIString, ASCIIString} = (ASCIIString => ASCIIString)[], 
-    attributes::Dict{Symbol, Any} = (Symbol => Any)[];
-    fragdatalocation=(Int, ASCIIString)[])
+function TemplateProgram(
+                            vertex_file_path::ASCIIString, fragment_file_path::ASCIIString, 
+                            view::Dict{ASCIIString, ASCIIString} = (ASCIIString => ASCIIString)[], 
+                            attributes::Dict{Symbol, Any} = (Symbol => Any)[];
+                            fragdatalocation=(Int, ASCIIString)[]
+                        )
 
     if haskey(view, "in") || haskey(view, "out") || haskey(view, "GLSL_VERSION")
         println("warning: using internal keyword \"$(in/out/GLSL_VERSION)\" for shader template. The value will be overwritten")
@@ -204,5 +206,48 @@ function TemplateProgram(vertex_file_path::ASCIIString, fragment_file_path::ASCI
     #just using one view for vert and frag shader plus workaround for mustache bug
     p = GLProgram(sources.value[1], sources.value[2], vertex_file_path, fragment_file_path, fragdatalocation=fragdatalocation)
     lift( x-> update(x[1], x[2], vertex_file_path, fragment_file_path, p.id), sources)
+    p
+end
+
+
+function TemplateProgram(
+                            vertex_source::ASCIIString, fragment_source::ASCIIString, 
+                            vertex_name::ASCIIString, fragment_name::ASCIIString, 
+                            view::Dict{ASCIIString, ASCIIString} = (ASCIIString => ASCIIString)[], 
+                            attributes::Dict{Symbol, Any} = (Symbol => Any)[];
+                            fragdatalocation=(Int, ASCIIString)[]
+                        )
+
+    if haskey(view, "in") || haskey(view, "out") || haskey(view, "GLSL_VERSION")
+        println("warning: using internal keyword \"$(in/out/GLSL_VERSION)\" for shader template. The value will be overwritten")
+    end
+    extension = "" #Still empty, but might be replaced by a platform dependant extension string
+    if haskey(view, "GLSL_EXTENSIONS")
+        #to do: check custom extension...
+        #for now we just append the extensions
+        extension *= "\n" * view["GLSL_EXTENSIONS"]
+    end
+    internaldata = [
+        "out"             => get_glsl_out_qualifier_string(),
+        "in"              => get_glsl_in_qualifier_string(),
+        "GLSL_VERSION"    => get_glsl_version_string(),
+        
+        "GLSL_EXTENSIONS" => extension
+    ]
+    view    = merge(internaldata, view)
+    sources = lift( (vertex_file_path, fragment_file_path) -> begin
+        vertex_tm       = Mustache.parse(vertex_file_path)
+        fragment_tm     = Mustache.parse(fragment_file_path)
+
+        vertex_view     = merge(createview(attributes, mustachekeys(vertex_tm)), view)
+        fragment_view   = merge(createview(attributes, mustachekeys(fragment_tm)), view)
+        vertsource      = replace(Mustache.render(vertex_tm, vertex_view), "&#x2F;", "/")
+        fragsource      = replace(Mustache.render(fragment_tm, fragment_view), "&#x2F;", "/")
+        (vertsource, fragsource)
+    end, Input(vertex_source), Input(fragment_source))
+
+    #just using one view for vert and frag shader plus workaround for mustache bug
+    p = GLProgram(sources.value[1], sources.value[2], vertex_name, fragment_name, fragdatalocation=fragdatalocation)
+    lift( x-> update(x[1], x[2], vertex_name, fragment_name, p.id), sources)
     p
 end
