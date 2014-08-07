@@ -1,40 +1,12 @@
+export OrthographicCamera, PerspectiveCamera
 
-immutable CamVectors
-	up::Vec3
-	position::Vec3
-	lookat::Vec3
-
-	xangle::Float32
-	yangle::Float32
-	zoom::Float32	
-	mousepressed::Bool
+immutable OrthographicCamera{T}
+	window_size::Signal{Vector2{Int}}
+	view::Signal{Matrix4x4{T}}
+	projection::Signal{Matrix4x4{T}}
+	projectionview::Signal{Matrix4x4{T}}
 end
-
-
-function movecam(state0::CamVectors, state1::CamVectors)
-	if state0.mousepressed
-		xangle 		= state0.xangle - state1.xangle #get the difference from the previous state
-		yangle 		= state0.yangle - state1.yangle
-
-		dir 		= state0.position - state0.lookat
-
-		right 		= unit(cross(dir, state0.up))
-		xrotation 	= rotate(deg2rad(xangle), state0.up) #rotation matrix around up
-		yrotation 	= rotate(deg2rad(yangle), right)
-
-		up 			= Vector3(yrotation * [state0.up...])
-	 	pos1 		= Vector3(yrotation * xrotation * [state0.position...])
- 		return CamVectors(up, pos1, state0.lookat, state1.xangle, state1.yangle, state1.zoom, state1.mousepressed)
-	end	
-	dir 	= state0.position - state0.lookat
-	zoom 	= state0.zoom 	- state1.zoom
-	zoomdir	= unit(dir)*zoom #zoom just shortens the direction vector
-	pos1 	= state0.position-zoomdir
-	return CamVectors(state0.up, pos1, state0.lookat, state1.xangle, state1.yangle, state1.zoom, state1.mousepressed)
-end
-
-
-immutable Cam{T}
+immutable PerspectiveCamera{T}
 	pivot::Signal{Pivot{T}}
 	window_size::Signal{Vector2{Int}}
 	nearclip::Signal{T}
@@ -52,12 +24,76 @@ end
 function mousediff(v0::(Bool, Vector2{Float64}, Vector2{Float64}),  clicked::Bool, pos::Vector2{Float64})
     clicked0, pos0, pos0diff = v0
     if clicked0 && clicked
-        return (clicked, pos, pos0 - pos)
+        return (clicked, pos, pos - pos0)
     end
     return (clicked, pos, Vector2(0.0))
 end
 
-function Cam(inputs, eyeposition)
+
+
+function OrthographicCamera(inputs)
+
+	mouseposition   = inputs[:mouseposition]
+	clicked         = inputs[:mousebuttonspressed]
+	keypressed      = inputs[:buttonspressed]
+	
+	zoom 			= foldl((a,b) -> float32(a+(b*0.1f0)) , 1.0f0, inputs[:scroll_y])
+
+	#Should be rather in Image coordinates
+	normedposition 		= lift(./, inputs[:mouseposition], inputs[:window_size])
+	clickedwithoutkeyL 	= lift((mb, kb) -> in(0, mb) && isempty(kb), Bool, clicked, keypressed)
+	translate 			= lift(x-> float32(x[3]), Vec2, # Extract the mouseposition from the diff tuple
+							keepwhen(clickedwithoutkeyL, (false, Vector2(0.0), Vector2(0.0)), # Don't do unnecessary updates, so just signal when mouse is actually clicked
+								foldl(mousediff, (false, Vector2(0.0), Vector2(0.0)),  # Get the difference, starting when the mouse is down
+									clickedwithoutkeyL, normedposition)))
+	OrthographicCamera(
+				inputs[:window_size],
+				zoom,
+				translate,
+				normedposition
+			)
+
+end
+function OrthographicCamera{T}(
+									windows_size::Signal{Vector2{Int}},
+									zoom::Signal{T},
+									translatevec::Signal{Vector2{T}},
+									normedposition
+								)
+
+	lift(x -> glViewport(0,0, x...) , windows_size)
+	projection = lift(wh -> begin
+	  @assert wh[2] > 0
+	  @assert wh[1] > 0
+	  # change the aspect ratio, to always display an image with the right dimensions
+	  # this behaviour should definitely be changed, as soon as the camera is used for anything else.
+	  wh = wh[1] > wh[2] ? ((wh[1]/wh[2]), 1f0) : (1f0,(wh[2]/wh[1]))
+	  orthographicprojection(0f0, convert(T, wh[1]), 0f0, convert(T, wh[2]), -1f0, 10f0)
+	end, Matrix4x4{T}, windows_size)
+
+	scale             = lift(x -> scalematrix(Vector3{T}(x, x, one(T))), zoom)
+	transaccum 		  = foldl(+, Vector2(zero(T)), translatevec)
+	translate         = lift(x-> translationmatrix(Vector3(x..., zero(T))), transaccum)
+
+	view = lift((s, t) -> begin
+	  pivot = Vec3(normedposition.value..., zero(T))
+	  translationmatrix(pivot)*s*translationmatrix(-pivot)*t
+	end, Matrix4x4{T}, scale, translate)
+
+	projectionview = lift(*, Matrix4x4{T}, projection, view)
+
+	OrthographicCamera{T}(
+							windows_size,
+							projection,
+							view,
+							projectionview
+						)
+
+end
+
+
+
+function PerspectiveCamera(inputs, eyeposition)
 
 	mouseposition   = inputs[:mouseposition]
 	clicked         = inputs[:mousebuttonspressed]
@@ -90,7 +126,7 @@ function Cam(inputs, eyeposition)
 
 	fov 	= Input(41f0)
 
-	cam = Cam(
+	cam = PerspectiveCamera(
 					inputs[:window_size],# = iVec2(50,50),
 					
 					Input(Vec3(1,0,0)),
@@ -114,7 +150,7 @@ end
 
 
 
-function Cam{T}(
+function PerspectiveCamera{T}(
 					window_size::Signal{Vector2{Int}},# = iVec2(50,50),
 					
 					eyeposition::Signal{Vector3{T}},
@@ -180,7 +216,7 @@ function Cam{T}(
 
 	normalmatrix 	= lift(x -> inv(Matrix3x3(x))', Matrix3x3{T}, projectionview)
 
-	return Cam{T}(
+	return PerspectiveCamera{T}(
 			pivot,
 			window_size,
 			nearclip,
@@ -196,56 +232,4 @@ function Cam{T}(
 		)
 end
 
-function Cam{T}(
-					window_size::Input{Vector2{Int}},
-					xangle,
-					yangle,
-					zoom,
-					eyeposition::Vector3{T},
-					lookatvec::Input{Vector3{T}},
-					fov::Signal{T},
-					mousedown::Signal{Bool}
-				)
 
-	nearclip 		= Input(convert(T, 1))
-	farclip 		= Input(convert(T, 100))
-
-	up 				= Input(Vec3(0,0,1))
-	pos 			= Input(Vec3(1,0,0)) 
-	lookatv 		= Input(Vec3(0))
-
-	inputs 			= lift((x...) -> CamVectors(x...), up, pos, lookatv, xangle, yangle, zoom, mousedown)
-
-	camvecs 	= foldl(movecam, CamVectors(Vec3(0,0,1), Vec3(1,0,0), Vec3(0), 0f0, 0f0, 0f0, false) , inputs)
-	positionvec = lift(x-> x.position, Vec3, camvecs)
-	lookatvec 	= lift(x-> x.lookat, Vec3, camvecs)
-	up 			= lift(x-> x.up, Vec3, camvecs)
-
-	camvecs = lift(x-> (x.position, x.lookat, x.up), camvecs)
-	lift(x -> glViewport(0,0, x[1], x[2]), window_size)
-	view 	= lift(lookat, Mat4, positionvec, lookatvec, up)
-
-	window_ratio 	= lift(x -> x[1] / x[2], Float32, window_size)
-	projection 		= lift(perspectiveprojection, Mat4, fov, window_ratio, nearclip, farclip)
-
-	projectionview 	= lift(*, Mat4, projection, view)
-
-	normalmatrix 	= lift(x -> inv(Matrix3x3(x))', Matrix3x3{T}, projectionview)
-	Cam{T}(
-			window_size,
-			nearclip,
-			farclip,
-			fov,
-			view,
-			projection,
-			projectionview,
-			normalmatrix,
-			positionvec,
-			lookatvec,
-			up
-		)
-end
-
-
-
-export Cam
