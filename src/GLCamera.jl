@@ -30,7 +30,6 @@ function mousediff(v0::(Bool, Vector2{Float64}, Vector2{Float64}),  clicked::Boo
 end
 
 
-
 function OrthographicCamera(inputs)
 
 	mouseposition   = inputs[:mouseposition]
@@ -93,11 +92,11 @@ end
 
 
 
-function PerspectiveCamera(inputs, eyeposition)
+function PerspectiveCamera{T}(inputs::Dict{Symbol,Any}, eyeposition::Vector3{T}, lookatvec::Vector3{T})
 
-	mouseposition   = inputs[:mouseposition]
-	clicked         = inputs[:mousebuttonspressed]
-	keypressed      = inputs[:buttonspressed]
+	mouseposition   	= inputs[:mouseposition]
+	clicked         	= inputs[:mousebuttonspressed]
+	keypressed      	= inputs[:buttonspressed]
 
 	clickedwithoutkeyL 	= lift((mb, kb) -> in(0, mb) && isempty(kb), Bool, clicked, keypressed)
 	clickedwithoutkeyM 	= lift((mb, kb) -> in(2, mb) && isempty(kb), Bool, clicked, keypressed)
@@ -105,14 +104,8 @@ function PerspectiveCamera(inputs, eyeposition)
 	nokeydown 			= lift((kb) -> isempty(kb), Bool, keypressed)
 	anymousedown 		= lift((mb) -> !isempty(mb), Bool, clicked)
 
-
-
-
 	mousedraggdiffL = lift(x->x[3], Vector2{Float64}, foldl(mousediff, (false, Vector2(0.0), Vector2(0.0)), clickedwithoutkeyL, mouseposition))
 	mousedraggdiffM = lift(x->x[3], Vector2{Float64}, foldl(mousediff, (false, Vector2(0.0), Vector2(0.0)), clickedwithoutkeyM, mouseposition))
-
-	#mousedraggdiffL = keepwhen(clickedwithoutkeyL, Vector2(0.0), mousedraggdiffL)
-	#mousedraggdiffM = keepwhen(clickedwithoutkeyM, Vector2(0.0), mousedraggdiffM)
 
 	speed = 50f0
 	xtheta = Input(0f0)
@@ -129,8 +122,8 @@ function PerspectiveCamera(inputs, eyeposition)
 	cam = PerspectiveCamera(
 					inputs[:window_size],# = iVec2(50,50),
 					
-					Input(Vec3(1,0,0)),
-					Input(Vec3(0)),
+					eyeposition,
+					lookatvec,
 					
 					xtheta,
 					ytheta,
@@ -153,8 +146,8 @@ end
 function PerspectiveCamera{T}(
 					window_size::Signal{Vector2{Int}},# = iVec2(50,50),
 					
-					eyeposition::Signal{Vector3{T}},
-					lookatvec::Signal{Vector3{T}},
+					eyeposition::Vector3{T},
+					lookatvec::Vector3{T},
 					xtheta::Signal{T},
 					ytheta::Signal{T},
 					ztheta::Signal{T},
@@ -168,18 +161,17 @@ function PerspectiveCamera{T}(
 					nearclip::Signal{T},
 					farclip::Signal{T}
 	)
-
-	xaxis 				= Vector3{T}(1,0,0)
-	yaxis 				= Vector3{T}(0,1,0)
-	zaxis 				= Vector3{T}(0,0,1)
-
 	eyepositionstart 	= Vector3{T}(1,0,0)
-	origin 				= lookatvec.value
+	origin 				= lookatvec
+
+	xaxis 				= eyeposition - origin
+	yaxis 				= cross(xaxis, Vector3{T}(0,0,1))
+	zaxis 				= cross(yaxis, xaxis)
 
 	translate 			= Vector3{T}(0,0,0)
-	rotation0 			= Quaternion(1f0,0f0,0f0,0f0)
-	
-	p0 = Pivot(origin, xaxis, yaxis, zaxis, rotation0, translate, Vector3{T}(1))
+
+
+	p0 = Pivot(origin, xaxis, yaxis, zaxis, Quaternion(1f0,0f0,0f0,0f0), translate, Vector3{T}(1))
 
 
 	pivot = foldl((v0, v1) -> begin
@@ -191,7 +183,7 @@ function PerspectiveCamera{T}(
 
 		xrot = qrotation(xaxis, xt)
 		yrot = qrotation(yaxis, yt)
-		zrot = qrotation(v0.zaxis, zt)
+		zrot = qrotation(Vector3{T}(0,0,1), zt)
 
 		v1rot = zrot*xrot*yrot*v0.rotation
 
@@ -203,7 +195,7 @@ function PerspectiveCamera{T}(
 	end, p0, lift(tuple, xtheta, ytheta, ztheta, xtrans, ytrans, ztrans))
 
 	modelmatrix 	= lift(transformationmatrix, Matrix4x4{T}, pivot)
-	positionvec 	= lift((m,v) -> (r=(convert(Array,m)*T[v...,1]) ; Vector3(r[1:3])), Vector3{T}, modelmatrix, Input(eyepositionstart))
+	positionvec 	= lift((m,v) -> (r=(convert(Array,m)*T[v...,1]) ; Vector3(r[1:3])), Vector3{T}, modelmatrix, Input(eyeposition))
 	up 				= lift(p->p.rotation * p.zaxis , Vector3{T}, pivot)
 	lookatvec1 		= lift(p->p.origin , Vector3{T}, pivot)
 
