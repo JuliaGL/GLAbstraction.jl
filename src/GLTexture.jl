@@ -84,6 +84,7 @@ immutable Texture{T <: TEXTURE_COMPATIBLE_NUMBER_TYPES, ColorDIM, NDIM}
             glTexParameteri(ttype, elem...)
         end
         pixeltype = glpixelformat(T)
+
         glTexImage(0, internalformat, dims..., 0, format, pixeltype, data)
         new(id, pixeltype, internalformat, format, [ColorDIM, dims...])
     end
