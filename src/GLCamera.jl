@@ -135,7 +135,7 @@ function PerspectiveCamera{T}(inputs::Dict{Symbol,Any}, eyeposition::Vector3{T},
 					
 					Input(41f0),
 					Input(1f0),
-					Input(100f0)
+					Input(2000f0)
 	)
 end
 
@@ -161,6 +161,7 @@ function PerspectiveCamera{T}(
 					nearclip::Signal{T},
 					farclip::Signal{T}
 	)
+	lift(x-> glViewport(0,0,x...), window_size)
 	eyepositionstart 	= Vector3{T}(1,0,0)
 	origin 				= lookatvec
 

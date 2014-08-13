@@ -9,7 +9,9 @@ GLSL_PREFIX = [
 	GLdouble 	=> "d", 
 	GLfloat 	=> "", 
 	GLint 		=> "i", 
-	GLuint 		=> "ui"
+    GLuint      => "u",
+	Uint8       => "",
+    Uint16      => "u"
 ]
 
 GL_POSTFIX = [
@@ -48,7 +50,7 @@ macro genuniformfunctions(maxdim::Integer)
 		
 
 		#########################################################################
-		push!(expressions, :(toglsltype_string(x::$imalias) = $(lowercase(string("uniform ", glslalias))))) # method for shader type mapping
+        push!(expressions, :(toglsltype_string(x::$imalias) = $(lowercase(string("uniform ", glslalias))))) # method for shader type mapping
 
 	end
 	for n=2:maxdim, n2=2:maxdim, typ in [GLdouble, GLfloat]
@@ -80,6 +82,9 @@ function gluniform(location::GLint, target::GLint, t::Texture)
     gluniform(location, target)
 end
 gluniform(location::Integer, x::Signal) = gluniform(location, x.value)
+
+gluniform(location::Integer, x::Union(GLubyte, GLushort, GLuint)) = glUniform1ui(location, x)
+gluniform(location::Integer, x::Union(GLbyte, GLshort, GLint)) = glUniform1i(location, x)
 
 #Uniform upload functions for julia arrays...
 function gluniform{T <: Union(GLSL_COMPATIBLE_NUMBER_TYPES...)}(location::GLint, x::Vector{T})
@@ -116,7 +121,12 @@ const UNIFORM_TYPE_ENUM_DICT = [
     GL_FLOAT_VEC3   => [Vec3],
     GL_FLOAT_VEC4   => [Vec4],
 
-    GL_INT          => [GLint, Integer, iVec1],
+    GL_UNSIGNED_INT      => [GLuint, GLushort, GLubyte, Unsigned, uVec1],
+    GL_UNSIGNED_INT_VEC2 => [uVec2],
+    GL_UNSIGNED_INT_VEC3 => [uVec3],
+    GL_UNSIGNED_INT_VEC4 => [uVec4],
+
+    GL_INT          => [GLint, GLshort, GLbyte, Integer, iVec1],
     GL_INT_VEC2     => [iVec2],
     GL_INT_VEC3     => [iVec3],
     GL_INT_VEC4     => [iVec4],
@@ -140,17 +150,37 @@ const UNIFORM_TYPE_ENUM_DICT = [
     GL_FLOAT_MAT4x2 => [Mat4x2],
 
 
-    GL_SAMPLER_1D   => [Texture{GLfloat,1,1}, Texture{GLfloat,2,1}, Texture{GLfloat,3,1}, Texture{GLfloat,4,1}],
-    GL_SAMPLER_2D   => [Texture{GLfloat,1,2}, Texture{GLfloat,2,2}, Texture{GLfloat,3,2}, Texture{GLfloat,4,2}],
-    GL_SAMPLER_3D   => [Texture{GLfloat,1,3}, Texture{GLfloat,2,3}, Texture{GLfloat,3,3}, Texture{GLfloat,4,3}],
+    GL_SAMPLER_1D   => [Texture{GLfloat,1,1}, Texture{GLfloat,2,1}, Texture{GLfloat,3,1}, Texture{GLfloat,4,1},
+                        Texture{GLubyte,1,1}, Texture{GLubyte,2,1}, Texture{GLubyte,3,1}, Texture{GLubyte,4,1}],
+    GL_SAMPLER_2D   => [Texture{GLfloat,1,2}, Texture{GLfloat,2,2}, Texture{GLfloat,3,2}, Texture{GLfloat,4,2},
+                        Texture{GLubyte,1,2}, Texture{GLubyte,2,2}, Texture{GLubyte,3,2}, Texture{GLubyte,4,2}],
+    GL_SAMPLER_3D   => [Texture{GLfloat,1,3}, Texture{GLfloat,2,3}, Texture{GLfloat,3,3}, Texture{GLfloat,4,3},
+                        Texture{GLubyte,1,3}, Texture{GLubyte,2,3}, Texture{GLubyte,3,3}, Texture{GLubyte,4,3}],
 
-    GL_UNSIGNED_INT_SAMPLER_1D  => [Texture{GLuint,1,1}, Texture{GLuint,2,1}, Texture{GLuint,3,1}, Texture{GLuint,4,1}],
-    GL_UNSIGNED_INT_SAMPLER_2D  => [Texture{GLuint,1,2}, Texture{GLuint,2,2}, Texture{GLuint,3,2}, Texture{GLuint,4,2}],
-    GL_UNSIGNED_INT_SAMPLER_3D  => [Texture{GLuint,1,3}, Texture{GLuint,2,3}, Texture{GLuint,3,3}, Texture{GLint,4,3}],
+    GL_UNSIGNED_INT_SAMPLER_1D  => [Texture{GLuint,1,1}, Texture{GLuint,2,1}, Texture{GLuint,3,1}, Texture{GLuint,4,1},
+                                    Texture{GLushort,1,1}, Texture{GLushort,2,1}, Texture{GLushort,3,1}, Texture{GLushort,4,1},
+                                    Texture{GLubyte,1,1}, Texture{GLubyte,2,1}, Texture{GLubyte,3,1}, Texture{GLubyte,4,1}],
 
-    GL_INT_SAMPLER_1D   => [Texture{GLint,1,1}, Texture{GLint,2,1}, Texture{GLint,3,1}, Texture{GLint,4,1}],
-    GL_INT_SAMPLER_2D   => [Texture{GLint,1,2}, Texture{GLint,2,2}, Texture{GLint,3,2}, Texture{GLint,4,2}],
-    GL_INT_SAMPLER_3D   => [Texture{GLint,1,3}, Texture{GLint,2,3}, Texture{GLint,3,3}, Texture{GLint,4,3}],
+    GL_UNSIGNED_INT_SAMPLER_2D  => [Texture{GLuint,1,2}, Texture{GLuint,2,2}, Texture{GLuint,3,2}, Texture{GLuint,4,2}, 
+                                    Texture{GLushort,1,2}, Texture{GLushort,2,2}, Texture{GLushort,3,2}, Texture{GLushort,4,2}, 
+                                    Texture{GLubyte,1,2}, Texture{GLubyte,2,2}, Texture{GLubyte,3,2}, Texture{GLubyte,4,2}],
+
+
+    GL_UNSIGNED_INT_SAMPLER_3D  => [Texture{GLuint,1,3}, Texture{GLuint,2,3}, Texture{GLuint,3,3}, Texture{GLint,4,3},
+                                    Texture{GLushort,1,3}, Texture{GLushort,2,3}, Texture{GLushort,3,3}, Texture{GLushort,4,3},
+                                    Texture{GLubyte,1,3}, Texture{GLubyte,2,3}, Texture{GLubyte,3,3}, Texture{GLubyte,4,3}],
+
+    GL_INT_SAMPLER_1D   => [Texture{GLint,1,1}, Texture{GLint,2,1}, Texture{GLint,3,1}, Texture{GLint,4,1},
+                            Texture{GLshort,1,1}, Texture{GLshort,2,1}, Texture{GLshort,3,1}, Texture{GLshort,4,1},
+                            Texture{GLbyte,1,1}, Texture{GLbyte,2,1}, Texture{GLbyte,3,1}, Texture{GLbyte,4,1}],
+
+    GL_INT_SAMPLER_2D   => [Texture{GLint,1,2}, Texture{GLint,2,2}, Texture{GLint,3,2}, Texture{GLint,4,2}, 
+                            Texture{GLshort,1,2}, Texture{GLshort,2,2}, Texture{GLshort,3,2}, Texture{GLshort,4,2},
+                            Texture{GLbyte,1,2}, Texture{GLbyte,2,2}, Texture{GLbyte,3,2}, Texture{GLbyte,4,2}],
+
+    GL_INT_SAMPLER_3D   => [Texture{GLint,1,3}, Texture{GLint,2,3}, Texture{GLint,3,3}, Texture{GLint,4,3},
+                            Texture{GLshort,1,3}, Texture{GLshort,2,3}, Texture{GLshort,3,3}, Texture{GLshort,4,3},
+                            Texture{GLbyte,1,3}, Texture{GLbyte,2,3}, Texture{GLbyte,3,3}, Texture{GLbyte,4,3}],
 ]
 
 function is_correct_uniform_type{T <: Real}(targetuniform::GLenum, tocheck::T)

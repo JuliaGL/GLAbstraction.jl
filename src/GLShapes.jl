@@ -61,10 +61,10 @@ function genquad{T <: Real}(x::T, y::T, width::T, height::T)
     x + width,  y]
 
     uv = T[
-    0, 1,
     0, 0,
-    1, 0,
-    1, 1
+    0, 1,
+    1, 1,
+    1, 0
     ]
 
     indexes = GLuint[0,1,2,2,3,0]

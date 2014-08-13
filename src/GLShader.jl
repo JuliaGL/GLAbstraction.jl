@@ -74,16 +74,16 @@ function update(vertcode::ASCIIString, fragcode::ASCIIString, vpath::String, fpa
 end
 
 
-glsl_variable_access(keystring, ::Texture{Float32, 1, 2}) = "texture($(keystring), uv).r;"
-glsl_variable_access(keystring, ::Texture{Float32, 2, 2}) = "texture($(keystring), uv).rg;"
-glsl_variable_access(keystring, ::Texture{Float32, 3, 2}) = "texture($(keystring), uv).rgb;"
-glsl_variable_access(keystring, ::Texture{Float32, 4, 2}) = "texture($(keystring), uv).rgba;"
-glsl_variable_access(keystring, ::Texture{Float32, 4, 2}) = "texture($(keystring), uv).rgba;"
+glsl_variable_access{T,D}(keystring, ::Texture{T, 1, D}) = "texture($(keystring), uv).r;"
+glsl_variable_access{T,D}(keystring, ::Texture{T, 2, D}) = "texture($(keystring), uv).rg;"
+glsl_variable_access{T,D}(keystring, ::Texture{T, 3, D}) = "texture($(keystring), uv).rgb;"
+glsl_variable_access{T,D}(keystring, ::Texture{T, 4, D}) = "texture($(keystring), uv).rgba;"
+glsl_variable_access{T,D}(keystring, ::Texture{T, 4, D}) = "texture($(keystring), uv).rgba;"
 
 glsl_variable_access(keystring, ::Union(Real, GLBuffer, AbstractArray)) = keystring*";"
 
 glsl_variable_access(keystring, s::Signal)  = glsl_variable_access(keystring, s.value)
-glsl_variable_access(keystring, t::Any)     = error("no glsl variable calculation available for ",keystring, " and type ", typeof(t))
+glsl_variable_access(keystring, t::Any)     = error("no glsl variable calculation available for :",keystring, " of type ", typeof(t))
 
 
 function createview(x::Dict{Symbol, Any}, keys)
@@ -169,9 +169,9 @@ function watch_file_react(filename)
 end
 
 function TemplateProgram(
-                            vertex_file_path::ASCIIString, fragment_file_path::ASCIIString, 
+                            vertex_file_path::ASCIIString, fragment_file_path::ASCIIString; 
                             view::Dict{ASCIIString, ASCIIString} = (ASCIIString => ASCIIString)[], 
-                            attributes::Dict{Symbol, Any} = (Symbol => Any)[];
+                            attributes::Dict{Symbol, Any} = (Symbol => Any)[],
                             fragdatalocation=(Int, ASCIIString)[]
                         )
 
@@ -212,9 +212,9 @@ end
 
 function TemplateProgram(
                             vertex_source::ASCIIString, fragment_source::ASCIIString, 
-                            vertex_name::ASCIIString, fragment_name::ASCIIString, 
+                            vertex_name::ASCIIString, fragment_name::ASCIIString;
                             view::Dict{ASCIIString, ASCIIString} = (ASCIIString => ASCIIString)[], 
-                            attributes::Dict{Symbol, Any} = (Symbol => Any)[];
+                            attributes::Dict{Symbol, Any} = (Symbol => Any)[],
                             fragdatalocation=(Int, ASCIIString)[]
                         )
 

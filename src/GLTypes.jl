@@ -118,24 +118,31 @@ end
 export GLVertexArray, GLBuffer, indexbuffer, opengl_compatible, cardinality
 
 ##################################################################################
-
 immutable RenderObject
-    uniforms::Tuple
+    uniforms::Dict{Symbol, Any}
     vertexarray::GLVertexArray
     preRenderFunctions::Array{(Function, Tuple), 1}
     postRenderFunctions::Array{(Function, Tuple), 1}
+    id::GLushort
+    editables::Dict{Symbol, Input}
 
-    function RenderObject(data::Dict{Symbol, Any}, program::GLProgram)
+    objectid::GLushort = 0
+
+    function RenderObject(data::Dict{Symbol, Any}, program::GLProgram; editables=(Symbol=>Input)[])
+        objectid::GLushort += 1
 
         buffers     = filter((key, value) -> isa(value, GLBuffer), data)
         uniforms    = filter((key, value) -> !isa(value, GLBuffer), data)
+        
+        uniforms[:objectid] = objectid # automatucally integrate object ID, will be discarded if shader doesn't use it
+        
         if length(buffers) > 0
             vertexArray = GLVertexArray(Dict{Symbol, GLBuffer}(buffers), program)
         else
             vertexarray
         end
         textureTarget::GLint = -1
-        uniformtypesandnames = uniform_name_type(program.id)
+        uniformtypesandnames = uniform_name_type(program.id) # get active uniforms and types from program
         optimizeduniforms = map(elem -> begin
             name = elem[1]
             typ = elem[2]
@@ -143,14 +150,16 @@ immutable RenderObject
                 error("not sufficient uniforms supplied. Missing: ", name, " type: ", uniform_type(typ))
             end
             value = uniforms[name]
-            #if !is_correct_uniform_type(typ, value)
-            #    error("Uniform ", name, " not of correct type. Expected: ", uniform_type(typ), ". Got: ", typeof(value))
-            #end
+            if !is_correct_uniform_type(typ, value)
+                error("Uniform ", name, " not of correct type. Expected: ", uniform_type(typ), ". Got: ", typeof(value))
+            end
+            if isa(value, Input)
+                editables[name] = value
+            end
             (name, value)
-        end, uniformtypesandnames)
-        #ordereduniformkeys = program.uniforms # uniform names are ordered acoording to their location
-        #uniformtuple = map(x->uniforms[x], ordereduniformkeys) # order the uniforms correctly
-        new(optimizeduniforms, vertexArray, (Function, Tuple)[], (Function, Tuple)[])
+        end, uniformtypesandnames) # only use active uniforms && check the type
+
+        new(Dict{Symbol, Any}(optimizeduniforms), vertexArray, (Function, Tuple)[], (Function, Tuple)[], objectid)
     end
 end
 RenderObject{T}(data::Dict{Symbol, T}, program::GLProgram) = RenderObject(Dict{Symbol, Any}(data), program)
