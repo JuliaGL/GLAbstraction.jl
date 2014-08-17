@@ -1,6 +1,11 @@
 export render, enabletransparency, renderinstanced
 
+function render(renderobject::Vector{RenderObject})
+    for elem in renderobject
+        render(elem)
+    end
 
+end
 function render(renderobject::RenderObject)
     for elem in renderobject.preRenderFunctions
         apply(elem...)

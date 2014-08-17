@@ -21,7 +21,7 @@ immutable PerspectiveCamera{T}
 	up::Signal{Vector3{T}}
 end
 
-function mousediff(v0::(Bool, Vector2{Float64}, Vector2{Float64}),  clicked::Bool, pos::Vector2{Float64})
+function mousediff{T}(v0::(Bool, Vector2{T}, Vector2{T}),  clicked::Bool, pos::Vector2{T})
     clicked0, pos0, pos0diff = v0
     if clicked0 && clicked
         return (clicked, pos, pos - pos0)
@@ -29,8 +29,18 @@ function mousediff(v0::(Bool, Vector2{Float64}, Vector2{Float64}),  clicked::Boo
     return (clicked, pos, Vector2(0.0))
 end
 
-
-function OrthographicCamera(inputs)
+#= 
+Creates an orthographic camera from a dict of signals
+Signals needed:
+[
+	:window_size					=> Input(Vector2{Int}),
+	:buttonspressed					=> Input(IntSet()),
+	:mousebuttonspressed			=> Input(IntSet()), 
+	:mouseposition					=> mouseposition, -> Panning
+	:scroll_y						=> Input(0) -> Zoomig
+]
+=#
+function OrthographicCamera(inputs::Dict{Symbol, Any})
 
 	mouseposition   = inputs[:mouseposition]
 	clicked         = inputs[:mousebuttonspressed]
@@ -53,11 +63,22 @@ function OrthographicCamera(inputs)
 			)
 
 end
+
+#= 
+Creates an orthographic camera from signals, controlling the camera
+Args:
+
+   window_size: Size of the window
+   		  zoom: Zoom
+  translatevec: Panning
+normedposition: Pivot for translations
+
+=#
 function OrthographicCamera{T}(
 									windows_size::Signal{Vector2{Int}},
 									zoom::Signal{T},
 									translatevec::Signal{Vector2{T}},
-									normedposition
+									normedposition::Signal{Vector2{Float64}}
 								)
 
 	lift(x -> glViewport(0,0, x...) , windows_size)
@@ -91,7 +112,22 @@ function OrthographicCamera{T}(
 end
 
 
+#= 
+Creates a perspective camera from a dict of signals
 
+Args:
+
+      inputs: Dict of signals, looking like this:
+			[
+				:window_size					=> Input(Vector2{Int}),
+				:buttonspressed					=> Input(IntSet()),
+				:mousebuttonspressed			=> Input(IntSet()), 
+				:mouseposition					=> mouseposition, -> Panning + Rotation
+				:scroll_y						=> Input(0) -> Zoomig
+			]
+  eyeposition: Position of the camera
+	lookatvec: Point the camera looks at
+=#
 function PerspectiveCamera{T}(inputs::Dict{Symbol,Any}, eyeposition::Vector3{T}, lookatvec::Vector3{T})
 
 	mouseposition   	= inputs[:mouseposition]
@@ -141,9 +177,28 @@ end
 
 
 
+#= 
+Creates a perspective camera from signals, controlling the camera
+Args:
 
+   window_size: Size of the window
+   		  zoom: Zoom
+   eyeposition: Position of the camera
+     lookatvec: Point the camera looks at
+     	
+     	xtheta: xrotation angle
+     	ytheta: yrotation angle
+     	ztheta: zrotation angle
+     	
+     	xtrans: x translation
+     	ytrans: y translation
+     	ztrans: z translation
+		   fov: Field of View
+	  nearclip: Near clip plane
+	   farclip: Far clip plane
 
-function PerspectiveCamera{T}(
+=#
+function PerspectiveCamera{T <: Real}(
 					window_size::Signal{Vector2{Int}},# = iVec2(50,50),
 					
 					eyeposition::Vector3{T},
