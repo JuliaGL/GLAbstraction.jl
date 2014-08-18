@@ -155,7 +155,12 @@ function Texture(
     else
         error("Color Format $(imgFormat) not supported")
     end
-    Texture(mapslices(reverse, imgdata, [3]), colordim, internalformat=internalformat, format=format, parameters=parameters)
+    if ndims(imgdata) == 2
+        reversedim = 2
+    else
+        reversedim = 3
+    end
+    Texture(mapslices(reverse, imgdata, reversedim), colordim, internalformat=internalformat, format=format, parameters=parameters)
 end
 
 function update!{T <: Real}(t::Texture{T, 1, 2}, newvalue::Array{Vector1{T}, 2})
