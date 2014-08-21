@@ -66,6 +66,7 @@ postrender!(triangle, render, triangle.vertexarray)
 glClearColor(0,0,0,1)
 while !GLFW.WindowShouldClose(window)
   	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
+  	glViewport(256,0,512,512)
 	render(triangle)
 
 	GLFW.SwapBuffers(window)
