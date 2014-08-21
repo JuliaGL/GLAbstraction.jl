@@ -49,7 +49,7 @@ function OrthographicCamera(inputs::Dict{Symbol, Any})
 	zoom 			= foldl((a,b) -> float32(a+(b*0.1f0)) , 1.0f0, inputs[:scroll_y])
 
 	#Should be rather in Image coordinates
-	normedposition 		= lift(./, inputs[:mouseposition], inputs[:window_size])
+	normedposition 		= lift((a,b) -> Vector2((a./b[3:4])...), inputs[:mouseposition], inputs[:window_size])
 	clickedwithoutkeyL 	= lift((mb, kb) -> in(0, mb) && isempty(kb), Bool, clicked, keypressed)
 	translate 			= lift(x-> float32(x[3]), Vec2, # Extract the mouseposition from the diff tuple
 							keepwhen(clickedwithoutkeyL, (false, Vector2(0.0), Vector2(0.0)), # Don't do unnecessary updates, so just signal when mouse is actually clicked
