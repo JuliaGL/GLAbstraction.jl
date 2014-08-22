@@ -168,8 +168,14 @@ function update!{T <: Real}(t::Texture{T, 1, 2}, newvalue::Array{Vector1{T}, 2})
     glTexSubImage2D(texturetype(t), 0, 0, 0, size(newvalue)...,t.format, t.pixeltype, newvalue)
 end
 function update!{T <: Real, D}(t::Texture{T, 2, D}, newvalue::Array{Vector2{T}, D})
+    glBindTexture(texturetype(t), t.id)
+    glTexSubImage2D(texturetype(t), 0, 0, 0, size(newvalue)..., t.format, t.pixeltype, newvalue)
 end
 function update!{T <: Real, D}(t::Texture{T, 3, D}, newvalue::Array{Vector3{T}, D})
+    glBindTexture(texturetype(t), t.id)
+    glTexSubImage2D(texturetype(t), 0, 0, 0, size(newvalue)...,t.format, t.pixeltype, newvalue)
 end
 function update!{T <: Real, D}(t::Texture{T, 4, D}, newvalue::Array{Vector4{T}, D})
+    glBindTexture(texturetype(t), t.id)
+    glTexSubImage2D(texturetype(t), 0, 0, 0, size(newvalue)...,t.format, t.pixeltype, newvalue)
 end
