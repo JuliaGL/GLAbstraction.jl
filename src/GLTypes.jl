@@ -97,7 +97,7 @@ immutable GLVertexArray
       buffer      = elem[2]
       if buffer.buffertype == GL_ELEMENT_ARRAY_BUFFER
         glBindBuffer(buffer.buffertype, buffer.id)
-        indexSize = buffer.length
+        indexSize = buffer.length * cardinality(buffer)
       else
         attribute   = string(elem[1])
         @assert _length == buffer.length

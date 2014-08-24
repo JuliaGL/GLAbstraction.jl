@@ -76,8 +76,13 @@ immutable Texture{T <: TEXTURE_COMPATIBLE_NUMBER_TYPES, ColorDIM, NDIM}
 
         internalformat  = internalformat == 0 ? glinternalcolorformat(ColorDIM, T) : internalformat
         format          = format == 0 ? glcolorformat(ColorDIM) : format
-        ttype           = texturetype(length(dims)) # Dimensionality of texture
+        ttype           = texturetype(length(dims)) # Dimensionality of texture#
 
+        glPixelStorei(GL_UNPACK_ALIGNMENT, 1)
+        glPixelStorei(GL_UNPACK_ROW_LENGTH, 0)
+        glPixelStorei(GL_UNPACK_SKIP_PIXELS, 0)
+        glPixelStorei(GL_UNPACK_SKIP_ROWS, 0)
+        
         id = glGenTextures()
         glBindTexture(ttype, id)
         for elem in parameters
