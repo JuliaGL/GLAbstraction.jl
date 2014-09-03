@@ -1,5 +1,4 @@
-import Images.imread
-import Images.Image
+import Images: imread, colorspace, Image
 export Texture, texturetype, update!
 
 #Supported datatypes
@@ -142,7 +141,7 @@ function Texture(
         img = imread(img)
     end
     @assert length(img.data) > 0
-    imgFormat   = img.properties["colorspace"]
+    imgFormat   = colorspace(img)
     if imgFormat == "ARGB"
         tmp = img.data[1,1:end, 1:end]
         img.data[1,1:end, 1:end] = img.data[2,1:end, 1:end]
