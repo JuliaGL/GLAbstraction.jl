@@ -198,8 +198,8 @@ function TemplateProgram(
 
         vertex_view     = merge(createview(attributes, mustachekeys(vertex_tm)), view)
         fragment_view   = merge(createview(attributes, mustachekeys(fragment_tm)), view)
-        vertsource      = replace(Mustache.render(vertex_tm, vertex_view), "&#x2F;", "/")
-        fragsource      = replace(Mustache.render(fragment_tm, fragment_view), "&#x2F;", "/")
+        vertsource      = replace(replace(Mustache.render(vertex_tm, vertex_view), "&#x2F;", "/"), "&gt;", ">")
+        fragsource      = replace(replace(Mustache.render(fragment_tm, fragment_view), "&#x2F;", "/"), "&gt;", ">")
         (vertsource, fragsource)
     end, watch_file_react(vertex_file_path), watch_file_react(fragment_file_path))
 
