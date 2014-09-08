@@ -40,7 +40,14 @@ end
 include("GLTexture.jl")
 ########################################################################
 
+opengl_compatible{C <: AbstractAlphaColorValue}(T::Type{C}) = eltype(T), 4
+opengl_compatible{C <: ColorValue}(T::Type{C}) = eltype(T), 3
+opengl_compatible{C <: AbstractGray}(T::Type{C}) = eltype(T), 1
+
 function opengl_compatible(T::DataType)
+    if T <: Number
+        return T, 1
+    end
     if !isbits(T)
         error("only pointer free, immutable types are supported for upload to OpenGL. Found type: $(T)")
     end

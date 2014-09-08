@@ -1,5 +1,4 @@
-import Images.imread
-import Images.Image
+
 export Texture, texturetype, update!
 
 #Supported datatypes
@@ -25,8 +24,7 @@ const DEFAULT_GL_COLOR_FORMAT = [
     4 => GL_RGBA,
 ]
 
-const TEXTURE_COMPATIBLE_NUMBER_TYPES = Union(collect(keys(TO_GL_TYPE))...)
-
+glpixelformat{T <: FixedPoint}(x::Type{T}) = glpixelformat(FixedPointNumbers.rawtype(x))
 glpixelformat(x::DataType) = get(TO_GL_TYPE, x) do
     error("Type: $(x) not supported as pixel datatype")
 end
@@ -60,7 +58,7 @@ end
 
 
 
-immutable Texture{T <: TEXTURE_COMPATIBLE_NUMBER_TYPES, ColorDIM, NDIM}
+immutable Texture{T <: Real, ColorDIM, NDIM}
     id::GLuint
     pixeltype::GLenum
     internalformat::GLenum
@@ -69,6 +67,7 @@ immutable Texture{T <: TEXTURE_COMPATIBLE_NUMBER_TYPES, ColorDIM, NDIM}
     function Texture{T}(data::Ptr{T}, dims, internalformat, format, parameters::Vector{(GLenum, GLenum)})
 
         @assert all(x -> x > 0, dims)
+ 
 
         if isempty(parameters)
             parameters = getDefaultTextureParameters(length(dims))
@@ -77,6 +76,8 @@ immutable Texture{T <: TEXTURE_COMPATIBLE_NUMBER_TYPES, ColorDIM, NDIM}
         internalformat  = internalformat == 0 ? glinternalcolorformat(ColorDIM, T) : internalformat
         format          = format == 0 ? glcolorformat(ColorDIM) : format
         ttype           = texturetype(length(dims)) # Dimensionality of texture#
+
+        
 
         glPixelStorei(GL_UNPACK_ALIGNMENT, 1)
         glPixelStorei(GL_UNPACK_ROW_LENGTH, 0)
@@ -110,7 +111,10 @@ function Texture{T}(
     @assert length(data) > 0
     ptrtype, colordim   = opengl_compatible(typeof(data[1]))
     dims                = [size(data)...]
-
+    if ptrtype == Float64
+        data    = float32(data)
+        ptrtype = Float32
+    end
     Texture{ptrtype, colordim, length(dims)}(convert(Ptr{ptrtype}, pointer(data)), dims, internalformat, format, parameters)
 end
 
@@ -134,15 +138,17 @@ function Texture(
                 )
     Texture{T, colordim, length(dims)}(convert(Ptr{T}, C_NULL), dims, internalformat, format, parameters)
 end
+
 function Texture(
                     img::Union(Image, String);
                     internalformat = 0, format = 0, parameters::Vector{(GLenum, GLenum)} = (GLenum, GLenum)[]
                 )
+    global IMAGES
     if isa(img, String)
         img = imread(img)
     end
     @assert length(img.data) > 0
-    imgFormat   = img.properties["colorspace"]
+    imgFormat   = colorspace(img)
     if imgFormat == "ARGB"
         tmp = img.data[1,1:end, 1:end]
         img.data[1,1:end, 1:end] = img.data[2,1:end, 1:end]
@@ -150,13 +156,12 @@ function Texture(
         img.data[3,1:end, 1:end] = img.data[4,1:end, 1:end]
         img.data[4,1:end, 1:end] = tmp
         imgdata  = img.data
-        colordim = 4
-    elseif imgFormat == "RGB"
+    elseif imgFormat == "BGRA"
         imgdata = img.data
-        colordim = 3
+    elseif imgFormat == "RGB" 
+        imgdata = reinterpret(Vector3{Uint8}, img.data)
     elseif imgFormat == "Gray"
-        imgdata = img.data
-        colordim = 1
+        imgdata = img.data#reinterpret(Vector1{Uint8}, img.data)
     else
         error("Color Format $(imgFormat) not supported")
     end
@@ -165,7 +170,9 @@ function Texture(
     else
         reversedim = 3
     end
-    Texture(mapslices(reverse, imgdata, reversedim), colordim, internalformat=internalformat, format=format, parameters=parameters)
+    imgdata = mapslices(reverse, imgdata, reversedim)
+
+    Texture(imgdata, internalformat=internalformat, format=format, parameters=parameters)
 end
 
 function update!{T <: Real}(t::Texture{T, 1, 2}, newvalue::Array{Vector1{T}, 2})

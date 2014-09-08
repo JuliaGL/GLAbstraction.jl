@@ -101,9 +101,10 @@ function gluniform{T <: Union(GLSL_COMPATIBLE_NUMBER_TYPES...)}(location::GLint,
     	error("unsopported Vector length!")
     end
 end
+glsl_prefix(x::DataType) = GLSL_PREFIX[x]
+glsl_prefix{T <: FixedPoint}(x::Type{T}) = GLSL_PREFIX[FixedPointNumbers.rawtype(T)]
 
-
-toglsltype_string{T, C, D}(t::Texture{T, C, D}) = string("uniform ", GLSL_PREFIX[T],"sampler", D, "D")
+toglsltype_string{T, C, D}(t::Texture{T, C, D}) = string("uniform ", glsl_prefix(T),"sampler", D, "D")
 toglsltype_string(t::GLfloat)                   = "uniform float"
 toglsltype_string(t::GLuint)                    = "uniform uint"
 toglsltype_string(t::GLint)                     = "uniform int"
@@ -200,6 +201,9 @@ is_correct_uniform_type(targetuniform::GLenum, tocheck::Signal) = is_correct_uni
 function is_correct_uniform_type(targetuniform::GLenum, tocheck::Texture)
     shouldbe = uniform_type(targetuniform)
     return in(typeof(tocheck), shouldbe)
+end
+function is_correct_uniform_type{T <: FixedPoint, N, D}(targetuniform::GLenum, tocheck::Texture{T, N, D})
+    return true
 end
 function uniform_type(targetuniform::GLenum)
     if haskey(UNIFORM_TYPE_ENUM_DICT, targetuniform)

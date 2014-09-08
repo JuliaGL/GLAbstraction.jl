@@ -1,5 +1,7 @@
 module GLAbstraction
-using ImmutableArrays, ModernGL, React, Quaternions
+using ImmutableArrays, ModernGL, React, Quaternions, Color, FixedPointNumbers
+import Images: imread, colorspace, Image, AbstractGray
+
 import Mustache
 import Base.delete!
 
