@@ -156,12 +156,8 @@ function Texture(
         img.data[3,1:end, 1:end] = img.data[4,1:end, 1:end]
         img.data[4,1:end, 1:end] = tmp
         imgdata  = img.data
-    elseif imgFormat == "BGRA"
+    elseif imgFormat == "Gray" || imgFormat == "RGB" || imgFormat == "BGRA" || imgFormat == "RGB4"
         imgdata = img.data
-    elseif imgFormat == "RGB" 
-        imgdata = reinterpret(Vector3{Uint8}, img.data)
-    elseif imgFormat == "Gray"
-        imgdata = img.data#reinterpret(Vector1{Uint8}, img.data)
     else
         error("Color Format $(imgFormat) not supported")
     end
