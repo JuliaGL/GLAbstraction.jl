@@ -197,8 +197,35 @@ end
 prerender!(x::RenderObject, fs...)   = pushfunction!(x.preRenderFunctions, fs...)
 postrender!(x::RenderObject, fs...)  = pushfunction!(x.postRenderFunctions, fs...)
 
-
-
+function Base.delete!(x::Any)
+    x = 0
+end
+function Base.delete!(x::Dict)
+    for (k,v) in x
+        delete!(v)
+        delete!(x, k)
+    end
+end
+function Base.delete!(x::Array)
+    while !isempty(x)
+        elem = pop!(x)
+        delete!(elem)
+    end
+end
+function Base.delete!(x::GLBuffer)
+    glDeleteBuffers(1, [x.id])
+end
+function Base.delete!(x::Texture)
+    glDeleteTextures(1, [x.id])
+end
+function Base.delete!(x::GLVertexArray)
+    glDeleteVertexArrays(1, [x.id])
+end
+function Base.delete!(x::RenderObject)
+    delete!(x.uniforms)
+    delete!(x.vertexarray)
+    x = 0
+end
 export RenderObject, prerender!, postrender!, instancedobject
 ####################################################################################
 
