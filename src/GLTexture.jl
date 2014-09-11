@@ -170,7 +170,11 @@ function Texture(
 
     Texture(imgdata, internalformat=internalformat, format=format, parameters=parameters)
 end
-
+function update!{T <: Real, ColorDim}(t::Texture{T, ColorDim, 2}, newvalue::Array{T, 3})
+    @assert ColorDim == size(newvalue, 1)
+    glBindTexture(texturetype(t), t.id)
+    glTexSubImage2D(texturetype(t), 0, 0, 0, size(newvalue)[2:3]...,t.format, t.pixeltype, newvalue)
+end
 function update!{T <: Real}(t::Texture{T, 1, 2}, newvalue::Array{Vector1{T}, 2})
     glBindTexture(texturetype(t), t.id)
     glTexSubImage2D(texturetype(t), 0, 0, 0, size(newvalue)...,t.format, t.pixeltype, newvalue)
