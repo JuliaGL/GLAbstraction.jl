@@ -50,8 +50,9 @@ macro genuniformfunctions(maxdim::Integer)
 		
 
 		#########################################################################
-        push!(expressions, :(toglsltype_string(x::$imalias) = $(lowercase(string("uniform ", glslalias))))) # method for shader type mapping
-
+        if n != 1
+            push!(expressions, :(toglsltype_string(x::$imalias) = $(lowercase(string("uniform ", glslalias))))) # method for shader type mapping
+        end
 	end
 	for n=2:maxdim, n2=2:maxdim, typ in [GLdouble, GLfloat]
 		glsldim 	= n==n2 ? "$n" : "$(n)x$(n2)"
@@ -108,11 +109,13 @@ toglsltype_string{T, C, D}(t::Texture{T, C, D}) = string("uniform ", glsl_prefix
 toglsltype_string(t::GLfloat)                   = "uniform float"
 toglsltype_string(t::GLuint)                    = "uniform uint"
 toglsltype_string(t::GLint)                     = "uniform int"
-toglsltype_string(t::GLBuffer)                  = "$(get_glsl_in_qualifier_string()) vec$(cardinality(t))"
 toglsltype_string(t::Signal)                    = toglsltype_string(t.value)
 toglsltype_string(t::StepRange)                 = toglsltype_string(Vec3(first(t), step(t), last(t)))
 
-
+function toglsltype_string(t::GLBuffer)          
+    typ = cardinality(t) > 1 ? "vec$(cardinality(t))" : "float"
+    "$(get_glsl_in_qualifier_string()) $typ"
+end
 # Awkwart way of keeping track of all the different type consts and there allowed julia types they represent
 # This is needed to validate, that you upload the correct types to a shader
 const UNIFORM_TYPE_ENUM_DICT = [

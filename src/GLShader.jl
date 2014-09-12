@@ -41,7 +41,9 @@ function readshader(shadercode::ASCIIString, shaderType, path::String)
     glCompileShader(shaderID)
     
     if !validateshader(shaderID)
-        println(shadercode)
+        for (i,line) in enumerate(split(shadercode, "\n"))
+            println(i, "  ", line)
+        end
         log = getinfolog(shaderID)
         error(path * "\n" * log)
     end
