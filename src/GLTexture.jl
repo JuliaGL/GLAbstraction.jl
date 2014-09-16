@@ -96,6 +96,20 @@ immutable Texture{T <: Real, ColorDIM, NDIM}
     end
 end
 
+Base.size{T,C,D}(t::Texture{T,C,D}) = D
+Base.size{T,C,D}(t::Texture{T,C,D}, I::Integer) = D[I]
+function Base.show{T,C,D}(io::IO, t::Texture{T,C,D})
+    println(io, "Texture: ")
+    println(io, "                  ID: ", t.id)
+    println(io, "                Size: ", reduce("[ColorDim: $(t.dims[1])]", t.dims[2:end]) do v0, v1
+        v0*"x"*string(v1)
+    end)
+    println(io, "    Julia pixel type: ", T)
+    println(io, "   OpenGL pixel type: ", GLENUM(t.pixeltype).name)
+    println(io, "              Format: ", GLENUM(t.format).name)
+    println(io, "     Internal format: ", GLENUM(t.internalformat).name)
+end
+
 texturetype{T,C,D}(t::Texture{T,C,D}) = texturetype(D)
 texturetype(dim::Int) = get(TO_GL_TEXTURE_TYPE, dim) do
     error("$(dim)-dimensional textures not supported")
@@ -170,6 +184,9 @@ function Texture(
 
     Texture(imgdata, internalformat=internalformat, format=format, parameters=parameters)
 end
+
+
+# Instead of having so many methods, this should rather be solved by a macro or with better fixed size arrays
 function update!{T <: Real, ColorDim}(t::Texture{T, ColorDim, 2}, newvalue::Array{T, 3})
     @assert ColorDim == size(newvalue, 1)
     glBindTexture(texturetype(t), t.id)
@@ -179,15 +196,38 @@ function update!{T <: Real}(t::Texture{T, 1, 2}, newvalue::Array{Vector1{T}, 2})
     glBindTexture(texturetype(t), t.id)
     glTexSubImage2D(texturetype(t), 0, 0, 0, size(newvalue)...,t.format, t.pixeltype, newvalue)
 end
-function update!{T <: Real, D}(t::Texture{T, 2, D}, newvalue::Array{Vector2{T}, D})
+function update!{T <: Real}(t::Texture{T, 2, 2}, newvalue::Array{Vector2{T}, 2})
     glBindTexture(texturetype(t), t.id)
     glTexSubImage2D(texturetype(t), 0, 0, 0, size(newvalue)..., t.format, t.pixeltype, newvalue)
 end
-function update!{T <: Real, D}(t::Texture{T, 3, D}, newvalue::Array{Vector3{T}, D})
+function update!{T <: Real}(t::Texture{T, 3, 2}, newvalue::Array{Vector3{T}, 2})
     glBindTexture(texturetype(t), t.id)
     glTexSubImage2D(texturetype(t), 0, 0, 0, size(newvalue)...,t.format, t.pixeltype, newvalue)
 end
-function update!{T <: Real, D}(t::Texture{T, 4, D}, newvalue::Array{Vector4{T}, D})
+function update!{T <: Real}(t::Texture{T, 4, 2}, newvalue::Array{Vector4{T}, 2})
     glBindTexture(texturetype(t), t.id)
     glTexSubImage2D(texturetype(t), 0, 0, 0, size(newvalue)...,t.format, t.pixeltype, newvalue)
+end
+
+
+function update!{T <: Real, ColorDim}(t::Texture{T, ColorDim, 1}, newvalue::Array{T, 2})
+    @assert ColorDim == size(newvalue, 1)
+    glBindTexture(texturetype(t), t.id)
+    glTexSubImage1D(texturetype(t), 0, 0, size(newvalue, 2), t.format, t.pixeltype, newvalue)
+end
+function update!{T <: Real}(t::Texture{T, 1, 1}, newvalue::Array{Vector1{T}, 1})
+    glBindTexture(texturetype(t), t.id)
+    glTexSubImage1D(texturetype(t), 0, 0, size(newvalue,1), t.format, t.pixeltype, newvalue)
+end
+function update!{T <: Real}(t::Texture{T, 2, 1}, newvalue::Array{Vector2{T}, 1})
+    glBindTexture(texturetype(t), t.id)
+    glTexSubImage1D(texturetype(t), 0, 0, size(newvalue,1),t.format, t.pixeltype, newvalue)
+end
+function update!{T <: Real}(t::Texture{T, 3, 1}, newvalue::Array{Vector3{T}, 1})
+    glBindTexture(texturetype(t), t.id)
+    glTexSubImage1D(texturetype(t), 0, 0, size(newvalue,1),t.format, t.pixeltype, newvalue)
+end
+function update!{T <: Real}(t::Texture{T, 4, 1}, newvalue::Array{Vector4{T}, 1})
+    glBindTexture(texturetype(t), t.id)
+    glTexSubImage1D(texturetype(t), 0, 0, size(newvalue,1),t.format, t.pixeltype, newvalue)
 end

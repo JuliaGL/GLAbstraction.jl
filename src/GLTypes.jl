@@ -130,10 +130,10 @@ export GLVertexArray, GLBuffer, indexbuffer, opengl_compatible, cardinality
 immutable RenderObject
     uniforms::Dict{Symbol, Any}
     vertexarray::GLVertexArray
-    preRenderFunctions::Array{(Function, Tuple), 1}
-    postRenderFunctions::Array{(Function, Tuple), 1}
+    preRenderFunctions::Dict{Function, Tuple}
+    postRenderFunctions::Dict{Function, Tuple}
     id::GLushort
-    editables::Dict{Symbol, Input}
+    #editables::Dict{Symbol, Input}
 
     objectid::GLushort = 0
 
@@ -168,7 +168,7 @@ immutable RenderObject
             (name, value)
         end, uniformtypesandnames) # only use active uniforms && check the type
 
-        new(Dict{Symbol, Any}(optimizeduniforms), vertexArray, (Function, Tuple)[], (Function, Tuple)[], objectid)
+        new(Dict{Symbol, Any}(optimizeduniforms), vertexArray, (Function => Tuple)[], (Function => Tuple)[], objectid)
     end
 end
 RenderObject{T}(data::Dict{Symbol, T}, program::GLProgram) = RenderObject(Dict{Symbol, Any}(data), program)
@@ -179,20 +179,20 @@ function instancedobject(data, program::GLProgram, amount::Integer, primitive::G
     obj
 end
 
-function pushfunction!(target::Vector{(Function, Tuple)}, fs...)
+function pushfunction!(target::Dict{Function, Tuple}, fs...)
     func = fs[1]
     args = {}
     for i=2:length(fs)
         elem = fs[i]
         if isa(elem, Function)
-            push!(target, (func, tuple(args...)))
+            target[func] = tuple(args...)
             func = elem
             args = {}
         else
             push!(args, elem)
         end
     end
-    push!(target, (func, tuple(args...)))
+    target[func] = tuple(args...)
 end
 prerender!(x::RenderObject, fs...)   = pushfunction!(x.preRenderFunctions, fs...)
 postrender!(x::RenderObject, fs...)  = pushfunction!(x.postRenderFunctions, fs...)
