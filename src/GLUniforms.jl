@@ -86,7 +86,7 @@ end
 gluniform(location::Integer, x::Signal) = gluniform(location, x.value)
 
 gluniform(location::Integer, x::Union(GLubyte, GLushort, GLuint)) = glUniform1ui(location, x)
-gluniform(location::Integer, x::Union(GLbyte, GLshort, GLint)) = glUniform1i(location, x)
+gluniform(location::Integer, x::Union(GLbyte, GLshort, GLint, Bool)) = glUniform1i(location, x)
 
 #Uniform upload functions for julia arrays...
 function gluniform{T <: Union(GLSL_COMPATIBLE_NUMBER_TYPES...)}(location::GLint, x::Vector{T})
