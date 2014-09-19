@@ -186,48 +186,101 @@ function Texture(
 end
 
 
+function Base.setindex!{T <: Real, ColorDim}(t::Texture{T, ColorDim, 1}, value, i::Integer)
+    update!(t, value, i)
+end
+function Base.setindex!{T <: Real, ColorDim, IT1 <: Integer}(t::Texture{T, ColorDim, 1}, value, i::UnitRange{IT1})
+    update!(t, value, first(i))
+end
+function Base.setindex!{T <: Real, ColorDim}(t::Texture{T, ColorDim, 2}, value, i::Integer, j::Integer)
+    update!(t, value, i, j)
+end
+function Base.setindex!{T <: Real, ColorDim, IT1 <: Integer, IT2 <: Integer}(t::Texture{T, ColorDim, 2}, value, i::UnitRange{IT1}, j::UnitRange{IT2})
+    update!(t, value, first(i), first(j))
+end
+
+
 # Instead of having so many methods, this should rather be solved by a macro or with better fixed size arrays
-function update!{T <: Real, ColorDim}(t::Texture{T, ColorDim, 2}, newvalue::Array{T, 3})
-    @assert ColorDim == size(newvalue, 1)
-    glBindTexture(texturetype(t), t.id)
-    glTexSubImage2D(texturetype(t), 0, 0, 0, size(newvalue)[2:3]...,t.format, t.pixeltype, newvalue)
+
+function update!{T <: Real}(t::Texture{T, 4, 1}, newvalue::Array{Vector4{T}, 1}, xoffset = 0)
+    update!(t, newvalue, xoffset, length(newvalue))
 end
-function update!{T <: Real}(t::Texture{T, 1, 2}, newvalue::Array{Vector1{T}, 2})
-    glBindTexture(texturetype(t), t.id)
-    glTexSubImage2D(texturetype(t), 0, 0, 0, size(newvalue)...,t.format, t.pixeltype, newvalue)
+function update!{T <: Real}(t::Texture{T, 3, 1}, newvalue::Array{Vector3{T}, 1}, xoffset = 0)
+    update!(t, newvalue, xoffset, length(newvalue))
 end
-function update!{T <: Real}(t::Texture{T, 2, 2}, newvalue::Array{Vector2{T}, 2})
-    glBindTexture(texturetype(t), t.id)
-    glTexSubImage2D(texturetype(t), 0, 0, 0, size(newvalue)..., t.format, t.pixeltype, newvalue)
+function update!{T <: Real}(t::Texture{T, 2, 1}, newvalue::Array{Vector2{T}, 1}, xoffset = 0)
+    update!(t, newvalue, xoffset, length(newvalue))
 end
-function update!{T <: Real}(t::Texture{T, 3, 2}, newvalue::Array{Vector3{T}, 2})
-    glBindTexture(texturetype(t), t.id)
-    glTexSubImage2D(texturetype(t), 0, 0, 0, size(newvalue)...,t.format, t.pixeltype, newvalue)
+function update!{T <: Real}(t::Texture{T, 1, 1}, newvalue::Array{Vector1{T}, 1}, xoffset = 0)
+    update!(t, newvalue, xoffset, length(newvalue))
 end
-function update!{T <: Real}(t::Texture{T, 4, 2}, newvalue::Array{Vector4{T}, 2})
+
+function update!{T <: Real}(t::Texture{T, 4, 1}, newvalue::Vector4{T}, xoffset = 0)
+    update!(t, [newvalue], xoffset, 1, 1)
+end
+function update!{T <: Real}(t::Texture{T, 3, 1}, newvalue::Vector3{T}, xoffset = 0)
+    update!(t, [newvalue], xoffset, 1, 1)
+end
+function update!{T <: Real}(t::Texture{T, 2, 1}, newvalue::Vector2{T}, xoffset = 0)
+    update!(t, [newvalue], xoffset, 1, 1)
+end
+function update!{T <: Real}(t::Texture{T, 1, 1}, newvalue::Vector1{T}, xoffset = 0)
+    update!(t, [newvalue], xoffset, 1, 1)
+end
+
+function update!{T <: Real}(t::Texture{T, 1, 1}, newvalue::Array{T, 1}, xoffset = 0)
+    update!(t, newvalue, xoffset, length(newvalue))
+end
+function update!{T <: Real}(t::Texture{T, 1, 1}, newvalue::T, xoffset = 0)
+    update!(t, [newvalue], xoffset, 1)
+end
+
+function update!{T <: Real, ColorDim}(t::Texture{T, ColorDim, 1}, newvalue::Array, xoffset, width)
+    if (xoffset + width) > t.dims[1]
+        error("Out of bounds in texture, index ", xoffset, " width: ", width, "texture:\n", t)
+    end
     glBindTexture(texturetype(t), t.id)
-    glTexSubImage2D(texturetype(t), 0, 0, 0, size(newvalue)...,t.format, t.pixeltype, newvalue)
+    glTexSubImage1D(texturetype(t), 0, xoff, width, t.format, t.pixeltype, newvalue)
 end
 
 
-function update!{T <: Real, ColorDim}(t::Texture{T, ColorDim, 1}, newvalue::Array{T, 2})
-    @assert ColorDim == size(newvalue, 1)
-    glBindTexture(texturetype(t), t.id)
-    glTexSubImage1D(texturetype(t), 0, 0, size(newvalue, 2), t.format, t.pixeltype, newvalue)
+function update!{T <: Real}(t::Texture{T, 4, 2}, newvalue::Array{Vector4{T}, 2}, xoffset = 0, yoffset = 0)
+    update!(t, newvalue, xoffset, yoffset, size(newvalue)...)
 end
-function update!{T <: Real}(t::Texture{T, 1, 1}, newvalue::Array{Vector1{T}, 1})
-    glBindTexture(texturetype(t), t.id)
-    glTexSubImage1D(texturetype(t), 0, 0, size(newvalue,1), t.format, t.pixeltype, newvalue)
+function update!{T <: Real}(t::Texture{T, 3, 2}, newvalue::Array{Vector3{T}, 2}, xoffset = 0, yoffset = 0)
+    update!(t, newvalue, xoffset, yoffset, size(newvalue)...)
 end
-function update!{T <: Real}(t::Texture{T, 2, 1}, newvalue::Array{Vector2{T}, 1})
-    glBindTexture(texturetype(t), t.id)
-    glTexSubImage1D(texturetype(t), 0, 0, size(newvalue,1),t.format, t.pixeltype, newvalue)
+function update!{T <: Real}(t::Texture{T, 2, 2}, newvalue::Array{Vector2{T}, 2}, xoffset = 0, yoffset = 0)
+    update!(t, newvalue, xoffset, yoffset, size(newvalue)...)
 end
-function update!{T <: Real}(t::Texture{T, 3, 1}, newvalue::Array{Vector3{T}, 1})
-    glBindTexture(texturetype(t), t.id)
-    glTexSubImage1D(texturetype(t), 0, 0, size(newvalue,1),t.format, t.pixeltype, newvalue)
+function update!{T <: Real}(t::Texture{T, 1, 2}, newvalue::Array{Vector1{T}, 2}, xoffset = 0, yoffset = 0)
+    update!(t, newvalue, xoffset, yoffset, size(newvalue)...)
 end
-function update!{T <: Real}(t::Texture{T, 4, 1}, newvalue::Array{Vector4{T}, 1})
+
+function update!{T <: Real}(t::Texture{T, 4, 2}, newvalue::Vector4{T}, xoffset = 0, yoffset = 0)
+    update!(t, [newvalue], xoffset, yoffset, 1, 1)
+end
+function update!{T <: Real}(t::Texture{T, 3, 2}, newvalue::Vector3{T}, xoffset = 0, yoffset = 0)
+    update!(t, [newvalue], xoffset, yoffset, 1, 1)
+end
+function update!{T <: Real}(t::Texture{T, 2, 2}, newvalue::Vector2{T}, xoffset = 0, yoffset = 0)
+    update!(t, [newvalue], xoffset, yoffset, 1, 1)
+end
+function update!{T <: Real}(t::Texture{T, 1, 2}, newvalue::Vector1{T}, xoffset = 0, yoffset = 0)
+    update!(t, [newvalue], xoffset, yoffset, 1, 1)
+end
+
+function update!{T <: Real}(t::Texture{T, 1, 2}, newvalue::Array{T, 2}, xoffset = 0, yoffset = 0)
+    update!(t, newvalue, xoffset, yoffset, size(newvalue)...)
+end
+function update!{T <: Real}(t::Texture{T, 1, 2}, newvalue::T, xoffset = 0, yoffset = 0)
+    update!(t, [newvalue], xoffset, yoffset, 1, 1)
+end
+
+function update!{T <: Real, ColorDim}(t::Texture{T, ColorDim, 2}, newvalue::Array, xoffset, yoffset, width, height) 
+    if (xoffset + width) > t.dims[1] && (yoffset + height) > t.dims[2]
+        error("Out of bounds in texture, xindex ", xoffset, " width: ", width, " yindex: ", yoffset, " height: ", height, " in texture:\n", t)
+    end
     glBindTexture(texturetype(t), t.id)
-    glTexSubImage1D(texturetype(t), 0, 0, size(newvalue,1),t.format, t.pixeltype, newvalue)
+    glTexSubImage2D(texturetype(t), 0, xoffset, yoffset, width, height, t.format, t.pixeltype, newvalue)
 end

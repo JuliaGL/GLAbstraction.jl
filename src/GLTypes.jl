@@ -130,8 +130,8 @@ export GLVertexArray, GLBuffer, indexbuffer, opengl_compatible, cardinality
 immutable RenderObject
     uniforms::Dict{Symbol, Any}
     vertexarray::GLVertexArray
-    preRenderFunctions::Dict{Function, Tuple}
-    postRenderFunctions::Dict{Function, Tuple}
+    prerenderfunctions::Dict{Function, Tuple}
+    postrenderfunctions::Dict{Function, Tuple}
     id::GLushort
     #editables::Dict{Symbol, Input}
 
@@ -173,6 +173,21 @@ immutable RenderObject
 end
 RenderObject{T}(data::Dict{Symbol, T}, program::GLProgram) = RenderObject(Dict{Symbol, Any}(data), program)
 
+immutable Field{Symbol}
+end
+
+Base.getindex(obj::RenderObject, symbol::Symbol) = obj.uniforms[symbol]
+Base.setindex!(obj::RenderObject, value, symbol::Symbol) = obj.uniforms[symbol] = value
+
+Base.getindex(obj::RenderObject, symbol::Symbol, x::Function) = getindex(obj, Field{symbol}(), x)
+Base.getindex(obj::RenderObject, ::Field{:prerender}, x::Function) = obj.prerenderfunctions[x]
+Base.getindex(obj::RenderObject, ::Field{:postrender}, x::Function) = obj.postrenderfunctions[x]
+
+Base.setindex!(obj::RenderObject, value, symbol::Symbol, x::Function) = setindex!(obj, value, Field{symbol}(), x)
+Base.setindex!(obj::RenderObject, value, ::Field{:prerender}, x::Function) = obj.prerenderfunctions[x] = value
+Base.setindex!(obj::RenderObject, value, ::Field{:postrender}, x::Function) = obj.postrenderfunctions[x] = value
+
+
 function instancedobject(data, program::GLProgram, amount::Integer, primitive::GLenum=GL_TRIANGLES)
     obj = RenderObject(data, program)
     postrender!(obj, renderinstanced, obj.vertexarray, amount, primitive)
@@ -194,8 +209,8 @@ function pushfunction!(target::Dict{Function, Tuple}, fs...)
     end
     target[func] = tuple(args...)
 end
-prerender!(x::RenderObject, fs...)   = pushfunction!(x.preRenderFunctions, fs...)
-postrender!(x::RenderObject, fs...)  = pushfunction!(x.postRenderFunctions, fs...)
+prerender!(x::RenderObject, fs...)   = pushfunction!(x.prerenderfunctions, fs...)
+postrender!(x::RenderObject, fs...)  = pushfunction!(x.postrenderfunctions, fs...)
 
 function Base.delete!(x::Any)
     x = 0

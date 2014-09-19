@@ -7,7 +7,7 @@ function render(renderobject::Vector{RenderObject})
 
 end
 function render(renderobject::RenderObject)
-    for elem in renderobject.preRenderFunctions
+    for elem in renderobject.prerenderfunctions
         apply(elem...)
     end
     p = renderobject.vertexarray.program
@@ -15,7 +15,7 @@ function render(renderobject::RenderObject)
     for (key,value) in renderobject.uniforms
         gluniform(p.uniformloc[key]..., value)
     end
-    for elem in renderobject.postRenderFunctions
+    for elem in renderobject.postrenderfunctions
         apply(elem...)
     end
 end
