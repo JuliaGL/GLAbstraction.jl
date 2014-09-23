@@ -142,7 +142,6 @@ immutable RenderObject
 
         buffers     = filter((key, value) -> isa(value, GLBuffer), data)
         uniforms    = filter((key, value) -> !isa(value, GLBuffer), data)
-        
         uniforms[:objectid] = objectid # automatucally integrate object ID, will be discarded if shader doesn't use it
         
         if length(buffers) > 0

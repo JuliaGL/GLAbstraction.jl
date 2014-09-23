@@ -96,8 +96,10 @@ immutable Texture{T <: Real, ColorDIM, NDIM}
     end
 end
 
-Base.size{T,C,D}(t::Texture{T,C,D}) = D
-Base.size{T,C,D}(t::Texture{T,C,D}, I::Integer) = D[I]
+
+
+width(t::Texture) = t.dims[2] 
+height(t::Texture) = t.dims[3] 
 function Base.show{T,C,D}(io::IO, t::Texture{T,C,D})
     println(io, "Texture: ")
     println(io, "                  ID: ", t.id)
@@ -184,7 +186,10 @@ function Texture(
 
     Texture(imgdata, internalformat=internalformat, format=format, parameters=parameters)
 end
-
+Base.size{T,C,D}(t::Texture{T,C,D}) = t.dims
+Base.size{T,C,D}(t::Texture{T,C,D}, I::Integer) = t.dims[I]
+Base.endof(t::Texture) = prod(t.dims)
+Base.ndims{T, ColorDim, NDim}(t::Texture{T, ColorDim, NDim}) = NDim
 
 function Base.setindex!{T <: Real, ColorDim}(t::Texture{T, ColorDim, 1}, value, i::Integer)
     update!(t, value, i)
@@ -235,12 +240,12 @@ function update!{T <: Real}(t::Texture{T, 1, 1}, newvalue::T, xoffset = 0)
     update!(t, [newvalue], xoffset, 1)
 end
 
-function update!{T <: Real, ColorDim}(t::Texture{T, ColorDim, 1}, newvalue::Array, xoffset, width)
-    if (xoffset + width) > t.dims[1]
-        error("Out of bounds in texture, index ", xoffset, " width: ", width, "texture:\n", t)
+function update!{T <: Real, ColorDim}(t::Texture{T, ColorDim, 1}, newvalue::Array, xoffset, _width)
+    if (xoffset-1 + _width) > width(t)
+        error("Out of bounds in texture, index ", xoffset, " width: ", _width, " texture:\n", t)
     end
     glBindTexture(texturetype(t), t.id)
-    glTexSubImage1D(texturetype(t), 0, xoff, width, t.format, t.pixeltype, newvalue)
+    glTexSubImage1D(texturetype(t), 0, xoffset-1, _width, t.format, t.pixeltype, newvalue)
 end
 
 
@@ -277,10 +282,10 @@ function update!{T <: Real}(t::Texture{T, 1, 2}, newvalue::T, xoffset = 0, yoffs
     update!(t, [newvalue], xoffset, yoffset, 1, 1)
 end
 
-function update!{T <: Real, ColorDim}(t::Texture{T, ColorDim, 2}, newvalue::Array, xoffset, yoffset, width, height) 
-    if (xoffset + width) > t.dims[1] && (yoffset + height) > t.dims[2]
-        error("Out of bounds in texture, xindex ", xoffset, " width: ", width, " yindex: ", yoffset, " height: ", height, " in texture:\n", t)
+function update!{T <: Real, ColorDim}(t::Texture{T, ColorDim, 2}, newvalue::Array, xoffset, yoffset, _width, _height) 
+    if (xoffset-1 + _width) > width(t) && (yoffset-1 + _height) > height(t)
+        error("Out of bounds in texture, xindex ", xoffset, " width: ", _width, " yindex: ", yoffset, " height: ", _height, " in texture:\n", t)
     end
     glBindTexture(texturetype(t), t.id)
-    glTexSubImage2D(texturetype(t), 0, xoffset, yoffset, width, height, t.format, t.pixeltype, newvalue)
+    glTexSubImage2D(texturetype(t), 0, xoffset-1, yoffset-1, _width, _height, t.format, t.pixeltype, newvalue)
 end
