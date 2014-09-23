@@ -1,4 +1,4 @@
-export OrthographicCamera, PerspectiveCamera
+export OrthographicCamera, PerspectiveCamera, OrthographicPixelCamera
 
 immutable OrthographicCamera{T}
 	window_size::Signal{Vector4{Int}}
@@ -27,6 +27,49 @@ function mousediff{T}(v0::(Bool, Vector2{T}, Vector2{T}),  clicked::Bool, pos::V
         return (clicked, pos, pos - pos0)
     end
     return (clicked, pos, Vector2(0.0))
+end
+
+
+#= 
+Creates an orthographic camera with the pixel perfect plane in z == 0
+Signals needed:
+[
+	:window_size					=> Input(Vector2{Int}),
+	:buttonspressed					=> Input(IntSet()),
+	:mousebuttonspressed			=> Input(IntSet()), 
+	:mouseposition					=> mouseposition, -> Panning
+	:scroll_y						=> Input(0) -> Zoomig
+]
+=#
+function OrthographicPixelCamera(inputs::Dict{Symbol, Any})
+
+	mouseposition   = inputs[:mouseposition]
+	buttonspressed  = inputs[:buttonspressed]
+	
+	#Should be rather in Image coordinates
+	view = foldl(eye(Mat4), 
+				inputs[:scroll_x], inputs[:scroll_y], buttonspressed) do v0, scroll_x, scroll_y, buttonset
+
+		translatevec = Vec3(0f0)
+		if scroll_x == 0f0
+			if in(341, buttonset) # left strg
+				translatevec = Vec3(scroll_y*10f0, 0f0, 0f0)
+			else
+				translatevec = Vec3(0f0, scroll_y*10f0, 0f0)
+			end
+		else
+			translatevec = Vec3(scroll_x*10f0, scroll_y*10f0, 0f0)
+		end
+		v0 * translationmatrix(translatevec)	
+	end
+
+	OrthographicCamera(
+				inputs[:window_size],
+				view,
+				Input(-10f0), # nearclip
+				Input(10f0) # farclip
+			)
+
 end
 
 #= 
@@ -63,7 +106,50 @@ function OrthographicCamera(inputs::Dict{Symbol, Any})
 			)
 
 end
+#= 
+Creates an orthographic camera from signals, controlling the camera
+Args:
 
+   window_size: Size of the window
+   		  zoom: Zoom
+  translatevec: Panning
+normedposition: Pivot for translations
+
+=#
+function OrthographicCamera{T}(
+									windows_size::Signal{Vector4{Int}},
+									view::Signal{Matrix4x4{T}},
+									
+									nearclip::Signal{T},
+									farclip::Signal{T}
+								)
+	lift(x -> glViewport(x...), windows_size)
+
+	projection = lift(Matrix4x4{T}, 
+						windows_size, nearclip, farclip) do wh, near, far
+
+		left, bottom, right, top = float32(wh)
+
+		if (right  != left &&
+    	   	bottom != top &&
+    		near  != far)
+	  		return orthographicprojection(left, 500f0, bottom, 500f0, near, far)
+	  	else
+	  		return eye(Matrix4x4{T})
+	  	end
+	end
+	#projection = Input(eye(Mat4))
+	#view = Input(eye(Mat4))
+	projectionview = lift(*, Matrix4x4{T}, projection, view)
+
+	OrthographicCamera{T}(
+							windows_size,
+							view,
+							projection,
+							projectionview
+						)
+
+end
 #= 
 Creates an orthographic camera from signals, controlling the camera
 Args:
