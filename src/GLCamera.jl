@@ -123,7 +123,6 @@ function OrthographicCamera{T}(
 									nearclip::Signal{T},
 									farclip::Signal{T}
 								)
-	lift(x -> glViewport(x...), windows_size)
 
 	projection = lift(Matrix4x4{T}, 
 						windows_size, nearclip, farclip) do wh, near, far
@@ -167,7 +166,6 @@ function OrthographicCamera{T}(
 									normedposition::Signal{Vector2{Float64}}
 								)
 
-	lift(x -> glViewport(x...) , windows_size)
 	projection = lift(wh -> begin
 	  @assert wh[3] > 0
 	  @assert wh[4] > 0
@@ -302,7 +300,6 @@ function PerspectiveCamera{T <: Real}(
 					nearclip::Signal{T},
 					farclip::Signal{T}
 	)
-	lift(x-> glViewport(x...), window_size)
 	eyepositionstart 	= Vector3{T}(1,0,0)
 	origin 				= lookatvec
 
@@ -344,7 +341,6 @@ function PerspectiveCamera{T <: Real}(
 	view 			= lift(lookat, Matrix4x4{T}, positionvec, lookatvec1, up)
 
 	window_ratio 	= lift(x -> x[3] / x[4], T, window_size)
-
 	projection 		= lift(perspectiveprojection, Matrix4x4{T}, fov, window_ratio, nearclip, farclip)
 
 	projectionview 	= lift(*, Matrix4x4{T}, projection, view)
