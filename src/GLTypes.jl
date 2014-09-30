@@ -158,8 +158,8 @@ immutable RenderObject
                 error("not sufficient uniforms supplied. Missing: ", name, " type: ", uniform_type(typ))
             end
             value = uniforms[name]
-            if !is_correct_uniform_type(typ, value)
-                error("Uniform ", name, " not of correct type. Expected: ", uniform_type(typ), ". Got: ", typeof(value))
+            if !is_correct_uniform_type(value, GLENUM(typ))
+                error("Uniform ", name, " not of correct type. Expected: ", GLENUM(typ).name, ". Got: ", typeof(value))
             end
             if isa(value, Input)
                 editables[name] = value

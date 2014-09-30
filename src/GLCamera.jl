@@ -133,7 +133,7 @@ function OrthographicCamera{T}(
 		if (right  != left &&
     	   	bottom != top &&
     		near  != far)
-	  		return orthographicprojection(left, 500f0, bottom, 500f0, near, far)
+	  		return orthographicprojection(left, right, bottom, top, near, far)
 	  	else
 	  		return eye(Matrix4x4{T})
 	  	end
@@ -242,7 +242,7 @@ function PerspectiveCamera{T}(inputs::Dict{Symbol,Any}, eyeposition::Vector3{T},
 	fov 	= Input(41f0)
 
 	cam = PerspectiveCamera(
-					inputs[:window_size],#
+					inputs[:window_size],
 					
 					eyeposition,
 					lookatvec,
@@ -257,7 +257,7 @@ function PerspectiveCamera{T}(inputs::Dict{Symbol,Any}, eyeposition::Vector3{T},
 					
 					Input(41f0),
 					Input(1f0),
-					Input(2000f0)
+					Input(100f0)
 	)
 end
 

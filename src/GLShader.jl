@@ -82,7 +82,7 @@ glsl_variable_access{T,D}(keystring, ::Texture{T, 3, D}) = "texture($(keystring)
 glsl_variable_access{T,D}(keystring, ::Texture{T, 4, D}) = "texture($(keystring), uv).rgba;"
 glsl_variable_access{T,D}(keystring, ::Texture{T, 4, D}) = "texture($(keystring), uv).rgba;"
 
-glsl_variable_access(keystring, ::Union(Real, GLBuffer, AbstractArray)) = keystring*";"
+glsl_variable_access(keystring, ::Union(Real, GLBuffer, AbstractArray, AbstractRGB, AbstractAlphaColorValue)) = keystring*";"
 
 glsl_variable_access(keystring, s::Signal)  = glsl_variable_access(keystring, s.value)
 glsl_variable_access(keystring, t::Any)     = error("no glsl variable calculation available for :",keystring, " of type ", typeof(t))
