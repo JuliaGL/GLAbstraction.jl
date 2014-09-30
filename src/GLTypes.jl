@@ -1,3 +1,5 @@
+export RenderObject, prerender!, postrender!, instancedobject
+
 ##############################################################################
 abstract Shape
 immutable Circle{T <: Real} <: Shape
@@ -24,6 +26,52 @@ immutable GLProgram
 end
 
 export GLProgram
+
+
+
+
+############################################
+# Framebuffers and the like
+
+immutable RenderBuffer
+    id::GLuint
+    format::GLenum
+    function RenderBuffer(format, dimension)
+        @assert length(dimensions) == 2
+        id = GLuint[0]
+        glGenRenderbuffers(1, id)
+        glBindRenderbuffer(GL_RENDERBUFFER, id[1])
+        glRenderbufferStorage(GL_RENDERBUFFER, format, dimension...)
+        new(id, format)
+    end
+end
+function resize!(rb::RenderBuffer, newsize::AbstractArray)
+    if length(newsize) != 2
+        error("RenderBuffer needs to be 2 dimensional. Dimension found: ", newsize)
+    end
+    glBindRenderbuffer(GL_RENDERBUFFER, rb.id)
+    glRenderbufferStorage(GL_RENDERBUFFER, rb.format, newsize...)
+end
+
+immutable FrameBuffer{T}
+    id::GLuint
+    attachments::Vector{Any}
+
+    function FrameBuffer(dimensions::Input)
+        fb = glGenFramebuffers()
+        glBindFramebuffer(GL_FRAMEBUFFER, fb)
+    end
+end
+function resize!(fbo::FrameBuffer, newsize::AbstractArray)
+    if length(newsize) != 2
+        error("FrameBuffer needs to be 2 dimensional. Dimension found: ", newsize)
+    end
+    for elem in fbo.attachments
+        resize!(elem)
+    end
+
+end
+
 
 ########################################################################################
 #12 seconds loading are wasted here
@@ -240,7 +288,9 @@ function Base.delete!(x::RenderObject)
     delete!(x.vertexarray)
     x = 0
 end
-export RenderObject, prerender!, postrender!, instancedobject
+
+
+
 ####################################################################################
 
 

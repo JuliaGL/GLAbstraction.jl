@@ -148,25 +148,7 @@ end
 
 
 
-const UNIFORM_TYPE_ENUM_DICT = [
-
-
-    GL_UNSIGNED_INT      => [GLuint, GLushort, GLubyte, Unsigned, uVec1],
-    GL_UNSIGNED_INT_VEC2 => [uVec2],
-    GL_UNSIGNED_INT_VEC3 => [uVec3],
-    GL_UNSIGNED_INT_VEC4 => [uVec4],
-
-    GL_INT          => [GLint, GLshort, GLbyte, Integer, iVec1],
-    GL_INT_VEC2     => [iVec2],
-    GL_INT_VEC3     => [iVec3],
-    GL_INT_VEC4     => [iVec4],
-
-    GL_BOOL         => [GLint, Integer, iVec1, Bool],
-    GL_BOOL_VEC2    => [iVec2],
-    GL_BOOL_VEC3    => [iVec3],
-    GL_BOOL_VEC4    => [iVec4],
-
-]
+UNIFORM_TYPES = Union(AbstractArray, ColorValue, AbstractAlphaColorValue)
 
 # This is needed to varify, that the correct uniform is uploaded to a shader
 # Should partly be integrated into the genuniformfunctions macro
@@ -178,49 +160,49 @@ is_float_uniform_type{T}(::Type{T}) = eltype(T) <: FloatingPoint || eltype(T) <:
 is_bool_uniform_type{T}(::Type{T}) = eltype(T) <: Bool || is_integer_uniform_type(T)
 
 
-is_correct_uniform_type(x::Signal, glenum::GLENUM) = is_correct_uniform_type(x.value, glenum)
+is_correct_uniform_type{AnySym}(x::Signal, glenum::GLENUM{AnySym, GLenum}) = is_correct_uniform_type(x.value, glenum)
 
 is_correct_uniform_type(x::Real, ::GLENUM{:GL_BOOL, GLenum})          = is_bool_uniform_type(typeof(x))
 is_correct_uniform_type(x::Real, ::GLENUM{:GL_UNSIGNED_INT, GLenum})  = is_unsigned_uniform_type(typeof(x))
 is_correct_uniform_type(x::Real, ::GLENUM{:GL_INT, GLenum})           = is_integer_uniform_type(typeof(x))
 is_correct_uniform_type(x::Real, ::GLENUM{:GL_FLOAT, GLenum})         = is_float_uniform_type(typeof(x))
 
-is_correct_uniform_type{T}(::T, ::GLENUM{:GL_BOOL, GLenum})      = is_bool_uniform_type(T) && length(T) == 1
-is_correct_uniform_type{T}(::T, ::GLENUM{:GL_BOOL_VEC2, GLenum}) = is_bool_uniform_type(T) && length(T) == 2
-is_correct_uniform_type{T}(::T, ::GLENUM{:GL_BOOL_VEC3, GLenum}) = is_bool_uniform_type(T) && length(T) == 3
-is_correct_uniform_type{T}(::T, ::GLENUM{:GL_BOOL_VEC4, GLenum}) = is_bool_uniform_type(T) && length(T) == 4
+is_correct_uniform_type{T <: UNIFORM_TYPES}(::T, ::GLENUM{:GL_BOOL, GLenum})              = is_bool_uniform_type(T) && length(T) == 1
+is_correct_uniform_type{T <: UNIFORM_TYPES}(::T, ::GLENUM{:GL_BOOL_VEC2, GLenum})         = is_bool_uniform_type(T) && length(T) == 2
+is_correct_uniform_type{T <: UNIFORM_TYPES}(::T, ::GLENUM{:GL_BOOL_VEC3, GLenum})         = is_bool_uniform_type(T) && length(T) == 3
+is_correct_uniform_type{T <: UNIFORM_TYPES}(::T, ::GLENUM{:GL_BOOL_VEC4, GLenum})         = is_bool_uniform_type(T) && length(T) == 4
 
 
-is_correct_uniform_type{T}(::T, ::GLENUM{:GL_UNSIGNED_INT, GLenum})      = is_unsigned_uniform_type(T) && length(T) == 1
-is_correct_uniform_type{T}(::T, ::GLENUM{:GL_UNSIGNED_INT_VEC2, GLenum}) = is_unsigned_uniform_type(T) && length(T) == 2
-is_correct_uniform_type{T}(::T, ::GLENUM{:GL_UNSIGNED_INT_VEC3, GLenum}) = is_unsigned_uniform_type(T) && length(T) == 3
-is_correct_uniform_type{T}(::T, ::GLENUM{:GL_UNSIGNED_INT_VEC4, GLenum}) = is_unsigned_uniform_type(T) && length(T) == 4
+is_correct_uniform_type{T <: UNIFORM_TYPES}(::T, ::GLENUM{:GL_UNSIGNED_INT, GLenum})      = is_unsigned_uniform_type(T) && length(T) == 1
+is_correct_uniform_type{T <: UNIFORM_TYPES}(::T, ::GLENUM{:GL_UNSIGNED_INT_VEC2, GLenum}) = is_unsigned_uniform_type(T) && length(T) == 2
+is_correct_uniform_type{T <: UNIFORM_TYPES}(::T, ::GLENUM{:GL_UNSIGNED_INT_VEC3, GLenum}) = is_unsigned_uniform_type(T) && length(T) == 3
+is_correct_uniform_type{T <: UNIFORM_TYPES}(::T, ::GLENUM{:GL_UNSIGNED_INT_VEC4, GLenum}) = is_unsigned_uniform_type(T) && length(T) == 4
 
-is_correct_uniform_type{T}(::T, ::GLENUM{:GL_INT, GLenum})      = is_integer_uniform_type(T) && length(T) == 1
-is_correct_uniform_type{T}(::T, ::GLENUM{:GL_INT_VEC2, GLenum}) = is_integer_uniform_type(T) && length(T) == 2
-is_correct_uniform_type{T}(::T, ::GLENUM{:GL_INT_VEC3, GLenum}) = is_integer_uniform_type(T) && length(T) == 3
-is_correct_uniform_type{T}(::T, ::GLENUM{:GL_INT_VEC4, GLenum}) = is_integer_uniform_type(T) && length(T) == 4
+is_correct_uniform_type{T <: UNIFORM_TYPES}(::T, ::GLENUM{:GL_INT, GLenum})               = is_integer_uniform_type(T) && length(T) == 1
+is_correct_uniform_type{T <: UNIFORM_TYPES}(::T, ::GLENUM{:GL_INT_VEC2, GLenum})          = is_integer_uniform_type(T) && length(T) == 2
+is_correct_uniform_type{T <: UNIFORM_TYPES}(::T, ::GLENUM{:GL_INT_VEC3, GLenum}) = is_integer_uniform_type(T) && length(T) == 3
+is_correct_uniform_type{T <: UNIFORM_TYPES}(::T, ::GLENUM{:GL_INT_VEC4, GLenum}) = is_integer_uniform_type(T) && length(T) == 4
 
-is_correct_uniform_type{T}(::T, ::GLENUM{:GL_FLOAT, GLenum})      = is_float_uniform_type(T) && length(T) == 1
-is_correct_uniform_type{T}(::T, ::GLENUM{:GL_FLOAT_VEC2, GLenum}) = is_float_uniform_type(T) && length(T) == 2
-is_correct_uniform_type{T}(::T, ::GLENUM{:GL_FLOAT_VEC3, GLenum}) = is_float_uniform_type(T) && length(T) == 3
-is_correct_uniform_type{T}(::T, ::GLENUM{:GL_FLOAT_VEC4, GLenum}) = is_float_uniform_type(T) && length(T) == 4
+is_correct_uniform_type{T <: UNIFORM_TYPES}(::T, ::GLENUM{:GL_FLOAT, GLenum})      = is_float_uniform_type(T) && length(T) == 1
+is_correct_uniform_type{T <: UNIFORM_TYPES}(::T, ::GLENUM{:GL_FLOAT_VEC2, GLenum}) = is_float_uniform_type(T) && length(T) == 2
+is_correct_uniform_type{T <: UNIFORM_TYPES}(::T, ::GLENUM{:GL_FLOAT_VEC3, GLenum}) = is_float_uniform_type(T) && length(T) == 3
+is_correct_uniform_type{T <: UNIFORM_TYPES}(::T, ::GLENUM{:GL_FLOAT_VEC4, GLenum}) = is_float_uniform_type(T) && length(T) == 4
 
-is_correct_uniform_type{T}(::T, ::GLENUM{:GL_FLOAT_MAT2, GLenum}) = is_float_uniform_type(T) && size(T) == (2,2)
-is_correct_uniform_type{T}(::T, ::GLENUM{:GL_FLOAT_MAT3, GLenum}) = is_float_uniform_type(T) && size(T) == (3,3)
-is_correct_uniform_type{T}(::T, ::GLENUM{:GL_FLOAT_MAT4, GLenum}) = is_float_uniform_type(T) && size(T) == (4,4)
+is_correct_uniform_type{T <: UNIFORM_TYPES}(::T, ::GLENUM{:GL_FLOAT_MAT2, GLenum}) = is_float_uniform_type(T) && size(T) == (2,2)
+is_correct_uniform_type{T <: UNIFORM_TYPES}(::T, ::GLENUM{:GL_FLOAT_MAT3, GLenum}) = is_float_uniform_type(T) && size(T) == (3,3)
+is_correct_uniform_type{T <: UNIFORM_TYPES}(::T, ::GLENUM{:GL_FLOAT_MAT4, GLenum}) = is_float_uniform_type(T) && size(T) == (4,4)
 
-is_correct_uniform_type{T}(::T, ::GLENUM{:GL_FLOAT_MAT3x2, GLenum}) = is_float_uniform_type(T) && size(T) == (3,2)
-is_correct_uniform_type{T}(::T, ::GLENUM{:GL_FLOAT_MAT4x2, GLenum}) = is_float_uniform_type(T) && size(T) == (4,2)
+is_correct_uniform_type{T <: UNIFORM_TYPES}(::T, ::GLENUM{:GL_FLOAT_MAT3x2, GLenum}) = is_float_uniform_type(T) && size(T) == (3,2)
+is_correct_uniform_type{T <: UNIFORM_TYPES}(::T, ::GLENUM{:GL_FLOAT_MAT4x2, GLenum}) = is_float_uniform_type(T) && size(T) == (4,2)
 
-is_correct_uniform_type{T}(::T, ::GLENUM{:GL_FLOAT_MAT2x3, GLenum}) = is_float_uniform_type(T) && size(T) == (2,3)
-is_correct_uniform_type{T}(::T, ::GLENUM{:GL_FLOAT_MAT4x3, GLenum}) = is_float_uniform_type(T) && size(T) == (4,3)
+is_correct_uniform_type{T <: UNIFORM_TYPES}(::T, ::GLENUM{:GL_FLOAT_MAT2x3, GLenum}) = is_float_uniform_type(T) && size(T) == (2,3)
+is_correct_uniform_type{T <: UNIFORM_TYPES}(::T, ::GLENUM{:GL_FLOAT_MAT4x3, GLenum}) = is_float_uniform_type(T) && size(T) == (4,3)
 
-is_correct_uniform_type{T}(::T, ::GLENUM{:GL_FLOAT_MAT2x3, GLenum}) = is_float_uniform_type(T) && size(T) == (2,3)
-is_correct_uniform_type{T}(::T, ::GLENUM{:GL_FLOAT_MAT4x3, GLenum}) = is_float_uniform_type(T) && size(T) == (4,3)
+is_correct_uniform_type{T <: UNIFORM_TYPES}(::T, ::GLENUM{:GL_FLOAT_MAT2x3, GLenum}) = is_float_uniform_type(T) && size(T) == (2,3)
+is_correct_uniform_type{T <: UNIFORM_TYPES}(::T, ::GLENUM{:GL_FLOAT_MAT4x3, GLenum}) = is_float_uniform_type(T) && size(T) == (4,3)
 
-is_correct_uniform_type{T}(::T, ::GLENUM{:GL_FLOAT_MAT2x4, GLenum}) = is_float_uniform_type(T) && size(T) == (2,4)
-is_correct_uniform_type{T}(::T, ::GLENUM{:GL_FLOAT_MAT3x4, GLenum}) = is_float_uniform_type(T) && size(T) == (3,4)
+is_correct_uniform_type{T <: UNIFORM_TYPES}(::T, ::GLENUM{:GL_FLOAT_MAT2x4, GLenum}) = is_float_uniform_type(T) && size(T) == (2,4)
+is_correct_uniform_type{T <: UNIFORM_TYPES}(::T, ::GLENUM{:GL_FLOAT_MAT3x4, GLenum}) = is_float_uniform_type(T) && size(T) == (3,4)
 
 is_correct_uniform_type{T, C}(::Texture{T, C, 1}, ::GLENUM{:GL_SAMPLER_1D, GLenum}) = is_float_uniform_type(T)
 is_correct_uniform_type{T, C}(::Texture{T, C, 2}, ::GLENUM{:GL_SAMPLER_2D, GLenum}) = is_float_uniform_type(T)

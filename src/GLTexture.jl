@@ -1,4 +1,4 @@
-export Texture, texturetype, update!
+export Texture, texturetype, update!, data
 
 SupportedEltypes = Union(AbstractArray, ColorValue, AbstractAlphaColorValue)
 begin 
@@ -84,9 +84,12 @@ end
 default_colorformat{T <: ColorValue}(colordim::Type{T}) = default_colorformat(length(T), eltype(T) <: Integer, string(T.name))
 
 function default_internalcolorformat(colordim::Int, typ::DataType)
+    if colordim > 4 || colordim < 1
+        error("$(colordim)-dimensional colors not supported")
+    end
     eltyp = eltype(typ)
     sym = "GL_"
-    sym *= colordim == 1 ? "R" : colordim == 2 ? "RG" : colordim == 3 ? "RGB" : colordim == 4 ? "RGBA" : error("$(colordim)-dimensional colors not supported")
+    sym *= "RGBA"[1:colordim]
     bits = sizeof(eltyp) * 8
     sym *= bits <= 32 ? string(bits) : error("$(typ) has too many bits")
     if eltyp <: FloatingPoint
@@ -194,6 +197,7 @@ height(t::Texture)  = size(t,2)
 depth(t::Texture)   = size(t,3) 
 
 Base.length(t::Texture) = prod(t.dims)
+Base.size(t::Texture) = tuple(t.dims...)
 
 function Base.show{T,C,D}(io::IO, t::Texture{T,C,D})
     println(io, "Texture$(D)D: ")
@@ -271,4 +275,11 @@ function update!{T <: SupportedEltypes, ColorDim}(t::Texture{T, ColorDim, 2}, ne
     end
     glBindTexture(t.texturetype, t.id)
     glTexSubImage2D(t.texturetype, 0, xoffset-1, yoffset-1, _width, _height, t.format, t.pixeltype, newvalue)
+end
+
+function data{T, ColorDim, NDim}(t::Texture{T, ColorDim, NDim})
+    result = Array(T, size(t))
+    glBindTexture(t.texturetype, t.id)
+    glGetTexImage(t.texturetype, 0, t.format, t.pixeltype, result)
+    return result
 end
