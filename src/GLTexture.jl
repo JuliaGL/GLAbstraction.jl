@@ -1,6 +1,6 @@
 export Texture, texturetype, update!, data
 
-SupportedEltypes = Union(AbstractArray, ColorValue, AbstractAlphaColorValue)
+SupportedEltypes = Union(Real, AbstractArray, ColorValue, AbstractAlphaColorValue)
 begin 
     #Supported datatypes
     local const TO_GL_TYPE = [
@@ -142,7 +142,7 @@ Texture(data... ; texture_properties...) = Texture(data..., convert(Vector{(Symb
 Main constructor, which shouldn't be used. It will initializes all the missing values and pass it to the inner Texture constructor 
 =#
 function Texture{T <: SupportedEltypes}(data::Ptr{T}, dims::AbstractVector, texture_properties::Vector{(Symbol, Any)})
-
+    Base.length{ET <: Real}(::Type{ET}) = 1
     NDim            = length(dims)
     ColorDim        = length(T)
     defaults        = gendefaults(texture_properties, ColorDim, T, NDim)
@@ -211,13 +211,11 @@ function Base.show{T,C,D}(io::IO, t::Texture{T,C,D})
     println(io, "     Internal format: ", GLENUM(t.internalformat).name)
 end
 
-
-
 Base.eltype{T,C,D}(t::Texture{T, C, D})         = T
 Base.size{T,C,D}(t::Texture{T,C,D})             = t.dims
 Base.size{T,C,D}(t::Texture{T,C,D}, I::Integer) = t.dims[I]
 Base.endof(t::Texture)                          = prod(t.dims)
-Base.ndims{T, C, D}(t::Texture{T, C, D})        = NDim
+Base.ndims{T, C, D}(t::Texture{T, C, D})        = D
 
 # Resize Texture
 function Base.resize!{T, CD, ND}(t::Texture{T,CD,ND}, newdims)
@@ -277,7 +275,7 @@ function update!{T <: SupportedEltypes, ColorDim}(t::Texture{T, ColorDim, 2}, ne
     glTexSubImage2D(t.texturetype, 0, xoffset-1, yoffset-1, _width, _height, t.format, t.pixeltype, newvalue)
 end
 
-function data{T, ColorDim, NDim}(t::Texture{T, ColorDim, NDim})
+function Images.data{T, ColorDim, NDim}(t::Texture{T, ColorDim, NDim})
     result = Array(T, size(t))
     glBindTexture(t.texturetype, t.id)
     glGetTexImage(t.texturetype, 0, t.format, t.pixeltype, result)
