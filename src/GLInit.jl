@@ -50,8 +50,9 @@ function createcontextinfo(dict)
 	dict[:gl_version] 		= glv
 	dict[:gl_vendor] 		= bytestring(glGetString(GL_VENDOR))
 	dict[:gl_renderer] 		= bytestring(glGetString(GL_RENDERER))
-	n = GLint[0]
-	glGetIntegerv(GL_NUM_EXTENSIONS, n)
+	dict[:maxtexturesize]   = glGetIntegerv(GL_MAX_TEXTURE_SIZE)
+	
+	n = glGetIntegerv(GL_NUM_EXTENSIONS)
 	test 	= [ bytestring(glGetStringi(GL_EXTENSIONS, i)) for i = 0:(n[1]-1) ]
 end
 function get_glsl_version_string()
@@ -63,3 +64,4 @@ end
 
 get_glsl_out_qualifier_string() = GLSL_VARYING_QUALIFIER == "in" ? "out" : GLSL_VARYING_QUALIFIER
 get_glsl_in_qualifier_string() = GLSL_VARYING_QUALIFIER
+maxtexturesize() = OPENGL_CONTEXT[:maxtexturesize]
