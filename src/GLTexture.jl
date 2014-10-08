@@ -1,6 +1,6 @@
-export Texture, texturetype, update!, data
-
-SupportedEltypes = Union(Real, AbstractArray, ColorValue, AbstractAlphaColorValue)
+export Texture, texturetype, update!, data, TextureCompatible
+abstract TextureCompatible
+SupportedEltypes = Union(Real, TextureCompatible, AbstractArray, ColorValue, AbstractAlphaColorValue)
 begin
     #Supported datatypes
     local const TO_GL_TYPE = [
@@ -77,6 +77,7 @@ end
 
 default_colorformat{T <: Real}(colordim::Type{T})          = default_colorformat(1, T <: Integer, "RED")
 default_colorformat{T <: AbstractArray}(colordim::Type{T}) = default_colorformat(length(T), eltype(T) <: Integer, "RGBA")
+default_colorformat{T <: TextureCompatible}(colordim::Type{T}) = default_colorformat(length(T), eltype(T) <: Integer, "RGBA")
 function default_colorformat{T <: AbstractAlphaColorValue}(colordim::Type{T})
     colororder = string(T.parameters[1].name) * "A"
     return default_colorformat(length(T), eltype(T) <: Integer, colororder)
@@ -219,10 +220,11 @@ Base.ndims{T, C, D}(t::Texture{T, C, D})        = D
 
 # Resize Texture
 function Base.resize!{T, CD, ND}(t::Texture{T,CD,ND}, newdims)
-  glBindTexture(t.texturetype, t.id)
-  glTexImage(t.texturetype, 0, t.internalformat, newdims..., 0, t.format, t.pixeltype, C_NULL)
-  t.dims[1:end] = newdims
-  glBindTexture(t.texturetype, 0)
+    if newdims != t.dims
+        glBindTexture(t.texturetype, t.id)
+        glTexImage(t.texturetype, 0, t.internalformat, newdims..., 0, t.format, t.pixeltype, C_NULL)
+        t.dims[1:end] = newdims
+    end
 end
 
 
