@@ -241,6 +241,9 @@ function Base.setindex!{T <: SupportedEltypes, ColorDim, IT1 <: Integer}(t::Text
     b = div(first(i), size(t, 1))+1
     setindex!(t, value, a, b)
 end
+function Base.setindex!{T <: SupportedEltypes, ColorDim}(t::Texture{T, ColorDim, 2}, value, i, j::Integer)
+    update!(t, value, first(i), j)
+end
 function Base.setindex!{T <: SupportedEltypes, ColorDim}(t::Texture{T, ColorDim, 2}, value, i::Integer)
     setindex!(t, value, mod1(i,size(t, 1)), div(i+1,size(t, 1))-1)
 end

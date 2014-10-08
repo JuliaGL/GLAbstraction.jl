@@ -177,6 +177,7 @@ export GLVertexArray, GLBuffer, indexbuffer, opengl_compatible, cardinality
 ##################################################################################
 immutable RenderObject
     uniforms::Dict{Symbol, Any}
+    alluniforms::Dict{Symbol, Any}
     vertexarray::GLVertexArray
     prerenderfunctions::Dict{Function, Tuple}
     postrenderfunctions::Dict{Function, Tuple}
@@ -199,7 +200,7 @@ immutable RenderObject
         end
         textureTarget::GLint = -1
         uniformtypesandnames = uniform_name_type(program.id) # get active uniforms and types from program
-        optimizeduniforms = map(elem -> begin
+        optimizeduniforms = map(uniformtypesandnames) do elem
             name = elem[1]
             typ = elem[2]
             if !haskey(uniforms, name)
@@ -213,9 +214,9 @@ immutable RenderObject
                 editables[name] = value
             end
             (name, value)
-        end, uniformtypesandnames) # only use active uniforms && check the type
+        end # only use active uniforms && check the type
 
-        new(Dict{Symbol, Any}(optimizeduniforms), vertexArray, (Function => Tuple)[], (Function => Tuple)[], objectid)
+        new(Dict{Symbol, Any}(optimizeduniforms), uniforms, vertexArray, (Function => Tuple)[], (Function => Tuple)[], objectid)
     end
 end
 RenderObject{T}(data::Dict{Symbol, T}, program::GLProgram) = RenderObject(Dict{Symbol, Any}(data), program)
