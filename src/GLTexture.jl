@@ -261,7 +261,7 @@ function update!{T <: SupportedEltypes, ColorDim}(t::Texture{T, ColorDim, 1}, ne
     update!(t, newvalue, xoffset, length(newvalue))
 end
 function update!{T <: SupportedEltypes, ColorDim}(t::Texture{T, ColorDim, 1}, newvalue::T, xoffset = 0)
-    update!(t, newvalue, xoffset, 1)
+    update!(t, [newvalue], xoffset, 1)
 end
 
 function update!{T <: SupportedEltypes, ColorDim}(t::Texture{T, ColorDim, 1}, newvalue::Array, xoffset, _width)
