@@ -38,8 +38,9 @@ immutable Texture{T <: Union(SupportedEltypes, Real), ColorDIM, NDIM}
     internalformat::GLenum
     format::GLenum
     dims::Vector{Int}
+    data::Array{T, NDIM}
 
-    function Texture{T}(data::Ptr{T}, dims, ttype::GLenum, internalformat::GLenum, format::GLenum, parameters::Vector{(GLenum, GLenum)})
+    function Texture{T}(data::Ptr{T}, dims, ttype::GLenum, internalformat::GLenum, format::GLenum, parameters::Vector{(GLenum, GLenum)}, keepinram::Bool)
         @assert all(x -> x > 0, dims)
 
         id = glGenTextures()
@@ -58,7 +59,15 @@ immutable Texture{T <: Union(SupportedEltypes, Real), ColorDIM, NDIM}
         pixeltype = glpixelformat(T)
 
         glTexImage(ttype, 0, internalformat, dims..., 0, format, pixeltype, data)
-        new(id, ttype, pixeltype, internalformat, format, [dims...])
+        if keepinram
+            if data == C_NULL
+                new(id, ttype, pixeltype, internalformat, format, [dims...], Array(T, dims...))
+            else
+                new(id, ttype, pixeltype, internalformat, format, [dims...], pointer_to_array(data, tuple(dims...)))
+            end
+        else
+            new(id, ttype, pixeltype, internalformat, format, [dims...], Array(T, (dims*0)...))
+        end
     end
 end
 
@@ -129,7 +138,8 @@ function gendefaults(texture_properties::Vector{(Symbol, Any)}, ColorDim::Intege
         :internalformat  => default_internalcolorformat(ColorDim, T),
         :parameters      => default_textureparameters(NDim, eltype(T)),
         :texturetype     => default_texturetype(NDim),
-        :format          => default_colorformat(T)
+        :format          => default_colorformat(T),
+        :keepinram       => false
     ], Dict{Symbol, Any}(texture_properties))
 end
 
@@ -148,7 +158,7 @@ function Texture{T <: SupportedEltypes}(data::Ptr{T}, dims::AbstractVector, text
     ColorDim        = length(T)
     defaults        = gendefaults(texture_properties, ColorDim, T, NDim)
 
-    Texture{T, ColorDim, NDim}(data, dims, defaults[:texturetype], defaults[:internalformat], defaults[:format], defaults[:parameters])
+    Texture{T, ColorDim, NDim}(data, dims, defaults[:texturetype], defaults[:internalformat], defaults[:format], defaults[:parameters], defaults[:keepinram])
 end
 
 #=
@@ -270,6 +280,9 @@ function update!{T <: SupportedEltypes, ColorDim}(t::Texture{T, ColorDim, 1}, ne
     end
     glBindTexture(t.texturetype, t.id)
     glTexSubImage1D(t.texturetype, 0, xoffset-1, _width, t.format, t.pixeltype, newvalue)
+    if !isempty(t.data)
+        t.data[xoffset:_width] = newvalue
+    end
 end
 
 function update!{T <: SupportedEltypes, ColorDim}(t::Texture{T, ColorDim, 2}, newvalue::Array{T, 1}, xoffset = 0, yoffset = 0)
@@ -290,11 +303,18 @@ function update!{T <: SupportedEltypes, ColorDim}(t::Texture{T, ColorDim, 2}, ne
     end
     glBindTexture(t.texturetype, t.id)
     glTexSubImage2D(t.texturetype, 0, xoffset-1, yoffset-1, _width, _height, t.format, t.pixeltype, newvalue)
+    if !isempty(t.data)
+        t.data[xoffset:_width, yoffset:_height] = newvalue
+    end
 end
 
 function Images.data{T, ColorDim, NDim}(t::Texture{T, ColorDim, NDim})
-    result = Array(T, size(t))
-    glBindTexture(t.texturetype, t.id)
-    glGetTexImage(t.texturetype, 0, t.format, t.pixeltype, result)
-    return result
+    if isempty(t.data)
+        result = Array(T, size(t))
+        glBindTexture(t.texturetype, t.id)
+        glGetTexImage(t.texturetype, 0, t.format, t.pixeltype, result)
+        return result
+    else
+        t.data
+    end
 end
