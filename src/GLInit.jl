@@ -52,9 +52,9 @@ function createcontextinfo(dict)
 	dict[:gl_renderer] 		= bytestring(glGetString(GL_RENDERER))
 	dict[:maxtexturesize]   = glGetIntegerv(GL_MAX_TEXTURE_SIZE)
 	
-	n 		   	      = glGetIntegerv(GL_NUM_EXTENSIONS)
-	extensions 		  = [ bytestring(glGetStringi(GL_EXTENSIONS, i)) for i = 0:(n[1]-1) ]
-	dict[:extensions] = extensions
+	n 	 = glGetIntegerv(GL_NUM_EXTENSIONS)
+	test = [glGetStringi(GL_EXTENSIONS, itrunc(GLuint, i)) for i = 0:(n[1]-1)]
+
 end
 function get_glsl_version_string()
 	if isempty(GLSL_VERSION)

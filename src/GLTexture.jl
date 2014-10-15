@@ -1,6 +1,6 @@
-export Texture, texturetype, update!, data, TextureCompatible
-abstract TextureCompatible
-SupportedEltypes = Union(Real, TextureCompatible, AbstractArray, ColorValue, AbstractAlphaColorValue)
+export Texture, texturetype, update!, data, AbstractFixedVector
+abstract AbstractFixedVector{T, NDim}
+SupportedEltypes = Union(Real, AbstractFixedVector, AbstractArray, ColorValue, AbstractAlphaColorValue)
 begin
     #Supported datatypes
     local const TO_GL_TYPE = [
@@ -84,8 +84,8 @@ function default_colorformat(colordim::Integer, isinteger::Bool, colororder::Str
     return eval(symbol(sym))
 end
 
-default_colorformat{T <: Real}(colordim::Type{T})          = default_colorformat(1, T <: Integer, "RED")
-default_colorformat{T <: AbstractArray}(colordim::Type{T}) = default_colorformat(length(T), eltype(T) <: Integer, "RGBA")
+default_colorformat{T <: Real}(colordim::Type{T})          	   = default_colorformat(1, T <: Integer, "RED")
+default_colorformat{T <: AbstractArray}(colordim::Type{T}) 	   = default_colorformat(length(T), eltype(T) <: Integer, "RGBA")
 default_colorformat{T <: TextureCompatible}(colordim::Type{T}) = default_colorformat(length(T), eltype(T) <: Integer, "RGBA")
 function default_colorformat{T <: AbstractAlphaColorValue}(colordim::Type{T})
     colororder = string(T.parameters[1].name) * "A"
@@ -135,10 +135,10 @@ end
 # Here is a good place for parameter checking, yet not implemented though...
 function gendefaults(texture_properties::Vector{(Symbol, Any)}, ColorDim::Integer, Typ::DataType, NDim::Integer)
     return merge([
-        :internalformat  => default_internalcolorformat(ColorDim, T),
-        :parameters      => default_textureparameters(NDim, eltype(T)),
+        :internalformat  => default_internalcolorformat(ColorDim, Typ),
+        :parameters      => default_textureparameters(NDim, eltype(Typ)),
         :texturetype     => default_texturetype(NDim),
-        :format          => default_colorformat(T),
+        :format          => default_colorformat(Typ),
         :keepinram       => false
     ], Dict{Symbol, Any}(texture_properties))
 end
@@ -245,6 +245,13 @@ function Base.setindex!{T <: SupportedEltypes, ColorDim, IT1 <: Integer}(t::Text
     update!(t, value, first(i))
 end
 
+function Base.getindex(t::Texture, x...) 
+	if isempty(t.data)
+		error("Texture doesn't keep a copy in RAM. Try creating the texture with keepinram=true")
+	else
+		getindex(t.data, x...)
+	end
+end
 
 function Base.setindex!{T <: SupportedEltypes, ColorDim, IT1 <: Integer}(t::Texture{T, ColorDim, 2}, value, i::UnitRange{IT1})
     a = mod1(first(i), size(t, 1))
@@ -281,7 +288,7 @@ function update!{T <: SupportedEltypes, ColorDim}(t::Texture{T, ColorDim, 1}, ne
     glBindTexture(t.texturetype, t.id)
     glTexSubImage1D(t.texturetype, 0, xoffset-1, _width, t.format, t.pixeltype, newvalue)
     if !isempty(t.data)
-        t.data[xoffset:_width] = newvalue
+        t.data[xoffset:xoffset+_width-1] = newvalue
     end
 end
 
@@ -304,13 +311,13 @@ function update!{T <: SupportedEltypes, ColorDim}(t::Texture{T, ColorDim, 2}, ne
     glBindTexture(t.texturetype, t.id)
     glTexSubImage2D(t.texturetype, 0, xoffset-1, yoffset-1, _width, _height, t.format, t.pixeltype, newvalue)
     if !isempty(t.data)
-        t.data[xoffset:_width, yoffset:_height] = newvalue
+        t.data[xoffset:xoffset+_width-1, yoffset:yoffset+_height-1] = newvalue
     end
 end
 
 function Images.data{T, ColorDim, NDim}(t::Texture{T, ColorDim, NDim})
     if isempty(t.data)
-        result = Array(T, size(t))
+    	result = Array(T, t.dims...)
         glBindTexture(t.texturetype, t.id)
         glGetTexImage(t.texturetype, 0, t.format, t.pixeltype, result)
         return result
