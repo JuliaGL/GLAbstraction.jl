@@ -86,7 +86,7 @@ end
 
 default_colorformat{T <: Real}(colordim::Type{T})          	   = default_colorformat(1, T <: Integer, "RED")
 default_colorformat{T <: AbstractArray}(colordim::Type{T}) 	   = default_colorformat(length(T), eltype(T) <: Integer, "RGBA")
-default_colorformat{T <: TextureCompatible}(colordim::Type{T}) = default_colorformat(length(T), eltype(T) <: Integer, "RGBA")
+default_colorformat{T <: AbstractFixedVector}(colordim::Type{T}) = default_colorformat(length(T), eltype(T) <: Integer, "RGBA")
 function default_colorformat{T <: AbstractAlphaColorValue}(colordim::Type{T})
     colororder = string(T.parameters[1].name) * "A"
     return default_colorformat(length(T), eltype(T) <: Integer, colororder)
