@@ -3,7 +3,7 @@ abstract AbstractFixedVector{T, NDim}
 SupportedEltypes = Union(Real, AbstractFixedVector, AbstractArray, ColorValue, AbstractAlphaColorValue)
 begin
     #Supported datatypes
-    local const TO_GL_TYPE = [
+    local const TO_GL_TYPE = @compat Dict(
         GLubyte     => GL_UNSIGNED_BYTE,
         GLbyte      => GL_BYTE,
         GLuint      => GL_UNSIGNED_INT,
@@ -11,7 +11,7 @@ begin
         GLshort     => GL_SHORT,
         GLint       => GL_INT,
         GLfloat     => GL_FLOAT
-    ]
+    )
     glpixelformat{T <: Real}(x::Type{T}) = get(TO_GL_TYPE, x) do
         error("Type: $(x) not supported as pixel datatype")
     end
@@ -21,11 +21,11 @@ begin
 end
 #Supported texture modes/dimensions
 begin
-    local const TO_GL_TEXTURE_TYPE = [
+    local const TO_GL_TEXTURE_TYPE = @compat Dict(
         1 => GL_TEXTURE_1D,
         2 => GL_TEXTURE_2D,
         3 => GL_TEXTURE_3D
-    ]
+    )
     default_texturetype(ndim::Integer) = get(TO_GL_TEXTURE_TYPE, ndim) do
         error("Dimensionality: $(ndim), not supported for OpenGL texture")
     end
