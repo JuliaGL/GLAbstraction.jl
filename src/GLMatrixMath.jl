@@ -113,7 +113,6 @@ end
     M : array
         Perspective projection matrix (4x4).
 =#
-export perspective
 function perspective(fovyRadians, aspect, zNear, zFar )
 
     f = tan((( pi/2 ) - ( 0.5f0 * fovyRadians )))
@@ -218,7 +217,6 @@ function Quaternions.qrotation{T<:Real}(axis::Vector3{T}, theta::T)
     s = sin(theta/2)
     Quaternion(cos(theta/2), s*u.e1, s*u.e2, s*u.e3, true)
 end
-export qrotation
 
 immutable Pivot{T}
 
@@ -254,7 +252,6 @@ function transformationmatrix(p::Pivot)
 
     ) 
 end
-export transformationmatrix, Pivot, rotationmatrix4
 #Calculate rotation between two vectors
 function rotation{T}(u::Vector3{T}, v::Vector3{T})
     # It is important that the inputs are of equal length when
@@ -274,7 +271,4 @@ function rotation{T}(u::Vector3{T}, v::Vector3{T})
     return Quaternion(dot(u, half), cross(u, half)...)
 end
 
-export scalematrix
-export lookat, perspectiveprojection, orthographicprojection
-export translationmatrix, translatematrix_x, translatematrix_y, translatematrix_z
-export  rotationmatrix_x, rotationmatrix_y, rotationmatrix_z, rotation#rotationmatrix,
+

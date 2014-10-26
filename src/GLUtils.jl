@@ -1,4 +1,3 @@
-export gputime
 macro gputime(codeblock)
   quote 
     local const query = GLuint[1]

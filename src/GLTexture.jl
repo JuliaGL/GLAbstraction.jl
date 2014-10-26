@@ -1,6 +1,7 @@
-export Texture, texturetype, update!, data, AbstractFixedVector
 abstract AbstractFixedVector{T, NDim}
+
 SupportedEltypes = Union(Real, AbstractFixedVector, AbstractArray, ColorValue, AbstractAlphaColorValue)
+
 begin
     #Supported datatypes
     local const TO_GL_TYPE = @compat Dict(
@@ -57,16 +58,16 @@ immutable Texture{T <: Union(SupportedEltypes, Real), ColorDIM, NDIM}
         end
 
         pixeltype = glpixelformat(T)
-
         glTexImage(ttype, 0, internalformat, dims..., 0, format, pixeltype, data)
+
         if keepinram
             if data == C_NULL
-                new(id, ttype, pixeltype, internalformat, format, [dims...], Array(T, dims...))
+                return new(id, ttype, pixeltype, internalformat, format, [dims...], Array(T, dims...))
             else
-                new(id, ttype, pixeltype, internalformat, format, [dims...], pointer_to_array(data, tuple(dims...)))
+                return new(id, ttype, pixeltype, internalformat, format, [dims...], pointer_to_array(data, tuple(dims...)))
             end
         else
-            new(id, ttype, pixeltype, internalformat, format, [dims...], Array(T, (dims*0)...))
+            return new(id, ttype, pixeltype, internalformat, format, [dims...], Array(T, (dims*0)...))
         end
     end
 end
@@ -157,7 +158,6 @@ function Texture{T <: SupportedEltypes}(data::Ptr{T}, dims::AbstractVector, text
     NDim            = length(dims)
     ColorDim        = length(T)
     defaults        = gendefaults(texture_properties, ColorDim, T, NDim)
-
     Texture{T, ColorDim, NDim}(data, dims, defaults[:texturetype], defaults[:internalformat], defaults[:format], defaults[:parameters], defaults[:keepinram])
 end
 
@@ -314,6 +314,63 @@ function update!{T <: SupportedEltypes, ColorDim}(t::Texture{T, ColorDim, 2}, ne
         t.data[xoffset:xoffset+_width-1, yoffset:yoffset+_height-1] = newvalue
     end
 end
+
+function Base.setindex!{T <: AbstractFixedVector, ElType}(a::Vector{T}, x::ElType, i::Integer, accessor::Integer)
+  @assert eltype(T) == ElType # ugly workaround for not having triangular dispatch
+  @assert length(a) >= i
+  cardinality = length(T)
+  @assert accessor <= cardinality
+  ptr = convert(Ptr{ElType}, pointer(a))
+  unsafe_store!(ptr, x, ((i-1)*cardinality)+accessor)
+end
+function Base.setindex!{T <: AbstractFixedVector, ElType}(a::Vector{T}, x::Vector{ElType}, i::Integer, accessor::UnitRange)
+  @assert eltype(T) == ElType
+  @assert length(a) >= i
+  cardinality = length(T)
+  @assert length(accessor) <= cardinality
+  ptr = convert(Ptr{ElType}, pointer(a))
+  unsafe_copy!(ptr + (sizeof(ElType)*((i-1)*cardinality)), pointer(x), length(accessor))
+end
+function Base.setindex!{T <: AbstractFixedVector, ElType, CDim}(a::Texture{T, CDim, 1}, x::ElType, i::Integer, accessor::Integer)
+  a.data[i, accessor] = x
+  a[i] = a.data[i]
+end
+function Base.setindex!{T <: AbstractFixedVector, ElType, CDim}(a::Texture{T, CDim, 1}, x::Vector{ElType}, i::Integer, accessor::UnitRange)
+  a.data[i, accessor] = x
+  a[i] = a.data[i]
+end
+
+
+function setindex1D!{T <: AbstractFixedVector, ElType}(a::Matrix{T}, x::ElType, i::Integer, accessor::Integer)
+  @assert length(a) >= i
+  cardinality = length(T)
+  @assert length(accessor) <= cardinality
+
+  ptr = convert(Ptr{eltype(T)}, pointer(a))
+  unsafe_store!(ptr, convert(eltype(T), x), ((i-1)*cardinality)+accessor)
+end
+function setindex1D!{T <: AbstractFixedVector, ElType}(a::Matrix{T}, x::Vector{ElType}, i::Integer, accessor::UnitRange)
+  @assert length(a) >= i
+  cardinality = length(T)
+  @assert length(accessor) <= cardinality
+  eltp = eltype(T)
+  x = convert(Vector{eltp}, x)
+
+  ptr = convert(Ptr{eltp}, pointer(a))
+  unsafe_copy!(ptr + (sizeof(eltp)*((i-1)*(cardinality)+first(accessor-1))), pointer(x), length(accessor))
+end
+
+
+function setindex1D!{T <: AbstractFixedVector, ElType, CDim}(a::Texture{T, CDim, 2}, x::ElType, i::Integer, accessor::Integer)
+  a.data[i, accessor] = x
+  a[i] = a.data[i]
+end
+function setindex1D!{T <: AbstractFixedVector, ElType, CDim}(a::Texture{T, CDim, 2}, x::Vector{ElType}, i::Integer, accessor::UnitRange)
+  a.data[i, accessor] = x
+  a[i] = a.data[i]
+end
+
+
 
 function Images.data{T, ColorDim, NDim}(t::Texture{T, ColorDim, NDim})
     if isempty(t.data)

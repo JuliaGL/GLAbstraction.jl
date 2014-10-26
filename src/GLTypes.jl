@@ -1,5 +1,3 @@
-export RenderObject, prerender!, postrender!, instancedobject
-
 ##############################################################################
 abstract Shape
 immutable Circle{T <: Real} <: Shape
@@ -14,7 +12,6 @@ type Rectangle{T <: Real} <: Shape
     w::T
     h::T
 end
-export Circle, Rectangle, Shape
 ############################################################################
 
 immutable GLProgram
@@ -24,10 +21,6 @@ immutable GLProgram
     nametype::Dict{Symbol, GLenum}
     uniformloc::Dict{Symbol, Tuple}
 end
-
-export GLProgram
-
-
 
 
 ############################################
@@ -72,9 +65,7 @@ function resize!(fbo::FrameBuffer, newsize::AbstractArray)
 
 end
 
-
 ########################################################################################
-#12 seconds loading are wasted here
 
 #=
 immutable Texture{T <: TEXTURE_COMPATIBLE_NUMBER_TYPES, ColorDIM, NDIM}
@@ -172,7 +163,6 @@ end
 function GLVertexArray(bufferDict::Dict{ASCIIString, GLBuffer}, program::GLProgram)
     GLVertexArray(Dict{Symbol, GLBuffer}(map(elem -> (symbol(elem[1]), elem[2]), bufferDict)), program)
 end
-export GLVertexArray, GLBuffer, indexbuffer, opengl_compatible, cardinality
 
 ##################################################################################
 immutable RenderObject
@@ -186,7 +176,7 @@ immutable RenderObject
 
     objectid::GLushort = 0
 
-    function RenderObject(data::Dict{Symbol, Any}, program::GLProgram; editables=(Symbol=>Input)[])
+    function RenderObject(data::Dict{Symbol, Any}, program::GLProgram; editables=Dict{Symbol,Input}())
         objectid::GLushort += 1
 
         buffers     = filter((key, value) -> isa(value, GLBuffer), data)
@@ -216,7 +206,7 @@ immutable RenderObject
             (name, value)
         end # only use active uniforms && check the type
 
-        new(Dict{Symbol, Any}(optimizeduniforms), uniforms, vertexArray, (Function => Tuple)[], (Function => Tuple)[], objectid)
+        new(Dict{Symbol, Any}(optimizeduniforms), uniforms, vertexArray, Dict{Function, Tuple}(), Dict{Function, Tuple}(), objectid)
     end
 end
 RenderObject{T}(data::Dict{Symbol, T}, program::GLProgram) = RenderObject(Dict{Symbol, Any}(data), program)
@@ -244,13 +234,13 @@ end
 
 function pushfunction!(target::Dict{Function, Tuple}, fs...)
     func = fs[1]
-    args = {}
+    args = Any[]
     for i=2:length(fs)
         elem = fs[i]
         if isa(elem, Function)
             target[func] = tuple(args...)
             func = elem
-            args = {}
+            args = Any[]
         else
             push!(args, elem)
         end

@@ -1,7 +1,6 @@
 const INIT_FUNCTION_LIST = Function[]
 
 
-export init_after_context_creation, init_glutils, get_glsl_version_string, get_glsl_in_qualifier_string, get_glsl_out_qualifier_string
 
 function init_after_context_creation(f::Function)
 	push!(INIT_FUNCTION_LIST, f)
@@ -15,7 +14,7 @@ function init_glutils()
 end
 
 
-global const OPENGL_CONTEXT = (Symbol => Any)[]
+global const OPENGL_CONTEXT = Dict{Symbol, Any}()
 global GLSL_VERSION = ""
 global GLSL_VARYING_QUALIFIER = ""
 

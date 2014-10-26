@@ -1,4 +1,3 @@
-export render, enabletransparency, renderinstanced
 
 function render(renderobject::Vector{RenderObject})
     for elem in renderobject

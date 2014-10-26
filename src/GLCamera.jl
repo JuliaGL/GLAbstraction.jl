@@ -1,4 +1,3 @@
-export OrthographicCamera, PerspectiveCamera, OrthographicPixelCamera
 
 immutable OrthographicCamera{T}
 	window_size::Signal{Vector4{Int}}

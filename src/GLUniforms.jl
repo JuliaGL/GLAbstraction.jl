@@ -25,12 +25,13 @@ GL_POSTFIX = [
 # Also it defines glsl alike aliases and constructors.
 # This probably shouldn't be done in the same function, but its for now the easiest solution.
 macro genuniformfunctions(maxdim::Integer)
-	glslVector = "Vec"
-	glslMatrix = "Mat"
+	glslVector  = "Vec"
+	glslMatrix  = "Mat"
 
-	imVector = "Vector"
-	imMatrix = "Matrix"
-	expressions = {}
+	imVector    = "Vector"
+	imMatrix    = "Matrix"
+	expressions = Any[]
+    
 	for n=1:maxdim, typ in GLSL_COMPATIBLE_NUMBER_TYPES
 		glslalias 	= symbol(string(GLSL_PREFIX[typ],glslVector,n)) 
 		name 		= symbol(string(imVector, n))
@@ -111,6 +112,8 @@ gluniform(location::Integer, x::Union(GLbyte, GLshort, GLint, Bool)) = glUniform
 # Needs to be 
 gluniform(location::Integer, x::AbstractRGB{Float32}) = glUniform3fv(location, 1, [x])
 gluniform(location::Integer, x::AbstractAlphaColorValue{RGB{Float32}, Float32}) = glUniform4fv(location, 1, pointer([x]))
+gluniform(location::Integer, x::AbstractAlphaColorValue) = gluniform(location, convert(AbstractAlphaColorValue{RGB{Float32}, Float32}, x))
+
 
 
 #Uniform upload functions for julia arrays...
@@ -254,5 +257,4 @@ function istexturesampler(typ::GLenum)
 end
 
 
-export gluniform, toglsltype_string
 

@@ -1,7 +1,3 @@
-
-export readshader, glsl_variable_access, createview, TemplateProgram
-
-
 function getinfolog(obj::GLuint)
     # Return the info log for obj, whether it be a shader or a program.
     isShader    = glIsShader(obj)
@@ -89,7 +85,7 @@ glsl_variable_access(keystring, t::Any)     = error("no glsl variable calculatio
 
 
 function createview(x::Dict{Symbol, Any}, keys)
-  view = (ASCIIString => ASCIIString)[]
+  view = Dict{ASCIIString, ASCIIString}()
   for (key,value) in x
     if !isa(value, String)
         keystring = string(key)
@@ -172,8 +168,8 @@ end
 
 function TemplateProgram(
                             vertex_file_path::ASCIIString, fragment_file_path::ASCIIString; 
-                            view::Dict{ASCIIString, ASCIIString} = (ASCIIString => ASCIIString)[], 
-                            attributes::Dict{Symbol, Any} = (Symbol => Any)[],
+                            view::Dict{ASCIIString, ASCIIString} = Dict{ASCIIString, ASCIIString}(), 
+                            attributes::Dict{Symbol, Any} = Dict{Symbol, Any}(),
                             fragdatalocation=(Int, ASCIIString)[]
                         )
 
@@ -215,8 +211,8 @@ end
 function TemplateProgram(
                             vertex_source::ASCIIString, fragment_source::ASCIIString, 
                             vertex_name::ASCIIString, fragment_name::ASCIIString;
-                            view::Dict{ASCIIString, ASCIIString} = (ASCIIString => ASCIIString)[], 
-                            attributes::Dict{Symbol, Any} = (Symbol => Any)[],
+                            view::Dict{ASCIIString, ASCIIString} = Dict{ASCIIString, ASCIIString}(), 
+                            attributes::Dict{Symbol, Any}=Dict{Symbol, Any}(),
                             fragdatalocation=(Int, ASCIIString)[]
                         )
 
@@ -225,7 +221,7 @@ function TemplateProgram(
     end
     extension = "" #Still empty, but might be replaced by a platform dependant extension string
     if haskey(view, "GLSL_EXTENSIONS")
-        #to do: check custom extension...
+        #to do: check if extension is available...
         #for now we just append the extensions
         extension *= "\n" * view["GLSL_EXTENSIONS"]
     end

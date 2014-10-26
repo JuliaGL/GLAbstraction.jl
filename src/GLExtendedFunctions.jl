@@ -186,4 +186,3 @@ function glTexImage(ttype::GLenum, level::Integer, internalFormat::GLenum, w::In
   end
   glTexImage1D(ttype, level, internalFormat, w, border, format, datatype, data)
 end
-export glTexImage
