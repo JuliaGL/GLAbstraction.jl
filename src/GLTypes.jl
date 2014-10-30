@@ -194,7 +194,7 @@ immutable RenderObject
             name = elem[1]
             typ = elem[2]
             if !haskey(uniforms, name)
-                error("not sufficient uniforms supplied. Missing: ", name, " type: ", uniform_type(typ))
+                error("not sufficient uniforms supplied. Missing: ", name, " type: ", GLENUM(typ).name)
             end
             value = uniforms[name]
             if !is_correct_uniform_type(value, GLENUM(typ))

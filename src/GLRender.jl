@@ -3,11 +3,10 @@ function render(renderobject::Vector{RenderObject})
     for elem in renderobject
         render(elem)
     end
-
 end
 function render(renderobject::RenderObject)
     for elem in renderobject.prerenderfunctions
-        apply(elem...)
+        elem[1](elem[2]...)
     end
     p = renderobject.vertexarray.program
     glUseProgram(p.id)
@@ -15,7 +14,7 @@ function render(renderobject::RenderObject)
         gluniform(p.uniformloc[key]..., value)
     end
     for elem in renderobject.postrenderfunctions
-        apply(elem...)
+        elem[1](elem[2]...)
     end
 end
 
