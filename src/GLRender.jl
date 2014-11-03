@@ -1,6 +1,6 @@
 
-function render(renderobject::Vector{RenderObject})
-    for elem in renderobject
+function render(list::AbstractVector)
+    for elem in list
         render(elem)
     end
 end

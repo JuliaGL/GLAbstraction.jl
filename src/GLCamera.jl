@@ -1,11 +1,11 @@
-
-immutable OrthographicCamera{T}
+abstract Camera{T}
+immutable OrthographicCamera{T} <: Camera{T}
 	window_size::Signal{Vector4{Int}}
 	view::Signal{Matrix4x4{T}}
 	projection::Signal{Matrix4x4{T}}
 	projectionview::Signal{Matrix4x4{T}}
 end
-immutable PerspectiveCamera{T}
+immutable PerspectiveCamera{T} <: Camera{T}
 	pivot::Signal{Pivot{T}}
 	window_size::Signal{Vector4{Int}}
 	nearclip::Signal{T}
