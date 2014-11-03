@@ -21,8 +21,6 @@ export get_glsl_version_string
 export get_glsl_in_qualifier_string
 export get_glsl_out_qualifier_string
 
-include("GLExtendedFunctions.jl")
-export glTexImage
 
 include("GLTypes.jl")
 export GLProgram                # Shader/program object
@@ -43,6 +41,10 @@ export Circle                   # Simple circle object
 export Rectangle                # Simple rectangle object
 export Shape                    # Abstract shape type
 export setindex1D!              # Sets the index of an Array{FixedSizeVector, x}, making the FixedSizeVector accessible via an index
+export Style                    # Style Type, which is used to choose different visualization/editing styles via multiple dispatch
+export mergedefault!            # merges a style dict via a given style
+include("GLExtendedFunctions.jl")
+export glTexImage
 
 include("GLUniforms.jl")
 export gluniform                # wrapper of all the OpenGL gluniform functions, which call the correct gluniform function via multiple dispatch. Example: gluniform(location, x::Matrix4x4) = gluniformMatrix4fv(location, x)
