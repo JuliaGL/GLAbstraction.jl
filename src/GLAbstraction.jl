@@ -93,6 +93,6 @@ export gencubenormals
 export mergemesh
 
 include("GLUtils.jl")
-export gputime
+export @gputime
 
 end # module
