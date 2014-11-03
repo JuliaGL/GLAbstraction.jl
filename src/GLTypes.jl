@@ -284,5 +284,13 @@ end
 
 ####################################################################################
 
-
-
+#=
+Style Type, which is used to choose different visualization/editing styles via multiple dispatch
+Usage pattern:
+visualize(::Style{:Default}, ...)           = do something
+visualize(::Style{:MyAwesomeNewStyle}, ...) = do something different
+=#
+immutable Style{StyleValue}
+end
+Style(x::Symbol) = Style{x}()
+mergedefault!{S}(style::Style{S}, styles, customdata) = merge!(styles[S], Dict{Symbol, Any}(customdata))

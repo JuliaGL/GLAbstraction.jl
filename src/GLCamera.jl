@@ -20,6 +20,8 @@ immutable PerspectiveCamera{T}
 	up::Signal{Vector3{T}}
 end
 
+
+
 function mousediff{T}(v0::(Bool, Vector2{T}, Vector2{T}),  clicked::Bool, pos::Vector2{T})
     clicked0, pos0, pos0diff = v0
     if clicked0 && clicked
