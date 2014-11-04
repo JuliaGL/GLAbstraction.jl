@@ -188,4 +188,4 @@ function glTexImage(ttype::GLenum, level::Integer, internalFormat::GLenum, w::In
 end
 
 
-ModernGL.glViewport(x::Rectangle) = glViewport(x.area.x, x.area.y, x.area.w, x.area.h)
+ModernGL.glViewport(x::Rectangle) = glViewport(x.x, x.y, x.w, x.h)
