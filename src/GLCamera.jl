@@ -128,7 +128,7 @@ function OrthographicCamera{T}(
 	projection = lift(Matrix4x4{T}, 
 						windows_size, nearclip, farclip) do wh, near, far
 
-		left, bottom, right, top = float32(wh)
+		left, bottom, right, top = (zero(T), zero(T), convert(T, wh[3]), convert(T, wh[4]))
 
 		if (right  != left &&
     	   	bottom != top &&
@@ -167,14 +167,14 @@ function OrthographicCamera{T}(
 									normedposition::Signal{Vector2{Float64}}
 								)
 
-	projection = lift(wh -> begin
+	projection = lift(Matrix4x4{T}, windows_size) do wh
 	  @assert wh[3] > 0
 	  @assert wh[4] > 0
 	  # change the aspect ratio, to always display an image with the right dimensions
 	  # this behaviour should definitely be changed, as soon as the camera is used for anything else.
 	  wh = wh[3] > wh[4] ? ((wh[3]/wh[4]), 1f0) : (1f0,(wh[4]/wh[3]))
 	  orthographicprojection(0f0, convert(T, wh[1]), 0f0, convert(T, wh[2]), -1f0, 10f0)
-	end, Matrix4x4{T}, windows_size)
+	end
 
 	scale             = lift(x -> scalematrix(Vector3{T}(x, x, one(T))), zoom)
 	transaccum 		  = foldl(+, Vector2(zero(T)), translatevec)
