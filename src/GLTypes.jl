@@ -209,6 +209,16 @@ immutable RenderObject
         new(Dict{Symbol, Any}(optimizeduniforms), uniforms, vertexArray, Dict{Function, Tuple}(), Dict{Function, Tuple}(), objectid)
     end
 end
+function Base.show(io::IO, obj::RenderObject)
+    println(io, "RenderObject with ID: ", obj.id)
+
+    println(io, "uniforms: ")
+    for (name, uniform) in obj.uniforms
+        println(io, "   ", name, "\n      ", uniform)
+    end
+    println(io, "vertexarray length: ", obj.vertexarray.length)
+    println(io, "vertexarray indexlength: ", obj.vertexarray.indexlength)
+end
 RenderObject{T}(data::Dict{Symbol, T}, program::GLProgram) = RenderObject(Dict{Symbol, Any}(data), program)
 
 immutable Field{Symbol}
