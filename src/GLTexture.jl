@@ -262,7 +262,9 @@ function Base.setindex!{T <: SupportedEltypes, ColorDim}(t::Texture{T, ColorDim,
     update!(t, value, first(i), j)
 end
 function Base.setindex!{T <: SupportedEltypes, ColorDim}(t::Texture{T, ColorDim, 2}, value, i::Integer)
-    setindex!(t, value, mod1(i,size(t, 1)), div(i+1,size(t, 1))-1)
+    a = mod1(i, size(t, 1))
+    b = div(i, size(t, 1))+1
+    setindex!(t, value, a, b)
 end
 function Base.setindex!{T <: SupportedEltypes, ColorDim}(t::Texture{T, ColorDim, 2}, value, i::Integer, j::Integer)
     update!(t, value, i, j)
@@ -362,11 +364,11 @@ end
 
 
 function setindex1D!{T <: AbstractFixedVector, ElType, CDim}(a::Texture{T, CDim, 2}, x::ElType, i::Integer, accessor::Integer)
-  a.data[i, accessor] = x
+  setindex1D!(a.data, x, i, accessor)
   a[i] = a.data[i]
 end
 function setindex1D!{T <: AbstractFixedVector, ElType, CDim}(a::Texture{T, CDim, 2}, x::Vector{ElType}, i::Integer, accessor::UnitRange)
-  a.data[i, accessor] = x
+  setindex1D!(a.data, x, i, accessor)
   a[i] = a.data[i]
 end
 
