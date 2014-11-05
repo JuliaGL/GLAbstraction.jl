@@ -5,21 +5,21 @@
 
 GLSL_COMPATIBLE_NUMBER_TYPES = [GLdouble, GLfloat, GLint, GLuint]
 
-GLSL_PREFIX = [
+GLSL_PREFIX = @compat Dict(
 	GLdouble 	=> "d", 
 	GLfloat 	=> "", 
 	GLint 		=> "i", 
     GLuint      => "u",
     Uint8       => "u",
     Uint16      => "u"
-]
+)
 
-GL_POSTFIX = [
+GL_POSTFIX = @compat Dict(
 	GLdouble 	=> "dv", 
 	GLfloat 	=> "fv", 
 	GLint 		=> "iv", 
 	GLuint 		=> "uiv"
-]
+)
 
 # Generates uniform upload functions for ImmutableArrays.
 # Also it defines glsl alike aliases and constructors.

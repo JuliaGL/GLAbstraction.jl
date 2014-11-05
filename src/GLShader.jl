@@ -182,13 +182,13 @@ function TemplateProgram(
         #for now we just append the extensions
         extension *= "\n" * view["GLSL_EXTENSIONS"]
     end
-    internaldata = [
+    internaldata = @compat Dict(
         "out"             => get_glsl_out_qualifier_string(),
         "in"              => get_glsl_in_qualifier_string(),
         "GLSL_VERSION"    => get_glsl_version_string(),
         
         "GLSL_EXTENSIONS" => extension
-    ]
+    )
     view    = merge(internaldata, view)
     sources = lift( (vertex_file_path, fragment_file_path) -> begin
         vertex_tm       = Mustache.parse(vertex_file_path)
@@ -225,13 +225,13 @@ function TemplateProgram(
         #for now we just append the extensions
         extension *= "\n" * view["GLSL_EXTENSIONS"]
     end
-    internaldata = [
+    internaldata = @compat Dict(
         "out"             => get_glsl_out_qualifier_string(),
         "in"              => get_glsl_in_qualifier_string(),
         "GLSL_VERSION"    => get_glsl_version_string(),
         
         "GLSL_EXTENSIONS" => extension
-    ]
+    )
     view    = merge(internaldata, view)
     sources = lift( (vertex_file_path, fragment_file_path) -> begin
         vertex_tm       = Mustache.parse(vertex_file_path)
