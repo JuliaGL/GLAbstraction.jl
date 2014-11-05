@@ -43,7 +43,8 @@ end
 #  Generic render functions
 #####
 function enabletransparency()
-    glEnable(GL_BLEND)
+    glEnablei(GL_BLEND, 0)
+    glDisablei(GL_BLEND, 1)
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
 end
 
