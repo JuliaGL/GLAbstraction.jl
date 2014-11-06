@@ -252,28 +252,27 @@ function Base.getindex(t::Texture, x...)
 		getindex(t.data, x...)
 	end
 end
-function to2D(i::Integer, w, h)
-end
-function Base.setindex!{T <: SupportedEltypes, ColorDim, IT1 <: Integer}(t::Texture{T, ColorDim, 2}, value, i::UnitRange{IT1})
-    a = mod1(first(i), size(t, 1))
-    b = div(i, size(t, 1)+1)+1
-    setindex!(t, value, a, b)
-end
+
+
 function Base.setindex!{T <: SupportedEltypes, ColorDim}(t::Texture{T, ColorDim, 2}, value, i, j::Integer)
     update!(t, value, first(i), j)
 end
 function Base.setindex!{T <: SupportedEltypes, ColorDim}(t::Texture{T, ColorDim, 2}, value, i::Integer)
-
-    a = mod1(i, size(t, 1))
-    b = div(i, size(t, 1)+1)+1
-
+    a = mod(i-1, size(t, 1))+1
+    b = div(i-1, size(t, 1))+1
     setindex!(t, value, a, b)
 end
 function Base.setindex!{T <: SupportedEltypes, ColorDim}(t::Texture{T, ColorDim, 2}, value, i::Integer, j::Integer)
     update!(t, value, i, j)
 end
+function Base.setindex!{T <: SupportedEltypes, ColorDim, IT2 <: Integer}(t::Texture{T, ColorDim, 2}, value, i::Integer, j::UnitRange{IT2})
+    update!(t, value, i, first(j), 1, length(j))
+end
+function Base.setindex!{T <: SupportedEltypes, ColorDim, IT1 <: Integer}(t::Texture{T, ColorDim, 2}, value, i::UnitRange{IT1}, j::Integer)
+   update!(t, value, first(i), j, length(i), 1)
+end
 function Base.setindex!{T <: SupportedEltypes, ColorDim, IT1 <: Integer, IT2 <: Integer}(t::Texture{T, ColorDim, 2}, value, i::UnitRange{IT1}, j::UnitRange{IT2})
-    update!(t, value, first(i), first(j))
+    update!(t, value, first(i), first(j), length(i), length(j))
 end
 
 
@@ -359,18 +358,17 @@ function setindex1D!{T <: AbstractFixedVector, ElType}(a::Matrix{T}, x::ElType, 
   unsafe_store!(ptr, convert(eltype(T), x), ((i-1)*cardinality)+accessor)
 end
 function setindex1D!{T <: AbstractFixedVector, ElType}(a::Matrix{T}, x::Vector{ElType}, i::Integer, accessor::UnitRange)
-    if length(a) < i
-        error("Out of Bounds. 1D index: ", i, " Matrix: ", typeof(a), " length: ", length(a), " size: ", size(a))
-    end
-    cardinality = length(T)
-    if length(accessor) > cardinality
-        error("Out of Bounds. 1D index: ", i, " Matrix: ", typeof(a), " length: ", length(a), " size: ", size(a))
-    end
-    eltp = eltype(T)
-    x = convert(Vector{eltp}, x)
-
-    ptr = convert(Ptr{eltp}, pointer(a))
-    unsafe_copy!(ptr + (sizeof(eltp)*((i-1)*(cardinality)+first(accessor-1))), pointer(x), length(accessor))
+   if length(a) < i
+     error("Out of Bounds. 1D index: ", i, " Matrix: ", typeof(a), " length: ", length(a), " size: ", size(a))
+   end
+   cardinality = length(T)
+   if length(accessor) > cardinality
+     error("Out of Bounds. 1D index: ", i, " Matrix: ", typeof(a), " length: ", length(a), " size: ", size(a))
+   end
+   eltp  = eltype(T)
+   x     = convert(Vector{eltp}, x)
+   ptr   = convert(Ptr{eltp}, pointer(a))
+   unsafe_copy!(ptr + (sizeof(eltp)*((i-1)*(cardinality)+first(accessor-1))), pointer(x), length(accessor))
 end
 
 
