@@ -32,7 +32,7 @@ begin
     end
 end
 
-immutable Texture{T <: Union(SupportedEltypes, Real), ColorDIM, NDIM}
+type Texture{T <: Union(SupportedEltypes, Real), ColorDIM, NDIM}
     id::GLuint
     texturetype::GLenum
     pixeltype::GLenum
@@ -229,11 +229,18 @@ Base.endof(t::Texture)                          = prod(t.dims)
 Base.ndims{T, C, D}(t::Texture{T, C, D})        = D
 
 # Resize Texture
-function Base.resize!{T, CD, ND}(t::Texture{T,CD,ND}, newdims)
+function Base.resize!{T, CD, ND}(t::Texture{T,CD, ND}, newdims)
     if newdims != t.dims
         glBindTexture(t.texturetype, t.id)
         glTexImage(t.texturetype, 0, t.internalformat, newdims..., 0, t.format, t.pixeltype, C_NULL)
         t.dims[1:end] = newdims
+        tmp = Array(T, newdims...)
+        if ndims(t.data) == 2
+            tmp[1:size(t.data, 1), 1:size(t.data,2)] = t.data
+        else
+            tmp[1:size(t.data, 1)] = t.data
+        end
+        t.data = tmp
     end
 end
 
@@ -272,6 +279,8 @@ function Base.setindex!{T <: SupportedEltypes, ColorDim, IT1 <: Integer}(t::Text
    update!(t, value, first(i), j, length(i), 1)
 end
 function Base.setindex!{T <: SupportedEltypes, ColorDim, IT1 <: Integer, IT2 <: Integer}(t::Texture{T, ColorDim, 2}, value, i::UnitRange{IT1}, j::UnitRange{IT2})
+    println("i: ", i)
+    println("j: ", j)
     update!(t, value, first(i), first(j), length(i), length(j))
 end
 
@@ -315,6 +324,8 @@ function update!{T <: SupportedEltypes, ColorDim}(t::Texture{T, ColorDim, 2}, ne
     glBindTexture(t.texturetype, t.id)
     glTexSubImage2D(t.texturetype, 0, xoffset-1, yoffset-1, _width, _height, t.format, t.pixeltype, newvalue)
     if !isempty(t.data)
+        println(size(t))
+        println(xoffset:xoffset+_width-1, "\n", yoffset:yoffset+_height-1)
         t.data[xoffset:xoffset+_width-1, yoffset:yoffset+_height-1] = newvalue
     end
 end
