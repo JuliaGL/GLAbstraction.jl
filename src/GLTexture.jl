@@ -316,9 +316,6 @@ function update!{T <: SupportedEltypes, ColorDim}(t::Texture{T, ColorDim, 2}, ne
     glBindTexture(t.texturetype, t.id)
     glTexSubImage2D(t.texturetype, 0, xoffset-1, yoffset-1, _width, _height, t.format, t.pixeltype, newvalue)
     if !isempty(t.data)
-        println("xoffset: ", xoffset)
-        println("yoffset: ", yoffset)
-        println(size(t.data))
         t.data[xoffset:xoffset+_width-1, yoffset:yoffset+_height-1] = newvalue
     end
 end
@@ -350,30 +347,44 @@ end
 
 
 function setindex1D!{T <: AbstractFixedVector, ElType}(a::Matrix{T}, x::ElType, i::Integer, accessor::Integer)
-  @assert length(a) >= i
-  cardinality = length(T)
-  @assert length(accessor) <= cardinality
+    if length(a) < i
+        error("Out of Bounds. 1D index: ", i, " Matrix: ", typeof(a), " length: ", length(a), " size: ", size(a))
+    end
+    cardinality = length(T)
+    if length(accessor) > cardinality
+        error("Out of Bounds. 1D index: ", i, " Matrix: ", typeof(a), " length: ", length(a), " size: ", size(a))
+    end
 
   ptr = convert(Ptr{eltype(T)}, pointer(a))
   unsafe_store!(ptr, convert(eltype(T), x), ((i-1)*cardinality)+accessor)
 end
 function setindex1D!{T <: AbstractFixedVector, ElType}(a::Matrix{T}, x::Vector{ElType}, i::Integer, accessor::UnitRange)
-  @assert length(a) >= i
-  cardinality = length(T)
-  @assert length(accessor) <= cardinality
-  eltp = eltype(T)
-  x = convert(Vector{eltp}, x)
+    if length(a) < i
+        error("Out of Bounds. 1D index: ", i, " Matrix: ", typeof(a), " length: ", length(a), " size: ", size(a))
+    end
+    cardinality = length(T)
+    if length(accessor) > cardinality
+        error("Out of Bounds. 1D index: ", i, " Matrix: ", typeof(a), " length: ", length(a), " size: ", size(a))
+    end
+    eltp = eltype(T)
+    x = convert(Vector{eltp}, x)
 
-  ptr = convert(Ptr{eltp}, pointer(a))
-  unsafe_copy!(ptr + (sizeof(eltp)*((i-1)*(cardinality)+first(accessor-1))), pointer(x), length(accessor))
+    ptr = convert(Ptr{eltp}, pointer(a))
+    unsafe_copy!(ptr + (sizeof(eltp)*((i-1)*(cardinality)+first(accessor-1))), pointer(x), length(accessor))
 end
 
 
 function setindex1D!{T <: AbstractFixedVector, ElType, CDim}(a::Texture{T, CDim, 2}, x::ElType, i::Integer, accessor::Integer)
+  if isempty(a.data)
+    error("Texture doesn't have a copy in ram. Please create Texture with keepeinram=true, for using setindex/1D!")
+  end
   setindex1D!(a.data, x, i, accessor)
   a[i] = a.data[i]
 end
 function setindex1D!{T <: AbstractFixedVector, ElType, CDim}(a::Texture{T, CDim, 2}, x::Vector{ElType}, i::Integer, accessor::UnitRange)
+  if isempty(a.data)
+    error("Texture doesn't have a copy in ram. Please create Texture with keepeinram=true, for using setindex/1D!")
+  end
   setindex1D!(a.data, x, i, accessor)
   a[i] = a.data[i]
 end
