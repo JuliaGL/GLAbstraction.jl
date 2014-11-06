@@ -252,18 +252,21 @@ function Base.getindex(t::Texture, x...)
 		getindex(t.data, x...)
 	end
 end
-
+function to2D(i::Integer, w, h)
+end
 function Base.setindex!{T <: SupportedEltypes, ColorDim, IT1 <: Integer}(t::Texture{T, ColorDim, 2}, value, i::UnitRange{IT1})
     a = mod1(first(i), size(t, 1))
-    b = div(first(i), size(t, 1))+1
+    b = div(i, size(t, 1)+1)+1
     setindex!(t, value, a, b)
 end
 function Base.setindex!{T <: SupportedEltypes, ColorDim}(t::Texture{T, ColorDim, 2}, value, i, j::Integer)
     update!(t, value, first(i), j)
 end
 function Base.setindex!{T <: SupportedEltypes, ColorDim}(t::Texture{T, ColorDim, 2}, value, i::Integer)
+
     a = mod1(i, size(t, 1))
-    b = div(i, size(t, 1))+1
+    b = div(i, size(t, 1)+1)+1
+
     setindex!(t, value, a, b)
 end
 function Base.setindex!{T <: SupportedEltypes, ColorDim}(t::Texture{T, ColorDim, 2}, value, i::Integer, j::Integer)
@@ -313,6 +316,9 @@ function update!{T <: SupportedEltypes, ColorDim}(t::Texture{T, ColorDim, 2}, ne
     glBindTexture(t.texturetype, t.id)
     glTexSubImage2D(t.texturetype, 0, xoffset-1, yoffset-1, _width, _height, t.format, t.pixeltype, newvalue)
     if !isempty(t.data)
+        println("xoffset: ", xoffset)
+        println("yoffset: ", yoffset)
+        println(size(t.data))
         t.data[xoffset:xoffset+_width-1, yoffset:yoffset+_height-1] = newvalue
     end
 end

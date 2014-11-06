@@ -7,7 +7,6 @@ using Quaternions
 using Color
 using FixedPointNumbers
 using Compat
-
 import Images: imread, colorspace, Image, AbstractGray, RGB4, ARGB, Images
 #import Lumberjack
 import Mustache
