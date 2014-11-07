@@ -233,14 +233,21 @@ function Base.resize!{T, CD, ND}(t::Texture{T,CD, ND}, newdims)
     if newdims != t.dims
         glBindTexture(t.texturetype, t.id)
         glTexImage(t.texturetype, 0, t.internalformat, newdims..., 0, t.format, t.pixeltype, C_NULL)
-        t.dims[1:end] = newdims
+        
         tmp = Array(T, newdims...)
         if ndims(t.data) == 2
-            tmp[1:size(t.data, 1), 1:size(t.data,2)] = t.data
+            if newdims[1] >= t.dims[1] && newdims[2] >= t.dims[2]
+               tmp[1:size(t.data, 1), 1:size(t.data,2)] = t.data
+            elseif newdims[1] >= t.dims[1] && newdims[2] <= t.dims[2]
+               tmp[1:size(t.data, 1), 1:end] = t.data[1:end, 1:newdims[2]]
+            elseif newdims[1] <= t.dims[1] && newdims[2] >= t.dims[2]
+               tmp[1:end, 1:size(t.data,2)] = t.data[1:newdims[1], 1:end]
+            end
         else
             tmp[1:size(t.data, 1)] = t.data
         end
         t.data = tmp
+        t.dims[1:end] = newdims
     end
 end
 
@@ -285,10 +292,10 @@ end
 
 # Instead of having so many methods, this should rather be solved by a macro or with better fixed size arrays
 
-function update!{T <: SupportedEltypes, ColorDim}(t::Texture{T, ColorDim, 1}, newvalue::Array{T, 1}, xoffset = 0)
+function update!{T <: SupportedEltypes, ColorDim}(t::Texture{T, ColorDim, 1}, newvalue::Array{T, 1}, xoffset =1)
     update!(t, newvalue, xoffset, length(newvalue))
 end
-function update!{T <: SupportedEltypes, ColorDim}(t::Texture{T, ColorDim, 1}, newvalue::T, xoffset = 0)
+function update!{T <: SupportedEltypes, ColorDim}(t::Texture{T, ColorDim, 1}, newvalue::T, xoffset = 1)
     update!(t, [newvalue], xoffset, 1)
 end
 
@@ -303,14 +310,14 @@ function update!{T <: SupportedEltypes, ColorDim}(t::Texture{T, ColorDim, 1}, ne
     end
 end
 
-function update!{T <: SupportedEltypes, ColorDim}(t::Texture{T, ColorDim, 2}, newvalue::Array{T, 1}, xoffset = 0, yoffset = 0)
+function update!{T <: SupportedEltypes, ColorDim}(t::Texture{T, ColorDim, 2}, newvalue::Array{T, 1}, xoffset = 1, yoffset = 1)
     update!(t, newvalue, xoffset, yoffset, length(newvalue), 1)
 end
-function update!{T <: SupportedEltypes, ColorDim}(t::Texture{T, ColorDim, 2}, newvalue::Array{T, 2}, xoffset = 0, yoffset = 0)
+function update!{T <: SupportedEltypes, ColorDim}(t::Texture{T, ColorDim, 2}, newvalue::Array{T, 2}, xoffset = 1, yoffset = 1)
     update!(t, newvalue, xoffset, yoffset, size(newvalue)...)
 end
 
-function update!{T <: SupportedEltypes, ColorDim}(t::Texture{T, ColorDim, 2}, newvalue::T, xoffset = 0, yoffset = 0)
+function update!{T <: SupportedEltypes, ColorDim}(t::Texture{T, ColorDim, 2}, newvalue::T, xoffset = 1, yoffset = 1)
     update!(t, [newvalue], xoffset, yoffset, 1, 1)
 end
 
@@ -322,8 +329,6 @@ function update!{T <: SupportedEltypes, ColorDim}(t::Texture{T, ColorDim, 2}, ne
     glBindTexture(t.texturetype, t.id)
     glTexSubImage2D(t.texturetype, 0, xoffset-1, yoffset-1, _width, _height, t.format, t.pixeltype, newvalue)
     if !isempty(t.data)
-        println(size(t))
-        println(xoffset:xoffset+_width-1, "\n", yoffset:yoffset+_height-1)
         t.data[xoffset:xoffset+_width-1, yoffset:yoffset+_height-1] = newvalue
     end
 end
