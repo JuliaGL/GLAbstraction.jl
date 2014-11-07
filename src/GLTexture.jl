@@ -279,8 +279,6 @@ function Base.setindex!{T <: SupportedEltypes, ColorDim, IT1 <: Integer}(t::Text
    update!(t, value, first(i), j, length(i), 1)
 end
 function Base.setindex!{T <: SupportedEltypes, ColorDim, IT1 <: Integer, IT2 <: Integer}(t::Texture{T, ColorDim, 2}, value, i::UnitRange{IT1}, j::UnitRange{IT2})
-    println("i: ", i)
-    println("j: ", j)
     update!(t, value, first(i), first(j), length(i), length(j))
 end
 
@@ -356,7 +354,7 @@ function Base.setindex!{T <: AbstractFixedVector, ElType, CDim}(a::Texture{T, CD
 end
 
 
-function setindex1D!{T <: AbstractFixedVector, ElType}(a::Matrix{T}, x::ElType, i::Integer, accessor::Integer)
+function setindex1D!{T <: AbstractFixedVector, ElType}(a::Union(Matrix{T}, Vector{T}), x::ElType, i::Integer, accessor::Integer)
     if length(a) < i
         error("Out of Bounds. 1D index: ", i, " Matrix: ", typeof(a), " length: ", length(a), " size: ", size(a))
     end
@@ -368,7 +366,7 @@ function setindex1D!{T <: AbstractFixedVector, ElType}(a::Matrix{T}, x::ElType, 
   ptr = convert(Ptr{eltype(T)}, pointer(a))
   unsafe_store!(ptr, convert(eltype(T), x), ((i-1)*cardinality)+accessor)
 end
-function setindex1D!{T <: AbstractFixedVector, ElType}(a::Matrix{T}, x::Vector{ElType}, i::Integer, accessor::UnitRange)
+function setindex1D!{T <: AbstractFixedVector, ElType}(a::Union(Matrix{T}, Vector{T}), x::Vector{ElType}, i::Integer, accessor::UnitRange)
    if length(a) < i
      error("Out of Bounds. 1D index: ", i, " Matrix: ", typeof(a), " length: ", length(a), " size: ", size(a))
    end
