@@ -12,7 +12,6 @@ type Rectangle{T <: Real} <: Shape
     w::T
     h::T
 end
-export Circle, Rectangle, Shape
 ############################################################################
 
 immutable GLProgram
@@ -23,10 +22,50 @@ immutable GLProgram
     uniformloc::Dict{Symbol, Tuple}
 end
 
-export GLProgram
+
+############################################
+# Framebuffers and the like
+
+immutable RenderBuffer
+    id::GLuint
+    format::GLenum
+    function RenderBuffer(format, dimension)
+        @assert length(dimensions) == 2
+        id = GLuint[0]
+        glGenRenderbuffers(1, id)
+        glBindRenderbuffer(GL_RENDERBUFFER, id[1])
+        glRenderbufferStorage(GL_RENDERBUFFER, format, dimension...)
+        new(id, format)
+    end
+end
+function resize!(rb::RenderBuffer, newsize::AbstractArray)
+    if length(newsize) != 2
+        error("RenderBuffer needs to be 2 dimensional. Dimension found: ", newsize)
+    end
+    glBindRenderbuffer(GL_RENDERBUFFER, rb.id)
+    glRenderbufferStorage(GL_RENDERBUFFER, rb.format, newsize...)
+end
+
+immutable FrameBuffer{T}
+    id::GLuint
+    attachments::Vector{Any}
+
+    function FrameBuffer(dimensions::Input)
+        fb = glGenFramebuffers()
+        glBindFramebuffer(GL_FRAMEBUFFER, fb)
+    end
+end
+function resize!(fbo::FrameBuffer, newsize::AbstractArray)
+    if length(newsize) != 2
+        error("FrameBuffer needs to be 2 dimensional. Dimension found: ", newsize)
+    end
+    for elem in fbo.attachments
+        resize!(elem)
+    end
+
+end
 
 ########################################################################################
-#12 seconds loading are wasted here
 
 #=
 immutable Texture{T <: TEXTURE_COMPATIBLE_NUMBER_TYPES, ColorDIM, NDIM}
@@ -124,11 +163,11 @@ end
 function GLVertexArray(bufferDict::Dict{ASCIIString, GLBuffer}, program::GLProgram)
     GLVertexArray(Dict{Symbol, GLBuffer}(map(elem -> (symbol(elem[1]), elem[2]), bufferDict)), program)
 end
-export GLVertexArray, GLBuffer, indexbuffer, opengl_compatible, cardinality
 
 ##################################################################################
 immutable RenderObject
     uniforms::Dict{Symbol, Any}
+    alluniforms::Dict{Symbol, Any}
     vertexarray::GLVertexArray
     prerenderfunctions::Dict{Function, Tuple}
     postrenderfunctions::Dict{Function, Tuple}
@@ -137,7 +176,7 @@ immutable RenderObject
 
     objectid::GLushort = 0
 
-    function RenderObject(data::Dict{Symbol, Any}, program::GLProgram; editables=(Symbol=>Input)[])
+    function RenderObject(data::Dict{Symbol, Any}, program::GLProgram; editables=Dict{Symbol,Input}())
         objectid::GLushort += 1
 
         buffers     = filter((key, value) -> isa(value, GLBuffer), data)
@@ -151,24 +190,34 @@ immutable RenderObject
         end
         textureTarget::GLint = -1
         uniformtypesandnames = uniform_name_type(program.id) # get active uniforms and types from program
-        optimizeduniforms = map(elem -> begin
+        optimizeduniforms = map(uniformtypesandnames) do elem
             name = elem[1]
             typ = elem[2]
             if !haskey(uniforms, name)
-                error("not sufficient uniforms supplied. Missing: ", name, " type: ", uniform_type(typ))
+                error("not sufficient uniforms supplied. Missing: ", name, " type: ", GLENUM(typ).name)
             end
             value = uniforms[name]
-            if !is_correct_uniform_type(typ, value)
-                error("Uniform ", name, " not of correct type. Expected: ", uniform_type(typ), ". Got: ", typeof(value))
+            if !is_correct_uniform_type(value, GLENUM(typ))
+                error("Uniform ", name, " not of correct type. Expected: ", GLENUM(typ).name, ". Got: ", typeof(value))
             end
             if isa(value, Input)
                 editables[name] = value
             end
             (name, value)
-        end, uniformtypesandnames) # only use active uniforms && check the type
+        end # only use active uniforms && check the type
 
-        new(Dict{Symbol, Any}(optimizeduniforms), vertexArray, (Function => Tuple)[], (Function => Tuple)[], objectid)
+        new(Dict{Symbol, Any}(optimizeduniforms), uniforms, vertexArray, Dict{Function, Tuple}(), Dict{Function, Tuple}(), objectid)
     end
+end
+function Base.show(io::IO, obj::RenderObject)
+    println(io, "RenderObject with ID: ", obj.id)
+
+    println(io, "uniforms: ")
+    for (name, uniform) in obj.uniforms
+        println(io, "   ", name, "\n      ", uniform)
+    end
+    println(io, "vertexarray length: ", obj.vertexarray.length)
+    println(io, "vertexarray indexlength: ", obj.vertexarray.indexlength)
 end
 RenderObject{T}(data::Dict{Symbol, T}, program::GLProgram) = RenderObject(Dict{Symbol, Any}(data), program)
 
@@ -195,13 +244,13 @@ end
 
 function pushfunction!(target::Dict{Function, Tuple}, fs...)
     func = fs[1]
-    args = {}
+    args = Any[]
     for i=2:length(fs)
         elem = fs[i]
         if isa(elem, Function)
             target[func] = tuple(args...)
             func = elem
-            args = {}
+            args = Any[]
         else
             push!(args, elem)
         end
@@ -240,8 +289,18 @@ function Base.delete!(x::RenderObject)
     delete!(x.vertexarray)
     x = 0
 end
-export RenderObject, prerender!, postrender!, instancedobject
+
+
+
 ####################################################################################
 
-
-
+#=
+Style Type, which is used to choose different visualization/editing styles via multiple dispatch
+Usage pattern:
+visualize(::Style{:Default}, ...)           = do something
+visualize(::Style{:MyAwesomeNewStyle}, ...) = do something different
+=#
+immutable Style{StyleValue}
+end
+Style(x::Symbol) = Style{x}()
+mergedefault!{S}(style::Style{S}, styles, customdata) = merge!(styles[S], Dict{Symbol, Any}(customdata))

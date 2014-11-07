@@ -1,14 +1,12 @@
-export render, enabletransparency, renderinstanced
 
-function render(renderobject::Vector{RenderObject})
-    for elem in renderobject
+function render(list::AbstractVector)
+    for elem in list
         render(elem)
     end
-
 end
 function render(renderobject::RenderObject)
     for elem in renderobject.prerenderfunctions
-        apply(elem...)
+        elem[1](elem[2]...)
     end
     p = renderobject.vertexarray.program
     glUseProgram(p.id)
@@ -16,7 +14,7 @@ function render(renderobject::RenderObject)
         gluniform(p.uniformloc[key]..., value)
     end
     for elem in renderobject.postrenderfunctions
-        apply(elem...)
+        elem[1](elem[2]...)
     end
 end
 
@@ -45,7 +43,8 @@ end
 #  Generic render functions
 #####
 function enabletransparency()
-    glEnable(GL_BLEND)
+    glEnablei(GL_BLEND, 0)
+    glDisablei(GL_BLEND, 1)
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
 end
 

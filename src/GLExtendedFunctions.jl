@@ -130,7 +130,7 @@ end
 function checktexture(target::GLenum)
 
 end
-function glTexImage(level::Integer, internalFormat::GLenum, w::Integer, h::Integer, d::Integer, border::Integer, format::GLenum, datatype::GLenum, data)  
+function glTexImage(ttype::GLenum, level::Integer, internalFormat::GLenum, w::Integer, h::Integer, d::Integer, border::Integer, format::GLenum, datatype::GLenum, data)  
 
   glTexImage3D(GL_PROXY_TEXTURE_3D, level, internalFormat, w, h, d, border, format, datatype, C_NULL)
   for l in  0:level
@@ -151,9 +151,9 @@ function glTexImage(level::Integer, internalFormat::GLenum, w::Integer, h::Integ
       error("glTexImage 3D: internal format not valid. format: ", GLENUM(internalFormat).name)
     end
   end
-  glTexImage3D(GL_TEXTURE_3D, level, internalFormat, w, h, d, border, format, datatype, data)
+  glTexImage3D(ttype, level, internalFormat, w, h, d, border, format, datatype, data)
 end
-function glTexImage(level::Integer, internalFormat::GLenum, w::Integer, h::Integer, border::Integer, format::GLenum, datatype::GLenum, data)
+function glTexImage(ttype::GLenum, level::Integer, internalFormat::GLenum, w::Integer, h::Integer, border::Integer, format::GLenum, datatype::GLenum, data)
   maxsize = glGetIntegerv(GL_MAX_TEXTURE_SIZE)
   glTexImage2D(GL_PROXY_TEXTURE_2D, level, internalFormat, w, h, border, format, datatype, C_NULL)
   for l in 0:level
@@ -170,9 +170,9 @@ function glTexImage(level::Integer, internalFormat::GLenum, w::Integer, h::Integ
       error("glTexImage 2D: internal format not valid. format: ", GLENUM(internalFormat).name)
     end
   end
-  glTexImage2D(GL_TEXTURE_2D, level, internalFormat, w, h, border, format, datatype, data)
+  glTexImage2D(ttype, level, internalFormat, w, h, border, format, datatype, data)
 end
-function glTexImage(level::Integer, internalFormat::GLenum, w::Integer, border::Integer, format::GLenum, datatype::GLenum, data)
+function glTexImage(ttype::GLenum, level::Integer, internalFormat::GLenum, w::Integer, border::Integer, format::GLenum, datatype::GLenum, data)
   glTexImage1D(GL_PROXY_TEXTURE_1D, level, internalFormat, w, border, format, datatype, C_NULL)
   for l in 0:level
     result = glGetTexLevelParameteriv(GL_PROXY_TEXTURE_1D, l, GL_TEXTURE_WIDTH)
@@ -184,6 +184,8 @@ function glTexImage(level::Integer, internalFormat::GLenum, w::Integer, border::
       error("glTexImage 1D: internal format not valid. format: ", GLENUM(internalFormat).name)
     end
   end
-  glTexImage1D(GL_TEXTURE_1D, level, internalFormat, w, border, format, datatype, data)
+  glTexImage1D(ttype, level, internalFormat, w, border, format, datatype, data)
 end
-export glTexImage
+
+
+ModernGL.glViewport(x::Rectangle) = glViewport(x.x, x.y, x.w, x.h)

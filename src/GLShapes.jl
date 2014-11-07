@@ -184,4 +184,3 @@ function gencube(x,y,z)
     6, 2, 1]
     return (vertices, uv, indexes)
 end
-export gencircle, genquadstrip, isinside, gencube, genquad, gencubenormals, mergemesh

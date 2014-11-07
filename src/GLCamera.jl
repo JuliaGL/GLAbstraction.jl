@@ -1,12 +1,11 @@
-export OrthographicCamera, PerspectiveCamera, OrthographicPixelCamera
-
-immutable OrthographicCamera{T}
+abstract Camera{T}
+immutable OrthographicCamera{T} <: Camera{T}
 	window_size::Signal{Vector4{Int}}
 	view::Signal{Matrix4x4{T}}
 	projection::Signal{Matrix4x4{T}}
 	projectionview::Signal{Matrix4x4{T}}
 end
-immutable PerspectiveCamera{T}
+immutable PerspectiveCamera{T} <: Camera{T}
 	pivot::Signal{Pivot{T}}
 	window_size::Signal{Vector4{Int}}
 	nearclip::Signal{T}
@@ -20,6 +19,8 @@ immutable PerspectiveCamera{T}
 	lookat::Signal{Vector3{T}}
 	up::Signal{Vector3{T}}
 end
+
+
 
 function mousediff{T}(v0::(Bool, Vector2{T}, Vector2{T}),  clicked::Bool, pos::Vector2{T})
     clicked0, pos0, pos0diff = v0
@@ -123,17 +124,16 @@ function OrthographicCamera{T}(
 									nearclip::Signal{T},
 									farclip::Signal{T}
 								)
-	lift(x -> glViewport(x...), windows_size)
 
 	projection = lift(Matrix4x4{T}, 
 						windows_size, nearclip, farclip) do wh, near, far
 
-		left, bottom, right, top = float32(wh)
+		left, bottom, right, top = (zero(T), zero(T), convert(T, wh[3]), convert(T, wh[4]))
 
 		if (right  != left &&
     	   	bottom != top &&
     		near  != far)
-	  		return orthographicprojection(left, 500f0, bottom, 500f0, near, far)
+	  		return orthographicprojection(left, right, bottom, top, near, far)
 	  	else
 	  		return eye(Matrix4x4{T})
 	  	end
@@ -167,15 +167,14 @@ function OrthographicCamera{T}(
 									normedposition::Signal{Vector2{Float64}}
 								)
 
-	lift(x -> glViewport(x...) , windows_size)
-	projection = lift(wh -> begin
+	projection = lift(Matrix4x4{T}, windows_size) do wh
 	  @assert wh[3] > 0
 	  @assert wh[4] > 0
 	  # change the aspect ratio, to always display an image with the right dimensions
 	  # this behaviour should definitely be changed, as soon as the camera is used for anything else.
 	  wh = wh[3] > wh[4] ? ((wh[3]/wh[4]), 1f0) : (1f0,(wh[4]/wh[3]))
 	  orthographicprojection(0f0, convert(T, wh[1]), 0f0, convert(T, wh[2]), -1f0, 10f0)
-	end, Matrix4x4{T}, windows_size)
+	end
 
 	scale             = lift(x -> scalematrix(Vector3{T}(x, x, one(T))), zoom)
 	transaccum 		  = foldl(+, Vector2(zero(T)), translatevec)
@@ -242,7 +241,7 @@ function PerspectiveCamera{T}(inputs::Dict{Symbol,Any}, eyeposition::Vector3{T},
 	fov 	= Input(41f0)
 
 	cam = PerspectiveCamera(
-					inputs[:window_size],#
+					inputs[:window_size],
 					
 					eyeposition,
 					lookatvec,
@@ -257,7 +256,7 @@ function PerspectiveCamera{T}(inputs::Dict{Symbol,Any}, eyeposition::Vector3{T},
 					
 					Input(41f0),
 					Input(1f0),
-					Input(2000f0)
+					Input(100f0)
 	)
 end
 
@@ -302,7 +301,6 @@ function PerspectiveCamera{T <: Real}(
 					nearclip::Signal{T},
 					farclip::Signal{T}
 	)
-	lift(x-> glViewport(x...), window_size)
 	eyepositionstart 	= Vector3{T}(1,0,0)
 	origin 				= lookatvec
 
@@ -344,7 +342,6 @@ function PerspectiveCamera{T <: Real}(
 	view 			= lift(lookat, Matrix4x4{T}, positionvec, lookatvec1, up)
 
 	window_ratio 	= lift(x -> x[3] / x[4], T, window_size)
-
 	projection 		= lift(perspectiveprojection, Matrix4x4{T}, fov, window_ratio, nearclip, farclip)
 
 	projectionview 	= lift(*, Matrix4x4{T}, projection, view)
