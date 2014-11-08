@@ -234,20 +234,24 @@ function Base.resize!{T, CD, ND}(t::Texture{T,CD, ND}, newdims)
     if newdims != t.dims
         glBindTexture(t.texturetype, t.id)
         glTexImage(t.texturetype, 0, t.internalformat, newdims..., 0, t.format, t.pixeltype, C_NULL)
-        
-        tmp = Array(T, newdims...)
-        if ndims(t.data) == 2
-            if newdims[1] >= t.dims[1] && newdims[2] >= t.dims[2]
-               tmp[1:size(t.data, 1), 1:size(t.data,2)] = t.data
-            elseif newdims[1] >= t.dims[1] && newdims[2] <= t.dims[2]
-               tmp[1:size(t.data, 1), 1:end] = t.data[1:end, 1:newdims[2]]
-            elseif newdims[1] <= t.dims[1] && newdims[2] >= t.dims[2]
-               tmp[1:end, 1:size(t.data,2)] = t.data[1:newdims[1], 1:end]
+        if !isempty(t.data)
+            tmp = Array(T, newdims...)
+            if ndims(t.data) == 2
+                if newdims[1] >= t.dims[1] && newdims[2] >= t.dims[2]
+                   tmp[1:size(t.data, 1), 1:size(t.data,2)] = t.data
+                elseif newdims[1] >= t.dims[1] && newdims[2] <= t.dims[2]
+                    println("sizet: ", size(t.data))
+                    println("sizemp: ", size(tmp))
+                    println("newdims: ", newdims)
+                   tmp[1:size(t.data, 1), 1:end] = t.data[1:end, 1:newdims[2]]
+                elseif newdims[1] <= t.dims[1] && newdims[2] >= t.dims[2]
+                   tmp[1:end, 1:size(t.data,2)] = t.data[1:newdims[1], 1:end]
+                end
+            else
+                tmp[1:size(t.data, 1)] = t.data
             end
-        else
-            tmp[1:size(t.data, 1)] = t.data
+            t.data = tmp
         end
-        t.data = tmp
         t.dims[1:end] = newdims
     end
 end
