@@ -12,6 +12,11 @@ type Rectangle{T <: Real} <: Shape
     w::T
     h::T
 end
+#bounding slab
+immutable AABB{T}
+  min::Vector3{T}
+  max::Vector3{T}
+end
 ############################################################################
 
 immutable GLProgram
@@ -169,14 +174,15 @@ immutable RenderObject
     uniforms::Dict{Symbol, Any}
     alluniforms::Dict{Symbol, Any}
     vertexarray::GLVertexArray
+    vertexarraybb::GLVertexArray
     prerenderfunctions::Dict{Function, Tuple}
     postrenderfunctions::Dict{Function, Tuple}
     id::GLushort
-    #editables::Dict{Symbol, Input}
+    boundingboxshader::GLProgram # workaround for having lazy boundingbox queries, while not using multiple dispatch for boundingbox function (No type hierarchy for RenderObjects)
 
     objectid::GLushort = 0
 
-    function RenderObject(data::Dict{Symbol, Any}, program::GLProgram; editables=Dict{Symbol,Input}())
+    function RenderObject(data::Dict{Symbol, Any}, program::GLProgram, bbf::GLProgram; editables=Dict{Symbol,Input}())
         objectid::GLushort += 1
 
         buffers     = filter((key, value) -> isa(value, GLBuffer), data)
@@ -184,7 +190,8 @@ immutable RenderObject
         uniforms[:objectid] = objectid # automatucally integrate object ID, will be discarded if shader doesn't use it
         
         if length(buffers) > 0
-            vertexArray = GLVertexArray(Dict{Symbol, GLBuffer}(buffers), program)
+            vertexarray = GLVertexArray(Dict{Symbol, GLBuffer}(buffers), program)
+            vertexarraybb = GLVertexArray(Dict{Symbol, GLBuffer}(buffers), bbf)
         else
             vertexarray
         end
@@ -206,7 +213,7 @@ immutable RenderObject
             (name, value)
         end # only use active uniforms && check the type
 
-        new(Dict{Symbol, Any}(optimizeduniforms), uniforms, vertexArray, Dict{Function, Tuple}(), Dict{Function, Tuple}(), objectid)
+        new(Dict{Symbol, Any}(optimizeduniforms), uniforms, vertexarray, vertexarraybb, Dict{Function, Tuple}(), Dict{Function, Tuple}(), objectid, bbf)
     end
 end
 function Base.show(io::IO, obj::RenderObject)
@@ -236,8 +243,8 @@ Base.setindex!(obj::RenderObject, value, ::Field{:prerender}, x::Function) = obj
 Base.setindex!(obj::RenderObject, value, ::Field{:postrender}, x::Function) = obj.postrenderfunctions[x] = value
 
 
-function instancedobject(data, program::GLProgram, amount::Integer, primitive::GLenum=GL_TRIANGLES)
-    obj = RenderObject(data, program)
+function instancedobject(data, amount::Integer, program::GLProgram, bbf::GLProgram, primitive::GLenum=GL_TRIANGLES)
+    obj = RenderObject(data, program, bbf)
     postrender!(obj, renderinstanced, obj.vertexarray, amount, primitive)
     obj
 end

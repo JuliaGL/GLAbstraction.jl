@@ -38,6 +38,7 @@ export opengl_compatible        # infers if a type is opengl compatible and retu
 export cardinality              # returns the cardinality of the elements of a buffer
 export Circle                   # Simple circle object
 export Rectangle                # Simple rectangle object
+export AABB                		# bounding slab
 export Shape                    # Abstract shape type
 export setindex1D!              # Sets the index of an Array{FixedSizeVector, x}, making the FixedSizeVector accessible via an index
 export Style                    # Style Type, which is used to choose different visualization/editing styles via multiple dispatch

@@ -4,20 +4,20 @@ function render(list::AbstractVector)
         render(elem)
     end
 end
-function render(renderobject::RenderObject)
+
+function render(renderobject::RenderObject, vertexarray=renderobject.vertexarray)
     for elem in renderobject.prerenderfunctions
         elem[1](elem[2]...)
     end
-    p = renderobject.vertexarray.program
-    glUseProgram(p.id)
-    for (key,value) in renderobject.uniforms
-        gluniform(p.uniformloc[key]..., value)
+    program = vertexarray.program
+    glUseProgram(program.id)
+    for (key,value) in program.uniformloc renderobject.uniforms
+        gluniform(value..., renderobject.uniforms[key])
     end
     for elem in renderobject.postrenderfunctions
         elem[1](elem[2]...)
     end
 end
-
 
 function render(vao::GLVertexArray, mode::GLenum=GL_TRIANGLES)
     glBindVertexArray(vao.id)
