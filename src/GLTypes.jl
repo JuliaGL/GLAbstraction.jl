@@ -19,12 +19,15 @@ immutable AABB{T}
 end
 ############################################################################
 
-immutable GLProgram
+type GLProgram
     id::GLuint
     vertpath::String
     fragpath::String
     nametype::Dict{Symbol, GLenum}
     uniformloc::Dict{Symbol, Tuple}
+    function GLProgram(id::GLuint, vertpath::String, fragpath::String, nametype::Dict{Symbol, GLenum}, uniformloc::Dict{Symbol, Tuple})
+        obj = new(id, vertpath, fragpath, nametype, uniformloc)
+    end
 end
 
 
@@ -111,7 +114,7 @@ function opengl_compatible(T::DataType)
     elemtype, cardinality
 end
 
-immutable GLBuffer{T <: Real, Cardinality}
+type GLBuffer{T <: Real, Cardinality}
     id::GLuint
     length::Int
     buffertype::GLenum
@@ -128,12 +131,12 @@ immutable GLBuffer{T <: Real, Cardinality}
         glBufferData(buffertype, size, ptr, usage)
         glBindBuffer(buffertype, 0)
 
-        new(id, _length, buffertype, usage)
+        obj = new(id, _length, buffertype, usage)
     end
 end
 include("GLBuffer.jl")
 
-immutable GLVertexArray
+type GLVertexArray
   program::GLProgram
   id::GLuint
   length::Int
@@ -162,7 +165,9 @@ immutable GLVertexArray
       end
     end
     glBindVertexArray(0)
-    new(program, id, _length, indexSize)
+    obj = new(program, id, _length, indexSize)
+    
+    obj
   end
 end
 function GLVertexArray(bufferDict::Dict{ASCIIString, GLBuffer}, program::GLProgram)
@@ -170,7 +175,7 @@ function GLVertexArray(bufferDict::Dict{ASCIIString, GLBuffer}, program::GLProgr
 end
 
 ##################################################################################
-immutable RenderObject
+type RenderObject
     uniforms::Dict{Symbol, Any}
     alluniforms::Dict{Symbol, Any}
     vertexarray::GLVertexArray
@@ -182,7 +187,7 @@ immutable RenderObject
 
     objectid::GLushort = 0
 
-    function RenderObject(data::Dict{Symbol, Any}, program::GLProgram, bbf::GLProgram; editables=Dict{Symbol,Input}())
+    function RenderObject(data::Dict{Symbol, Any}, program::GLProgram, bbf::GLProgram=program)
         objectid::GLushort += 1
 
         buffers     = filter((key, value) -> isa(value, GLBuffer), data)
@@ -207,13 +212,11 @@ immutable RenderObject
             if !is_correct_uniform_type(value, GLENUM(typ))
                 error("Uniform ", name, " not of correct type. Expected: ", GLENUM(typ).name, ". Got: ", typeof(value))
             end
-            if isa(value, Input)
-                editables[name] = value
-            end
             (name, value)
         end # only use active uniforms && check the type
-
-        new(Dict{Symbol, Any}(optimizeduniforms), uniforms, vertexarray, vertexarraybb, Dict{Function, Tuple}(), Dict{Function, Tuple}(), objectid, bbf)
+        obj = new(Dict{Symbol, Any}(optimizeduniforms), uniforms, vertexarray, vertexarraybb, Dict{Function, Tuple}(), Dict{Function, Tuple}(), objectid, bbf)
+        
+        obj
     end
 end
 function Base.show(io::IO, obj::RenderObject)
@@ -282,6 +285,9 @@ function Base.delete!(x::Array)
         delete!(elem)
     end
 end
+function Base.delete!(x::GLProgram)
+    glDeleteProgram(x.id)
+end
 function Base.delete!(x::GLBuffer)
     glDeleteBuffers(1, [x.id])
 end
@@ -294,7 +300,6 @@ end
 function Base.delete!(x::RenderObject)
     delete!(x.uniforms)
     delete!(x.vertexarray)
-    x = 0
 end
 
 

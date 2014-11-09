@@ -62,13 +62,14 @@ type Texture{T <: Union(SupportedEltypes, Real), ColorDIM, NDIM}
 
         if keepinram
             if data == C_NULL
-                return new(id, ttype, pixeltype, internalformat, format, [dims...], Array(T, dims...))
+                obj = new(id, ttype, pixeltype, internalformat, format, [dims...], Array(T, dims...))
             else
-                return new(id, ttype, pixeltype, internalformat, format, [dims...], pointer_to_array(data, tuple(dims...)))
+                obj = new(id, ttype, pixeltype, internalformat, format, [dims...], pointer_to_array(data, tuple(dims...)))
             end
         else
-            return new(id, ttype, pixeltype, internalformat, format, [dims...], Array(T, (dims*0)...))
+            obj = new(id, ttype, pixeltype, internalformat, format, [dims...], Array(T, (dims*0)...))
         end
+        obj
     end
 end
 

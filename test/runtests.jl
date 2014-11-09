@@ -57,7 +57,7 @@ const triangle = RenderObject(
 		:vertex => verts,
 		:name_doesnt_matter_for_indexes => indexes
 	],
-	GLProgram(vsh, fsh, "vertex", "fragment"))
+	GLProgram(vsh, fsh, "vertex", "fragment"), GLProgram(vsh, fsh, "vertex", "fragment"))
 
 postrender!(triangle, render, triangle.vertexarray)
 
