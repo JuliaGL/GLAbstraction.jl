@@ -189,3 +189,13 @@ end
 
 
 ModernGL.glViewport(x::Rectangle) = glViewport(x.x, x.y, x.w, x.h)
+
+
+function ModernGL.glGenRenderbuffers(format::GLenum, attachment::GLenum, dimensions)
+    renderbuffer = GLuint[0]
+    glGenRenderbuffers(1, renderbuffer)
+    glBindRenderbuffer(GL_RENDERBUFFER, renderbuffer[1])
+    glRenderbufferStorage(GL_RENDERBUFFER, format, dimensions...)
+    glFramebufferRenderbuffer(GL_FRAMEBUFFER, attachment, GL_RENDERBUFFER, renderbuffer[1])
+    renderbuffer[1]
+end

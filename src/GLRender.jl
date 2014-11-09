@@ -11,7 +11,7 @@ function render(renderobject::RenderObject, vertexarray=renderobject.vertexarray
     end
     program = vertexarray.program
     glUseProgram(program.id)
-    for (key,value) in program.uniformloc renderobject.uniforms
+    for (key,value) in program.uniformloc
         gluniform(value..., renderobject.uniforms[key])
     end
     for elem in renderobject.postrenderfunctions
