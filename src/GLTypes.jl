@@ -12,7 +12,7 @@ type Rectangle{T <: Real} <: Shape
     w::T
     h::T
 end
-#bounding slab
+#Axis Aligned Bounding Box
 immutable AABB{T}
   min::Vector3{T}
   max::Vector3{T}
@@ -149,13 +149,13 @@ type GLVertexArray
     _length = get(bufferDict, collect(keys(bufferDict))[1], 0).length
     id = glGenVertexArrays()
     glBindVertexArray(id)
-    for elem in bufferDict
-      buffer      = elem[2]
+    for (name, value) in bufferDict
+      buffer      = value
       if buffer.buffertype == GL_ELEMENT_ARRAY_BUFFER
         glBindBuffer(buffer.buffertype, buffer.id)
         indexSize = buffer.length * cardinality(buffer)
       else
-        attribute   = string(elem[1])
+        attribute   = string(name)
         @assert _length == buffer.length
         glBindBuffer(buffer.buffertype, buffer.id)
         attribLocation = get_attribute_location(program.id, attribute)
@@ -175,19 +175,19 @@ function GLVertexArray(bufferDict::Dict{ASCIIString, GLBuffer}, program::GLProgr
 end
 
 ##################################################################################
+
 type RenderObject
     uniforms::Dict{Symbol, Any}
     alluniforms::Dict{Symbol, Any}
     vertexarray::GLVertexArray
-    vertexarraybb::GLVertexArray
     prerenderfunctions::Dict{Function, Tuple}
     postrenderfunctions::Dict{Function, Tuple}
     id::GLushort
-    boundingboxshader::GLProgram # workaround for having lazy boundingbox queries, while not using multiple dispatch for boundingbox function (No type hierarchy for RenderObjects)
+    boundingbox::Function # workaround for having lazy boundingbox queries, while not using multiple dispatch for boundingbox function (No type hierarchy for RenderObjects)
 
     objectid::GLushort = 0
 
-    function RenderObject(data::Dict{Symbol, Any}, program::GLProgram, bbf::GLProgram=program)
+    function RenderObject(data::Dict{Symbol, Any}, program::GLProgram, bbf::Function=(x)->error("boundingbox not implemented"))
         objectid::GLushort += 1
 
         buffers     = filter((key, value) -> isa(value, GLBuffer), data)
@@ -196,9 +196,8 @@ type RenderObject
         
         if length(buffers) > 0
             vertexarray = GLVertexArray(Dict{Symbol, GLBuffer}(buffers), program)
-            vertexarraybb = GLVertexArray(Dict{Symbol, GLBuffer}(buffers), bbf)
         else
-            vertexarray
+            error("no buffers supplied")
         end
         textureTarget::GLint = -1
         uniformtypesandnames = uniform_name_type(program.id) # get active uniforms and types from program
@@ -214,9 +213,7 @@ type RenderObject
             end
             (name, value)
         end # only use active uniforms && check the type
-        obj = new(Dict{Symbol, Any}(optimizeduniforms), uniforms, vertexarray, vertexarraybb, Dict{Function, Tuple}(), Dict{Function, Tuple}(), objectid, bbf)
-        
-        obj
+        new(Dict{Symbol, Any}(optimizeduniforms), uniforms, vertexarray, Dict{Function, Tuple}(), Dict{Function, Tuple}(), objectid, bbf)
     end
 end
 function Base.show(io::IO, obj::RenderObject)
@@ -245,8 +242,7 @@ Base.setindex!(obj::RenderObject, value, symbol::Symbol, x::Function) = setindex
 Base.setindex!(obj::RenderObject, value, ::Field{:prerender}, x::Function) = obj.prerenderfunctions[x] = value
 Base.setindex!(obj::RenderObject, value, ::Field{:postrender}, x::Function) = obj.postrenderfunctions[x] = value
 
-
-function instancedobject(data, amount::Integer, program::GLProgram, bbf::GLProgram, primitive::GLenum=GL_TRIANGLES)
+function instancedobject(data, amount::Integer, program::GLProgram, primitive::GLenum=GL_TRIANGLES, bbf::Function=(x)->error("boundingbox not implemented"))
     obj = RenderObject(data, program, bbf)
     postrender!(obj, renderinstanced, obj.vertexarray, amount, primitive)
     obj
