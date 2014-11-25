@@ -271,8 +271,10 @@ function Base.delete!(x::Any)
 end
 function Base.delete!(x::Dict)
     for (k,v) in x
-        delete!(v)
-        delete!(x, k)
+        if !contains(string(k), "dontdelete")
+            delete!(v)
+            delete!(x, k)
+        end
     end
 end
 function Base.delete!(x::Array)
@@ -311,4 +313,4 @@ visualize(::Style{:MyAwesomeNewStyle}, ...) = do something different
 immutable Style{StyleValue}
 end
 Style(x::Symbol) = Style{x}()
-mergedefault!{S}(style::Style{S}, styles, customdata) = merge!(styles[S], Dict{Symbol, Any}(customdata))
+mergedefault!{S}(style::Style{S}, styles, customdata) = merge!(copy(styles[S]), Dict{Symbol, Any}(customdata))
