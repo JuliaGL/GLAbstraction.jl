@@ -90,10 +90,10 @@ default_colorformat{T <: Real}(colordim::Type{T})          	   = default_colorfo
 default_colorformat{T <: AbstractArray}(colordim::Type{T}) 	   = default_colorformat(length(T), eltype(T) <: Integer, "RGBA")
 default_colorformat{T <: AbstractFixedVector}(colordim::Type{T}) = default_colorformat(length(T), eltype(T) <: Integer, "RGBA")
 function default_colorformat{T <: AbstractAlphaColorValue}(colordim::Type{T})
-    colororder = string(T.parameters[1].name) * "A"
+    colororder = string(T.parameters[1].name.name) * "A"
     return default_colorformat(length(T), eltype(T) <: Integer, colororder)
 end
-default_colorformat{T <: ColorValue}(colordim::Type{T}) = default_colorformat(length(T), eltype(T) <: Integer, string(T.name))
+default_colorformat{T <: ColorValue}(colordim::Type{T}) = default_colorformat(length(T), eltype(T) <: Integer, string(T.name.name))
 
 function default_internalcolorformat(colordim::Int, typ::DataType)
     if colordim > 4 || colordim < 1
