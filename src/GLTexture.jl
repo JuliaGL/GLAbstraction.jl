@@ -64,7 +64,7 @@ type Texture{T <: Union(SupportedEltypes, Real), ColorDIM, NDIM}
             if data == C_NULL
                 obj = new(id, ttype, pixeltype, internalformat, format, [dims...], Array(T, dims...))
             else
-                obj = new(id, ttype, pixeltype, internalformat, format, [dims...], pointer_to_array(data, tuple(dims...)))
+                obj = new(id, ttype, pixeltype, internalformat, format, [dims...], copy(pointer_to_array(data, tuple(dims...))))
             end
         else
             obj = new(id, ttype, pixeltype, internalformat, format, [dims...], Array(T, (dims*0)...))
