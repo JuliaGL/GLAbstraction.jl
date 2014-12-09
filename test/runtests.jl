@@ -20,7 +20,8 @@ init_glutils()
 
 #vertex and fragment shader
 vsh = "
-#version 130
+{{GLSL_VERSION}}
+
 in vec2 vertex;
 
 void main() {
@@ -29,7 +30,7 @@ gl_Position = vec4(vertex, 0.0, 1.0);
 "
 
 fsh = "
-#version 130
+{{GLSL_VERSION}}
 
 out vec4 frag_color;
 
@@ -57,7 +58,7 @@ const triangle = RenderObject(
 		:vertex => verts,
 		:name_doesnt_matter_for_indexes => indexes
 	],
-	GLProgram(vsh, fsh, "vertex", "fragment"), GLProgram(vsh, fsh, "vertex", "fragment"))
+	TemplateProgram(vsh, fsh, "vertex", "fragment"))
 
 postrender!(triangle, render, triangle.vertexarray)
 

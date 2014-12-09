@@ -313,4 +313,5 @@ visualize(::Style{:MyAwesomeNewStyle}, ...) = do something different
 immutable Style{StyleValue}
 end
 Style(x::Symbol) = Style{x}()
+Style() = Style{:Default}()
 mergedefault!{S}(style::Style{S}, styles, customdata) = merge!(copy(styles[S]), Dict{Symbol, Any}(customdata))
