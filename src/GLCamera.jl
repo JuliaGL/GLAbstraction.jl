@@ -168,8 +168,9 @@ function OrthographicCamera{T}(
 								)
 
 	projection = lift(Matrix4x4{T}, windows_size) do wh
-	  @assert wh[3] > 0
-	  @assert wh[4] > 0
+	  if wh[3] < 1 || wh[4] < 1
+	  	return eye(Matrix4x4{T})
+	  end
 	  # change the aspect ratio, to always display an image with the right dimensions
 	  # this behaviour should definitely be changed, as soon as the camera is used for anything else.
 	  wh = wh[3] > wh[4] ? ((wh[3]/wh[4]), 1f0) : (1f0,(wh[4]/wh[3]))
