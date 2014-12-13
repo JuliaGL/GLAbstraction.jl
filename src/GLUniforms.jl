@@ -115,21 +115,10 @@ gluniform(location::Integer, x::AbstractAlphaColorValue{RGB{Float32}, Float32}) 
 gluniform(location::Integer, x::AbstractAlphaColorValue) = gluniform(location, convert(AbstractAlphaColorValue{RGB{Float32}, Float32}, x))
 
 
-
 #Uniform upload functions for julia arrays...
 function gluniform{T <: Union(GLSL_COMPATIBLE_NUMBER_TYPES...)}(location::GLint, x::Vector{T})
     d = length(x)
-    if d == 1
-    	gluniform(location, Vector1(x...))
-    elseif d == 2
-    	gluniform(location, Vector2(x...))
-    elseif d == 3
-    	gluniform(location, Vector3(x...))
-    elseif d == 3
-    	gluniform(location, Vector4(x...))
-    else  
-    	error("unsopported Vector length!")
-    end
+    
 end
 glsl_prefix(x::DataType) = GLSL_PREFIX[x]
 glsl_prefix{T <: FixedPoint}(x::Type{T}) = ""
@@ -252,7 +241,10 @@ function istexturesampler(typ::GLenum)
     return (
         typ == GL_SAMPLER_1D || typ == GL_SAMPLER_2D || typ == GL_SAMPLER_3D ||  
         typ == GL_UNSIGNED_INT_SAMPLER_1D || typ == GL_UNSIGNED_INT_SAMPLER_2D || typ == GL_UNSIGNED_INT_SAMPLER_3D ||
-        typ == GL_INT_SAMPLER_1D || typ == GL_INT_SAMPLER_2D || typ == GL_INT_SAMPLER_3D
+        typ == GL_INT_SAMPLER_1D || typ == GL_INT_SAMPLER_2D || typ == GL_INT_SAMPLER_3D ||
+        typ == GL_SAMPLER_1D_ARRAY || typ == GL_SAMPLER_2D_ARRAY ||
+        typ == GL_UNSIGNED_INT_SAMPLER_1D_ARRAY || typ == GL_UNSIGNED_INT_SAMPLER_2D_ARRAY ||
+        typ == GL_INT_SAMPLER_1D_ARRAY || typ == GL_INT_SAMPLER_2D_ARRAY
     )
 end
 

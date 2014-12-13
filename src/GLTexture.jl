@@ -32,7 +32,7 @@ begin
     end
 end
 
-type Texture{T <: Union(SupportedEltypes, Real), ColorDIM, NDIM}
+type Texture{T <: SupportedEltypes, ColorDIM, NDIM}
     id::GLuint
     texturetype::GLenum
     pixeltype::GLenum
@@ -40,40 +40,87 @@ type Texture{T <: Union(SupportedEltypes, Real), ColorDIM, NDIM}
     format::GLenum
     dims::Vector{Int}
     data::Array{T, NDIM}
+end
+function Texture{T}(data::Ptr{T}, dims, ttype::GLenum, internalformat::GLenum, format::GLenum, parameters::Vector{(GLenum, GLenum)}, keepinram::Bool)
+    @assert all(x -> x > 0, dims)
 
-    function Texture{T}(data::Ptr{T}, dims, ttype::GLenum, internalformat::GLenum, format::GLenum, parameters::Vector{(GLenum, GLenum)}, keepinram::Bool)
-        @assert all(x -> x > 0, dims)
+    id = glGenTextures()
+    glBindTexture(ttype, id)
 
-        id = glGenTextures()
+    glPixelStorei(GL_UNPACK_ALIGNMENT, 1)
+    glPixelStorei(GL_UNPACK_ROW_LENGTH, 0)
+    glPixelStorei(GL_UNPACK_SKIP_PIXELS, 0)
+    glPixelStorei(GL_UNPACK_SKIP_ROWS, 0)
 
-        glBindTexture(ttype, id)
-
-        glPixelStorei(GL_UNPACK_ALIGNMENT, 1)
-        glPixelStorei(GL_UNPACK_ROW_LENGTH, 0)
-        glPixelStorei(GL_UNPACK_SKIP_PIXELS, 0)
-        glPixelStorei(GL_UNPACK_SKIP_ROWS, 0)
-
-        for elem in parameters
-            glTexParameteri(ttype, elem...)
-        end
-
-        pixeltype = glpixelformat(T)
-        glTexImage(ttype, 0, internalformat, dims..., 0, format, pixeltype, data)
-
-        if keepinram
-            if data == C_NULL
-                obj = new(id, ttype, pixeltype, internalformat, format, [dims...], Array(T, dims...))
-            else
-                obj = new(id, ttype, pixeltype, internalformat, format, [dims...], copy(pointer_to_array(data, tuple(dims...))))
-            end
-        else
-            obj = new(id, ttype, pixeltype, internalformat, format, [dims...], Array(T, (dims*0)...))
-        end
-        obj
+    for elem in parameters
+        glTexParameteri(ttype, elem...)
     end
+
+    pixeltype = glpixelformat(T)
+
+    glTexImage(ttype, 0, internalformat, dims..., 0, format, pixeltype, data)
+    NDim            = length(dims)
+    ColorDim        = length(T)
+    if keepinram
+        if data == C_NULL
+            obj = Texture{T, ColorDim, NDim}(id, ttype, pixeltype, internalformat, format, [dims...], Array(T, dims...))
+        else
+            obj = Texture{T, ColorDim, NDim}(id, ttype, pixeltype, internalformat, format, [dims...], copy(pointer_to_array(data, tuple(dims...))))
+        end
+    else
+        obj = Texture{T, ColorDim, NDim}(id, ttype, pixeltype, internalformat, format, [dims...], Array(T, (dims*0)...))
+    end
+    obj
 end
 
+#=
+Main constructor, which shouldn't be used. It will initializes all the missing values and pass it to the inner Texture constructor
+=#
+function Texture{T <: SupportedEltypes}(data::Vector{Array{T,2}}, texture_properties::Vector{(Symbol, Any)})
+    Base.length{ET <: Real}(::Type{ET}) = 1
 
+    NDim            = 3
+    ColorDim        = length(T)
+    defaults        = gendefaults(texture_properties, ColorDim, T, NDim)
+    Texture(data, GL_TEXTURE_2D_ARRAY, defaults[:internalformat], defaults[:format], defaults[:parameters])
+end
+
+function Texture{T <: SupportedEltypes}(data::Vector{Array{T,2}}, ttype::GLenum, internalformat::GLenum, format::GLenum, parameters::Vector{(GLenum, GLenum)})
+    id = glGenTextures()
+    glBindTexture(ttype, id)
+    println(GLENUM(ttype).name)
+    glPixelStorei(GL_UNPACK_ALIGNMENT, 1)
+    glPixelStorei(GL_UNPACK_ROW_LENGTH, 0)
+    glPixelStorei(GL_UNPACK_SKIP_PIXELS, 0)
+    glPixelStorei(GL_UNPACK_SKIP_ROWS, 0)
+
+    for elem in [
+    (GL_TEXTURE_MIN_FILTER, GL_LINEAR),
+    (GL_TEXTURE_MAG_FILTER, GL_LINEAR),
+    (GL_TEXTURE_WRAP_S,  GL_CLAMP_TO_EDGE),
+    (GL_TEXTURE_WRAP_T,  GL_CLAMP_TO_EDGE),
+  ]
+        glTexParameteri(ttype, elem...)
+    end
+
+    pixeltype = glpixelformat(T)
+
+    layers  = length(data)
+    dims    = map(size, data)
+    maxdims = foldl((0,0), dims) do v0, x
+        a = max(v0[1], x[1])
+        b = max(v0[2], x[2])
+        (a,b)
+    end
+    glTexStorage3D(GL_TEXTURE_2D_ARRAY, 1, internalformat, maxdims..., layers)
+    for (layer, texel) in enumerate(data)
+        width, height = size(texel)
+        glTexSubImage3D(GL_TEXTURE_2D_ARRAY, 0, 0, 0, layer-1, width, height, 1, format, pixeltype, texel)
+    end
+    ColorDim        = length(T)
+    Texture{T, ColorDim, 3}(id, ttype, pixeltype, internalformat, format, [maxdims..., layers], Array(T, 0,0,0))
+
+end
 function default_colorformat(colordim::Integer, isinteger::Bool, colororder::String)
     if colordim > 4
         error("no colors with dimension > 4 allowed. Dimension given: ", colordim)
@@ -159,7 +206,7 @@ function Texture{T <: SupportedEltypes}(data::Ptr{T}, dims::AbstractVector, text
     NDim            = length(dims)
     ColorDim        = length(T)
     defaults        = gendefaults(texture_properties, ColorDim, T, NDim)
-    Texture{T, ColorDim, NDim}(data, dims, defaults[:texturetype], defaults[:internalformat], defaults[:format], defaults[:parameters], defaults[:keepinram])
+    Texture(data, dims, defaults[:texturetype], defaults[:internalformat], defaults[:format], defaults[:parameters], defaults[:keepinram])
 end
 
 #=
@@ -180,7 +227,6 @@ Colors from Colors.jl should mostly work as well
 function Texture{T <: SupportedEltypes, NDim}(image::Array{T, NDim}, texture_properties::Vector{(Symbol, Any)})
     Texture(pointer(image), [size(image)...], texture_properties)
 end
-
 #=
 Some special treatmend for types, with alpha in the First place
 =#
@@ -194,7 +240,10 @@ end
 #=
 Creates a texture from an image, which lays on path
 =#
-Texture(path::String, texture_properties::Vector{(Symbol, Any)}) = Texture(imread(path), texture_properties)
+function Texture(path::String, texture_properties::Vector{(Symbol, Any)})
+    #isdefined(:Images) || eval(Expr(:using, :Images))
+    Texture(imread(path), texture_properties)
+end
 #=
 Creates a texture from an Image
 =#

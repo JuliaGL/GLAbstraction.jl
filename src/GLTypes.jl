@@ -208,9 +208,9 @@ type RenderObject
                 error("not sufficient uniforms supplied. Missing: ", name, " type: ", GLENUM(typ).name)
             end
             value = uniforms[name]
-            if !is_correct_uniform_type(value, GLENUM(typ))
-                error("Uniform ", name, " not of correct type. Expected: ", GLENUM(typ).name, ". Got: ", typeof(value))
-            end
+            #if !is_correct_uniform_type(value, GLENUM(typ))
+            #    error("Uniform ", name, " not of correct type. Expected: ", GLENUM(typ).name, ". Got: ", typeof(value))
+            #end
             (name, value)
         end # only use active uniforms && check the type
         new(Dict{Symbol, Any}(optimizeduniforms), uniforms, vertexarray, Dict{Function, Tuple}(), Dict{Function, Tuple}(), objectid, bbf)
