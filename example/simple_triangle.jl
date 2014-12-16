@@ -30,13 +30,13 @@ postrender!(triangle, render, triangle.vertexarray)
 glClearColor(0, 0, 0, 1)
 
 
-while !GLFW.WindowShouldClose(window.glfwWindow)
+while !GLFW.WindowShouldClose(window.nativewindow)
 
   	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
 
 	render(triangle)
   	
-  	GLFW.SwapBuffers(window.glfwWindow)
+  	GLFW.SwapBuffers(window.nativewindow)
   	GLFW.PollEvents()
 end
 GLFW.Terminate()
