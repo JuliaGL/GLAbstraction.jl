@@ -146,7 +146,7 @@ type GLVertexArray
     @assert !isempty(bufferDict)
     #get the size of the first array, to assert later, that all have the same size
     indexSize = -1
-    _length = get(bufferDict, collect(keys(bufferDict))[1], 0).length
+    _length = -1
     id = glGenVertexArrays()
     glBindVertexArray(id)
     for (name, value) in bufferDict
@@ -156,7 +156,12 @@ type GLVertexArray
         indexSize = buffer.length * cardinality(buffer)
       else
         attribute   = string(name)
-        @assert _length == buffer.length
+        if _length == -1 
+            _length = length(buffer)
+        end
+        if _length != length(buffer)
+            error("buffer $attribute has not the same length as the other buffers. Has: $(buffer.length). Should have: $_length")
+        end
         glBindBuffer(buffer.buffertype, buffer.id)
         attribLocation = get_attribute_location(program.id, attribute)
 
@@ -165,9 +170,7 @@ type GLVertexArray
       end
     end
     glBindVertexArray(0)
-    obj = new(program, id, _length, indexSize)
-    
-    obj
+    new(program, id, _length, indexSize)
   end
 end
 function GLVertexArray(bufferDict::Dict{ASCIIString, GLBuffer}, program::GLProgram)

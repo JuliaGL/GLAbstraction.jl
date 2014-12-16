@@ -1,7 +1,7 @@
 cardinality{T, C}(::GLBuffer{T, C}) = C
-
+Base.length(b::GLBuffer) = b.length
 #Function to deal with any Immutable type with Real as Subtype
-function GLBuffer{T <: AbstractArray}(
+function GLBuffer{T <: Union(AbstractArray, AbstractFixedVector)}(
             buffer::Vector{T};
             buffertype::GLenum = GL_ARRAY_BUFFER, usage::GLenum = GL_STATIC_DRAW
         )
@@ -20,7 +20,7 @@ end
 function indexbuffer{T<:Integer}(buffer::Vector{T}; usage::GLenum = GL_STATIC_DRAW)
     GLBuffer(buffer, 1, buffertype = GL_ELEMENT_ARRAY_BUFFER, usage=usage)
 end
-function indexbuffer{T<:AbstractArray}(buffer::Vector{T}; usage::GLenum = GL_STATIC_DRAW)
+function indexbuffer{T<:Union(AbstractArray, AbstractFixedVector)}(buffer::Vector{T}; usage::GLenum = GL_STATIC_DRAW)
     GLBuffer(buffer, buffertype = GL_ELEMENT_ARRAY_BUFFER, usage=usage)
 end
 

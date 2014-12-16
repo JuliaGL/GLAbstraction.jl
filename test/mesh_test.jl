@@ -1,4 +1,4 @@
-using GLWindow, GLAbstraction, GLFW, ModernGL, ImmutableArrays, WavefrontObj, FixedPointNumbers, Images, Color
+using GLWindow, GLAbstraction, GLFW, ModernGL, ImmutableArrays, WavefrontObj, FixedPointNumbers, Images, Color, Reactive
 using GLPlot #toopengl 
 # window creation
 window = createwindow("OBJ-Viewer", 1000, 1000, debugging = false)
@@ -6,6 +6,15 @@ cam = PerspectiveCamera(window.inputs, Vec3(2,2,0.5), Vec3(0.0))
 
 # render objects creation
 shader = TemplateProgram(Pkg.dir("GLPlot", "src", "shader", "standard.vert"), Pkg.dir("GLPlot", "src", "shader", "phongblinn.frag"))
+RGBAU8 = AlphaColorValue{RGB{Ufixed8}, Ufixed8}
+Color.rgba(r::Real, g::Real, b::Real, a::Real)    = AlphaColorValue(RGB{Float32}(r,g,b), float32(a))
+rgbaU8(r::Real, g::Real, b::Real, a::Real)  = AlphaColorValue(RGB{Ufixed8}(r,g,b), ufixed8(a))
+#GLPlot.toopengl{T <: AbstractRGB}(colorinput::Input{T}) = toopengl(lift(x->AlphaColorValue(x, one(T)), RGBA{T}, colorinput))
+tohsva(rgba)     = AlphaColorValue(convert(HSV, rgba.c), rgba.alpha)
+torgba(hsva)     = AlphaColorValue(convert(RGB, hsva.c), hsva.alpha)
+tohsva(h,s,v,a)  = AlphaColorValue(HSV(float32(h), float32(s), float32(v)), float32(a))
+Base.convert{T <: AbstractAlphaColorValue}(typ::Type{T}, x::AbstractAlphaColorValue) = AlphaColorValue(convert(RGB{eltype(typ)}, x.c), convert(eltype(typ), x.alpha))
+    
 
 function unitGeometry{T}(geometry::Vector{Vector3{T}}) 
     assert(!isempty(geometry))
@@ -65,20 +74,6 @@ for mtllib in obj.mtllibs
 end
 
 
-RGBAU8 = AlphaColorValue{RGB{Ufixed8}, Ufixed8}
-Color.rgba(r::Real, g::Real, b::Real, a::Real)    = AlphaColorValue(RGB{Float32}(r,g,b), float32(a))
-rgbaU8(r::Real, g::Real, b::Real, a::Real)  = AlphaColorValue(RGB{Ufixed8}(r,g,b), ufixed8(a))
-
-#GLPlot.toopengl{T <: AbstractRGB}(colorinput::Input{T}) = toopengl(lift(x->AlphaColorValue(x, one(T)), RGBA{T}, colorinput))
-tohsva(rgba)     = AlphaColorValue(convert(HSV, rgba.c), rgba.alpha)
-torgba(hsva)     = AlphaColorValue(convert(RGB, hsva.c), hsva.alpha)
-tohsva(h,s,v,a)  = AlphaColorValue(HSV(float32(h), float32(s), float32(v)), float32(a))
-
-Base.convert{T <: AbstractAlphaColorValue}(typ::Type{T}, x::AbstractAlphaColorValue) = AlphaColorValue(convert(RGB{eltype(typ)}, x.c), convert(eltype(typ), x.alpha))
-    
-
-
-
 
 
 render_objects = RenderObject[]
@@ -93,27 +88,25 @@ const tmaterialused  = GLint[-1,-1,-1,-1]
 for material_name in collect(keys(obj.materials))
 
     (vs, nvs, uvs, fcs) = compileMaterial(obj, material_name)
-    
+
     # hack: invert normals for glabstraction
     nvs = -nvs
 
     # holding global references seems necessary here
     # compiled_materials[material_name] = (vs, nvs, uvs, fcs, lines)
     data = [
-        :vertex         => GLBuffer(vs),
-        :normal         => GLBuffer(nvs),
-        :uv             => GLBuffer(uvs),
-        :indexes        => indexbuffer(fcs),
-        :view           => cam.view,
-        :projection     => cam.projection,
-        :normalmatrix   => cam.normalmatrix,
-        :camera_position => cam.eyeposition,
-        :model          => eye(Mat4),
-        :material       => material,
-        :light          => light,
-        :tmaterialused  => tmaterialused,
-        :textures_used  => false
-
+        :vertex          => GLBuffer(vs),
+        :normal          => GLBuffer(nvs),
+        :uv              => GLBuffer(uvs),
+        :indexes         => indexbuffer(fcs),
+        :view            => cam.view,
+        :projection      => cam.projection,
+        :normalmatrix    => cam.normalmatrix,
+        :eyeposition     => cam.eyeposition,
+        :model           => eye(Mat4),
+        :material        => material,
+        :light           => light,
+        :textures_used   => tmaterialused,
     ]
     
     # search for a material with the given name
@@ -121,17 +114,17 @@ for material_name in collect(keys(obj.materials))
     for mtl in materials
         if mtl.name == material_name
             data[:material]             = Vec3[mtl.diffuse, mtl.ambient, mtl.specular, Vec3(mtl.specular_exponent)]
-
+            println(data[:material])
             if mtl.diffuse_texture != "" 
-                data[:tmaterialused][1] = length(texture_array) # insert texture array index
+                data[:textures_used][1] = length(texture_array) # insert texture array index
                 push!(texture_array, imread(assets_path*"Texture/"*mtl.diffuse_texture).data)
             end
             if mtl.ambient_texture != "" 
-                data[:tmaterialused][2] = length(texture_array) # insert texture array index
+                data[:textures_used][2] = length(texture_array) # insert texture array index
                 push!(texture_array, imread(assets_path*"Texture/"*mtl.ambient_texture).data)
             end
             if mtl.specular_texture != "" 
-                data[:tmaterialused][3] = length(texture_array) # insert texture array index
+                data[:textures_used][3] = length(texture_array) # insert texture array index
                 push!(texture_array, imread(assets_path*"Texture/"*mtl.specular_texture).data)
             end
             #=
@@ -165,6 +158,9 @@ glClearColor(0.2,0.2,0.2,1)
 glDisable(GL_CULL_FACE)
 glEnable(GL_DEPTH_TEST)
 
+lift(window.inputs[:framebuffer_size]) do wh
+    glViewport(0,0,wh...)
+end
 # Loop until the user closes the window
 while !GLFW.WindowShouldClose(window.nativewindow)
 

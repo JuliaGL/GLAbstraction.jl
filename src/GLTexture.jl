@@ -88,7 +88,7 @@ end
 function Texture{T <: SupportedEltypes}(data::Vector{Array{T,2}}, ttype::GLenum, internalformat::GLenum, format::GLenum, parameters::Vector{(GLenum, GLenum)})
     id = glGenTextures()
     glBindTexture(ttype, id)
-    println(GLENUM(ttype).name)
+
     glPixelStorei(GL_UNPACK_ALIGNMENT, 1)
     glPixelStorei(GL_UNPACK_ROW_LENGTH, 0)
     glPixelStorei(GL_UNPACK_SKIP_PIXELS, 0)
