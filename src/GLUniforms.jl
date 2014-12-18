@@ -110,17 +110,18 @@ gluniform(location::Integer, x::Union(GLubyte, GLushort, GLuint)) = glUniform1ui
 gluniform(location::Integer, x::Union(GLbyte, GLshort, GLint, Bool)) = glUniform1i(location, x)
 
 # Needs to be 
-gluniform(location::Integer, x::Vector{RGB{Float32}}) = glUniform3fv(location, length(x), x)
+gluniform(location::Integer, x::Vector{RGB{Float32}}) = glUniform3fv(location, length(x), pointer(x))
 gluniform(location::Integer, x::AbstractRGB{Float32}) = glUniform3fv(location, 1, [x])
-gluniform(location::Integer, x::AbstractAlphaColorValue{RGB{Float32}, Float32}) = glUniform4fv(location, 1, pointer([x]))
+gluniform(location::Integer, x::AbstractAlphaColorValue{RGB{Float32}, Float32}) = glUniform4fv(location, 1, [x])
 gluniform(location::Integer, x::AbstractAlphaColorValue) = gluniform(location, convert(AbstractAlphaColorValue{RGB{Float32}, Float32}, x))
 
 
 #Uniform upload functions for julia arrays...
-function gluniform{T <: Union(GLSL_COMPATIBLE_NUMBER_TYPES...)}(location::GLint, x::Vector{T})
-    d = length(x)
-    
-end
+gluniform(location::GLint, x::Vector{Float32}) 	= glUniform1fv(location, length(x), x)
+gluniform(location::GLint, x::Vector{GLint}) 	= glUniform1iv(location, length(x), x)
+gluniform(location::GLint, x::Vector{GLuint}) 	= glUniform1uiv(location, length(x), x)
+
+
 glsl_prefix(x::DataType) = GLSL_PREFIX[x]
 glsl_prefix{T <: FixedPoint}(x::Type{T}) = ""
 
