@@ -126,19 +126,20 @@ function GLProgram( vertex::ASCIIString, fragment::ASCIIString, vertpath::String
 
     nametypedict = Dict{Symbol, GLenum}(uniform_name_type(p))
     attriblist = attribute_name_type(p)
-
     texturetarget = -1
-    uniformlocationdict = map( elem -> begin
-        name = elem[1]
-        typ = elem[2]
-        loc = get_uniform_location(p, name)
-        if istexturesampler(typ)
-            texturetarget += 1
-            return (name, (loc, texturetarget))
-        else
-            return (name, (loc,))
+    uniformlocationdict = Dict{Symbol,Tuple}()
+    for (name, typ) in nametypedict
+        try
+            loc = get_uniform_location(p, name)
+            if istexturesampler(typ)
+                texturetarget += 1
+                uniformlocationdict[name] = (loc, texturetarget)
+            else
+                uniformlocationdict[name] = (loc,)
+            end
+        catch e
         end
-    end, nametypedict)
+    end
 
     return GLProgram(p, vertpath, fragpath, nametypedict, Dict{Symbol,Tuple}(uniformlocationdict))
 end
