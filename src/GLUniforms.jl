@@ -116,7 +116,6 @@ gluniform(location::Integer, x::AlphaColorValue{RGB{Float32}, Float32})  = glUni
 gluniform{T <: AbstractRGB}(location::Integer, x::Vector{T}) 			 = gluniform(location, reinterpret(Vector3{eltype(T)}, x))
 gluniform{T <: AbstractAlphaColorValue}(location::Integer, x::Vector{T}) = gluniform(location, reinterpret(Vector4{eltype(T)}, x))
 
-
 #Uniform upload functions for julia arrays...
 gluniform(location::GLint, x::Vector{Float32}) 	= glUniform1fv(location, length(x), pointer(x))
 gluniform(location::GLint, x::Vector{GLint}) 	= glUniform1iv(location, length(x), pointer(x))
