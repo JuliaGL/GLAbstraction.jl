@@ -204,19 +204,13 @@ type RenderObject
         end
         textureTarget::GLint = -1
         uniformtypesandnames = uniform_name_type(program.id) # get active uniforms and types from program
-        optimizeduniforms = map(uniformtypesandnames) do elem
-            name = elem[1]
-            typ = elem[2]
-            if !haskey(uniforms, name)
-                error("not sufficient uniforms supplied. Missing: ", name, " type: ", GLENUM(typ).name)
+        optimizeduniforms = Dict{Symbol, Any}()
+        for (uniform_name, typ) in uniformtypesandnames
+            if haskey(uniforms, uniform_name)
+                 optimizeduniforms[uniform_name] = uniforms[uniform_name]
             end
-            value = uniforms[name]
-            #if !is_correct_uniform_type(value, GLENUM(typ))
-            #    error("Uniform ", name, " not of correct type. Expected: ", GLENUM(typ).name, ". Got: ", typeof(value))
-            #end
-            (name, value)
         end # only use active uniforms && check the type
-        new(Dict{Symbol, Any}(optimizeduniforms), uniforms, vertexarray, Dict{Function, Tuple}(), Dict{Function, Tuple}(), objectid, bbf)
+        new(optimizeduniforms, uniforms, vertexarray, Dict{Function, Tuple}(), Dict{Function, Tuple}(), objectid, bbf)
     end
 end
 function Base.show(io::IO, obj::RenderObject)
