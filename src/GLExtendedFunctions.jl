@@ -2,20 +2,23 @@
 This is the place, where I put functions, which are so annoying in OpenGL, that I felt the need to wrap them and make them more "Julian"
 Its also to do some more complex error handling, not handled by the debug callback
 =#
-
-function ModernGL.glGetAttachedShaders(program::GLuint)
-    actualLength  = Array(GLsizei, 1)
-    shaders = Array(GLuint, 2)
-    glGetAttachedShaders(program, 2, actualLength, shaders)
-    if actualLength[1] == 2
-      return shaders
-    else
-      error("glGetAttachedShaders: no shaders attached or other error")
-    end
+function Base.symbol(name::Vector{GLchar}, length_written::Integer)
+  @assert length(name) >= length_written "bytestring is shorter, than string requested. length requested: $length_written, bytebuffer length: $(length(name))"
+  symbol(bytestring(pointer(name), length_written))
 end
 
 
-get_attribute_location(program::GLuint, name::Symbol) = get_attribute_location(program, string(name))
+
+function ModernGL.glGetAttachedShaders(program::GLuint)
+    shader_count   = glGetProgramiv(program, GL_ATTACHED_SHADERS)
+    length_written = GLsizei[0]
+    shaders        = zeros(GLuint, shader_count)
+    glGetAttachedShaders(program, 2, length_written, shaders)
+    shaders[1:length_written[1]]
+end
+
+
+get_attribute_location(program::GLuint, name::Symbol) = get_attribute_location(program, ascii(string(name)))
 function get_attribute_location(program::GLuint, name::ASCIIString)
    const location::GLint = glGetAttribLocation(program, name)
    if location == -1
@@ -29,7 +32,7 @@ function get_attribute_location(program::GLuint, name::ASCIIString)
    location
 end
 
-get_uniform_location(program::GLuint, name::Symbol) = get_uniform_location(program, string(name))
+get_uniform_location(program::GLuint, name::Symbol) = get_uniform_location(program, ascii(string(name)))
 function get_uniform_location(program::GLuint, name::ASCIIString)
    const location::GLint = glGetUniformLocation(program, name)
    if location == -1
@@ -41,6 +44,7 @@ function get_uniform_location(program::GLuint, name::ASCIIString)
    end
    location
 end
+
 
 function ModernGL.glGetActiveUniform(programID::GLuint, index::Integer)
     const actualLength   = GLsizei[1]
@@ -74,9 +78,58 @@ function ModernGL.glGetActiveAttrib(programID::GLuint, index::Integer)
       error("No active uniform at given index. Index: ", index)
     end
 end
+
+function ModernGL.glGetShaderiv(shaderID::GLuint, variable::GLenum)
+  const result = GLint[-1]
+  glGetShaderiv(shaderID, variable, result)
+  result[1]
+end
 function ModernGL.glGetProgramiv(programID::GLuint, variable::GLenum)
     const result = GLint[-1]
     glGetProgramiv(programID, variable, result)
+    result[1]
+end
+function ModernGL.glGetActiveUniformsiv(programID::GLuint, indices::Vector{GLuint}, variable::GLenum)
+    const result = zeros(GLint, length(indices))
+    glGetActiveUniformsiv(programID, length(indices), indices, variable, result)
+    result
+end
+function ModernGL.glGetActiveUniformsiv(programID::GLuint, indices::Integer, variable::GLenum)
+    const result = GLint[-1]
+    glGetActiveUniformsiv(programID, 1, GLuint[indices], variable, result)
+    result[1]
+end
+function ModernGL.glGetActiveUniformName(programID::GLuint, uniformIndex::GLuint, bufsize=255)
+    const name           = zeros(GLchar, bufsize)
+    const length_written = GLsizei[0]
+    glGetActiveUniformName(programID, uniformIndex, bufsize, length_written, name)
+    symbol(name, length_written[1])
+end
+ModernGL.glGetActiveUniformBlockName(programID::GLuint, uniformIndex::Integer, bufsize=255) = 
+  glGetActiveUniformBlockName(programID, convert(GLuint, uniformIndex), bufsize)
+function ModernGL.glGetActiveUniformBlockName(programID::GLuint, uniformIndex::GLuint, bufsize=255)
+    const name           = zeros(GLchar, bufsize)
+    const length_written = GLsizei[0]
+    glGetActiveUniformBlockName(programID, uniformIndex, bufsize, length_written, name)
+    symbol(name, length_written[1])
+end
+
+function ModernGL.glGetActiveUniformBlockiv(programID::GLuint, uniformBlockIndex::Integer, variable::GLenum)
+    const result = GLint[-1]
+    glGetActiveUniformBlockiv(programID, convert(GLuint, uniformBlockIndex), variable, result)
+    result[1]
+end
+function ModernGL.glGetUniformIndices{T <: String}(programID::GLuint, uniformNames::Vector{T})
+    uniformCount = length(uniformNames)
+    const result = zeros(GLuint, uniformCount)
+    glGetUniformIndices(programID, uniformCount, map(bytestring, uniformNames), result)
+    result
+end
+ModernGL.glGetUniformIndices{T <: String}(programID::GLuint, uniformNames::T) = glGetUniformIndices(programID, [uniformNames])[1]
+
+function ModernGL.glGetIntegeri_v(variable::GLenum, index::Integer)
+    const result = GLint[-1]
+    glGetIntegeri_v(variable, convert(GLuint, index), result)
     result[1]
 end
 function ModernGL.glGetIntegerv(variable::GLenum)

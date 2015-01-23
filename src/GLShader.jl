@@ -1,5 +1,13 @@
 
 
+
+
+
+
+
+
+
+
 function getinfolog(obj::GLuint)
     # Return the info log for obj, whether it be a shader or a program.
     isShader    = glIsShader(obj)
@@ -22,10 +30,9 @@ function getinfolog(obj::GLuint)
     end
 end
 
-function validateshader(shader)
-    success::Array{GLint, 1} = [0]
-    glGetShaderiv(shader, GL_COMPILE_STATUS, success)
-    success[1] == GL_TRUE
+function isvalidshader(shader)
+    success = glGetShaderiv(shader, GL_COMPILE_STATUS)
+    return success == GL_TRUE
 end
 
 function readshader(shadercode::ASCIIString, shaderType, path::String)
@@ -38,11 +45,12 @@ function readshader(shadercode::ASCIIString, shaderType, path::String)
     glShaderSource(shaderID, 1, convert(Ptr{Uint8}, pointer([sourcePTR])), 0)
     glCompileShader(shaderID)
     
-    if !validateshader(shaderID)
+    if false
         for (i,line) in enumerate(split(shadercode, "\n"))
             println(i, "  ", line)
         end
         log = getinfolog(shaderID)
+        println(log)
         error(path * "\n" * log)
     end
 

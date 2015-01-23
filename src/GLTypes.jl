@@ -136,13 +136,13 @@ type GLBuffer{T <: Real, Cardinality}
 end
 include("GLBuffer.jl")
 
-type GLVertexArray
-  program::GLProgram
+type GLVertexArray{Attributes, Indexed}
+  program::GLuint
   id::GLuint
   length::Int
   indexlength::Int # is negative if not indexed
 
-  function GLVertexArray(bufferDict::Dict{Symbol, GLBuffer}, program::GLProgram)
+  function GLVertexArray(bufferDict::Dict{Symbol, GLBuffer}, program::GLuint)
     @assert !isempty(bufferDict)
     #get the size of the first array, to assert later, that all have the same size
     indexSize = -1
@@ -163,7 +163,7 @@ type GLVertexArray
             error("buffer $attribute has not the same length as the other buffers. Has: $(buffer.length). Should have: $_length")
         end
         glBindBuffer(buffer.buffertype, buffer.id)
-        attribLocation = get_attribute_location(program.id, attribute)
+        attribLocation = get_attribute_location(program, attribute)
 
         glVertexAttribPointer(attribLocation,  cardinality(buffer), GL_FLOAT, GL_FALSE, 0, 0)
         glEnableVertexAttribArray(attribLocation)
