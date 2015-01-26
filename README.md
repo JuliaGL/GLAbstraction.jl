@@ -1,6 +1,6 @@
 # GLAbstraction
 A simple library, which makes the use of OpenGL a little bit more convinient and Julian.
-
+If you have any questions, please open an issue. I'm working lazily on the documentation, so if no one asks, there won't be any documentation ;)
 
 ### Features
 * Some linear algebrae, to do all kinds of transformations.
