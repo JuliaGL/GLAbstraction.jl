@@ -202,7 +202,6 @@ type RenderObject
         else
             error("no buffers supplied")
         end
-        textureTarget::GLint = -1
         uniformtypesandnames = uniform_name_type(program.id) # get active uniforms and types from program
         optimizeduniforms = Dict{Symbol, Any}()
         for (uniform_name, typ) in uniformtypesandnames

@@ -169,7 +169,7 @@ function watch_file_react(filename)
 end
 
 function TemplateProgram(
-                            vertex_file_path::ASCIIString, fragment_file_path::ASCIIString; 
+                            vertex_file_path::AbstractString, fragment_file_path::AbstractString; 
                             view::Dict{ASCIIString, ASCIIString} = Dict{ASCIIString, ASCIIString}(), 
                             attributes::Dict{Symbol, Any} = Dict{Symbol, Any}(),
                             fragdatalocation=(Int, ASCIIString)[]
@@ -211,7 +211,7 @@ end
 
 
 function TemplateProgram(
-                            vertex_source::ASCIIString, fragment_source::ASCIIString, 
+                            vertex_source::AbstractString, fragment_source::AbstractString, 
                             vertex_name::ASCIIString, fragment_name::ASCIIString;
                             view::Dict{ASCIIString, ASCIIString} = Dict{ASCIIString, ASCIIString}(), 
                             attributes::Dict{Symbol, Any}=Dict{Symbol, Any}(),
