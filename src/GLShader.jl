@@ -1,66 +1,79 @@
-
-
 function getinfolog(obj::GLuint)
     # Return the info log for obj, whether it be a shader or a program.
     isShader    = glIsShader(obj)
     getiv       = isShader == GL_TRUE ? glGetShaderiv : glGetProgramiv
-    getInfo     = isShader == GL_TRUE ? glGetShaderInfoLog : glGetProgramInfoLog
+    get_log     = isShader == GL_TRUE ? glGetShaderInfoLog : glGetProgramInfoLog
      
     # Get the maximum possible length for the descriptive error message
-    int::Array{GLint, 1} = [0]
-    getiv(obj, GL_INFO_LOG_LENGTH, int)
-    maxlength = int[1]
+    maxlength = GLint[0]
+    getiv(obj, GL_INFO_LOG_LENGTH, maxlength)
+    maxlength = first(maxlength)
     # Return the text of the message if there is any
     if maxlength > 0
         buffer = zeros(GLchar, maxlength)
         sizei::Array{GLsizei, 1} = [0]
-        getInfo(obj, maxlength, sizei, buffer)
+        get_log(obj, maxlength, sizei, buffer)
         length = sizei[1]
-        bytestring(pointer(buffer), length)
+        return bytestring(pointer(buffer), length)
     else
-        "success"
+        return "success"
     end
 end
 
-function validateshader(shader)
-    success::Array{GLint, 1} = [0]
+function iscompiled(shader::GLuint)
+    success = GLint[0]
     glGetShaderiv(shader, GL_COMPILE_STATUS, success)
     success[1] == GL_TRUE
 end
 
-function readshader(shadercode::ASCIIString, shaderType, path::String)
 
-    const source = bytestring(shadercode)
-    const sourcePTR::Ptr{GLchar} = convert(Ptr{GLchar}, pointer(source))
+function createshader(shadertype::GLenum)
+    shaderid = glCreateShader(shaderType)
+    @assert shaderid > 0 "opengl context is not active or shader type not accepted. Shadertype: $(GLENUM(shadertype).name)"
+    shaderid::GLuint
+end
+function createprogram()
+    p = glCreateProgram()
+    @assert p > 0 "couldn't create program. Most likely, opengl context is not active"
+    p::GLuint
+end
 
-    shaderID::GLuint = glCreateShader(shaderType)
-    @assert shaderID > 0
-    glShaderSource(shaderID, 1, convert(Ptr{Uint8}, pointer([sourcePTR])), 0)
-    glCompileShader(shaderID)
-    
-    if !validateshader(shaderID)
-        for (i,line) in enumerate(split(shadercode, "\n"))
-            println(i, "  ", line)
+
+
+                    #(shadertype, shadercode) -> shader id
+let shader_cache = Dict{(GLenum, Vector{Uint8}), GLuint}() # shader cache prevents that a shader is compiled more than one time
+    function readshader(shadercode::Vector{Uint8}, shadertype::GLenum, shadername::AbstractString)
+        haskey(shader_cache, (shadertype, shadercode)) && return shader_cache[shadercode]
+        shaderid = createshader(shadertype)
+        glShaderSource(shaderid, shadercode)
+        glCompileShader(shaderid)
+        if !iscompiled(shaderid)
+            print_with_lines(bytestring(shadercode))
+            error("shader $shadername didn't compile. \n$(getinfolog(shaderid)")
         end
-        log = getinfolog(shaderID)
-        error(path * "\n" * log)
+        shader_cache[shadercode] = shaderid
+        return shaderid
     end
+end
 
-    return shaderID
+
+function isupdated(file::File, update_interval=1.0)
+    filename = abspath(file)
+    file_edited = foldl((false, mtime(filename)), every(update_interval)) do v0, v1 
+        time_edited = mtime(filename)
+        (!isapprox(0.0, v0[2] - time_edited), time_edited)
+    end
+    return keepwhen(x->x==true, lift(first, file_edited, Bool)) # extract bool
 end
-function readshader(fileStream::IOStream, shaderType, name)
-    @assert isopen(fileStream)
-    return readShader(readall(fileStream), shaderType, name)
-end
+
 
 function update(vertcode::ASCIIString, fragcode::ASCIIString, vpath::String, fpath::String, program)
     try 
         vertid = readshader(vertcode, GL_VERTEX_SHADER, vpath)
         fragid = readshader(fragcode, GL_FRAGMENT_SHADER, fpath)
         glUseProgram(0)
-        oldid = glGetAttachedShaders(program)
-        glDetachShader(program, oldid[1])
-        glDetachShader(program, oldid[2])
+        shader_ids = glGetAttachedShaders(program)
+        foreach(shader -> glDetachShader(program, shader), shader_ids)
         
         glAttachShader(program, vertid)
         glAttachShader(program, fragid)
@@ -73,108 +86,88 @@ function update(vertcode::ASCIIString, fragcode::ASCIIString, vpath::String, fpa
     end
 end
 
-
-glsl_variable_access{T,D}(keystring, ::Texture{T, 1, D}) = "texture($(keystring), uv).r;"
-glsl_variable_access{T,D}(keystring, ::Texture{T, 2, D}) = "texture($(keystring), uv).rg;"
-glsl_variable_access{T,D}(keystring, ::Texture{T, 3, D}) = "texture($(keystring), uv).rgb;"
-glsl_variable_access{T,D}(keystring, ::Texture{T, 4, D}) = "texture($(keystring), uv).rgba;"
-glsl_variable_access{T,D}(keystring, ::Texture{T, 4, D}) = "texture($(keystring), uv).rgba;"
-
-glsl_variable_access(keystring, ::Union(Real, GLBuffer, AbstractArray, AbstractRGB, AbstractAlphaColorValue)) = keystring*";"
-
-glsl_variable_access(keystring, s::Signal)  = glsl_variable_access(keystring, s.value)
-glsl_variable_access(keystring, t::Any)     = error("no glsl variable calculation available for :",keystring, " of type ", typeof(t))
+shadertype(::File{:vert})           = GL_VERTEX_SHADER
+shadertype(::File{:frag})           = GL_FRAGMENT_SHADER
+shadertype{Ending}(::File{Ending})  = error("File ending doesn't correspond to a shader type. Ending: $(Ending), File: $(abspath(file))")
 
 
-function createview(x::Dict{Symbol, Any}, keys)
-  view = Dict{ASCIIString, ASCIIString}()
-  for (key,value) in x
-    if !isa(value, String)
-        keystring = string(key)
-        typekey = keystring*"_type"
-        calculationkey = keystring*"_calculation"
-        if in(typekey, keys)
-          view[keystring*"_type"] = toglsltype_string(value)
-        end
-        if in(calculationkey, keys)
-            view[keystring*"_calculation"] = glsl_variable_access(keystring, value)
-        end
-    end
-  end
-  view
+
+attachshader(code::AbstractString, shadertype::GLenum, program::GLuint, name::AbstractString) = attachshader(bytestring(ascii(code)), shadertype, prgoram, name)
+function attachshader{Typ}(file::File{Typ}, program::GLuint)  
+    fs = open(file)
+    shaderid = attachshader(readbytes(fs), shadertype(file), abspath(file))
+    close(fs)
+    return shaderid
 end
-mustachekeys(mustache::Mustache.MustacheTokens) = map(x->x[2], filter(x-> x[1] == "name", mustache.tokens))
+function attachshader(code::Vector{Uint8}, shadertype::GLenum, program::GLuint, name)
+    shaderid = readshader(code, shadertype, name)
+    glAttachShader(program, shaderid)
+    shaderid
+end
 
 
-function GLProgram( vertex::ASCIIString, fragment::ASCIIString, vertpath::String, fragpath::String; 
-                    fragdatalocation=(Int, ASCIIString)[])
 
-    vertexShaderID::GLuint   = readshader(vertex, GL_VERTEX_SHADER, vertpath)
-    fragmentShaderID::GLuint = readshader(fragment, GL_FRAGMENT_SHADER, fragpath)
-    p = glCreateProgram()
-
-    @assert p > 0
-    glAttachShader(p, vertexShaderID)
-    glAttachShader(p, fragmentShaderID)
-    for elem in fragdatalocation
-        glBindFragDataLocation(p, elem...)
-    end
-    glLinkProgram(p)
-
-    glDeleteShader(vertexShaderID) # Can be deleted, as they will still be linked to Program and released after program gets released
-    glDeleteShader(fragmentShaderID)
-
-    nametypedict = Dict{Symbol, GLenum}(uniform_name_type(p))
-    attriblist = attribute_name_type(p)
-
-    texturetarget = -1
-    uniformlocationdict = map( elem -> begin
-        name = elem[1]
-        typ = elem[2]
-        loc = get_uniform_location(p, name)
+function gen_uniformlocation(nametypedict::Dict{Symbol, GLenum})
+    texturetarget = -1 # start -1, as texture samplers start at 0
+    return  Dict{Symbol,Tuple}(map(nametypedict) do name_type
+        name, typ = name_type
+        loc = get_uniform_location(program, name)
         if istexturesampler(typ)
             texturetarget += 1
             return (name, (loc, texturetarget))
         else
             return (name, (loc,))
         end
-    end, nametypedict)
-
-    return GLProgram(p, vertpath, fragpath, nametypedict, Dict{Symbol,Tuple}(uniformlocationdict))
+    end)
 end
-function GLProgram(vertex_file_path::ASCIIString, fragment_file_path::ASCIIString)
+
+function GLProgram{S1 <: AbstractString, S2 <: AbstractString, S3 <: AbstractString}(
+                    code::Dict{S1, (GLenum, S2)}, program=createprogram(); 
+                    fragdatalocation=(Int, S3)[])
+    # Remove old shaders
+    glUseProgram(0)
+    shader_ids = glGetAttachedShaders(program)
+    foreach(shader -> glDetachShader(program, shader), shader_ids)
+
+    #attach new ones
+    shaders = map(code) do name_type_code
+        name, type_code     = name_type_code
+        typ, code_signal    = type_code
+        attachshader(typ, value(code_signal), program, name)
+    end
+
+    #Bind frag data
+    for (location, name) in fragdatalocation
+        glBindFragDataLocation(program, location, ascii(name))
+    end
     
-    vertsource  = readall(open(vertex_file_path))
-    fragsource  = readall(open(fragment_file_path))
-    vertname    = basename(vertex_file_path)
-    fragname    = basename(fragment_file_path)
-    GLProgram(vertsource, fragsource, vertex_file_path, fragment_file_path)
+    #link program
+    glLinkProgram(program)
+    foreach(glDeleteShader, shaders) # Can be deleted, as they will still be linked to Program and released after program gets released
+
+    # generate the link locations
+    nametypedict        = uniform_name_type(program)
+    uniformlocationdict = gen_uniformlocation(nametypedict)
+
+    return GLProgram(program, vertpath, fragpath, nametypedict, uniformlocationdict)
 end
 
-# REAALLY ugly way of doing this.. I still don't completely know, why my other approaches haven't worked
-function watch_file_react(filename)
-    f = open(filename)
-    firstcontent = readall(f)
-    close(f)
-    file_edited = lift(x->x[1], Bool, foldl((v0, v1) -> begin 
-        t = mtime(filename)
-        (!isapprox(0.0, v0[2] - t), t)
-    end, (false, mtime(filename)), every(1.0)))
-    return lift(x -> begin
-        f = open(filename)
-        content = readall(f)
-        close(f)
-        content
-    end, keepwhen(file_edited, false, file_edited))
+
+
+function template2source(code::AbstractString, attributes::Dict{Symbol, Any}, view::Dict{ASCIIString, ASCIIString})
+    code_template    = Mustache.parse(code)
+    specialized_view = merge(createview(attributes, mustachekeys(code_template)), view)
+    code_sourece     = replace(replace(Mustache.render(code_template, specialized_view), "&#x2F;", "/"), "&gt;", ">")
 end
 
-function TemplateProgram(
-                            vertex_file_path::AbstractString, fragment_file_path::AbstractString; 
+
+
+function TemplateProgram{S1 <: AbstractString, S2 <: AbstractString}(
+                            code::Dict{S1, (GLenum, Input{S2})}; 
                             view::Dict{ASCIIString, ASCIIString} = Dict{ASCIIString, ASCIIString}(), 
                             attributes::Dict{Symbol, Any} = Dict{Symbol, Any}(),
                             fragdatalocation=(Int, ASCIIString)[]
                         )
-
     if haskey(view, "in") || haskey(view, "out") || haskey(view, "GLSL_VERSION")
         println("warning: using internal keyword \"$(in/out/GLSL_VERSION)\" for shader template. The value will be overwritten")
     end
@@ -185,69 +178,53 @@ function TemplateProgram(
         extension *= "\n" * view["GLSL_EXTENSIONS"]
     end
     internaldata = @compat Dict(
-        "out"             => get_glsl_out_qualifier_string(),
-        "in"              => get_glsl_in_qualifier_string(),
-        "GLSL_VERSION"    => get_glsl_version_string(),
-        
+        "out"             => glsl_out_qualifier_string(),
+        "in"              => glsl_in_qualifier_string(),
+        "GLSL_VERSION"    => glsl_version_string(),
         "GLSL_EXTENSIONS" => extension
     )
-    view    = merge(internaldata, view)
-    sources = lift( (vertex_file_path, fragment_file_path) -> begin
-        vertex_tm       = Mustache.parse(vertex_file_path)
-        fragment_tm     = Mustache.parse(fragment_file_path)
-
-        vertex_view     = merge(createview(attributes, mustachekeys(vertex_tm)), view)
-        fragment_view   = merge(createview(attributes, mustachekeys(fragment_tm)), view)
-        vertsource      = replace(replace(Mustache.render(vertex_tm, vertex_view), "&#x2F;", "/"), "&gt;", ">")
-        fragsource      = replace(replace(Mustache.render(fragment_tm, fragment_view), "&#x2F;", "/"), "&gt;", ">")
-        (vertsource, fragsource)
-    end, watch_file_react(vertex_file_path), watch_file_react(fragment_file_path))
-
-    #just using one view for vert and frag shader plus workaround for mustache bug
-    p = GLProgram(sources.value[1], sources.value[2], vertex_file_path, fragment_file_path, fragdatalocation=fragdatalocation)
-    lift( x-> update(x[1], x[2], vertex_file_path, fragment_file_path, p.id), sources)
-    p
+    view = merge(internaldata, view)
+    TemplateProgram(code, view, attributes=attributes, fragdatalocation=fragdatalocation)
 end
 
-
-function TemplateProgram(
-                            vertex_source::AbstractString, fragment_source::AbstractString, 
-                            vertex_name::ASCIIString, fragment_name::ASCIIString;
-                            view::Dict{ASCIIString, ASCIIString} = Dict{ASCIIString, ASCIIString}(), 
-                            attributes::Dict{Symbol, Any}=Dict{Symbol, Any}(),
+function TemplateProgram{S1 <: AbstractString, S2 <: AbstractString}(
+                            code::Dict{S1, (GLenum, S2)}, view::Dict{ASCIIString, ASCIIString}; 
+                            attributes::Dict{Symbol, Any} = Dict{Symbol, Any}(),
                             fragdatalocation=(Int, ASCIIString)[]
                         )
-
-    if haskey(view, "in") || haskey(view, "out") || haskey(view, "GLSL_VERSION")
-        println("warning: using internal keyword \"$(in/out/GLSL_VERSION)\" for shader template. The value will be overwritten")
-    end
-    extension = "" #Still empty, but might be replaced by a platform dependant extension string
-    if haskey(view, "GLSL_EXTENSIONS")
-        #to do: check if extension is available...
-        #for now we just append the extensions
-        extension *= "\n" * view["GLSL_EXTENSIONS"]
-    end
-    internaldata = @compat Dict(
-        "out"             => get_glsl_out_qualifier_string(),
-        "in"              => get_glsl_in_qualifier_string(),
-        "GLSL_VERSION"    => get_glsl_version_string(),
-        
-        "GLSL_EXTENSIONS" => extension
-    )
-    view    = merge(internaldata, view)
-    sources = lift( (vertex_file_path, fragment_file_path) -> begin
-        vertex_tm       = Mustache.parse(vertex_file_path)
-        fragment_tm     = Mustache.parse(fragment_file_path)
-
-        vertex_view     = merge(createview(attributes, mustachekeys(vertex_tm)), view)
-        fragment_view   = merge(createview(attributes, mustachekeys(fragment_tm)), view)
-        vertsource      = replace(Mustache.render(vertex_tm, vertex_view), "&#x2F;", "/")
-        fragsource      = replace(Mustache.render(fragment_tm, fragment_view), "&#x2F;", "/")
-        (vertsource, fragsource)
-    end, Input(vertex_source), Input(fragment_source))
-
-    #just using one view for vert and frag shader plus workaround for mustache bug
-    p = GLProgram(sources.value[1], sources.value[2], vertex_name, fragment_name, fragdatalocation=fragdatalocation)
-    lift( x-> update(x[1], x[2], vertex_name, fragment_name, p.id), sources)
-    p
+    # transform dict of templates into actual shader source
+    code = [begin
+        typ, code_template  = type_code
+        name => (typ, template2source(code_template, attributes, view)) 
+    end for (name, type_code) in code]
+    return GLProgram(code, fragdatalocation=fragdatalocation)
 end
+
+
+# Gets used to access a 
+glsl_variable_access{T,D}(keystring, ::Texture{T, 1, D}) = "texture($(keystring), uv).r;"
+glsl_variable_access{T,D}(keystring, ::Texture{T, 2, D}) = "texture($(keystring), uv).rg;"
+glsl_variable_access{T,D}(keystring, ::Texture{T, 3, D}) = "texture($(keystring), uv).rgb;"
+glsl_variable_access{T,D}(keystring, ::Texture{T, 4, D}) = "texture($(keystring), uv).rgba;"
+
+glsl_variable_access(keystring, ::Union(Real, GLBuffer, AbstractArray, AbstractRGB, AbstractAlphaColorValue)) = keystring*";"
+
+glsl_variable_access(keystring, s::Signal)  = glsl_variable_access(keystring, s.value)
+glsl_variable_access(keystring, t::Any)     = error("no glsl variable calculation available for :", keystring, " of type ", typeof(t))
+
+
+function createview(x::Dict{Symbol, Any}, keys)
+  view = Dict{ASCIIString, ASCIIString}()
+  for (key, value) in x
+    if !isa(value, String)
+        keystring = string(key)
+        typekey = keystring*"_type"
+        calculationkey = keystring*"_calculation"
+
+        in(typekey, keys) && (view[keystring*"_type"] = toglsltype_string(value))
+        in(calculationkey, keys) && (view[keystring*"_calculation"] = glsl_variable_access(keystring, value))
+    end
+  end
+  view
+end
+mustachekeys(mustache::Mustache.MustacheTokens) = map(x->x[2], filter(x-> x[1] == "name", mustache.tokens))

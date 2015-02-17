@@ -21,13 +21,16 @@ end
 
 type GLProgram
     id::GLuint
-    vertpath::String
-    fragpath::String
     nametype::Dict{Symbol, GLenum}
     uniformloc::Dict{Symbol, Tuple}
-    function GLProgram(id::GLuint, vertpath::String, fragpath::String, nametype::Dict{Symbol, GLenum}, uniformloc::Dict{Symbol, Tuple})
+    function GLProgram(id::GLuint, nametype::Dict{Symbol, GLenum}, uniformloc::Dict{Symbol, Tuple})
         obj = new(id, vertpath, fragpath, nametype, uniformloc)
+        finalizer(obj, delete!)
+        obj
     end
+end
+function Base.delete!(x::GLProgram)
+    glDeleteProgram(x.id)
 end
 
 
@@ -70,7 +73,6 @@ function resize!(fbo::FrameBuffer, newsize::AbstractArray)
     for elem in fbo.attachments
         resize!(elem)
     end
-
 end
 
 ########################################################################################
@@ -87,53 +89,32 @@ end
 include("GLTexture.jl")
 ########################################################################
 
-opengl_compatible{C <: AbstractAlphaColorValue}(T::Type{C}) = eltype(T), 4
-opengl_compatible{C <: RGB4}(T::Type{C})                    = eltype(T), 4
 
-opengl_compatible{C <: ColorValue}(T::Type{C})              = eltype(T), 3
-opengl_compatible{C <: AbstractGray}(T::Type{C})            = eltype(T), 1
-
-function opengl_compatible(T::DataType)
-    if T <: Number
-        return T, 1
-    end
-    if !isbits(T)
-        error("only pointer free, immutable types are supported for upload to OpenGL. Found type: $(T)")
-    end
-    elemtype = T.types[1]
-    if !(elemtype <: Real)
-        error("only real numbers are allowed as element types for upload to OpenGL. Found type: $(T) with $(ptrtype)")
-    end
-    if !all(x -> x == elemtype , T.types)
-        error("all values in $(T) need to have the same type to create a GLBuffer")
-    end
-    cardinality = length(names(T))
-    if cardinality > 4
-        error("there should be at most 4 values in $(T) to create a GLBuffer")
-    end
-    elemtype, cardinality
-end
-
-type GLBuffer{T <: Real, Cardinality}
+type GLBuffer{T, Cardinality, NoRam} <: DenseArray{T, 1}
+    
     id::GLuint
     length::Int
     buffertype::GLenum
     usage::GLenum
+    data::Vector{T}
 
-    function GLBuffer(ptr::Ptr{T}, size::Int, buffertype::GLenum, usage::GLenum)
-        @assert size % sizeof(T) == 0
-        _length = div(size, sizeof(T))
+    function GLBuffer(ptr::Ptr{T}, bufflength::Int, buffertype::GLenum, usage::GLenum)
+        @assert bufflength % sizeof(T) == 0
+        _length = div(bufflength, sizeof(T))
         @assert _length % Cardinality == 0
         _length = div(_length, Cardinality)
 
         id = glGenBuffers()
         glBindBuffer(buffertype, id)
-        glBufferData(buffertype, size, ptr, usage)
+        glBufferData(buffertype, bufflength, ptr, usage)
         glBindBuffer(buffertype, 0)
-
-        obj = new(id, _length, buffertype, usage)
+        ram = init_ram(ptr, (bufflength,), NoRam)
+        obj = new(id, _length, buffertype, usage, ram)
+        finalizer(obj, delete!)
+        obj
     end
 end
+
 include("GLBuffer.jl")
 
 type GLVertexArray
@@ -170,12 +151,17 @@ type GLVertexArray
       end
     end
     glBindVertexArray(0)
-    new(program, id, _length, indexSize)
+    obj = new(program, id, _length, indexSize)
+    finalizer(obj, delete!)
+    obj
   end
 end
-function GLVertexArray(bufferDict::Dict{ASCIIString, GLBuffer}, program::GLProgram)
-    GLVertexArray(Dict{Symbol, GLBuffer}(map(elem -> (symbol(elem[1]), elem[2]), bufferDict)), program)
+GLVertexArray(bufferDict::Dict{ASCIIString, GLBuffer}, program::GLProgram) = GLVertexArray(mapkeys(symbol, bufferdict), program)
+
+function Base.delete!(x::GLVertexArray)
+    glDeleteVertexArrays(1, [x.id])
 end
+
 
 ##################################################################################
 
@@ -209,92 +195,11 @@ type RenderObject
                  optimizeduniforms[uniform_name] = uniforms[uniform_name]
             end
         end # only use active uniforms && check the type
-        new(optimizeduniforms, uniforms, vertexarray, Dict{Function, Tuple}(), Dict{Function, Tuple}(), objectid, bbf)
+        return new(optimizeduniforms, uniforms, vertexarray, Dict{Function, Tuple}(), Dict{Function, Tuple}(), objectid, bbf)
     end
 end
-function Base.show(io::IO, obj::RenderObject)
-    println(io, "RenderObject with ID: ", obj.id)
 
-    println(io, "uniforms: ")
-    for (name, uniform) in obj.uniforms
-        println(io, "   ", name, "\n      ", uniform)
-    end
-    println(io, "vertexarray length: ", obj.vertexarray.length)
-    println(io, "vertexarray indexlength: ", obj.vertexarray.indexlength)
-end
-RenderObject{T}(data::Dict{Symbol, T}, program::GLProgram) = RenderObject(Dict{Symbol, Any}(data), program)
 
-immutable Field{Symbol}
-end
-
-Base.getindex(obj::RenderObject, symbol::Symbol) = obj.uniforms[symbol]
-Base.setindex!(obj::RenderObject, value, symbol::Symbol) = obj.uniforms[symbol] = value
-
-Base.getindex(obj::RenderObject, symbol::Symbol, x::Function) = getindex(obj, Field{symbol}(), x)
-Base.getindex(obj::RenderObject, ::Field{:prerender}, x::Function) = obj.prerenderfunctions[x]
-Base.getindex(obj::RenderObject, ::Field{:postrender}, x::Function) = obj.postrenderfunctions[x]
-
-Base.setindex!(obj::RenderObject, value, symbol::Symbol, x::Function) = setindex!(obj, value, Field{symbol}(), x)
-Base.setindex!(obj::RenderObject, value, ::Field{:prerender}, x::Function) = obj.prerenderfunctions[x] = value
-Base.setindex!(obj::RenderObject, value, ::Field{:postrender}, x::Function) = obj.postrenderfunctions[x] = value
-
-function instancedobject(data, amount::Integer, program::GLProgram, primitive::GLenum=GL_TRIANGLES, bbf::Function=(x)->error("boundingbox not implemented"))
-    obj = RenderObject(data, program, bbf)
-    postrender!(obj, renderinstanced, obj.vertexarray, amount, primitive)
-    obj
-end
-
-function pushfunction!(target::Dict{Function, Tuple}, fs...)
-    func = fs[1]
-    args = Any[]
-    for i=2:length(fs)
-        elem = fs[i]
-        if isa(elem, Function)
-            target[func] = tuple(args...)
-            func = elem
-            args = Any[]
-        else
-            push!(args, elem)
-        end
-    end
-    target[func] = tuple(args...)
-end
-prerender!(x::RenderObject, fs...)   = pushfunction!(x.prerenderfunctions, fs...)
-postrender!(x::RenderObject, fs...)  = pushfunction!(x.postrenderfunctions, fs...)
-
-function Base.delete!(x::Any)
-    x = 0
-end
-function Base.delete!(x::Dict)
-    for (k,v) in x
-        if !contains(string(k), "dontdelete")
-            delete!(v)
-            delete!(x, k)
-        end
-    end
-end
-function Base.delete!(x::Array)
-    while !isempty(x)
-        elem = pop!(x)
-        delete!(elem)
-    end
-end
-function Base.delete!(x::GLProgram)
-    glDeleteProgram(x.id)
-end
-function Base.delete!(x::GLBuffer)
-    glDeleteBuffers(1, [x.id])
-end
-function Base.delete!(x::Texture)
-    glDeleteTextures(1, [x.id])
-end
-function Base.delete!(x::GLVertexArray)
-    glDeleteVertexArrays(1, [x.id])
-end
-function Base.delete!(x::RenderObject)
-    delete!(x.uniforms)
-    delete!(x.vertexarray)
-end
 
 
 

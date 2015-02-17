@@ -3,15 +3,19 @@ This is the place, where I put functions, which are so annoying in OpenGL, that 
 Its also to do some more complex error handling, not handled by the debug callback
 =#
 
+
+
+function ModernGL.glShaderSource(shaderID::GLuint, shadercode::Vector{Uint8})
+    shader_code_ptrs = Ptr{Uint8}[pointer(shadercode)]
+    glShaderSource(shaderID, 1, shader_code_ptrs, [length(shadercode)])
+end
 function ModernGL.glGetAttachedShaders(program::GLuint)
-    actualLength  = Array(GLsizei, 1)
-    shaders = Array(GLuint, 2)
-    glGetAttachedShaders(program, 2, actualLength, shaders)
-    if actualLength[1] == 2
-      return shaders
-    else
-      error("glGetAttachedShaders: no shaders attached or other error")
-    end
+    shader_count   = glGetProgramiv(program, GL_ATTACHED_SHADERS)
+    length_written = GLsizei[0]
+    shaders        = zeros(GLuint, shader_count)
+
+    glGetAttachedShaders(program, shader_count, length_written, shaders)
+    shaders[1:first(length_written)]
 end
 
 
@@ -84,6 +88,8 @@ function ModernGL.glGetIntegerv(variable::GLenum)
     glGetIntegerv(uint32(variable), result)
     result[1]
 end
+
+
 
 function ModernGL.glGenBuffers()
     const result = GLuint[0]

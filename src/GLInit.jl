@@ -1,7 +1,6 @@
 const INIT_FUNCTION_LIST = Function[]
 
 
-
 function init_after_context_creation(f::Function)
 	push!(INIT_FUNCTION_LIST, f)
 end
@@ -14,9 +13,9 @@ function init_glutils()
 end
 
 
-global const OPENGL_CONTEXT = Dict{Symbol, Any}()
-global GLSL_VERSION = ""
-global GLSL_VARYING_QUALIFIER = ""
+global const OPENGL_CONTEXT 	= Dict{Symbol, Any}()
+global GLSL_VERSION 			= ""
+global GLSL_VARYING_QUALIFIER 	= ""
 
 function createcontextinfo(dict)
 	global GLSL_VERSION, GLSL_VARYING_QUALIFIER
@@ -55,13 +54,13 @@ function createcontextinfo(dict)
 	test = [glGetStringi(GL_EXTENSIONS, i) for i = 0:(n[1]-1)]
 
 end
-function get_glsl_version_string()
-	if isempty(GLSL_VERSION)
-		error("couldn't get GLSL version, GLUTils not initialized, or context not created?")
-	end
+function glsl_version_string()
+	isempty(GLSL_VERSION) && error("couldn't get GLSL version, GLUTils not initialized, or context not created?")
+		
 	return "#version $(GLSL_VERSION)\n"
 end
 
-get_glsl_out_qualifier_string() = GLSL_VARYING_QUALIFIER == "in" ? "out" : GLSL_VARYING_QUALIFIER
-get_glsl_in_qualifier_string() = GLSL_VARYING_QUALIFIER
+glsl_out_qualifier_string() = GLSL_VARYING_QUALIFIER == "in" ? "out" : GLSL_VARYING_QUALIFIER
+glsl_in_qualifier_string() 	= GLSL_VARYING_QUALIFIER
+
 maxtexturesize() = OPENGL_CONTEXT[:maxtexturesize]

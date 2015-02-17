@@ -10,6 +10,9 @@ Base.start(b::GLBuffer)                 = 1
 Base.next (b::GLBuffer, state::Integer) = (A[state], state+1)
 Base.done (b::GLBuffer, state::Integer) = length(A) < state
 
+function Base.delete!(x::GLBuffer)
+    glDeleteBuffers(1, [x.id])
+end
 
 
 opengl_compatible{C <: AbstractAlphaColorValue}(T::Type{C}) = eltype(T), 4
@@ -32,19 +35,38 @@ end
 #Function to deal with any Immutable type with Real as Subtype
 function GLBuffer{T <: AbstractFixedVector}(
             buffer::Vector{T};
-            buffertype::GLenum = GL_ARRAY_BUFFER, usage::GLenum = GL_STATIC_DRAW
+            buffertype::GLenum = GL_ARRAY_BUFFER, usage::GLenum = GL_STATIC_DRAW, noram=true
         )
     #This is a workaround, to deal with all kinds of immutable vector types
     elemtype, cardinality = opengl_compatible(T)
     ptr = convert(Ptr{elemtype}, pointer(buffer))
-    GLBuffer{elemtype, cardinality}(ptr, sizeof(buffer), buffertype, usage)
+    GLBuffer{elemtype, cardinality, noram}(ptr, sizeof(buffer), buffertype, usage)
 end
 
 function GLBuffer{T <: Real}(
             buffer::Vector{T}, cardinality::Int;
-            buffertype::GLenum = GL_ARRAY_BUFFER, usage::GLenum = GL_STATIC_DRAW
+            buffertype::GLenum = GL_ARRAY_BUFFER, usage::GLenum = GL_STATIC_DRAW, noram=true
         )
-    GLBuffer{T, cardinality}(convert(Ptr{T}, pointer(buffer)), sizeof(buffer), buffertype, usage)
+    GLBuffer{T, cardinality, noram}(convert(Ptr{T}, pointer(buffer)), sizeof(buffer), buffertype, usage)
+end
+
+#Array interface
+function gpu_data{T, C, ND}(b::GLBuffer{T, C})
+    data = Array(T, size(b)...)
+    glBindBuffer(b.buffertype, b.id)
+    glGetBufferSubData(b.buffertype, 0, sizeof(b), data)
+    data
+end
+
+# Resize buffer
+function gpu_resize!{T,C, I <: Integer}(b::GLBuffer{T,C}, newdims::NTuple{1, I})
+    glBindBuffer(b.buffertype, b.id)
+    oldata = data(b)
+    len = first(newdims)
+    resize!(oldata, len)
+    glBufferData(b.buffertype, len, oldata, b.usage)
+    b.length = len
+    nothing
 end
 
 function indexbuffer{T<:Integer}(buffer::Vector{T}; usage::GLenum = GL_STATIC_DRAW)

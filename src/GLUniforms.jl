@@ -224,10 +224,10 @@ end
 function uniform_name_type(program::GLuint)
     uniformLength   = glGetProgramiv(program, GL_ACTIVE_UNIFORMS)
     if uniformLength == 0
-        return ()
+        return Dict{Symbol, GLenum}()    
     else
         nametypelist = ntuple(uniformLength, i -> glGetActiveUniform(program, i-1)[1:2]) # take size and name
-        return nametypelist
+        return Dict{Symbol, GLenum}(nametypelist)
     end
 end
 function attribute_name_type(program::GLuint)
@@ -235,8 +235,8 @@ function attribute_name_type(program::GLuint)
     if uniformLength == 0
         return ()
     else
-        nametypelist = ntuple(uniformLength, i -> glGetActiveAttrib(program, i-1)[1:2]) # take size and name
-        return nametypelist
+        nametypelist = [(name, typ = glGetActiveAttrib(program, i-1); name => typ) for i=0:uniformLength-1] # take size and name
+        return Dict{Symbol, GLenum}(nametypelist)
     end
 end
 function istexturesampler(typ::GLenum)
