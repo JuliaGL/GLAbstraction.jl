@@ -42,7 +42,7 @@ macro genuniformfunctions(maxdim::Integer)
 			push!(expressions, :(gluniform(location::GLint, x::$typ) = $uniformfunc(location, x)))
 		end
 		push!(expressions, :(typealias $glslalias $imalias)) # glsl alike type alias
-		push!(expressions, :(gluniform(location::Integer, x::$imalias) = $uniformfunc(location, 1, pointer([x])))) # uniform function for single uniforms
+		push!(expressions, :(gluniform(location::Integer, x::$imalias) = (tmp = [x;] ; $uniformfunc(location, 1, pointer(tmp))))) # uniform function for single uniforms
 		push!(expressions, :(gluniform(location::Integer, x::Vector{$imalias}) = $uniformfunc(location, length(x), pointer(x)))) #uniform function for arrays of uniforms
 		if n > 1
 			push!(expressions, :($glslalias(x::Real) = $name(convert($typ, x)))) # Single valued constructor
@@ -64,7 +64,7 @@ macro genuniformfunctions(maxdim::Integer)
 		uniformfunc = symbol(string("glUniformMatrix", glsldim, GL_POSTFIX[typ]))
 
 		push!(expressions, :(typealias $glslalias $imalias)) #GLSL alike alias
-		push!(expressions, :(gluniform(location::Integer, x::$imalias) = $uniformfunc(location, 1, GL_FALSE, pointer([x])))) # uniform function for single uniforms
+		push!(expressions, :(gluniform(location::Integer, x::$imalias) = (tmp = [x;] ; $uniformfunc(location, 1, GL_FALSE, pointer(tmp))))) # uniform function for single uniforms
 		push!(expressions, :(gluniform(location::Integer, x::Vector{$imalias}) = $uniformfunc(location, length(x), GL_FALSE, pointer(x)))) #uniform function for arrays of uniforms
 		push!(expressions, :($glslalias(x::Real) = $name(convert($typ, x)))) # Single valued constructor
 		push!(expressions, Expr(:export, glslalias))
@@ -106,12 +106,12 @@ function gluniform(location::GLint, target::GLint, t::Texture)
 end
 gluniform(location::Integer, x::Signal) = gluniform(location, x.value)
 
-gluniform(location::Integer, x::Union(GLubyte, GLushort, GLuint)) = glUniform1ui(location, x)
-gluniform(location::Integer, x::Union(GLbyte, GLshort, GLint, Bool)) = glUniform1i(location, x)
+gluniform(location::Integer, x::Union(GLubyte, GLushort, GLuint)) 		 = glUniform1ui(location, x)
+gluniform(location::Integer, x::Union(GLbyte, GLshort, GLint, Bool)) 	 = glUniform1i(location, x)
 
 # Needs to be 
-gluniform(location::Integer, x::RGB{Float32}) 		     				 = glUniform3fv(location, 1, convert(Ptr{Float32}, pointer([x])))
-gluniform(location::Integer, x::AlphaColorValue{RGB{Float32}, Float32})  = glUniform4fv(location, 1, convert(Ptr{Float32}, pointer([x])))
+gluniform(location::Integer, x::RGB{Float32}) 		     				 = (tmp = [x;] ; glUniform3fv(location, 1, convert(Ptr{Float32}, pointer(tmp))))
+gluniform(location::Integer, x::AlphaColorValue{RGB{Float32}, Float32})  = (tmp = [x;] ; glUniform4fv(location, 1, convert(Ptr{Float32}, pointer(tmp))))
 
 gluniform{T <: AbstractRGB}(location::Integer, x::Vector{T}) 			 = gluniform(location, reinterpret(Vector3{eltype(T)}, x))
 gluniform{T <: AbstractAlphaColorValue}(location::Integer, x::Vector{T}) = gluniform(location, reinterpret(Vector4{eltype(T)}, x))

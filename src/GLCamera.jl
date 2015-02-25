@@ -304,9 +304,9 @@ function PerspectiveCamera{T <: Real}(
 	)
 	eyepositionstart 	= Vector3{T}(1,0,0)
 	origin 				= lookatvec
-
+	vup 				= Vector3{T}(0,1,0)
 	xaxis 				= eyeposition - origin
-	yaxis 				= cross(xaxis, Vector3{T}(0,0,1))
+	yaxis 				= cross(xaxis, vup)
 	zaxis 				= cross(yaxis, xaxis)
 
 	translate 			= Vector3{T}(0,0,0)
@@ -324,7 +324,7 @@ function PerspectiveCamera{T <: Real}(
 
 		xrot = qrotation(xaxis, xt)
 		yrot = qrotation(yaxis, yt)
-		zrot = qrotation(Vector3{T}(0,0,1), zt)
+		zrot = qrotation(vup, zt)
 
 		v1rot = zrot*xrot*yrot*v0.rotation
 
