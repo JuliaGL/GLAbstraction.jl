@@ -42,7 +42,7 @@ macro genuniformfunctions(maxdim::Integer)
 			push!(expressions, :(gluniform(location::GLint, x::$typ) = $uniformfunc(location, x)))
 		end
 		push!(expressions, :(typealias $glslalias $imalias)) # glsl alike type alias
-		push!(expressions, :(gluniform(location::Integer, x::$imalias) = (tmp = [x;] ; $uniformfunc(location, 1, pointer(tmp))))) # uniform function for single uniforms
+		push!(expressions, :(gluniform(location::Integer, x::$imalias) 		   = (tmp = [x;] ; $uniformfunc(location, 1, pointer(tmp))))) # uniform function for single uniforms
 		push!(expressions, :(gluniform(location::Integer, x::Vector{$imalias}) = $uniformfunc(location, length(x), pointer(x)))) #uniform function for arrays of uniforms
 		if n > 1
 			push!(expressions, :($glslalias(x::Real) = $name(convert($typ, x)))) # Single valued constructor
@@ -53,7 +53,7 @@ macro genuniformfunctions(maxdim::Integer)
 		#########################################################################
         if n != 1
             push!(expressions, :(toglsltype_string(x::Type{$imalias}) = $(lowercase(string("uniform ", glslalias))))) # method for shader type mapping
-            push!(expressions, :(toglsltype_string(x::$imalias) = $(lowercase(string("uniform ", glslalias))))) # method for shader type mapping
+            push!(expressions, :(toglsltype_string(x::$imalias) 	  = $(lowercase(string("uniform ", glslalias))))) # method for shader type mapping
         end
 	end
 	for n=2:maxdim, n2=2:maxdim, typ in [GLdouble, GLfloat]

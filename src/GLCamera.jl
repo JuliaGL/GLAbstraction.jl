@@ -304,7 +304,7 @@ function PerspectiveCamera{T <: Real}(
 	)
 	eyepositionstart 	= Vector3{T}(1,0,0)
 	origin 				= lookatvec
-	vup 				= Vector3{T}(0,1,0)
+	vup 				= Vector3{T}(0,0,1)
 	xaxis 				= eyeposition - origin
 	yaxis 				= cross(xaxis, vup)
 	zaxis 				= cross(yaxis, xaxis)
