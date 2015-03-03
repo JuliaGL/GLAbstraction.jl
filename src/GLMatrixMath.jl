@@ -3,7 +3,6 @@ function scalematrix{T}(scale::Vector3{T})
     result[1,1] = scale[1]
     result[2,2] = scale[2]
     result[3,3] = scale[3]
-
     return Matrix4x4(result)
 end
 
@@ -80,10 +79,9 @@ end
          View frustum matrix (4x4).
 =#
 function frustum{T}(left::T, right::T, bottom::T, top::T, znear::T, zfar::T)
-    @assert right != left
-    @assert bottom != top
-    @assert znear != zfar
-
+    @assert right  != left "right is equal to left: $right"
+    @assert bottom != top  "bottom is equal to top: $bottom"
+    @assert znear  != zfar "znear is equal to zfar: $znear"
     M = zeros(T, 4, 4)
     M[1, 1] = +2.0 * znear / (right - left)
     M[3, 1] = (right + left) / (right - left)
@@ -132,44 +130,6 @@ function perspectiveprojection{T}(fovy::T, aspect::T, znear::T, zfar::T)
     return frustum(-w, w, -h, h, znear, zfar)
 end
 
-function orthoInverse( tfrm )
-    inv0 = Vector3( tfrm.getCol0().getX(), tfrm.getCol1().getX(), tfrm.getCol2().getX() );
-    inv1 = Vector3( tfrm.getCol0().getY(), tfrm.getCol1().getY(), tfrm.getCol2().getY() );
-    inv2 = Vector3( tfrm.getCol0().getZ(), tfrm.getCol1().getZ(), tfrm.getCol2().getZ() );
-    return Transform3(
-        inv0,
-        inv1,
-        inv2,
-        Vector3( ( -( ( inv0 * tfrm.getCol3().getX() ) + ( ( inv1 * tfrm.getCol3().getY() ) + ( inv2 * tfrm.getCol3().getZ() ) ) ) ) )
-    );
-end
-function orthoInverse(mat )
-
-    tfrm = Matrix3x4(
-    Vector3(mat.c1[1:3]...),
-    Vector3(mat.c2[1:3]...),
-    Vector3(mat.c3[1:3]...),
-    Vector3(mat.c4[1:3]...))
-
-    inv0 = Vector3( tfrm.c1[1], tfrm.c2[1], tfrm.c3[1] )
-    inv1 = Vector3( tfrm.c1[2], tfrm.c2[2], tfrm.c3[2] )
-    inv2 = Vector3( tfrm.c1[3], tfrm.c2[3], tfrm.c3[3] )
-    return Matrix4x4(
-        Vector4(inv0..., 0f0),
-        Vector4(inv1..., 0f0),
-        Vector4(inv2..., 0f0),
-        Vector4( ( -( ( inv0 * tfrm.c4[1] ) + ( ( inv1 * tfrm.c4[2] ) + ( inv2 * tfrm.c4[3] ) ) ) )..., 0f0)
-    )
-end
-export lookAt
-function lookAt(eyePos,lookAtPos, upVec )
-    v3Y = unit( upVec )
-    v3Z = unit( ( eyePos - lookAtPos ) )
-    v3X = unit( cross( v3Y, v3Z ) )
-    v3Y = cross( v3Z, v3X )
-    m4EyeFrame = Matrix4x4( Vector4( v3X..., 0f0), Vector4( v3Y..., 0f0 ), Vector4( v3Z..., 0f0 ), Vector4( eyePos..., 0f0 ) )
-    return orthoInverse( m4EyeFrame )
-end
 
 function lookat{T}(eyePos::Vector3{T}, lookAt::Vector3{T}, up::Vector3{T})
 
