@@ -21,10 +21,11 @@ end
 
 type GLProgram
     id::GLuint
+    names::Vector{Symbol
     nametype::Dict{Symbol, GLenum}
     uniformloc::Dict{Symbol, Tuple}
-    function GLProgram(id::GLuint, nametype::Dict{Symbol, GLenum}, uniformloc::Dict{Symbol, Tuple})
-        obj = new(id, vertpath, fragpath, nametype, uniformloc)
+    function GLProgram(id::GLuint, names::Vector{Symbol}, nametype::Dict{Symbol, GLenum}, uniformloc::Dict{Symbol, Tuple})
+        obj = new(id, names, nametype, uniformloc)
         finalizer(obj, delete!)
         obj
     end

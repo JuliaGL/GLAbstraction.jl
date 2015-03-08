@@ -88,6 +88,7 @@ end
 
 shadertype(::File{:vert})           = GL_VERTEX_SHADER
 shadertype(::File{:frag})           = GL_FRAGMENT_SHADER
+shadertype(::File{:geom})           = GL_GEOMETRY_SHADER
 shadertype{Ending}(::File{Ending})  = error("File ending doesn't correspond to a shader type. Ending: $(Ending), File: $(abspath(file))")
 
 
@@ -95,7 +96,7 @@ shadertype{Ending}(::File{Ending})  = error("File ending doesn't correspond to a
 attachshader(code::AbstractString, shadertype::GLenum, program::GLuint, name::AbstractString) = attachshader(bytestring(ascii(code)), shadertype, prgoram, name)
 function attachshader{Typ}(file::File{Typ}, program::GLuint)  
     fs = open(file)
-    shaderid = attachshader(readbytes(fs), shadertype(file), abspath(file))
+    shaderid = attachshader(readbytes(fs), shadertype(file), program, abspath(file))
     close(fs)
     return shaderid
 end
@@ -106,8 +107,7 @@ function attachshader(code::Vector{Uint8}, shadertype::GLenum, program::GLuint, 
 end
 
 
-
-function gen_uniformlocation(nametypedict::Dict{Symbol, GLenum})
+function uniformlocations(nametypedict::Dict{Symbol, GLenum})
     texturetarget = -1 # start -1, as texture samplers start at 0
     return  Dict{Symbol,Tuple}(map(nametypedict) do name_type
         name, typ = name_type
@@ -120,14 +120,14 @@ function gen_uniformlocation(nametypedict::Dict{Symbol, GLenum})
         end
     end)
 end
-
 function GLProgram{S1 <: AbstractString, S2 <: AbstractString, S3 <: AbstractString}(
                     code::Dict{S1, (GLenum, S2)}, program=createprogram(); 
                     fragdatalocation=(Int, S3)[])
+
     # Remove old shaders
     glUseProgram(0)
     shader_ids = glGetAttachedShaders(program)
-    foreach(shader -> glDetachShader(program, shader), shader_ids)
+    foreach(glDetachShader, program, shader_ids)
 
     #attach new ones
     shaders = map(code) do name_type_code
@@ -147,9 +147,9 @@ function GLProgram{S1 <: AbstractString, S2 <: AbstractString, S3 <: AbstractStr
 
     # generate the link locations
     nametypedict        = uniform_name_type(program)
-    uniformlocationdict = gen_uniformlocation(nametypedict)
+    uniformlocationdict = uniformlocations(nametypedict)
 
-    return GLProgram(program, vertpath, fragpath, nametypedict, uniformlocationdict)
+    return GLProgram(program, map(symbol, keys(code)), nametypedict, uniformlocationdict)
 end
 
 

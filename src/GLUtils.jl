@@ -18,10 +18,32 @@ macro gputime(codeblock)
   end
 end
 
+immutable IterOrScalar{T}
+  val::T
+end
+minlenght(a::(IterOrScalar...)) = foldl(typemax(Int), a) do len, elem
+  if isa(elem.val, AbstractArray) && len > length(elem.val) 
+    return length(elem.val)
+  end
+  len
+end
+Base.getindex{T<:AbstractArray}(A::IterOrScalar{T}, i::Integer) = A.val[i] 
+Base.getindex(A::IterOrScalar, i::Integer) = A.val
 
+foreach(func::Union(Function, DataType), args...) = foreach(func, map(IterOrScalar, args)...)
 
-foreach(func::Function, collection) = for elem in collection; func(elem); end
-
+# Applies a function over multiple args
+# staged, so it can specialize on the arguments being scalar or iterable
+stagedfunction foreach(func::Function, args::IterOrScalar...)
+  args_access = [:(args[$i][i]) for i=1:length(args)]
+  quote
+    len = minlenght(args)
+    for i=1:len 
+      func($(args_access...))
+    end
+  end
+end
+#Some mapping functions for dictionaries
 function mapvalues(func::Union(Function, Base.Func), collection::Dict)
    [key => func(value) for (key, value) in collection]
 end

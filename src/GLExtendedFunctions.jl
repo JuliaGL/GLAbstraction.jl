@@ -6,8 +6,9 @@ Its also to do some more complex error handling, not handled by the debug callba
 
 
 function ModernGL.glShaderSource(shaderID::GLuint, shadercode::Vector{Uint8})
-    shader_code_ptrs = Ptr{Uint8}[pointer(shadercode)]
-    glShaderSource(shaderID, 1, shader_code_ptrs, [length(shadercode)])
+    shader_code_ptrs  = Ptr{Uint8}[pointer(shadercode)]
+    len               = [length(shadercode)]
+    glShaderSource(shaderID, 1, shader_code_ptrs, len)
 end
 function ModernGL.glGetAttachedShaders(program::GLuint)
     shader_count   = glGetProgramiv(program, GL_ATTACHED_SHADERS)
