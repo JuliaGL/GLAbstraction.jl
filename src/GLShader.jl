@@ -40,22 +40,6 @@ end
 
 
 
-                    #(shadertype, shadercode) -> shader id
-let shader_cache = Dict{(GLenum, Vector{Uint8}), GLuint}() # shader cache prevents that a shader is compiled more than one time
-    function readshader(shadercode::Vector{Uint8}, shadertype::GLenum, shadername::AbstractString)
-        haskey(shader_cache, (shadertype, shadercode)) && return shader_cache[shadercode]
-        shaderid = createshader(shadertype)
-        glShaderSource(shaderid, shadercode)
-        glCompileShader(shaderid)
-        if !iscompiled(shaderid)
-            print_with_lines(bytestring(shadercode))
-            error("shader $shadername didn't compile. \n$(getinfolog(shaderid)")
-        end
-        shader_cache[shadercode] = shaderid
-        return shaderid
-    end
-end
-
 
 function isupdated(file::File, update_interval=1.0)
     filename = abspath(file)
@@ -69,8 +53,8 @@ end
 
 function update(vertcode::ASCIIString, fragcode::ASCIIString, vpath::String, fpath::String, program)
     try 
-        vertid = readshader(vertcode, GL_VERTEX_SHADER, vpath)
-        fragid = readshader(fragcode, GL_FRAGMENT_SHADER, fpath)
+        vertid = compileshader(vertcode, GL_VERTEX_SHADER, vpath)
+        fragid = compileshader(fragcode, GL_FRAGMENT_SHADER, fpath)
         glUseProgram(0)
         shader_ids = glGetAttachedShaders(program)
         foreach(shader -> glDetachShader(program, shader), shader_ids)
@@ -93,7 +77,6 @@ shadertype{Ending}(::File{Ending})  = error("File ending doesn't correspond to a
 
 
 
-attachshader(code::AbstractString, shadertype::GLenum, program::GLuint, name::AbstractString) = attachshader(bytestring(ascii(code)), shadertype, prgoram, name)
 function attachshader{Typ}(file::File{Typ}, program::GLuint)  
     fs = open(file)
     shaderid = attachshader(readbytes(fs), shadertype(file), program, abspath(file))
@@ -101,10 +84,34 @@ function attachshader{Typ}(file::File{Typ}, program::GLuint)
     return shaderid
 end
 function attachshader(code::Vector{Uint8}, shadertype::GLenum, program::GLuint, name)
-    shaderid = readshader(code, shadertype, name)
+    shaderid = compileshader(code, shadertype, name)
     glAttachShader(program, shaderid)
     shaderid
 end
+compileshader(code::AbstractString, shadertype::GLenum, name::AbstractString) = compileshader(bytestring(ascii(code)), shadertype, name)
+
+function compileshader(file::File, program::GLuint)
+    fs = open(file)
+    shaderid = compileshader(readbytes(fs), shadertype(file), program, abspath(file))
+    close(fs)
+    return shaderid
+end
+                    #(shadertype, shadercode) -> shader id
+let shader_cache = Dict{(GLenum, Vector{Uint8}), GLuint}() # shader cache prevents that a shader is compiled more than one time
+    function compileshader(shadercode::Vector{Uint8}, shadertype::GLenum, shadername::AbstractString)
+        haskey(shader_cache, (shadertype, shadercode)) && return shader_cache[shadercode]
+        shaderid = createshader(shadertype)
+        glShaderSource(shaderid, shadercode)
+        glCompileShader(shaderid)
+        if !iscompiled(shaderid)
+            print_with_lines(bytestring(shadercode))
+            error("shader $shadername didn't compile. \n$(getinfolog(shaderid)")
+        end
+        shader_cache[shadercode] = shaderid
+        return shaderid
+    end
+end
+
 
 
 function uniformlocations(nametypedict::Dict{Symbol, GLenum})
@@ -120,6 +127,8 @@ function uniformlocations(nametypedict::Dict{Symbol, GLenum})
         end
     end)
 end
+
+
 function GLProgram{S1 <: AbstractString, S2 <: AbstractString, S3 <: AbstractString}(
                     code::Dict{S1, (GLenum, S2)}, program=createprogram(); 
                     fragdatalocation=(Int, S3)[])
@@ -130,10 +139,11 @@ function GLProgram{S1 <: AbstractString, S2 <: AbstractString, S3 <: AbstractStr
     foreach(glDetachShader, program, shader_ids)
 
     #attach new ones
-    shaders = map(code) do name_type_code
-        name, type_code     = name_type_code
-        typ, code_signal    = type_code
-        attachshader(typ, value(code_signal), program, name)
+    shaders = map(code) do name_type_source
+        name, type_code     = name_type_source
+        typ, source         = type_source
+        shaderid            = compileshader(typ, source, name)
+        glAttachShader(program, shaderid)
     end
 
     #Bind frag data
@@ -178,14 +188,14 @@ function TemplateProgram{S1 <: AbstractString, S2 <: AbstractString}(
         extension *= "\n" * view["GLSL_EXTENSIONS"]
     end
     internaldata = @compat Dict(
-        "out"             => glsl_out_qualifier_string(),
-        "in"              => glsl_in_qualifier_string(),
         "GLSL_VERSION"    => glsl_version_string(),
         "GLSL_EXTENSIONS" => extension
     )
     view = merge(internaldata, view)
     TemplateProgram(code, view, attributes=attributes, fragdatalocation=fragdatalocation)
 end
+
+
 
 function TemplateProgram{S1 <: AbstractString, S2 <: AbstractString}(
                             code::Dict{S1, (GLenum, S2)}, view::Dict{ASCIIString, ASCIIString}; 

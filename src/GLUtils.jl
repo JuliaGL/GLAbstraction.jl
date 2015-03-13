@@ -43,6 +43,7 @@ stagedfunction foreach(func::Function, args::IterOrScalar...)
     end
   end
 end
+
 #Some mapping functions for dictionaries
 function mapvalues(func::Union(Function, Base.Func), collection::Dict)
    [key => func(value) for (key, value) in collection]
