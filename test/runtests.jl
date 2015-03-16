@@ -18,26 +18,6 @@ GLFW.ShowWindow(window)
 
 init_glutils()
 
-#vertex and fragment shader
-vsh = "
-{{GLSL_VERSION}}
-
-in vec2 vertex;
-
-void main() {
-gl_Position = vec4(vertex, 0.0, 1.0);
-}
-"
-
-fsh = "
-{{GLSL_VERSION}}
-
-out vec4 frag_color;
-
-void main() {
-frag_color = vec4(1.0, 0.0, 1.0, 1.0);
-}
-"
 
 # Test for creating a GLBuffer with a 1D Julia Array
 # You need to supply the cardinality, as it can't be inferred
@@ -58,7 +38,7 @@ const triangle = RenderObject(
 		:vertex => verts,
 		:name_doesnt_matter_for_indexes => indexes
 	],
-	TemplateProgram(vsh, fsh, "vertex", "fragment"))
+	TemplateProgram(file"test.vert", file"test.frag"))
 
 postrender!(triangle, render, triangle.vertexarray)
 

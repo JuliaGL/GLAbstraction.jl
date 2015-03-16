@@ -170,30 +170,50 @@ end
 
 #reads from the file and updates the source whenever the file gets edited
 function lift_file{Ending}(code::File{Ending})
-lift(isupdated(shader_file)) do x
-             read(x)
-        end
+    lift(isupdated(shader_file)) do x
+        readall(x.abspath)
+    end
 end
 function TemplateProgram{F <: File}(
-                            code::F...; 
+                            code::F..., p=createprogram(); 
                             view::Dict{ASCIIString, ASCIIString} = Dict{ASCIIString, ASCIIString}(), 
                             attributes::Dict{Symbol, Any} = Dict{Symbol, Any}(),
                             fragdatalocation=(Int, ASCIIString)[]
                         )
     
     code_signals = [shader_file.abspath => (shadertype(shader), lift_file(shader)) for shader in code]
-    TemplateProgram(code_signals, view=view, attributes=attributes, fragdatalocation=fragdatalocation)
+    TemplateProgram(code_signals, p, view=view, attributes=attributes, fragdatalocation=fragdatalocation)
 end
+function TemplateProgram{S1 <: AbstractString, S2 <: AbstractString}(
+                            code::Dict{S1, (GLenum, Input{S2})}, p=createprogram(); 
+                            view::Dict{ASCIIString, ASCIIString}=Dict{ASCIIString, ASCIIString}(), 
+                            attributes::Dict{Symbol, Any}=Dict{Symbol, Any}(),
+                            fragdatalocation=(Int, ASCIIString)[]
+                        )
+    # exctract signals
+    signals = map(code) do name_typ_code
+        name_typ_code[3]
+    end
+    program_signal = lift(signals...) do _ #just needed to update the signal
+        # extract values from signals
+        code_signals = [name => (typ_code[1], value(typ_code[2])) for (name, typ_code) in code]
+        TemplateProgram(code_signals, p, view=view, attributes=attributes, fragdatalocation=fragdatalocation)
+    end
+end
+
 
 
 function template2source(code::AbstractString, attributes::Dict{Symbol, Any}, view::Dict{ASCIIString, ASCIIString})
     code_template    = Mustache.parse(code)
     specialized_view = merge(createview(attributes, mustachekeys(code_template)), view)
-    code_sourece     = replace(replace(Mustache.render(code_template, specialized_view), "&#x2F;", "/"), "&gt;", ">")
+    code_sourece     = replace(replace(Mustache.render(code_template, specialized_view), "&#x2F;", "/"), "&gt;", ">")#
+
 end
 
+
+
 function TemplateProgram{S1 <: AbstractString, S2 <: AbstractString}(
-                            code::Dict{S1, (GLenum, S2)}; 
+                            code::Dict{S1, (GLenum, S2)}, p=createprogram(); 
                             view::Dict{ASCIIString, ASCIIString} = Dict{ASCIIString, ASCIIString}(), 
                             attributes::Dict{Symbol, Any} = Dict{Symbol, Any}(),
                             fragdatalocation=(Int, ASCIIString)[]
@@ -212,25 +232,25 @@ function TemplateProgram{S1 <: AbstractString, S2 <: AbstractString}(
         "GLSL_EXTENSIONS" => extension
     )
     view = merge(internaldata, view)
-    TemplateProgram(code, view, attributes=attributes, fragdatalocation=fragdatalocation)
+    TemplateProgram(code, p, view=view, attributes=attributes, fragdatalocation=fragdatalocation)
 end
 
 
-
 function TemplateProgram{S1 <: AbstractString, S2 <: AbstractString}(
-                            code::Dict{S1, (GLenum, S2)}, view::Dict{ASCIIString, ASCIIString}; 
+                            code::Dict{S1, (GLenum, S2)}, p=createprogram();
+                            view::Dict{ASCIIString, ASCIIString}
                             attributes::Dict{Symbol, Any} = Dict{Symbol, Any}(),
                             fragdatalocation=(Int, ASCIIString)[]
                         )
     # transform dict of templates into actual shader source
     code = [begin
-        typ, code_template  = type_code
+        typ, code_template = type_code
         name => (typ, template2source(code_template, attributes, view)) 
-    end for (name, type_code) in code]
-    return GLProgram(code, fragdatalocation=fragdatalocation)
+    end 
+    for (name, type_code) in code]
+
+    return GLProgram(code, p, fragdatalocation=fragdatalocation)
 end
-
-
 # Gets used to access a 
 glsl_variable_access{T,D}(keystring, ::Texture{T, 1, D}) = "texture($(keystring), uv).r;"
 glsl_variable_access{T,D}(keystring, ::Texture{T, 2, D}) = "texture($(keystring), uv).rg;"

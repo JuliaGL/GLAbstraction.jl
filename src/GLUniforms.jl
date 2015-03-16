@@ -235,7 +235,10 @@ function attribute_name_type(program::GLuint)
     if uniformLength == 0
         return ()
     else
-        nametypelist = [(name, typ = glGetActiveAttrib(program, i-1); name => typ) for i=0:uniformLength-1] # take size and name
+        nametypelist = [begin 
+        	name, typ = glGetActiveAttrib(program, i-1) 
+        	name => typ 
+        	end for i=0:uniformLength-1] # take size and name
         return Dict{Symbol, GLenum}(nametypelist)
     end
 end

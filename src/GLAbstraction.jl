@@ -12,6 +12,11 @@ import Images: imread, colorspace, Image, AbstractGray, RGB4, ARGB, Images
 import Mustache
 import Base.delete!
 
+include("GLUtils.jl")
+export @gputime
+export @file
+export File
+
 
 include("GLInit.jl")
 export init_after_context_creation
@@ -92,7 +97,6 @@ export genquad
 export gencubenormals
 export mergemesh
 
-include("GLUtils.jl")
-export @gputime
+
 
 end # module

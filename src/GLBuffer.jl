@@ -51,7 +51,7 @@ function GLBuffer{T <: Real}(
 end
 
 #Array interface
-function gpu_data{T, C, ND}(b::GLBuffer{T, C})
+function gpu_data{T, C}(b::GLBuffer{T, C})
     data = Array(T, size(b)...)
     glBindBuffer(b.buffertype, b.id)
     glGetBufferSubData(b.buffertype, 0, sizeof(b), data)

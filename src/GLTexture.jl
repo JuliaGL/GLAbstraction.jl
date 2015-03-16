@@ -280,8 +280,8 @@ function Base.show{T,C,D}(io::IO, t::Texture{T,C,D})
 end
 
 
-resize(data::Array{T, 1}, newdims) = resize!(data, newdims) # bad style!! But couldn't figure out how to best switch between inplace resize!
-function resize{NDIM}(data::Array{T, NDIM}, newdims)
+resize{T}(data::Array{T, 1}, newdims) = resize!(data, newdims) # bad style!! But couldn't figure out how to best switch between inplace resize!
+function resize{T, NDIM}(data::Array{T, NDIM}, newdims)
     ranges = map(zip(newdims, size(data))) do dims
        1:min(dims...) # create a range, which only goes to the smaller dim
     end
@@ -450,11 +450,12 @@ end
 
 
 # Resize Texture
-function gpu_resize!(t::Texture{T,CD, ND, I <: Integer}, newdims::NTuple{ND, I})
+function gpu_resize!{T,CD, ND, I<: Integer}(t::Texture{T, CD, ND}, newdims::NTuple{ND, I})
     glBindTexture(t.texturetype, t.id)
     glTexImage(t.texturetype, 0, t.internalformat, newdims..., 0, t.format, t.pixeltype, C_NULL)
     t.dims[1:end] = newdims
     nothing
+end
 endtexsubimage{T, C}(t::Texture{T, C, 1}, newvalue::Array{T, 1}, xrange::UnitRange, level=0) = glTexSubImage1D(
     t.texturetype, level, first(xrange)-1, length(xrange), t.format, t.pixeltype, newvalue
 )

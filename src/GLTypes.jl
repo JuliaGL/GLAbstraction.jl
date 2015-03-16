@@ -21,7 +21,7 @@ end
 
 type GLProgram
     id::GLuint
-    names::Vector{Symbol
+    names::Vector{Symbol}
     nametype::Dict{Symbol, GLenum}
     uniformloc::Dict{Symbol, Tuple}
     function GLProgram(id::GLuint, names::Vector{Symbol}, nametype::Dict{Symbol, GLenum}, uniformloc::Dict{Symbol, Tuple})

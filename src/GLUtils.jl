@@ -66,7 +66,9 @@ function File(file)
   ending  = isempty(ending) ? "" : name[first(ending)+1:end]
   File{symbol(ending)}(file)
 end
-
+macro file_str(path::AbstractString)
+  File(path)
+end
 Base.open(x::File)    = open(abspath(x))
 Base.abspath(x::File) = x.abspath
 
