@@ -39,11 +39,6 @@ function createprogram()
 end
 
 
-
-
-
-
-
 function update(vertcode::ASCIIString, fragcode::ASCIIString, vpath::String, fpath::String, program)
     try 
         vertid = compileshader(vertcode, GL_VERTEX_SHADER, vpath)
@@ -160,7 +155,7 @@ end
 
 
 function isupdated(file::File, update_interval=1.0)
-    filename = abspath(file)
+    filename    = abspath(file)
     file_edited = foldl((false, mtime(filename)), every(update_interval)) do v0, v1 
         time_edited = mtime(filename)
         (!isapprox(0.0, v0[2] - time_edited), time_edited)
@@ -191,14 +186,14 @@ function TemplateProgram{S1 <: AbstractString, S2 <: AbstractString}(
                             fragdatalocation=(Int, ASCIIString)[]
                         )
     # exctract signals
-    signals = map(code) do name_typ_code
-        name_typ_code[3]
-    end
-    program_signal = lift(signals...) do _ #just needed to update the signal
-        # extract values from signals
-        code_signals = [name => (typ_code[1], value(typ_code[2])) for (name, typ_code) in code]
-        TemplateProgram(code_signals, p, view=view, attributes=attributes, fragdatalocation=fragdatalocation)
-    end
+    #signals = map(code) do name_typ_code
+    #    name_typ_code[3]
+    #end
+    #program_signal = lift(signals...) do _unused #just needed to update the signal
+    #    # extract values from signals
+    #    code_signals = [name => (typ_code[1], value(typ_code[2])) for (name, typ_code) in code]
+    #    TemplateProgram(code_signals, p, view=view, attributes=attributes, fragdatalocation=fragdatalocation)
+    #end
 end
 
 
@@ -206,8 +201,7 @@ end
 function template2source(code::AbstractString, attributes::Dict{Symbol, Any}, view::Dict{ASCIIString, ASCIIString})
     code_template    = Mustache.parse(code)
     specialized_view = merge(createview(attributes, mustachekeys(code_template)), view)
-    code_sourece     = replace(replace(Mustache.render(code_template, specialized_view), "&#x2F;", "/"), "&gt;", ">")#
-
+    code_sourece     = replace(replace(Mustache.render(code_template, specialized_view), "&#x2F;", "/"), "&gt;", ">")
 end
 
 

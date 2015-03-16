@@ -1,3 +1,6 @@
+abstract AbstractFixedVector{T, NDim}
+
+
 ##############################################################################
 abstract Shape
 immutable Circle{T <: Real} <: Shape
@@ -109,7 +112,7 @@ type GLBuffer{T, Cardinality, NoRam} <: DenseArray{T, 1}
         glBindBuffer(buffertype, id)
         glBufferData(buffertype, bufflength, ptr, usage)
         glBindBuffer(buffertype, 0)
-        ram = init_ram(ptr, (bufflength,), NoRam)
+        ram = T[]#init_ram(ptr, (bufflength,), NoRam)
         obj = new(id, _length, buffertype, usage, ram)
         finalizer(obj, delete!)
         obj

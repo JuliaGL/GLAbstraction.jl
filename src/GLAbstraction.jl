@@ -14,7 +14,7 @@ import Base.delete!
 
 include("GLUtils.jl")
 export @gputime
-export @file
+export @file_str
 export File
 
 

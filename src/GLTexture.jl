@@ -1,4 +1,3 @@
-abstract AbstractFixedVector{T, NDim}
 
 SupportedEltypes = Union(Real, AbstractFixedVector, AbstractArray, ColorValue, AbstractAlphaColorValue)
 

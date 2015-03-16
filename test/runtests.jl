@@ -43,7 +43,7 @@ const triangle = RenderObject(
 postrender!(triangle, render, triangle.vertexarray)
 
 #require("uniforms")
-
+println("looool")
 glClearColor(0,0,0,1)
 for i=1:100
   	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
