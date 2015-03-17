@@ -1,48 +1,4 @@
 
-
-# #in developement
-# immutable Polygon{T} <: Shape
-#     points::Array{T, 1}
-#     boundingBox::Rectangle
-#     gl::RenderStyle
-#     function Polygon(polygon::Array{T, 1}, color::GLColor, border::Float32, texture::Texture)
-#         @assert length(polygon) % 2 == 0
-#         boundingBox = Rectangle(-Inf32, -Inf32, Inf32, Inf32)
-#         for i=1:length(polygon) - 1
-#             x = polygon[i]
-#             y = polygon[i + 1]
-#             if x < boundingBox.width
-#                 boundingBox.width = x
-#             elseif x > boundingBox.x
-#                 boundingBox.x = x
-#             end
-#             if y < boundingBox.height
-#                 boundingBox.height = y
-#             elseif y > boundingBox.y
-#                 boundingBox.y = y
-#             end
-#         end
-#         #gl = RenderStyle(color, border, texture, GLVertexArray(["position" => polygon], flatshader, primitiveMode = GL_TRIANGLE_FAN))
-#         #new(polygon, boundingBox, gl)
-#     end
-# end
-
-
-# function isinside(polygon::Polygon, x::Real, y::Real)
-#     a = polygon.points
-#     c = false
-#     i = length(a) - 1
-#     for (x1, y1) in a
-#         (x0, y0) =  a[i % length(a) + 1]
-#         if (y1 < y) != (y0 > y) &&
-#             (x < (x0-x1) * (y-y1) / (y0-y1) + x1)
-#             c = ~c
-#         end 
-#         i += 1
-#     end
-#     return c
-# end
-
 function isinside(circle::Circle, x::Real, y::Real)
     xD = abs(circle.x - x) - circle.r 
     yD = abs(circle.y - y) - circle.r

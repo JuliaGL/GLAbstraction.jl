@@ -10,7 +10,9 @@ using Compat
 import Images: imread, colorspace, Image, AbstractGray, RGB4, ARGB, Images
 #import Lumberjack
 import Mustache
+
 import Base.delete!
+
 
 include("GLUtils.jl")
 export @gputime
@@ -48,6 +50,24 @@ export Shape                    # Abstract shape type
 export setindex1D!              # Sets the index of an Array{FixedSizeVector, x}, making the FixedSizeVector accessible via an index
 export Style                    # Style Type, which is used to choose different visualization/editing styles via multiple dispatch
 export mergedefault!            # merges a style dict via a given style
+
+
+
+#Methods which got overloaded by GLExtendedFunctions.jl:
+import ModernGL.glShaderSource
+import ModernGL.glGetAttachedShaders
+import ModernGL.glGetActiveUniform
+import ModernGL.glGetActiveAttrib
+import ModernGL.glGetProgramiv
+import ModernGL.glGetIntegerv
+import ModernGL.glGenBuffers
+import ModernGL.glGetProgramiv
+import ModernGL.glGenVertexArrays
+import ModernGL.glGenTextures
+import ModernGL.glGenFramebuffers
+import ModernGL.glGetTexLevelParameteriv
+import ModernGL.glViewport
+import ModernGL.glGenRenderbuffers
 include("GLExtendedFunctions.jl")
 export glTexImage
 

@@ -1,10 +1,9 @@
-#abstract AbstractFixedVector{T, NDim}
 
 SupportedEltypes = Union(Real, AbstractFixedVector, AbstractArray, ColorValue, AbstractAlphaColorValue)
 
 begin
     #Supported datatypes
-    local const TO_GL_TYPE = @compat Dict(
+    local const TO_GL_TYPE = Dict(
         GLubyte     => GL_UNSIGNED_BYTE,
         GLbyte      => GL_BYTE,
         GLuint      => GL_UNSIGNED_INT,
@@ -21,32 +20,27 @@ begin
     glpixelformat(x::SupportedEltypes)               = glpixelformat(eltype(x))
 end
 #Supported texture modes/dimensions
-begin
-    local const TO_GL_TEXTURE_TYPE = @compat Dict(
-        1 => GL_TEXTURE_1D,
-        2 => GL_TEXTURE_2D,
-        3 => GL_TEXTURE_3D
-    )
-    default_texturetype(ndim::Integer) = get(TO_GL_TEXTURE_TYPE, ndim) do
-        error("Dimensionality: $(ndim), not supported for OpenGL texture")
-    end
+function default_texturetype(ndim::Integer)
+    ndim == 1 && return GL_TEXTURE_1D
+    ndim == 2 && return GL_TEXTURE_2D
+    ndim == 3 && return GL_TEXTURE_3D
+    error("Dimensionality: $(ndim), not supported for OpenGL texture")
 end
 
-type Texture{T <: SupportedEltypes, ColorDIM, NDIM}
+type Texture{T <: SupportedEltypes, NDIM} <: DenseArray{T, NDIM}
     id::GLuint
     texturetype::GLenum
     pixeltype::GLenum
     internalformat::GLenum
     format::GLenum
-    dims::Vector{Int}
-    data::Array{T, NDIM}
+    size::NTuple{Int, NDim}
 end
-function Texture{T}(data::Ptr{T}, dims, ttype::GLenum, internalformat::GLenum, format::GLenum, parameters::Vector{(GLenum, GLenum)}, keepinram::Bool)
-    @assert all(x -> x > 0, dims)
 
+function Texture{T}(data::Ptr{T}, dims, ttype::GLenum, internalformat::GLenum, format::GLenum, parameters::Vector{(GLenum, GLenum)}, keepinram::Bool)
     id = glGenTextures()
     glBindTexture(ttype, id)
 
+    #TO DO, get julias alignment
     glPixelStorei(GL_UNPACK_ALIGNMENT, 1)
     glPixelStorei(GL_UNPACK_ROW_LENGTH, 0)
     glPixelStorei(GL_UNPACK_SKIP_PIXELS, 0)
@@ -56,21 +50,17 @@ function Texture{T}(data::Ptr{T}, dims, ttype::GLenum, internalformat::GLenum, f
         glTexParameteri(ttype, elem...)
     end
 
-    pixeltype = glpixelformat(T)
+    pixeltype       = glpixelformat(T)
+    NDim            = length(dims)
 
     glTexImage(ttype, 0, internalformat, dims..., 0, format, pixeltype, data)
-    NDim            = length(dims)
-    ColorDim        = length(T)
-    if keepinram
-        if data == C_NULL
-            obj = Texture{T, ColorDim, NDim}(id, ttype, pixeltype, internalformat, format, [dims...], Array(T, dims...))
-        else
-            obj = Texture{T, ColorDim, NDim}(id, ttype, pixeltype, internalformat, format, [dims...], copy(pointer_to_array(data, tuple(dims...))))
-        end
-    else
-        obj = Texture{T, ColorDim, NDim}(id, ttype, pixeltype, internalformat, format, [dims...], Array(T, (dims*0)...))
-    end
+
+    obj = Texture{T, NDim}(id, ttype, pixeltype, internalformat, format, [dims...], ram)
+    finalizer(obj, delete!)
     obj
+end
+function delete!(x::Texture)
+    glDeleteTextures(1, [x.id])
 end
 
 #=
@@ -78,7 +68,6 @@ Main constructor, which shouldn't be used. It will initializes all the missing v
 =#
 function Texture{T <: SupportedEltypes}(data::Vector{Array{T,2}}, texture_properties::Vector{(Symbol, Any)})
     Base.length{ET <: Real}(::Type{ET}) = 1
-
     NDim            = 3
     ColorDim        = length(T)
     defaults        = gendefaults(texture_properties, ColorDim, T, NDim)
@@ -133,8 +122,8 @@ function default_colorformat(colordim::Integer, isinteger::Bool, colororder::Str
     return eval(symbol(sym))
 end
 
-default_colorformat{T <: Real}(colordim::Type{T})          	   = default_colorformat(1, T <: Integer, "RED")
-default_colorformat{T <: AbstractArray}(colordim::Type{T}) 	   = default_colorformat(length(T), eltype(T) <: Integer, "RGBA")
+default_colorformat{T <: Real}(colordim::Type{T})              = default_colorformat(1, T <: Integer, "RED")
+default_colorformat{T <: AbstractArray}(colordim::Type{T})     = default_colorformat(length(T), eltype(T) <: Integer, "RGBA")
 default_colorformat{T <: AbstractFixedVector}(colordim::Type{T}) = default_colorformat(length(T), eltype(T) <: Integer, "RGBA")
 function default_colorformat{T <: AbstractAlphaColorValue}(colordim::Type{T})
     colororder = string(T.parameters[1].name.name) * "A"
@@ -187,8 +176,7 @@ function gendefaults(texture_properties::Vector{(Symbol, Any)}, ColorDim::Intege
         :internalformat  => default_internalcolorformat(ColorDim, Typ),
         :parameters      => default_textureparameters(NDim, eltype(Typ)),
         :texturetype     => default_texturetype(NDim),
-        :format          => default_colorformat(Typ),
-        :keepinram       => false
+        :format          => default_colorformat(Typ)
     )), Dict{Symbol, Any}(texture_properties))
 end
 
@@ -238,7 +226,7 @@ function Texture{T <: Real, NDim}(image::Array{ARGB{T}, NDim}, texture_propertie
 end
 
 #=
-Creates a texture from an image, which lays on path
+Creates a texture from an image, which lays on a path
 =#
 function Texture(path::String, texture_properties::Vector{(Symbol, Any)})
     #isdefined(:Images) || eval(Expr(:using, :Images))
@@ -254,12 +242,10 @@ end
 
 
 
-width(t::Texture)   = size(t,1)
-height(t::Texture)  = size(t,2)
-depth(t::Texture)   = size(t,3)
+width(t::Texture)                          = size(t, 1)
+height(t::Texture)                         = size(t, 2)
+depth(t::Texture)                          = size(t, 3)
 
-Base.length(t::Texture) = prod(t.dims)
-Base.size(t::Texture) = tuple(t.dims...)
 
 function Base.show{T,C,D}(io::IO, t::Texture{T,C,D})
     println(io, "Texture$(D)D: ")
@@ -273,198 +259,38 @@ function Base.show{T,C,D}(io::IO, t::Texture{T,C,D})
     println(io, "     Internal format: ", GLENUM(t.internalformat).name)
 end
 
-Base.eltype{T,C,D}(t::Texture{T, C, D})         = T
-Base.size{T,C,D}(t::Texture{T,C,D})             = t.dims
-Base.size{T,C,D}(t::Texture{T,C,D}, I::Integer) = t.dims[I]
-Base.endof(t::Texture)                          = prod(t.dims)
-Base.ndims{T, C, D}(t::Texture{T, C, D})        = D
+
+
+texsubimage{T, C}(t::Texture{T, C, 1}, newvalue::Array{T, 1}, xrange::UnitRange, level=0) = glTexSubImage1D(
+    t.texturetype, level, first(xrange)-1, length(xrange), t.format, t.pixeltype, newvalue
+)
+texsubimage{T, C}(t::Texture{T, C, 2}, newvalue::Array{T, 2}, xrange::UnitRange, yrange::UnitRange, level=0) = glTexSubImage2D(
+    t.texturetype, level, first(xrange)-1, length(xrange), first(yrange)-1, length(yrange), t.format, t.pixeltype, newvalue
+)
+texsubimage{T, C}(t::Texture{T, C, 2}, newvalue::Array{T, 3}, xrange::UnitRange, yrange::UnitRange, zrange::UnitRange, level=0) = glTexSubImage2D(
+    t.texturetype, level, first(xrange)-1, length(xrange), first(yrange)-1, length(yrange), first(yrange)-1, length(yrange), t.format, t.pixeltype, newvalue
+)
+function unsafe_setindex!{T, C, N}(t::Texture{T, C, N}, newvalue::Array{T, N}, indexes::Union(UnitRange,Integer)...)
+    glBindTexture(t.texturetype, t.id)
+    texsubimage(t, newvalue, indexes...)
+end
+
+# Implementing the GPUArray interface
+function gpu_data{T, C, ND}(t::Texture{T, C, ND})
+    result = Array(T, size(t))
+    glBindTexture(t.texturetype, t.id)
+    glGetTexImage(t.texturetype, 0, t.format, t.pixeltype, result)
+    result
+end
+
 
 # Resize Texture
-function Base.resize!{T, CD, ND}(t::Texture{T,CD, ND}, newdims)
-    if newdims != t.dims
-        glBindTexture(t.texturetype, t.id)
-        glTexImage(t.texturetype, 0, t.internalformat, newdims..., 0, t.format, t.pixeltype, C_NULL)
-        if !isempty(t.data)
-            tmp = Array(T, newdims...)
-            if ndims(t.data) == 2
-                if newdims[1] >= t.dims[1] && newdims[2] >= t.dims[2]
-                   tmp[1:size(t.data, 1), 1:size(t.data,2)] = t.data
-                elseif newdims[1] >= t.dims[1] && newdims[2] <= t.dims[2]
-                    println("sizet: ", size(t.data))
-                    println("sizemp: ", size(tmp))
-                    println("newdims: ", newdims)
-                   tmp[1:size(t.data, 1), 1:end] = t.data[1:end, 1:newdims[2]]
-                elseif newdims[1] <= t.dims[1] && newdims[2] >= t.dims[2]
-                   tmp[1:end, 1:size(t.data,2)] = t.data[1:newdims[1], 1:end]
-                end
-            else
-                tmp[1:size(t.data, 1)] = t.data
-            end
-            t.data = tmp
-        end
-        t.dims[1:end] = newdims
-    end
-end
-
-
-function Base.setindex!{T <: SupportedEltypes, ColorDim}(t::Texture{T, ColorDim, 1}, value, i::Integer)
-    update!(t, value, i)
-end
-function Base.setindex!{T <: SupportedEltypes, ColorDim, IT1 <: Integer}(t::Texture{T, ColorDim, 1}, value, i::UnitRange{IT1})
-    update!(t, value, first(i))
-end
-
-function Base.getindex(t::Texture, x...) 
-	if isempty(t.data)
-		error("Texture doesn't keep a copy in RAM. Try creating the texture with keepinram=true")
-	else
-		getindex(t.data, x...)
-	end
-end
-
-
-function Base.setindex!{T <: SupportedEltypes, ColorDim}(t::Texture{T, ColorDim, 2}, value, i, j::Integer)
-    update!(t, value, first(i), j)
-end
-function Base.setindex!{T <: SupportedEltypes, ColorDim}(t::Texture{T, ColorDim, 2}, value, i::Integer)
-    a = mod(i-1, size(t, 1))+1
-    b = div(i-1, size(t, 1))+1
-    setindex!(t, value, a, b)
-end
-function Base.setindex!{T <: SupportedEltypes, ColorDim}(t::Texture{T, ColorDim, 2}, value, i::Integer, j::Integer)
-    update!(t, value, i, j)
-end
-function Base.setindex!{T <: SupportedEltypes, ColorDim, IT2 <: Integer}(t::Texture{T, ColorDim, 2}, value, i::Integer, j::UnitRange{IT2})
-    update!(t, value, i, first(j), 1, length(j))
-end
-function Base.setindex!{T <: SupportedEltypes, ColorDim, IT1 <: Integer}(t::Texture{T, ColorDim, 2}, value, i::UnitRange{IT1}, j::Integer)
-   update!(t, value, first(i), j, length(i), 1)
-end
-function Base.setindex!{T <: SupportedEltypes, ColorDim, IT1 <: Integer, IT2 <: Integer}(t::Texture{T, ColorDim, 2}, value, i::UnitRange{IT1}, j::UnitRange{IT2})
-    update!(t, value, first(i), first(j), length(i), length(j))
-end
-
-
-# Instead of having so many methods, this should rather be solved by a macro or with better fixed size arrays
-
-function update!{T <: SupportedEltypes, ColorDim}(t::Texture{T, ColorDim, 1}, newvalue::Array{T, 1}, xoffset =1)
-    update!(t, newvalue, xoffset, length(newvalue))
-end
-function update!{T <: SupportedEltypes, ColorDim}(t::Texture{T, ColorDim, 1}, newvalue::T, xoffset = 1)
-    update!(t, [newvalue], xoffset, 1)
-end
-
-function update!{T <: SupportedEltypes, ColorDim}(t::Texture{T, ColorDim, 1}, newvalue::Array, xoffset, _width)
-    if (xoffset-1 + _width) > width(t)
-        error("Out of bounds in texture, index ", xoffset, " width: ", _width, " texture:\n", t)
-    end
+function gpu_resize!(t::Texture{T,CD, ND, I <: Integer}, newdims::NTuple{ND, I})
     glBindTexture(t.texturetype, t.id)
-    glTexSubImage1D(t.texturetype, 0, xoffset-1, _width, t.format, t.pixeltype, newvalue)
-    if !isempty(t.data)
-        t.data[xoffset:xoffset+_width-1] = newvalue
-    end
-end
-
-function update!{T <: SupportedEltypes, ColorDim}(t::Texture{T, ColorDim, 2}, newvalue::Array{T, 1}, xoffset = 1, yoffset = 1)
-    update!(t, newvalue, xoffset, yoffset, length(newvalue), 1)
-end
-function update!{T <: SupportedEltypes, ColorDim}(t::Texture{T, ColorDim, 2}, newvalue::Array{T, 2}, xoffset = 1, yoffset = 1)
-    update!(t, newvalue, xoffset, yoffset, size(newvalue)...)
-end
-
-function update!{T <: SupportedEltypes, ColorDim}(t::Texture{T, ColorDim, 2}, newvalue::T, xoffset = 1, yoffset = 1)
-    update!(t, [newvalue], xoffset, yoffset, 1, 1)
-end
-
-
-function update!{T <: SupportedEltypes, ColorDim}(t::Texture{T, ColorDim, 2}, newvalue::Array, xoffset, yoffset, _width, _height)
-    if (xoffset-1 + _width) > width(t) && (yoffset-1 + _height) > height(t)
-        error("Out of bounds in texture, xindex ", xoffset, " width: ", _width, " yindex: ", yoffset, " height: ", _height, " in texture:\n", t)
-    end
-    glBindTexture(t.texturetype, t.id)
-    glTexSubImage2D(t.texturetype, 0, xoffset-1, yoffset-1, _width, _height, t.format, t.pixeltype, newvalue)
-    if !isempty(t.data)
-        t.data[xoffset:xoffset+_width-1, yoffset:yoffset+_height-1] = newvalue
-    end
-end
-
-function Base.setindex!{T <: AbstractFixedVector, ElType}(a::Vector{T}, x::ElType, i::Integer, accessor::Integer)
-  @assert eltype(T) == ElType # ugly workaround for not having triangular dispatch
-  @assert length(a) >= i
-  cardinality = length(T)
-  @assert accessor <= cardinality
-  ptr = convert(Ptr{ElType}, pointer(a))
-  unsafe_store!(ptr, x, ((i-1)*cardinality)+accessor)
-end
-function Base.setindex!{T <: AbstractFixedVector, ElType}(a::Vector{T}, x::Vector{ElType}, i::Integer, accessor::UnitRange)
-  @assert eltype(T) == ElType
-  @assert length(a) >= i
-  cardinality = length(T)
-  @assert length(accessor) <= cardinality
-  ptr = convert(Ptr{ElType}, pointer(a))
-  unsafe_copy!(ptr + (sizeof(ElType)*((i-1)*cardinality)), pointer(x), length(accessor))
-end
-function Base.setindex!{T <: AbstractFixedVector, ElType, CDim}(a::Texture{T, CDim, 1}, x::ElType, i::Integer, accessor::Integer)
-  a.data[i, accessor] = x
-  a[i] = a.data[i]
-end
-function Base.setindex!{T <: AbstractFixedVector, ElType, CDim}(a::Texture{T, CDim, 1}, x::Vector{ElType}, i::Integer, accessor::UnitRange)
-  a.data[i, accessor] = x
-  a[i] = a.data[i]
-end
-
-
-function setindex1D!{T <: AbstractFixedVector, ElType}(a::Union(Matrix{T}, Vector{T}), x::ElType, i::Integer, accessor::Integer)
-    if length(a) < i
-        error("Out of Bounds. 1D index: ", i, " Matrix: ", typeof(a), " length: ", length(a), " size: ", size(a))
-    end
-    cardinality = length(T)
-    if length(accessor) > cardinality
-        error("Out of Bounds. 1D index: ", i, " Matrix: ", typeof(a), " length: ", length(a), " size: ", size(a))
-    end
-
-  ptr = convert(Ptr{eltype(T)}, pointer(a))
-  unsafe_store!(ptr, convert(eltype(T), x), ((i-1)*cardinality)+accessor)
-end
-function setindex1D!{T <: AbstractFixedVector, ElType}(a::Union(Matrix{T}, Vector{T}), x::Vector{ElType}, i::Integer, accessor::UnitRange)
-   if length(a) < i
-     error("Out of Bounds. 1D index: ", i, " Matrix: ", typeof(a), " length: ", length(a), " size: ", size(a))
-   end
-   cardinality = length(T)
-   if length(accessor) > cardinality
-     error("Out of Bounds. 1D index: ", i, " Matrix: ", typeof(a), " length: ", length(a), " size: ", size(a))
-   end
-   eltp  = eltype(T)
-   x     = convert(Vector{eltp}, x)
-   ptr   = convert(Ptr{eltp}, pointer(a))
-   unsafe_copy!(ptr + (sizeof(eltp)*((i-1)*(cardinality)+first(accessor-1))), pointer(x), length(accessor))
-end
-
-
-function setindex1D!{T <: AbstractFixedVector, ElType, CDim}(a::Texture{T, CDim, 2}, x::ElType, i::Integer, accessor::Integer)
-  if isempty(a.data)
-    error("Texture doesn't have a copy in ram. Please create Texture with keepeinram=true, for using setindex/1D!")
-  end
-  setindex1D!(a.data, x, i, accessor)
-  a[i] = a.data[i]
-end
-function setindex1D!{T <: AbstractFixedVector, ElType, CDim}(a::Texture{T, CDim, 2}, x::Vector{ElType}, i::Integer, accessor::UnitRange)
-  if isempty(a.data)
-    error("Texture doesn't have a copy in ram. Please create Texture with keepeinram=true, for using setindex/1D!")
-  end
-  setindex1D!(a.data, x, i, accessor)
-  a[i] = a.data[i]
+    glTexImage(t.texturetype, 0, t.internalformat, newdims..., 0, t.format, t.pixeltype, C_NULL)
+    t.size = newdims
+    t
 end
 
 
 
-function Images.data{T, ColorDim, NDim}(t::Texture{T, ColorDim, NDim})
-    if isempty(t.data)
-    	result = Array(T, t.dims...)
-        glBindTexture(t.texturetype, t.id)
-        glGetTexImage(t.texturetype, 0, t.format, t.pixeltype, result)
-        return result
-    else
-        t.data
-    end
-end

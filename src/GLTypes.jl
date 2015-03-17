@@ -82,12 +82,12 @@ end
 ########################################################################################
 
 #=
-immutable Texture{T <: TEXTURE_COMPATIBLE_NUMBER_TYPES, ColorDIM, NDIM}
+type Texture{T <: TEXTURE_COMPATIBLE_NUMBER_TYPES, ColorDIM, NDIM}
     id::GLuint
     pixeltype::GLenum
     internalformat::GLenum
     format::GLenum
-    dims::Vector{Int}
+    size::Vector{Int}
 end
 =#
 include("GLTexture.jl")
@@ -103,16 +103,16 @@ type GLBuffer{T, Cardinality} #<: DenseArray{T, 1}
 
     function GLBuffer(ptr::Ptr{T}, buffsize::Int, buffertype::GLenum, usage::GLenum)
         @assert buffsize % sizeof(T) == 0
-        _length = div(buffsize, sizeof(T))
-        @assert _length % Cardinality == 0
-        _length = div(_length, Cardinality)
+        len = div(buffsize, sizeof(T))
+        @assert len % Cardinality == 0
+        len = div(len, Cardinality)
 
         id = glGenBuffers()
         glBindBuffer(buffertype, id)
         glBufferData(buffertype, buffsize, ptr, usage)
         glBindBuffer(buffertype, 0)
 
-        obj = new(id, _length, buffertype, usage)
+        obj = new(id, len, buffertype, usage)
         finalizer(obj, delete!)
         obj
     end
@@ -129,7 +129,7 @@ type GLVertexArray
   function GLVertexArray(bufferDict::Dict{Symbol, GLBuffer}, program::GLProgram)
     #get the size of the first array, to assert later, that all have the same size
     indexSize = -1
-    _length = -1
+    len = -1
     id = glGenVertexArrays()
     glBindVertexArray(id)
     for (name, buffer) in bufferDict
@@ -139,11 +139,11 @@ type GLVertexArray
         indexSize = buffer.length * cardinality(buffer)
       else
         attribute   = string(name)
-        if _length == -1 
-            _length = length(buffer)
+        if len == -1 
+            len = length(buffer)
         end
-        if _length != length(buffer)
-            error("buffer $attribute has not the same length as the other buffers. Has: $(buffer.length). Should have: $_length")
+        if len != length(buffer)
+            error("buffer $attribute has not the same length as the other buffers. Has: $(buffer.length). Should have: $len")
         end
         glBindBuffer(buffer.buffertype, buffer.id)
         attribLocation = get_attribute_location(program.id, attribute)
@@ -152,7 +152,7 @@ type GLVertexArray
       end
     end
     glBindVertexArray(0)
-    obj = new(program, id, _length, indexSize)
+    obj = new(program, id, len, indexSize)
     finalizer(obj, delete!)
     obj
   end
@@ -175,19 +175,20 @@ type RenderObject
     id::GLushort
     boundingbox::Function # workaround for having lazy boundingbox queries, while not using multiple dispatch for boundingbox function (No type hierarchy for RenderObjects)
 
-    objectid::GLushort = 0
+    objectid = GLushort(0)
 
     function RenderObject(data::Dict{Symbol, Any}, program::Signal{GLProgram}, bbf::Function=(x)->error("boundingbox not implemented"))
-        objectid::GLushort += 1
-        program = program.value
-        buffers     = filter((key, value) -> isa(value, GLBuffer), data)
-        uniforms    = filter((key, value) -> !isa(value, GLBuffer), data)
-        uniforms[:objectid] = objectid # automatucally integrate object ID, will be discarded if shader doesn't use it
+        objectid             += GLushort(1)
+        program              = program.value
+        buffers              = filter((key, value) -> isa(value, GLBuffer), data)
+        uniforms             = filter((key, value) -> !isa(value, GLBuffer), data)
+        uniforms[:objectid]  = objectid # automatucally integrate object ID, will be discarded if shader doesn't use it
         
-        vertexarray = GLVertexArray(Dict{Symbol, GLBuffer}(buffers), program)
-
+        vertexarray          = GLVertexArray(Dict{Symbol, GLBuffer}(buffers), program)
+        
         uniformtypesandnames = uniform_name_type(program.id) # get active uniforms and types from program
-        optimizeduniforms = Dict{Symbol, Any}()
+        optimizeduniforms    = Dict{Symbol, Any}()
+
         for (uniform_name, typ) in uniformtypesandnames
             if haskey(uniforms, uniform_name)
                  optimizeduniforms[uniform_name] = uniforms[uniform_name]
