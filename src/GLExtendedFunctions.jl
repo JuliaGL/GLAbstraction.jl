@@ -3,11 +3,9 @@ This is the place, where I put functions, which are so annoying in OpenGL, that 
 Its also to do some more complex error handling, not handled by the debug callback
 =#
 
-
-
 function ModernGL.glShaderSource(shaderID::GLuint, shadercode::Vector{Uint8})
     shader_code_ptrs  = Ptr{Uint8}[pointer(shadercode)]
-    len               = [length(shadercode)]
+    len               = GLint[length(shadercode)]
     glShaderSource(shaderID, 1, shader_code_ptrs, len)
 end
 function ModernGL.glGetAttachedShaders(program::GLuint)
@@ -86,7 +84,7 @@ function ModernGL.glGetProgramiv(programID::GLuint, variable::GLenum)
 end
 function ModernGL.glGetIntegerv(variable::GLenum)
     const result = GLint[-1]
-    glGetIntegerv(uint32(variable), result)
+    glGetIntegerv(Uint32(variable), result)
     result[1]
 end
 

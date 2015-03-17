@@ -54,7 +54,7 @@ export glTexImage
 include("GLUniforms.jl")
 export gluniform                # wrapper of all the OpenGL gluniform functions, which call the correct gluniform function via multiple dispatch. Example: gluniform(location, x::Matrix4x4) = gluniformMatrix4fv(location, x)
 export toglsltype_string        # infers a glsl type string from a julia type. Example: Matrix4x4 -> uniform mat4
-# Also exports Macro generated GLSL alike aliases for float32 Matrices and Vectors
+# Also exports Macro generated GLSL alike aliases for Float32 Matrices and Vectors
 # only difference to GLSL: first character is uppercase uppercase
 
 include("GLMatrixMath.jl")
@@ -82,6 +82,11 @@ export readshader
 export glsl_variable_access
 export createview
 export TemplateProgram # Creates a shader from a Mustache view and and a shader file, which uses mustache syntax to replace values.
+export @comp_str
+export @frag_str
+export @vert_str
+export @geom_str
+
 
 include("GLCamera.jl")
 export OrthographicCamera

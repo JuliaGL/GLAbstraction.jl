@@ -14,16 +14,16 @@ end
 
 
 
-Base.getindex(obj::RenderObject, symbol::Symbol) = obj.uniforms[symbol]
+Base.getindex(obj::RenderObject, symbol::Symbol)         = obj.uniforms[symbol]
 Base.setindex!(obj::RenderObject, value, symbol::Symbol) = obj.uniforms[symbol] = value
 
-Base.getindex(obj::RenderObject, symbol::Symbol, x::Function) = getindex(obj, Field{symbol}(), x)
-Base.getindex(obj::RenderObject, ::Field{:prerender}, x::Function) = obj.prerenderfunctions[x]
-Base.getindex(obj::RenderObject, ::Field{:postrender}, x::Function) = obj.postrenderfunctions[x]
+Base.getindex(obj::RenderObject, symbol::Symbol, x::Function)       = getindex(obj, Val{symbol}(), x)
+Base.getindex(obj::RenderObject, ::Val{:prerender}, x::Function)    = obj.prerenderfunctions[x]
+Base.getindex(obj::RenderObject, ::Val{:postrender}, x::Function)   = obj.postrenderfunctions[x]
 
-Base.setindex!(obj::RenderObject, value, symbol::Symbol, x::Function) = setindex!(obj, value, Field{symbol}(), x)
-Base.setindex!(obj::RenderObject, value, ::Field{:prerender}, x::Function) = obj.prerenderfunctions[x] = value
-Base.setindex!(obj::RenderObject, value, ::Field{:postrender}, x::Function) = obj.postrenderfunctions[x] = value
+Base.setindex!(obj::RenderObject, value, symbol::Symbol, x::Function)       = setindex!(obj, value, Val{symbol}(), x)
+Base.setindex!(obj::RenderObject, value, ::Val{:prerender}, x::Function)    = obj.prerenderfunctions[x] = value
+Base.setindex!(obj::RenderObject, value, ::Val{:postrender}, x::Function)   = obj.postrenderfunctions[x] = value
 
 function instancedobject(data, amount::Integer, program::GLProgram, primitive::GLenum=GL_TRIANGLES, bbf::Function=(x)->error("boundingbox not implemented"))
     obj = RenderObject(data, program, bbf)

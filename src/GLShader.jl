@@ -1,3 +1,38 @@
+immutable Shader
+    name::Symbol
+    source::Vector{Uint8}
+    typ::GLenum
+end
+name(s::Shader) = s.name
+function Shader(f::File)
+    stream = open(f)
+    s = Shader(symbol(f.abspath), readbytes(stream), shadertype(f))
+    close(stream)
+    s
+end
+Shader(s::Shader; name=s.name, source=s.source, typ=s.typ) = Shader(name, source, typ)
+# Different shader string literals- usage: e.g. frag" my shader code"
+macro frag_str(source::AbstractString)
+    quote
+        Shader(symbol(@__FILE__), $(Vector{Uint8}(ascii(source))), GL_FRAGMENT_SHADER)
+    end
+end
+macro vert_str(source::AbstractString)
+    quote
+        Shader(symbol(@__FILE__), $(Vector{Uint8}(ascii(source))), GL_VERTEX_SHADER)
+    end
+end
+macro geom_str(source::AbstractString)
+    quote
+        Shader(symbol(@__FILE__), $(Vector{Uint8}(ascii(source))), GL_GEOMETRY_SHADER)
+    end
+end
+macro comp_str(source::AbstractString)
+    quote
+        Shader(symbol(@__FILE__), $(Vector{Uint8}(ascii(source))), GL_COMPUTE_SHADER)
+    end
+end
+
 function getinfolog(obj::GLuint)
     # Return the info log for obj, whether it be a shader or a program.
     isShader    = glIsShader(obj)
@@ -11,9 +46,9 @@ function getinfolog(obj::GLuint)
     # Return the text of the message if there is any
     if maxlength > 0
         buffer = zeros(GLchar, maxlength)
-        sizei::Array{GLsizei, 1} = [0]
+        sizei = GLsizei[0]
         get_log(obj, maxlength, sizei, buffer)
-        length = sizei[1]
+        length = first(sizei)
         return bytestring(pointer(buffer), length)
     else
         return "success"
@@ -23,12 +58,12 @@ end
 function iscompiled(shader::GLuint)
     success = GLint[0]
     glGetShaderiv(shader, GL_COMPILE_STATUS, success)
-    success[1] == GL_TRUE
+    first(success) == GL_TRUE
 end
 
 
 function createshader(shadertype::GLenum)
-    shaderid = glCreateShader(shaderType)
+    shaderid = glCreateShader(shadertype)
     @assert shaderid > 0 "opengl context is not active or shader type not accepted. Shadertype: $(GLENUM(shadertype).name)"
     shaderid::GLuint
 end
@@ -38,75 +73,49 @@ function createprogram()
     p::GLuint
 end
 
+shadertype(s::Shader)               = s.typ
 
-function update(vertcode::ASCIIString, fragcode::ASCIIString, vpath::String, fpath::String, program)
-    try 
-        vertid = compileshader(vertcode, GL_VERTEX_SHADER, vpath)
-        fragid = compileshader(fragcode, GL_FRAGMENT_SHADER, fpath)
-        glUseProgram(0)
-        shader_ids = glGetAttachedShaders(program)
-        foreach(shader -> glDetachShader(program, shader), shader_ids)
-        
-        glAttachShader(program, vertid)
-        glAttachShader(program, fragid)
-
-        glLinkProgram(program)
-        glDeleteShader(vertid)
-        glDeleteShader(fragid)
-    catch theerror
-        println(theerror)
-    end
-end
-
+shadertype(::File{:comp})           = GL_COMPUTE_SHADER
 shadertype(::File{:vert})           = GL_VERTEX_SHADER
 shadertype(::File{:frag})           = GL_FRAGMENT_SHADER
 shadertype(::File{:geom})           = GL_GEOMETRY_SHADER
 shadertype{Ending}(::File{Ending})  = error("File ending doesn't correspond to a shader type. Ending: $(Ending), File: $(abspath(file))")
 
+#Implement File IO interface
+Base.read(f::File{:vert}) = Shader(f)
+Base.read(f::File{:frag}) = Shader(f)
+Base.read(f::File{:geom}) = Shader(f)
+Base.write(io::IO, f::File{:vert}) = write(io, f.source)
+Base.write(io::IO, f::File{:frag}) = write(io, f.source)
+Base.write(io::IO, f::File{:geom}) = write(io, f.source)
 
+compileshader(file::File, program::GLuint) = compileshader(read(file), program)
 
-function attachshader{Typ}(file::File{Typ}, program::GLuint)  
-    fs = open(file)
-    shaderid = attachshader(readbytes(fs), shadertype(file), program, abspath(file))
-    close(fs)
-    return shaderid
-end
-function attachshader(code::Vector{Uint8}, shadertype::GLenum, program::GLuint, name)
-    shaderid = compileshader(code, shadertype, name)
-    glAttachShader(program, shaderid)
-    shaderid
-end
-compileshader(code::AbstractString, shadertype::GLenum, name::AbstractString) = compileshader(bytestring(ascii(code)), shadertype, name)
-
-function compileshader(file::File, program::GLuint)
-    fs = open(file)
-    shaderid = compileshader(readbytes(fs), shadertype(file), program, abspath(file))
-    close(fs)
-    return shaderid
-end
                     #(shadertype, shadercode) -> shader id
 let shader_cache = Dict{(GLenum, Vector{Uint8}), GLuint}() # shader cache prevents that a shader is compiled more than one time
-    function compileshader(shadercode::Vector{Uint8}, shadertype::GLenum, shadername::AbstractString)
-        haskey(shader_cache, (shadertype, shadercode)) && return shader_cache[shadercode]
-        shaderid = createshader(shadertype)
-        glShaderSource(shaderid, shadercode)
-        glCompileShader(shaderid)
-        if !iscompiled(shaderid)
-            print_with_lines(bytestring(shadercode))
-            error("shader $shadername didn't compile. \n$(getinfolog(shaderid)")
+    function compileshader(shader::Shader)
+        get!(shader_cache, (shader.typ, shader.source)) do 
+            shaderid = createshader(shader.typ)
+            glShaderSource(shaderid, shader.source)
+            glCompileShader(shaderid)
+            if !iscompiled(shaderid)
+                print_with_lines(bytestring(shader.source))
+                error("shader $(shader.name) didn't compile. \n$(getinfolog(shaderid))")
+            end
+            shaderid
         end
-        shader_cache[shadercode] = shaderid
-        return shaderid
     end
 end
 
 
 
-function uniformlocations(nametypedict::Dict{Symbol, GLenum})
+function uniformlocations(nametypedict::Dict{Symbol, GLenum}, program)
+    isempty(nametypedict) && return Dict{Symbol,Tuple}()
     texturetarget = -1 # start -1, as texture samplers start at 0
-    return  Dict{Symbol,Tuple}(map(nametypedict) do name_type
+    return Dict{Symbol,Tuple}(map(nametypedict) do name_type
         name, typ = name_type
         loc = get_uniform_location(program, name)
+        println(GLENUM(typ).name)
         if istexturesampler(typ)
             texturetarget += 1
             return (name, (loc, texturetarget))
@@ -116,10 +125,11 @@ function uniformlocations(nametypedict::Dict{Symbol, GLenum})
     end)
 end
 
-
-function GLProgram{S1 <: AbstractString, S2 <: AbstractString, S3 <: AbstractString}(
-                    code::Dict{S1, (GLenum, S2)}, program=createprogram(); 
-                    fragdatalocation=(Int, S3)[])
+# Actually compiles and links shader sources
+function GLProgram(
+                        shaders::Vector{Shader}, program=createprogram(); 
+                        fragdatalocation=(Int, ASCIIString)[]
+                    )
 
     # Remove old shaders
     glUseProgram(0)
@@ -127,11 +137,10 @@ function GLProgram{S1 <: AbstractString, S2 <: AbstractString, S3 <: AbstractStr
     foreach(glDetachShader, program, shader_ids)
 
     #attach new ones
-    shaders = map(code) do name_type_source
-        name, type_code     = name_type_source
-        typ, source         = type_source
-        shaderid            = compileshader(typ, source, name)
+    shader_ids = map(shaders) do shader
+        shaderid = compileshader(shader)
         glAttachShader(program, shaderid)
+        shaderid
     end
 
     #Bind frag data
@@ -141,75 +150,71 @@ function GLProgram{S1 <: AbstractString, S2 <: AbstractString, S3 <: AbstractStr
     
     #link program
     glLinkProgram(program)
-    foreach(glDeleteShader, shaders) # Can be deleted, as they will still be linked to Program and released after program gets released
+    foreach(glDeleteShader, shader_ids) # Can be deleted, as they will still be linked to Program and released after program gets released
 
     # generate the link locations
     nametypedict        = uniform_name_type(program)
-    uniformlocationdict = uniformlocations(nametypedict)
+    uniformlocationdict = uniformlocations(nametypedict, program)
 
-    return GLProgram(program, map(symbol, keys(code)), nametypedict, uniformlocationdict)
+    return GLProgram(program, map(name,shaders), nametypedict, uniformlocationdict)
 end
 
 
 
-
-
+# Gives back a signal, which signals true everytime the file gets edited
 function isupdated(file::File, update_interval=1.0)
     filename    = abspath(file)
     file_edited = foldl((false, mtime(filename)), every(update_interval)) do v0, v1 
         time_edited = mtime(filename)
         (!isapprox(0.0, v0[2] - time_edited), time_edited)
     end
-    return keepwhen(x->x==true, lift(first, file_edited, Bool)) # extract bool
+    return filter(identity, false, lift(first, Bool, file_edited)) # extract bool
 end
 
 #reads from the file and updates the source whenever the file gets edited
-function lift_file{Ending}(code::File{Ending})
-    lift(isupdated(shader_file)) do x
-        readall(x.abspath)
+function lift_shader(shader_file::File)
+    lift(Shader, isupdated(shader_file)) do _unused
+        read(shader_file)
     end
 end
-function TemplateProgram{F <: File}(
-                            code::F..., p=createprogram(); 
-                            view::Dict{ASCIIString, ASCIIString} = Dict{ASCIIString, ASCIIString}(), 
-                            attributes::Dict{Symbol, Any} = Dict{Symbol, Any}(),
-                            fragdatalocation=(Int, ASCIIString)[]
-                        )
-    
-    code_signals = [shader_file.abspath => (shadertype(shader), lift_file(shader)) for shader in code]
-    TemplateProgram(code_signals, p, view=view, attributes=attributes, fragdatalocation=fragdatalocation)
+
+
+# Takes a shader template and renders the template and returns shader source
+template2source(source::Array{UInt8, 1}, attributes::Dict{Symbol, Any}, view::Dict{ASCIIString, ASCIIString}) = template2source(bytestring(source), attributes, view)
+function template2source(source::AbstractString, attributes::Dict{Symbol, Any}, view::Dict{ASCIIString, ASCIIString})
+    code_template    = Mustache.parse(source)
+    specialized_view = merge(createview(attributes, mustachekeys(code_template)), view)
+    code_source     = replace(replace(Mustache.render(code_template, specialized_view), "&#x2F;", "/"), "&gt;", ">")
+    ascii(code_source)
 end
-function TemplateProgram{S1 <: AbstractString, S2 <: AbstractString}(
-                            code::Dict{S1, (GLenum, Input{S2})}, p=createprogram(); 
+
+
+function TemplateProgram(shaders::File...;
                             view::Dict{ASCIIString, ASCIIString}=Dict{ASCIIString, ASCIIString}(), 
                             attributes::Dict{Symbol, Any}=Dict{Symbol, Any}(),
                             fragdatalocation=(Int, ASCIIString)[]
                         )
-    # exctract signals
-    #signals = map(code) do name_typ_code
-    #    name_typ_code[3]
-    #end
-    #program_signal = lift(signals...) do _unused #just needed to update the signal
-    #    # extract values from signals
-    #    code_signals = [name => (typ_code[1], value(typ_code[2])) for (name, typ_code) in code]
-    #    TemplateProgram(code_signals, p, view=view, attributes=attributes, fragdatalocation=fragdatalocation)
-    #end
+    code_signals = Reactive.Lift{Shader}[lift_shader(shader_file) for shader_file in shaders]
+    TemplateProgram(code_signals, view=view, attributes=attributes, fragdatalocation=fragdatalocation)
+end
+function TemplateProgram(
+                            shaders::Vector{Reactive.Lift{Shader}}, p=createprogram(); 
+                            view::Dict{ASCIIString, ASCIIString}=Dict{ASCIIString, ASCIIString}(), 
+                            attributes::Dict{Symbol, Any}=Dict{Symbol, Any}(),
+                            fragdatalocation=(Int, ASCIIString)[]
+                        )
+
+    program_signal = lift(shaders...) do _unused... #just needed to update the signal
+        # extract values from signals
+        shader_values = map(value, shaders)::Vector{Shader}
+        TemplateProgram(shader_values, p, view=view, attributes=attributes, fragdatalocation=fragdatalocation)
+    end
 end
 
-
-
-function template2source(code::AbstractString, attributes::Dict{Symbol, Any}, view::Dict{ASCIIString, ASCIIString})
-    code_template    = Mustache.parse(code)
-    specialized_view = merge(createview(attributes, mustachekeys(code_template)), view)
-    code_sourece     = replace(replace(Mustache.render(code_template, specialized_view), "&#x2F;", "/"), "&gt;", ">")
-end
-
-
-
-function TemplateProgram{S1 <: AbstractString, S2 <: AbstractString}(
-                            code::Dict{S1, (GLenum, S2)}, p=createprogram(); 
-                            view::Dict{ASCIIString, ASCIIString} = Dict{ASCIIString, ASCIIString}(), 
-                            attributes::Dict{Symbol, Any} = Dict{Symbol, Any}(),
+function TemplateProgram(
+                            shaders::Vector{Shader}, p=createprogram(); 
+                            view::Dict{ASCIIString, ASCIIString}=Dict{ASCIIString, ASCIIString}(), 
+                            attributes::Dict{Symbol, Any}=Dict{Symbol, Any}(),
                             fragdatalocation=(Int, ASCIIString)[]
                         )
     if haskey(view, "in") || haskey(view, "out") || haskey(view, "GLSL_VERSION")
@@ -221,30 +226,20 @@ function TemplateProgram{S1 <: AbstractString, S2 <: AbstractString}(
         #for now we just append the extensions
         extension *= "\n" * view["GLSL_EXTENSIONS"]
     end
-    internaldata = @compat Dict(
+    internaldata = @compat(Dict(
         "GLSL_VERSION"    => glsl_version_string(),
         "GLSL_EXTENSIONS" => extension
-    )
+    ))
     view = merge(internaldata, view)
-    TemplateProgram(code, p, view=view, attributes=attributes, fragdatalocation=fragdatalocation)
-end
 
-
-function TemplateProgram{S1 <: AbstractString, S2 <: AbstractString}(
-                            code::Dict{S1, (GLenum, S2)}, p=createprogram();
-                            view::Dict{ASCIIString, ASCIIString}
-                            attributes::Dict{Symbol, Any} = Dict{Symbol, Any}(),
-                            fragdatalocation=(Int, ASCIIString)[]
-                        )
     # transform dict of templates into actual shader source
-    code = [begin
-        typ, code_template = type_code
-        name => (typ, template2source(code_template, attributes, view)) 
-    end 
-    for (name, type_code) in code]
+    code = Shader[Shader(shader, source=template2source(shader.source, attributes, view)) for shader in shaders]
 
     return GLProgram(code, p, fragdatalocation=fragdatalocation)
 end
+
+
+
 # Gets used to access a 
 glsl_variable_access{T,D}(keystring, ::Texture{T, 1, D}) = "texture($(keystring), uv).r;"
 glsl_variable_access{T,D}(keystring, ::Texture{T, 2, D}) = "texture($(keystring), uv).rg;"

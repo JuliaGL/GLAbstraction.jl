@@ -1,4 +1,4 @@
-using GLAbstraction, ImmutableArrays, ModernGL
+using GLAbstraction, ImmutableArrays, ModernGL, Compat
 using GLFW # <- need GLFW for context initialization.. Hopefully replaced by some native initialization
 using Base.Test
 
@@ -26,26 +26,25 @@ indexes = indexbuffer(GLuint[0,1,2])
 # Test for creating a GLBuffer with a 1D Julia Array of Vectors
 #v = Vec2f[Vec2f(0.0, 0.5), Vec2f(0.5, -0.5), Vec2f(-0.5,-0.5)]
 
-v = Float32[0.0, 0.5, 0.5, -0.5, -0.5,-0.5]
-verts = GLBuffer(v, 2)
-
+v = Vector2{Float32}[Vector2{Float32}(0.0, 0.5), Vector2{Float32}(0.5, -0.5), Vector2{Float32}(-0.5,-0.5)]
+verts = GLBuffer(v)
+println(indexes)
+println(verts)
 # lets define some uniforms
 # uniforms are shader variables, which are supposed to stay the same for an entire draw call
 
 
 const triangle = RenderObject(
-	[
+	@compat(Dict(
 		:vertex => verts,
 		:name_doesnt_matter_for_indexes => indexes
-	],
+	)),
 	TemplateProgram(file"test.vert", file"test.frag"))
 
 postrender!(triangle, render, triangle.vertexarray)
 
-#require("uniforms")
-println("looool")
 glClearColor(0,0,0,1)
-for i=1:100
+while !GLFW.WindowShouldClose(window)
   	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
 	render(triangle)
 	GLFW.SwapBuffers(window)

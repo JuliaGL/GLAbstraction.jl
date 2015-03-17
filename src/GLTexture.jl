@@ -1,3 +1,4 @@
+#abstract AbstractFixedVector{T, NDim}
 
 SupportedEltypes = Union(Real, AbstractFixedVector, AbstractArray, ColorValue, AbstractAlphaColorValue)
 
@@ -31,7 +32,7 @@ begin
     end
 end
 
-type Texture{T <: SupportedEltypes, ColorDIM, NDIM} <: DenseArray{T, NDIM}
+type Texture{T <: SupportedEltypes, ColorDIM, NDIM}
     id::GLuint
     texturetype::GLenum
     pixeltype::GLenum
@@ -40,14 +41,12 @@ type Texture{T <: SupportedEltypes, ColorDIM, NDIM} <: DenseArray{T, NDIM}
     dims::Vector{Int}
     data::Array{T, NDIM}
 end
-
 function Texture{T}(data::Ptr{T}, dims, ttype::GLenum, internalformat::GLenum, format::GLenum, parameters::Vector{(GLenum, GLenum)}, keepinram::Bool)
     @assert all(x -> x > 0, dims)
 
     id = glGenTextures()
     glBindTexture(ttype, id)
 
-    #TO DO, get julias packing
     glPixelStorei(GL_UNPACK_ALIGNMENT, 1)
     glPixelStorei(GL_UNPACK_ROW_LENGTH, 0)
     glPixelStorei(GL_UNPACK_SKIP_PIXELS, 0)
@@ -62,14 +61,16 @@ function Texture{T}(data::Ptr{T}, dims, ttype::GLenum, internalformat::GLenum, f
     glTexImage(ttype, 0, internalformat, dims..., 0, format, pixeltype, data)
     NDim            = length(dims)
     ColorDim        = length(T)
-    ram             = init_ram(data, dims, keepinram)
-
-    obj = Texture{T, ColorDim, NDim}(id, ttype, pixeltype, internalformat, format, [dims...], ram)
-    finalizer(obj, delete!)
+    if keepinram
+        if data == C_NULL
+            obj = Texture{T, ColorDim, NDim}(id, ttype, pixeltype, internalformat, format, [dims...], Array(T, dims...))
+        else
+            obj = Texture{T, ColorDim, NDim}(id, ttype, pixeltype, internalformat, format, [dims...], copy(pointer_to_array(data, tuple(dims...))))
+        end
+    else
+        obj = Texture{T, ColorDim, NDim}(id, ttype, pixeltype, internalformat, format, [dims...], Array(T, (dims*0)...))
+    end
     obj
-end
-function Base.delete!(x::Texture)
-    glDeleteTextures(1, [x.id])
 end
 
 #=
@@ -77,6 +78,7 @@ Main constructor, which shouldn't be used. It will initializes all the missing v
 =#
 function Texture{T <: SupportedEltypes}(data::Vector{Array{T,2}}, texture_properties::Vector{(Symbol, Any)})
     Base.length{ET <: Real}(::Type{ET}) = 1
+
     NDim            = 3
     ColorDim        = length(T)
     defaults        = gendefaults(texture_properties, ColorDim, T, NDim)
@@ -236,7 +238,7 @@ function Texture{T <: Real, NDim}(image::Array{ARGB{T}, NDim}, texture_propertie
 end
 
 #=
-Creates a texture from an image, which lays on a path
+Creates a texture from an image, which lays on path
 =#
 function Texture(path::String, texture_properties::Vector{(Symbol, Any)})
     #isdefined(:Images) || eval(Expr(:using, :Images))
@@ -252,19 +254,12 @@ end
 
 
 
-width(t::Texture)                               = size(t,1)
-height(t::Texture)                              = size(t,2)
-depth(t::Texture)                               = size(t,3)
+width(t::Texture)   = size(t,1)
+height(t::Texture)  = size(t,2)
+depth(t::Texture)   = size(t,3)
 
-Base.length(t::Texture)                         = prod(t.dims)
-Base.size(t::Texture)                           = tuple(t.dims...)
-Base.eltype{T,C,D}(t::Texture{T, C, D})         = T
-Base.size{T,C,D}(t::Texture{T,C,D})             = t.dims
-Base.size{T,C,D}(t::Texture{T,C,D}, I::Integer) = t.dims[I]
-Base.endof(t::Texture)                          = prod(t.dims)
-Base.ndims{T, C, D}(t::Texture{T, C, D})        = D
-
-
+Base.length(t::Texture) = prod(t.dims)
+Base.size(t::Texture) = tuple(t.dims...)
 
 function Base.show{T,C,D}(io::IO, t::Texture{T,C,D})
     println(io, "Texture$(D)D: ")
@@ -278,46 +273,39 @@ function Base.show{T,C,D}(io::IO, t::Texture{T,C,D})
     println(io, "     Internal format: ", GLENUM(t.internalformat).name)
 end
 
+Base.eltype{T,C,D}(t::Texture{T, C, D})         = T
+Base.size{T,C,D}(t::Texture{T,C,D})             = t.dims
+Base.size{T,C,D}(t::Texture{T,C,D}, I::Integer) = t.dims[I]
+Base.endof(t::Texture)                          = prod(t.dims)
+Base.ndims{T, C, D}(t::Texture{T, C, D})        = D
 
-resize{T}(data::Array{T, 1}, newdims) = resize!(data, newdims) # bad style!! But couldn't figure out how to best switch between inplace resize!
-function resize{T, NDIM}(data::Array{T, NDIM}, newdims)
-    ranges = map(zip(newdims, size(data))) do dims
-       1:min(dims...) # create a range, which only goes to the smaller dim
-    end
-    tmp = Array(T, newdims...)
-    tmp[ranges...] = data[ranges...] # copy old data
-    return tmp
-end
 # Resize Texture
-
 function Base.resize!{T, CD, ND}(t::Texture{T,CD, ND}, newdims)
     if newdims != t.dims
         glBindTexture(t.texturetype, t.id)
         glTexImage(t.texturetype, 0, t.internalformat, newdims..., 0, t.format, t.pixeltype, C_NULL)
-        isinram(t) && resize(t.data, newdims) 
+        if !isempty(t.data)
+            tmp = Array(T, newdims...)
+            if ndims(t.data) == 2
+                if newdims[1] >= t.dims[1] && newdims[2] >= t.dims[2]
+                   tmp[1:size(t.data, 1), 1:size(t.data,2)] = t.data
+                elseif newdims[1] >= t.dims[1] && newdims[2] <= t.dims[2]
+                    println("sizet: ", size(t.data))
+                    println("sizemp: ", size(tmp))
+                    println("newdims: ", newdims)
+                   tmp[1:size(t.data, 1), 1:end] = t.data[1:end, 1:newdims[2]]
+                elseif newdims[1] <= t.dims[1] && newdims[2] >= t.dims[2]
+                   tmp[1:end, 1:size(t.data,2)] = t.data[1:newdims[1], 1:end]
+                end
+            else
+                tmp[1:size(t.data, 1)] = t.data
+            end
+            t.data = tmp
+        end
         t.dims[1:end] = newdims
     end
 end
 
-texsubimage{T, C}(t::Texture{T, C, 1}, newvalue::Array{T, 1}, xrange::UnitRange, level=0) = glTexSubImage1D(
-    t.texturetype, level, first(xrange)-1, length(xrange), t.format, t.pixeltype, newvalue
-)
-texsubimage{T, C}(t::Texture{T, C, 2}, newvalue::Array{T, 2}, xrange::UnitRange, yrange::UnitRange, level=0) = glTexSubImage2D(
-    t.texturetype, level, first(xrange)-1, length(xrange), first(yrange)-1, length(yrange), t.format, t.pixeltype, newvalue
-)
-texsubimage{T, C}(t::Texture{T, C, 2}, newvalue::Array{T, 3}, xrange::UnitRange, yrange::UnitRange, zrange::UnitRange, level=0) = glTexSubImage2D(
-    t.texturetype, level, first(xrange)-1, length(xrange), first(yrange)-1, length(yrange), first(yrange)-1, length(yrange), t.format, t.pixeltype, newvalue
-)
-
-
-function unsafe_setindex!{T, C, N}(t::Texture{T, C, N}, newvalue::Array{T, N}, x::Union(UnitRange,Integer)...)
-    glBindTexture(t.texturetype, t.id)
-    indexes = map(x) do val
-        isa(val, Integer) && return val:val
-        !isa(val, UnitRange) && error("trying to access an array with: $(typeof(val)). Only Integer and UnitRange are allowed")
-    end
-    texsubimage(t, newvalue, indexes...)
-end
 
 function Base.setindex!{T <: SupportedEltypes, ColorDim}(t::Texture{T, ColorDim, 1}, value, i::Integer)
     update!(t, value, i)
@@ -358,6 +346,36 @@ end
 
 
 # Instead of having so many methods, this should rather be solved by a macro or with better fixed size arrays
+
+function update!{T <: SupportedEltypes, ColorDim}(t::Texture{T, ColorDim, 1}, newvalue::Array{T, 1}, xoffset =1)
+    update!(t, newvalue, xoffset, length(newvalue))
+end
+function update!{T <: SupportedEltypes, ColorDim}(t::Texture{T, ColorDim, 1}, newvalue::T, xoffset = 1)
+    update!(t, [newvalue], xoffset, 1)
+end
+
+function update!{T <: SupportedEltypes, ColorDim}(t::Texture{T, ColorDim, 1}, newvalue::Array, xoffset, _width)
+    if (xoffset-1 + _width) > width(t)
+        error("Out of bounds in texture, index ", xoffset, " width: ", _width, " texture:\n", t)
+    end
+    glBindTexture(t.texturetype, t.id)
+    glTexSubImage1D(t.texturetype, 0, xoffset-1, _width, t.format, t.pixeltype, newvalue)
+    if !isempty(t.data)
+        t.data[xoffset:xoffset+_width-1] = newvalue
+    end
+end
+
+function update!{T <: SupportedEltypes, ColorDim}(t::Texture{T, ColorDim, 2}, newvalue::Array{T, 1}, xoffset = 1, yoffset = 1)
+    update!(t, newvalue, xoffset, yoffset, length(newvalue), 1)
+end
+function update!{T <: SupportedEltypes, ColorDim}(t::Texture{T, ColorDim, 2}, newvalue::Array{T, 2}, xoffset = 1, yoffset = 1)
+    update!(t, newvalue, xoffset, yoffset, size(newvalue)...)
+end
+
+function update!{T <: SupportedEltypes, ColorDim}(t::Texture{T, ColorDim, 2}, newvalue::T, xoffset = 1, yoffset = 1)
+    update!(t, [newvalue], xoffset, yoffset, 1, 1)
+end
+
 
 function update!{T <: SupportedEltypes, ColorDim}(t::Texture{T, ColorDim, 2}, newvalue::Array, xoffset, yoffset, _width, _height)
     if (xoffset-1 + _width) > width(t) && (yoffset-1 + _height) > height(t)
@@ -430,7 +448,6 @@ function setindex1D!{T <: AbstractFixedVector, ElType, CDim}(a::Texture{T, CDim,
   setindex1D!(a.data, x, i, accessor)
   a[i] = a.data[i]
 end
-
 function setindex1D!{T <: AbstractFixedVector, ElType, CDim}(a::Texture{T, CDim, 2}, x::Vector{ElType}, i::Integer, accessor::UnitRange)
   if isempty(a.data)
     error("Texture doesn't have a copy in ram. Please create Texture with keepeinram=true, for using setindex/1D!")
@@ -439,38 +456,15 @@ function setindex1D!{T <: AbstractFixedVector, ElType, CDim}(a::Texture{T, CDim,
   a[i] = a.data[i]
 end
 
-# Implementing the GPUArray interface
-
-function gpu_data{T, C, ND}(t::Texture{T, C, ND})
-    result = Array(T, size(t)...)
-    glBindTexture(t.texturetype, t.id)
-    glGetTexImage(t.texturetype, 0, t.format, t.pixeltype, result)
-end
 
 
-# Resize Texture
-function gpu_resize!{T,CD, ND, I<: Integer}(t::Texture{T, CD, ND}, newdims::NTuple{ND, I})
-    glBindTexture(t.texturetype, t.id)
-    glTexImage(t.texturetype, 0, t.internalformat, newdims..., 0, t.format, t.pixeltype, C_NULL)
-    t.dims[1:end] = newdims
-    nothing
-end
-endtexsubimage{T, C}(t::Texture{T, C, 1}, newvalue::Array{T, 1}, xrange::UnitRange, level=0) = glTexSubImage1D(
-    t.texturetype, level, first(xrange)-1, length(xrange), t.format, t.pixeltype, newvalue
-)
-texsubimage{T, C}(t::Texture{T, C, 2}, newvalue::Array{T, 2}, xrange::UnitRange, yrange::UnitRange, level=0) = glTexSubImage2D(
-    t.texturetype, level, first(xrange)-1, length(xrange), first(yrange)-1, length(yrange), t.format, t.pixeltype, newvalue
-)
-texsubimage{T, C}(t::Texture{T, C, 2}, newvalue::Array{T, 3}, xrange::UnitRange, yrange::UnitRange, zrange::UnitRange, level=0) = glTexSubImage2D(
-    t.texturetype, level, first(xrange)-1, length(xrange), first(yrange)-1, length(yrange), first(yrange)-1, length(yrange), t.format, t.pixeltype, newvalue
-)
-
-
-function unsafe_setindex!{T, C, N}(t::Texture{T, C, N}, newvalue::Array{T, N}, x::Union(UnitRange,Integer)...)
-    indexes = map(x) do val
-        isa(val, Integer) && return val:val
-        !isa(val, UnitRange) && error("trying to access an array with: $(typeof(val)). Only Integer and UnitRange are allowed")
+function Images.data{T, ColorDim, NDim}(t::Texture{T, ColorDim, NDim})
+    if isempty(t.data)
+    	result = Array(T, t.dims...)
+        glBindTexture(t.texturetype, t.id)
+        glGetTexImage(t.texturetype, 0, t.format, t.pixeltype, result)
+        return result
+    else
+        t.data
     end
-    glBindTexture(t.texturetype, t.id)
-    texsubimage(t, newvalue, indexes...)
 end

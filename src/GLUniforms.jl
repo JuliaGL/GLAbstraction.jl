@@ -42,7 +42,7 @@ macro genuniformfunctions(maxdim::Integer)
 			push!(expressions, :(gluniform(location::GLint, x::$typ) = $uniformfunc(location, x)))
 		end
 		push!(expressions, :(typealias $glslalias $imalias)) # glsl alike type alias
-		push!(expressions, :(gluniform(location::Integer, x::$imalias) = $uniformfunc(location, 1, pointer([x])))) # uniform function for single uniforms
+		push!(expressions, :(gluniform(location::Integer, x::$imalias) 		   = (tmp = [x;] ; $uniformfunc(location, 1, tmp)))) # uniform function for single uniforms
 		push!(expressions, :(gluniform(location::Integer, x::Vector{$imalias}) = $uniformfunc(location, length(x), pointer(x)))) #uniform function for arrays of uniforms
 		if n > 1
 			push!(expressions, :($glslalias(x::Real) = $name(convert($typ, x)))) # Single valued constructor
@@ -53,7 +53,7 @@ macro genuniformfunctions(maxdim::Integer)
 		#########################################################################
         if n != 1
             push!(expressions, :(toglsltype_string(x::Type{$imalias}) = $(lowercase(string("uniform ", glslalias))))) # method for shader type mapping
-            push!(expressions, :(toglsltype_string(x::$imalias) = $(lowercase(string("uniform ", glslalias))))) # method for shader type mapping
+            push!(expressions, :(toglsltype_string(x::$imalias) 	  = $(lowercase(string("uniform ", glslalias))))) # method for shader type mapping
         end
 	end
 	for n=2:maxdim, n2=2:maxdim, typ in [GLdouble, GLfloat]
@@ -64,7 +64,7 @@ macro genuniformfunctions(maxdim::Integer)
 		uniformfunc = symbol(string("glUniformMatrix", glsldim, GL_POSTFIX[typ]))
 
 		push!(expressions, :(typealias $glslalias $imalias)) #GLSL alike alias
-		push!(expressions, :(gluniform(location::Integer, x::$imalias) = $uniformfunc(location, 1, GL_FALSE, pointer([x])))) # uniform function for single uniforms
+		push!(expressions, :(gluniform(location::Integer, x::$imalias) = (tmp = [x;] ; $uniformfunc(location, 1, GL_FALSE, tmp)))) # uniform function for single uniforms
 		push!(expressions, :(gluniform(location::Integer, x::Vector{$imalias}) = $uniformfunc(location, length(x), GL_FALSE, pointer(x)))) #uniform function for arrays of uniforms
 		push!(expressions, :($glslalias(x::Real) = $name(convert($typ, x)))) # Single valued constructor
 		push!(expressions, Expr(:export, glslalias))
@@ -99,19 +99,19 @@ Base.size{T}(::Type{Matrix4x2{T}}) = (4,2)
 gluniform(location::Integer, target::Integer, t::Texture) = gluniform(convert(GLint, location), convert(GLint, target), t)
 gluniform(location::Integer, target::Integer, t::Signal)  = gluniform(convert(GLint, location), convert(GLint, target), t.value)
 function gluniform(location::GLint, target::GLint, t::Texture)
-    activeTarget = GL_TEXTURE0 + uint32(target)
+    activeTarget = GL_TEXTURE0 + UInt32(target)
     glActiveTexture(activeTarget)
     glBindTexture(t.texturetype, t.id)
     gluniform(location, target)
 end
 gluniform(location::Integer, x::Signal) = gluniform(location, x.value)
 
-gluniform(location::Integer, x::Union(GLubyte, GLushort, GLuint)) = glUniform1ui(location, x)
-gluniform(location::Integer, x::Union(GLbyte, GLshort, GLint, Bool)) = glUniform1i(location, x)
+gluniform(location::Integer, x::Union(GLubyte, GLushort, GLuint)) 		 = glUniform1ui(location, x)
+gluniform(location::Integer, x::Union(GLbyte, GLshort, GLint, Bool)) 	 = glUniform1i(location, x)
 
 # Needs to be 
-gluniform(location::Integer, x::RGB{Float32}) 		     				 = glUniform3fv(location, 1, convert(Ptr{Float32}, pointer([x])))
-gluniform(location::Integer, x::AlphaColorValue{RGB{Float32}, Float32})  = glUniform4fv(location, 1, convert(Ptr{Float32}, pointer([x])))
+gluniform(location::Integer, x::RGB{Float32}) 		     				 = (tmp = [x;] ; glUniform3fv(location, 1, convert(Ptr{Float32}, pointer(tmp))))
+gluniform(location::Integer, x::AlphaColorValue{RGB{Float32}, Float32})  = (tmp = [x;] ; glUniform4fv(location, 1, convert(Ptr{Float32}, pointer(tmp))))
 
 gluniform{T <: AbstractRGB}(location::Integer, x::Vector{T}) 			 = gluniform(location, reinterpret(Vector3{eltype(T)}, x))
 gluniform{T <: AbstractAlphaColorValue}(location::Integer, x::Vector{T}) = gluniform(location, reinterpret(Vector4{eltype(T)}, x))
@@ -139,6 +139,7 @@ function toglsltype_string(t::GLBuffer)
     typ = cardinality(t) > 1 ? "vec$(cardinality(t))" : "float"
     "$(get_glsl_in_qualifier_string()) $typ"
 end
+
 
 
 
@@ -244,6 +245,7 @@ function attribute_name_type(program::GLuint)
 end
 function istexturesampler(typ::GLenum)
     return (
+    	typ == GL_IMAGE_2D ||
         typ == GL_SAMPLER_1D || typ == GL_SAMPLER_2D || typ == GL_SAMPLER_3D ||  
         typ == GL_UNSIGNED_INT_SAMPLER_1D || typ == GL_UNSIGNED_INT_SAMPLER_2D || typ == GL_UNSIGNED_INT_SAMPLER_3D ||
         typ == GL_INT_SAMPLER_1D || typ == GL_INT_SAMPLER_2D || typ == GL_INT_SAMPLER_3D ||

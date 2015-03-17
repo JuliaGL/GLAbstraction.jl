@@ -54,17 +54,18 @@ function isinside(rect::Rectangle, x::Real, y::Real)
 end
 
 function genquad{T <: Real}(x::T, y::T, width::T, height::T)
-    v = T[
-    x, y,
-    x, y + height,
-    x+ width, y + height,
-    x + width,  y]
+    v = Vector2{T}[
+        Vector2{T}(x, y),
+        Vector2{T}(x, y + height),
+        Vector2{T}(x+ width, y + height),
+        Vector2{T}(x + width,  y)
+    ]
 
-    uv = T[
-    0, 0,
-    0, 1,
-    1, 1,
-    1, 0
+    uv = Vector2{T}[
+        Vector2{T}(0, 0),
+        Vector2{T}(0, 1),
+        Vector2{T}(1, 1),
+        Vector2{T}(1, 0)
     ]
 
     indexes = GLuint[0,1,2,2,3,0]
@@ -98,9 +99,9 @@ function gencircle(r, x, y, amount)
     result = GLfloat[x,y]
     for i = 0:amount-1
         angle = slice * i
-        push!(result, float32(x + r * cos(angle)), float32(y + r * sin(angle)))
+        push!(result, Float32(x + r * cos(angle)), Float32(y + r * sin(angle)))
     end
-    push!(result, float32(x + r * cos(0)), float32(y + r * sin(0)))
+    push!(result, Float32(x + r * cos(0)), Float32(y + r * sin(0)))
     return result
 end
 function genquadstrip(x::GLfloat, y::GLfloat, spacing::GLfloat, width::GLfloat, height::GLfloat, amount::Int)

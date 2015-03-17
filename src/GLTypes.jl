@@ -94,26 +94,25 @@ include("GLTexture.jl")
 ########################################################################
 
 
-type GLBuffer{T, Cardinality, NoRam} <: DenseArray{T, 1}
+type GLBuffer{T, Cardinality} #<: DenseArray{T, 1}
     
     id::GLuint
     length::Int
     buffertype::GLenum
     usage::GLenum
-    data::Vector{T}
 
-    function GLBuffer(ptr::Ptr{T}, bufflength::Int, buffertype::GLenum, usage::GLenum)
-        @assert bufflength % sizeof(T) == 0
-        _length = div(bufflength, sizeof(T))
+    function GLBuffer(ptr::Ptr{T}, buffsize::Int, buffertype::GLenum, usage::GLenum)
+        @assert buffsize % sizeof(T) == 0
+        _length = div(buffsize, sizeof(T))
         @assert _length % Cardinality == 0
         _length = div(_length, Cardinality)
 
         id = glGenBuffers()
         glBindBuffer(buffertype, id)
-        glBufferData(buffertype, bufflength, ptr, usage)
+        glBufferData(buffertype, buffsize, ptr, usage)
         glBindBuffer(buffertype, 0)
-        ram = T[]#init_ram(ptr, (bufflength,), NoRam)
-        obj = new(id, _length, buffertype, usage, ram)
+
+        obj = new(id, _length, buffertype, usage)
         finalizer(obj, delete!)
         obj
     end
@@ -128,14 +127,13 @@ type GLVertexArray
   indexlength::Int # is negative if not indexed
 
   function GLVertexArray(bufferDict::Dict{Symbol, GLBuffer}, program::GLProgram)
-    @assert !isempty(bufferDict)
     #get the size of the first array, to assert later, that all have the same size
     indexSize = -1
     _length = -1
     id = glGenVertexArrays()
     glBindVertexArray(id)
-    for (name, value) in bufferDict
-      buffer      = value
+    for (name, buffer) in bufferDict
+
       if buffer.buffertype == GL_ELEMENT_ARRAY_BUFFER
         glBindBuffer(buffer.buffertype, buffer.id)
         indexSize = buffer.length * cardinality(buffer)
@@ -149,8 +147,7 @@ type GLVertexArray
         end
         glBindBuffer(buffer.buffertype, buffer.id)
         attribLocation = get_attribute_location(program.id, attribute)
-
-        glVertexAttribPointer(attribLocation,  cardinality(buffer), GL_FLOAT, GL_FALSE, 0, 0)
+        glVertexAttribPointer(attribLocation, cardinality(buffer), glpixelformat(eltype(buffer)), GL_FALSE, 0, C_NULL)
         glEnableVertexAttribArray(attribLocation)
       end
     end
@@ -180,18 +177,15 @@ type RenderObject
 
     objectid::GLushort = 0
 
-    function RenderObject(data::Dict{Symbol, Any}, program::GLProgram, bbf::Function=(x)->error("boundingbox not implemented"))
+    function RenderObject(data::Dict{Symbol, Any}, program::Signal{GLProgram}, bbf::Function=(x)->error("boundingbox not implemented"))
         objectid::GLushort += 1
-
+        program = program.value
         buffers     = filter((key, value) -> isa(value, GLBuffer), data)
         uniforms    = filter((key, value) -> !isa(value, GLBuffer), data)
         uniforms[:objectid] = objectid # automatucally integrate object ID, will be discarded if shader doesn't use it
         
-        if length(buffers) > 0
-            vertexarray = GLVertexArray(Dict{Symbol, GLBuffer}(buffers), program)
-        else
-            error("no buffers supplied")
-        end
+        vertexarray = GLVertexArray(Dict{Symbol, GLBuffer}(buffers), program)
+
         uniformtypesandnames = uniform_name_type(program.id) # get active uniforms and types from program
         optimizeduniforms = Dict{Symbol, Any}()
         for (uniform_name, typ) in uniformtypesandnames
@@ -202,21 +196,9 @@ type RenderObject
         return new(optimizeduniforms, uniforms, vertexarray, Dict{Function, Tuple}(), Dict{Function, Tuple}(), objectid, bbf)
     end
 end
-
+include("GLRenderObject.jl")
 
 
 
 
 ####################################################################################
-
-#=
-Style Type, which is used to choose different visualization/editing styles via multiple dispatch
-Usage pattern:
-visualize(::Style{:Default}, ...)           = do something
-visualize(::Style{:MyAwesomeNewStyle}, ...) = do something different
-=#
-immutable Style{StyleValue}
-end
-Style(x::Symbol) = Style{x}()
-Style() = Style{:Default}()
-mergedefault!{S}(style::Style{S}, styles, customdata) = merge!(copy(styles[S]), Dict{Symbol, Any}(customdata))

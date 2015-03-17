@@ -69,9 +69,10 @@ end
 macro file_str(path::AbstractString)
   File(path)
 end
-Base.open(x::File)    = open(abspath(x))
-Base.abspath(x::File) = x.abspath
-
+Base.open(x::File)       = open(abspath(x))
+Base.abspath(x::File)    = x.abspath
+Base.readbytes(x::File)  = readbytes(abspath(x))
+Base.readall(x::File)    = readbytes(abspath(x))
 
 function print_with_lines(text::AbstractString)
     for (i,line) in enumerate(split(shadercode, "\n"))
@@ -80,5 +81,20 @@ function print_with_lines(text::AbstractString)
 end
 
 
-immutable Field{Symbol}
+
+
+#=
+Style Type, which is used to choose different visualization/editing styles via multiple dispatch
+Usage pattern:
+visualize(::Style{:Default}, ...)           = do something
+visualize(::Style{:MyAwesomeNewStyle}, ...) = do something different
+=#
+immutable Style{StyleValue}
 end
+Style(x::Symbol) = Style{x}()
+Style() = Style{:Default}()
+mergedefault!{S}(style::Style{S}, styles, customdata) = merge!(copy(styles[S]), Dict{Symbol, Any}(customdata))
+
+
+
+Base.length{T <: Real}(::Type{T}) = 1
