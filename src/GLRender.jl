@@ -91,7 +91,7 @@ function render(vao::GLVertexArray, mode::GLenum=GL_TRIANGLES)
 
     glBindVertexArray(vao.id)
     if vao.indexlength > 0
-        glDrawElements(mode, vao.indexlength, GL_UNSIGNED_INT, GL_NONE)
+        glDrawElements(mode, vao.indexlength, GL_UNSIGNED_INT, C_NULL)
     else
         glDrawArrays(mode, 0, vao.length)
     end

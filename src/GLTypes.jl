@@ -167,7 +167,7 @@ type GLVertexArray
         glBindBuffer(buffer.buffertype, buffer.id)
         attribLocation = get_attribute_location(program.id, attribute)
 
-        glVertexAttribPointer(attribLocation,  cardinality(buffer), GL_FLOAT, GL_FALSE, 0, 0)
+        glVertexAttribPointer(attribLocation,  cardinality(buffer), GL_FLOAT, GL_FALSE, 0, C_NULL)
         glEnableVertexAttribArray(attribLocation)
       end
     end
