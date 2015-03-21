@@ -144,6 +144,8 @@ type GLVertexArray
 
   function GLVertexArray(bufferDict::Dict{Symbol, GLBuffer}, program::GLProgram)
     @assert !isempty(bufferDict)
+    debugFlagOn && debugGLVertexAConstruct(bufferDict, program)
+
     #get the size of the first array, to assert later, that all have the same size
     indexSize = -1
     _length = -1
@@ -220,7 +222,7 @@ function Base.show(io::IO, obj::RenderObject)
         println(io, "   ", name, "\n      ", uniform)
     end
     println(io, "vertexarray length: ", obj.vertexarray.length)
-    println(io, "vertexarray indexlength: ", obj.vertexarray.indexlength)
+    println(io, "vertexarray indexlength: ", obj.vertexarray.indexlength)    
 end
 RenderObject{T}(data::Dict{Symbol, T}, program::GLProgram) = RenderObject(Dict{Symbol, Any}(data), program)
 
@@ -311,3 +313,24 @@ end
 Style(x::Symbol) = Style{x}()
 Style() = Style{:Default}()
 mergedefault!{S}(style::Style{S}, styles, customdata) = merge!(copy(styles[S]), Dict{Symbol, Any}(customdata))
+
+
+#==
+   Debugging, see conventions in GLRender.jl
+==#
+
+function    debugGLVertexAConstruct(bufferDict::Dict{Symbol, GLBuffer},
+                                    program::GLProgram)
+    debugLevel & 16 == 0 && return
+    id = program.id
+    println("In debugGLVertexAConstruct program.id=$id")
+    map (bufferDict)   do kv
+        k=kv[1]
+        v=kv[2]
+        println("\tkey=$k\tvalue type:", typeof(v))
+    end
+   if debugLevel & 1
+       println("Traceback for debugGLVertexAConstruct")
+       Base.show_backtrace(STDOUT, backtrace())
+   end
+end
