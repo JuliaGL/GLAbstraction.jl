@@ -167,7 +167,7 @@ type GLVertexArray
         glBindBuffer(buffer.buffertype, buffer.id)
         attribLocation = get_attribute_location(program.id, attribute)
 
-        glVertexAttribPointer(attribLocation,  cardinality(buffer), GL_FLOAT, GL_FALSE, 0, C_NULL)
+        glVertexAttribPointer(attribLocation,  cardinality(buffer), GL_FLOAT, GL_FALSE, 0, 0)
         glEnableVertexAttribArray(attribLocation)
       end
     end
@@ -329,8 +329,9 @@ function    debugGLVertexAConstruct(bufferDict::Dict{Symbol, GLBuffer},
         v=kv[2]
         println("\tkey=$k\tvalue type:", typeof(v))
     end
-   if debugLevel & 1
+   if debugLevel & 1 != 0
        println("Traceback for debugGLVertexAConstruct")
        Base.show_backtrace(STDOUT, backtrace())
+       println("")
    end
 end
