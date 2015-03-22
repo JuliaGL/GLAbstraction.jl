@@ -21,7 +21,7 @@ function createcontextinfo(dict)
 	global GLSL_VERSION, GLSL_VARYING_QUALIFIER
 	glsl = split(bytestring(glGetString(GL_SHADING_LANGUAGE_VERSION)), ['.', ' '])
 	if length(glsl) >= 2
-		glsl = VersionNumber(parseint(Int, glsl[1]), parseint(Int, glsl[2])) 
+		glsl = VersionNumber(parse(Int, glsl[1]), parse(Int, glsl[2])) 
 		if glsl.major == 1 && glsl.minor <= 2
 			error("OpenGL shading Language version too low. Try updating graphic driver!")
 		end
@@ -37,7 +37,7 @@ function createcontextinfo(dict)
 
 	glv = split(bytestring(glGetString(GL_VERSION)), ['.', ' '])
 	if length(glv) >= 2
-		glv = VersionNumber(parseint(Int, glv[1]), parseint(Int, glv[2])) 
+		glv = VersionNumber(parse(Int, glv[1]), parse(Int, glv[2])) 
 		if glv.major < 3
 			error("OpenGL version too low. Try updating graphic driver!")
 		end

@@ -125,7 +125,7 @@ gluniform(location::GLint, x::Vector{GLuint}) 	= glUniform1uiv(location, length(
 glsl_prefix(x::DataType) = GLSL_PREFIX[x]
 glsl_prefix{T <: FixedPoint}(x::Type{T}) = ""
 
-toglsltype_string{T, C, D}(t::Texture{T, C, D}) = string("uniform ", glsl_prefix(eltype(T)),"sampler", D, "D")
+toglsltype_string{T, D}(t::Texture{T, D}) = string("uniform ", glsl_prefix(eltype(T)),"sampler", D, "D")
 toglsltype_string(t::GLfloat)                   = "uniform float"
 toglsltype_string(t::GLuint)                    = "uniform uint"
 toglsltype_string(t::GLint)                     = "uniform int"
@@ -199,17 +199,17 @@ is_correct_uniform_type{T <: UNIFORM_TYPES}(::T, ::GLENUM{:GL_FLOAT_MAT4x3, GLen
 is_correct_uniform_type{T <: UNIFORM_TYPES}(::T, ::GLENUM{:GL_FLOAT_MAT2x4, GLenum}) = is_float_uniform_type(T) && size(T) == (2,4)
 is_correct_uniform_type{T <: UNIFORM_TYPES}(::T, ::GLENUM{:GL_FLOAT_MAT3x4, GLenum}) = is_float_uniform_type(T) && size(T) == (3,4)
 
-is_correct_uniform_type{T, C}(::Texture{T, C, 1}, ::GLENUM{:GL_SAMPLER_1D, GLenum}) = is_float_uniform_type(T)
-is_correct_uniform_type{T, C}(::Texture{T, C, 2}, ::GLENUM{:GL_SAMPLER_2D, GLenum}) = is_float_uniform_type(T)
-is_correct_uniform_type{T, C}(::Texture{T, C, 3}, ::GLENUM{:GL_SAMPLER_3D, GLenum}) = is_float_uniform_type(T)
+is_correct_uniform_type{T}(::Texture{T, 1}, ::GLENUM{:GL_SAMPLER_1D, GLenum}) = is_float_uniform_type(T)
+is_correct_uniform_type{T}(::Texture{T, 2}, ::GLENUM{:GL_SAMPLER_2D, GLenum}) = is_float_uniform_type(T)
+is_correct_uniform_type{T}(::Texture{T, 3}, ::GLENUM{:GL_SAMPLER_3D, GLenum}) = is_float_uniform_type(T)
 
-is_correct_uniform_type{T, C}(::Texture{T, C, 1}, ::GLENUM{:GL_UNSIGNED_INT_SAMPLER_1D, GLenum}) = is_unsigned_uniform_type(T)
-is_correct_uniform_type{T, C}(::Texture{T, C, 2}, ::GLENUM{:GL_UNSIGNED_INT_SAMPLER_2D, GLenum}) = is_unsigned_uniform_type(T)
-is_correct_uniform_type{T, C}(::Texture{T, C, 3}, ::GLENUM{:GL_UNSIGNED_INT_SAMPLER_3D, GLenum}) = is_unsigned_uniform_type(T)
+is_correct_uniform_type{T}(::Texture{T, 1}, ::GLENUM{:GL_UNSIGNED_INT_SAMPLER_1D, GLenum}) = is_unsigned_uniform_type(T)
+is_correct_uniform_type{T}(::Texture{T, 2}, ::GLENUM{:GL_UNSIGNED_INT_SAMPLER_2D, GLenum}) = is_unsigned_uniform_type(T)
+is_correct_uniform_type{T}(::Texture{T, 3}, ::GLENUM{:GL_UNSIGNED_INT_SAMPLER_3D, GLenum}) = is_unsigned_uniform_type(T)
 
-is_correct_uniform_type{T, C}(::Texture{T, C, 1}, ::GLENUM{:GL_INT_SAMPLER_1D, GLenum}) = is_integer_uniform_type(T)
-is_correct_uniform_type{T, C}(::Texture{T, C, 2}, ::GLENUM{:GL_INT_SAMPLER_2D, GLenum}) = is_integer_uniform_type(T)
-is_correct_uniform_type{T, C}(::Texture{T, C, 3}, ::GLENUM{:GL_INT_SAMPLER_3D, GLenum}) = is_integer_uniform_type(T)
+is_correct_uniform_type{T}(::Texture{T, 1}, ::GLENUM{:GL_INT_SAMPLER_1D, GLenum}) = is_integer_uniform_type(T)
+is_correct_uniform_type{T}(::Texture{T, 2}, ::GLENUM{:GL_INT_SAMPLER_2D, GLenum}) = is_integer_uniform_type(T)
+is_correct_uniform_type{T}(::Texture{T, 3}, ::GLENUM{:GL_INT_SAMPLER_3D, GLenum}) = is_integer_uniform_type(T)
 
 
 
