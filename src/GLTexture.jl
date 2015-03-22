@@ -33,7 +33,7 @@ type Texture{T <: SupportedEltypes, NDIM} <: DenseArray{T, NDIM}
     pixeltype::GLenum
     internalformat::GLenum
     format::GLenum
-    size::NTuple{Int, NDim}
+    size::NTuple{Int, NDIM}
 end
 
 function Texture{T}(data::Ptr{T}, dims, ttype::GLenum, internalformat::GLenum, format::GLenum, parameters::Vector{(GLenum, GLenum)}, keepinram::Bool)
@@ -217,29 +217,28 @@ function Texture{T <: SupportedEltypes, NDim}(image::Array{T, NDim}, texture_pro
 end
 #=
 Some special treatmend for types, with alpha in the First place
-=#
+
 function Texture{T <: Real, NDim}(image::Array{ARGB{T}, NDim}, texture_properties::Vector{(Symbol, Any)})
     data = map(image) do colorvalue
         AlphaColorValue(colorvalue.c, colorvalue.alpha)
     end
     Texture(pointer(data), [size(data)...], texture_properties)
 end
-
+=#
 #=
 Creates a texture from an image, which lays on a path
 =#
 function Texture(path::String, texture_properties::Vector{(Symbol, Any)})
     #isdefined(:Images) || eval(Expr(:using, :Images))
-    Texture(imread(path), texture_properties)
+    #Texture(imread(path), texture_properties)
 end
 #=
 Creates a texture from an Image
 =#
-function Texture(image::Image, texture_properties::Vector{(Symbol, Any)})
-    data = image.data
-    Texture(mapslices(reverse, data, ndims(data)), texture_properties)
-end
-
+##function Texture(image::Image, texture_properties::Vector{(Symbol, Any)})
+#    data = image.data
+#    Texture(mapslices(reverse, data, ndims(data)), texture_properties)
+#end
 
 
 width(t::Texture)                          = size(t, 1)
@@ -247,7 +246,7 @@ height(t::Texture)                         = size(t, 2)
 depth(t::Texture)                          = size(t, 3)
 
 
-function Base.show{T,C,D}(io::IO, t::Texture{T,C,D})
+function Base.show{T,D}(io::IO, t::Texture{T,D})
     println(io, "Texture$(D)D: ")
     println(io, "                  ID: ", t.id)
     println(io, "                Size: ", reduce("[ColorDim: $(C)]", t.dims) do v0, v1
@@ -261,22 +260,22 @@ end
 
 
 
-texsubimage{T, C}(t::Texture{T, C, 1}, newvalue::Array{T, 1}, xrange::UnitRange, level=0) = glTexSubImage1D(
+texsubimage{T}(t::Texture{T, 1}, newvalue::Array{T, 1}, xrange::UnitRange, level=0) = glTexSubImage1D(
     t.texturetype, level, first(xrange)-1, length(xrange), t.format, t.pixeltype, newvalue
 )
-texsubimage{T, C}(t::Texture{T, C, 2}, newvalue::Array{T, 2}, xrange::UnitRange, yrange::UnitRange, level=0) = glTexSubImage2D(
+texsubimage{T}(t::Texture{T, 2}, newvalue::Array{T, 2}, xrange::UnitRange, yrange::UnitRange, level=0) = glTexSubImage2D(
     t.texturetype, level, first(xrange)-1, length(xrange), first(yrange)-1, length(yrange), t.format, t.pixeltype, newvalue
 )
-texsubimage{T, C}(t::Texture{T, C, 2}, newvalue::Array{T, 3}, xrange::UnitRange, yrange::UnitRange, zrange::UnitRange, level=0) = glTexSubImage2D(
+texsubimage{T}(t::Texture{T, 2}, newvalue::Array{T, 3}, xrange::UnitRange, yrange::UnitRange, zrange::UnitRange, level=0) = glTexSubImage2D(
     t.texturetype, level, first(xrange)-1, length(xrange), first(yrange)-1, length(yrange), first(yrange)-1, length(yrange), t.format, t.pixeltype, newvalue
 )
-function unsafe_setindex!{T, C, N}(t::Texture{T, C, N}, newvalue::Array{T, N}, indexes::Union(UnitRange,Integer)...)
+function unsafe_setindex!{T, N}(t::Texture{T, N}, newvalue::Array{T, N}, indexes::Union(UnitRange,Integer)...)
     glBindTexture(t.texturetype, t.id)
     texsubimage(t, newvalue, indexes...)
 end
 
 # Implementing the GPUArray interface
-function gpu_data{T, C, ND}(t::Texture{T, C, ND})
+function gpu_data{T, ND}(t::Texture{T, ND})
     result = Array(T, size(t))
     glBindTexture(t.texturetype, t.id)
     glGetTexImage(t.texturetype, 0, t.format, t.pixeltype, result)
@@ -285,7 +284,7 @@ end
 
 
 # Resize Texture
-function gpu_resize!(t::Texture{T,CD, ND, I <: Integer}, newdims::NTuple{ND, I})
+function gpu_resize!{T, ND, I <: Integer}(t::Texture{T, ND}, newdims::NTuple{ND, I})
     glBindTexture(t.texturetype, t.id)
     glTexImage(t.texturetype, 0, t.internalformat, newdims..., 0, t.format, t.pixeltype, C_NULL)
     t.size = newdims
