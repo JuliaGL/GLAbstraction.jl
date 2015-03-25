@@ -1,3 +1,12 @@
+#some workaround for missing generic constructors in fixedsizearrays
+function Base.convert(a::Type{Matrix3x3}, b::Matrix4x4)
+    Matrix3x3(
+        b[1,2], b[1,2], b[1,3],
+        b[2,1], b[2,2], b[2,3],
+        b[3,1], b[3,2], b[3,3],
+    )
+end
+
 function scalematrix{T}(scale::Vector3{T})
     result      = eye(T, 4, 4)
     result[1,1] = scale[1]
@@ -14,7 +23,7 @@ translationmatrix_z{T}(z::T) = translationmatrix( Vector3{T}(0, 0, z))
 
 function translationmatrix{T}(translation::Vector3{T})
     result          = eye(T, 4, 4)
-    result[1:3,4]   = translation
+    result[1:3,4]   = [translation...]
 
     return Matrix4x4(result)
 end
@@ -24,24 +33,24 @@ end
 
 function rotationmatrix_x{T}(angle::T)
     Matrix4x4{T}(
-        Vector4{T}(1, 0, 0, 0),
-        Vector4{T}(0, cos(angle), -sin(angle), 0),
-        Vector4{T}(0, sin(angle), cos(angle), 0),
-        Vector4{T}(0, 0, 0, 1))
+        1, 0, 0, 0,
+        0, cos(angle), -sin(angle), 0,
+        0, sin(angle), cos(angle), 0,
+        0, 0, 0, 1)
 end
 function rotationmatrix_z{T}(angle::T)
     Matrix4x4{T}(
-        Vector4{T}(cos(angle), 0, sin(angle), 0),
-        Vector4{T}(0, 1, 0, 0),
-        Vector4{T}(-sin(angle), 0, cos(angle), 0),
-        Vector4{T}(0, 0, 0, 1))
+        cos(angle), 0, sin(angle), 0,
+        0, 1, 0, 0,
+        -sin(angle), 0, cos(angle), 0,
+        0, 0, 0, 1)
 end
 function rotationmatrix_z{T}(angle::T)
     Matrix4x4{T}(
-        Vector4{T}(cos(angle), -sin(angle), 0, 0),
-        Vector4{T}(sin(angle), cos(angle), 0,  0),
-        Vector4{T}(0, 0, 1, 0),
-        Vector4{T}(0, 0, 0, 1))
+        cos(angle), -sin(angle), 0, 0,
+        sin(angle), cos(angle), 0,  0,
+        0, 0, 1, 0,
+        0, 0, 0, 1)
 end
 #=
 function rotationmatrix{T}(angle::T, axis::Vector3{T})
@@ -118,11 +127,11 @@ function perspective(fovyRadians, aspect, zNear, zFar )
     f = tan((( pi/2 ) - ( 0.5f0 * fovyRadians )))
     rangeInv = ( 1.0f / ( zNear - zFar ) )
     return Matrix4x4(
-        Vector4( ( f / aspect ), 0.0f, 0.0f, 0.0f ),
-        Vector4( 0.0f, f, 0.0f, 0.0f ),
-        Vector4( 0.0f, 0.0f, ( ( zNear + zFar ) * rangeInv ), -1.0f ),
-        Vector4( 0.0f, 0.0f, ( ( ( zNear * zFar ) * rangeInv ) * 2.0f ), 0.0f )
-    );
+        ( f / aspect ), 0.0f, 0.0f, 0.0f,
+        0.0f, f, 0.0f, 0.0f,
+        0.0f, 0.0f, ( ( zNear + zFar ) * rangeInv ), -1.0f,
+        0.0f, 0.0f, ( ( ( zNear * zFar ) * rangeInv ) * 2.0f ), 0.0f 
+    )
 end
 function perspectiveprojection{T}(fovy::T, aspect::T, znear::T, zfar::T)
 
@@ -155,32 +164,32 @@ function orthoInverse(mat )
     inv1 = Vector3( tfrm.c1[2], tfrm.c2[2], tfrm.c3[2] )
     inv2 = Vector3( tfrm.c1[3], tfrm.c2[3], tfrm.c3[3] )
     return Matrix4x4(
-        Vector4(inv0..., 0f0),
-        Vector4(inv1..., 0f0),
-        Vector4(inv2..., 0f0),
-        Vector4( ( -( ( inv0 * tfrm.c4[1] ) + ( ( inv1 * tfrm.c4[2] ) + ( inv2 * tfrm.c4[3] ) ) ) )..., 0f0)
+        inv0..., 0f0,
+        inv1..., 0f0,
+        inv2..., 0f0,
+        ( -( ( inv0 * tfrm.c4[1] ) + ( ( inv1 * tfrm.c4[2] ) + ( inv2 * tfrm.c4[3] ) ) ) )..., 0f0
     )
 end
 export lookAt
 function lookAt(eyePos,lookAtPos, upVec )
-    v3Y = unit( upVec )
-    v3Z = unit( ( eyePos - lookAtPos ) )
-    v3X = unit( cross( v3Y, v3Z ) )
+    v3Y = normalize( upVec )
+    v3Z = normalize( ( eyePos - lookAtPos ) )
+    v3X = normalize( cross( v3Y, v3Z ) )
     v3Y = cross( v3Z, v3X )
-    m4EyeFrame = Matrix4x4( Vector4( v3X..., 0f0), Vector4( v3Y..., 0f0 ), Vector4( v3Z..., 0f0 ), Vector4( eyePos..., 0f0 ) )
-    return orthoInverse( m4EyeFrame )
+    m4EyeFrame = Matrix4x4(v3X..., 0f0,  v3Y..., 0f0, v3Z..., 0f0, VeyePos..., 0f0 )
+    return orthoInverse(m4EyeFrame)
 end
 
 function lookat{T}(eyePos::Vector3{T}, lookAt::Vector3{T}, up::Vector3{T})
 
-    zaxis  = unit(eyePos - lookAt)
-    xaxis  = unit(cross(up, zaxis))
-    yaxis  = unit(cross(zaxis, xaxis))
+    zaxis  = normalize(eyePos - lookAt)
+    xaxis  = normalize(cross(up, zaxis))
+    yaxis  = normalize(cross(zaxis, xaxis))
 
     viewMatrix = eye(T, 4,4)
-    viewMatrix[1,1:3]  = xaxis
-    viewMatrix[2,1:3]  = yaxis
-    viewMatrix[3,1:3]  = zaxis
+    viewMatrix[1, 1:3] = [xaxis...]
+    viewMatrix[2, 1:3] = [yaxis...]
+    viewMatrix[3, 1:3] = [zaxis...]
 
     Matrix4x4(viewMatrix) * translationmatrix(-eyePos)
 end
@@ -213,9 +222,9 @@ function (*){T}(q::Quaternion{T}, v::Vector3{T})
     v + q.s * t + cross(Vector3(q.v1, q.v2, q.v3), t)
 end
 function Quaternions.qrotation{T<:Real}(axis::Vector3{T}, theta::T)
-    u = unit(axis)
+    u = normalize(axis)
     s = sin(theta/2)
-    Quaternion(cos(theta/2), s*u.e1, s*u.e2, s*u.e3, true)
+    Quaternion(cos(theta/2), s*u[1], s*u[2], s*u[3], true)
 end
 
 immutable Pivot{T}
@@ -243,31 +252,32 @@ function rotationmatrix4{T}(q::Quaternion{T})
         0 0 0 1])
 end
 function transformationmatrix(p::Pivot)
-    (
-    translationmatrix(p.origin)* #go to origin
-        Matrix4x4(rotationmatrix4(p.rotation))*
-        #scalematrix(p.scale)*
-    translationmatrix(-p.origin)* # go back to origin
-    translationmatrix(p.translation)
-
-    ) 
+    trans_origin        = translationmatrix(p.origin)
+    trans_origin_back   = translationmatrix(-p.origin)
+    rotation_m          = Matrix4x4(rotationmatrix4(p.rotation))
+    translation_m       = translationmatrix(p.translation)
+    tmp = trans_origin #go to origin
+    tmp = tmp*rotation_m #rotate
+    tmp = tmp*trans_origin_back #go to origin
+    tmp = tmp*translation_m #apply translation
+    tmp
 end
 #Calculate rotation between two vectors
 function rotation{T}(u::Vector3{T}, v::Vector3{T})
     # It is important that the inputs are of equal length when
     # calculating the half-way vector.
-    u = unit(u)
-    v = unit(v)
+    u = normalize(u)
+    v = normalize(v)
 
     # Unfortunately, we have to check for when u == -v, as u + v
     # in this case will be (0, 0, 0), which cannot be normalized.
     if (u == -v)
         # 180 degree rotation around any orthogonal vector
         other = (abs(dot(u, Vector3{T}(1,0,0))) < 1.0) ? Vector3{T}(1,0,0) : Vector3{T}(0,1,0)
-        return qrotation(unit(cross(u, other)), 180)
+        return qrotation(normalize(cross(u, other)), 180)
     end
 
-    half = unit(u + v)
+    half = normalize(u + v)
     return Quaternion(dot(u, half), cross(u, half)...)
 end
 

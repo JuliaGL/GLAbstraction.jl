@@ -32,29 +32,21 @@ macro genuniformfunctions(maxdim::Integer)
 	imMatrix    = "Matrix"
 	expressions = Any[]
     
-	for n=1:maxdim, typ in GLSL_COMPATIBLE_NUMBER_TYPES
+	for n=2:maxdim, typ in GLSL_COMPATIBLE_NUMBER_TYPES
 		glslalias 	= symbol(string(GLSL_PREFIX[typ],glslVector,n)) 
 		name 		= symbol(string(imVector, n))
 		imalias 	= :($name {$typ})
 		uniformfunc = symbol(string("glUniform", n, GL_POSTFIX[typ]))
-		if n == 1 # define also single valued uniform functions
-			uniformfunc = symbol(string("glUniform", n, chop(GL_POSTFIX[typ])))
-			push!(expressions, :(gluniform(location::GLint, x::$typ) = $uniformfunc(location, x)))
-		end
+
 		push!(expressions, :(typealias $glslalias $imalias)) # glsl alike type alias
-		push!(expressions, :(gluniform(location::Integer, x::$imalias) 		   = (tmp = [x;] ; $uniformfunc(location, 1, tmp)))) # uniform function for single uniforms
-		push!(expressions, :(gluniform(location::Integer, x::Vector{$imalias}) = $uniformfunc(location, length(x), pointer(x)))) #uniform function for arrays of uniforms
-		if n > 1
-			push!(expressions, :($glslalias(x::Real) = $name(convert($typ, x)))) # Single valued constructor
-		end
+		push!(expressions, :(gluniform(location::Integer, x::$imalias) 		   = (tmp = [x;] ; $uniformfunc(location, 1, Ptr{eltype(x)}(tmp))))) # uniform function for single uniforms
+		push!(expressions, :(gluniform(location::Integer, x::Vector{$imalias}) = $uniformfunc(location, length(x), Ptr{eltype(eltype(x))}(pointer(x))))) #uniform function for arrays of uniforms
 		push!(expressions, Expr(:export, glslalias))
 		
 
 		#########################################################################
-        if n != 1
-            push!(expressions, :(toglsltype_string(x::Type{$imalias}) = $(lowercase(string("uniform ", glslalias))))) # method for shader type mapping
-            push!(expressions, :(toglsltype_string(x::$imalias) 	  = $(lowercase(string("uniform ", glslalias))))) # method for shader type mapping
-        end
+        push!(expressions, :(toglsltype_string(x::Type{$imalias}) = $(lowercase(string("uniform ", glslalias))))) # method for shader type mapping
+        push!(expressions, :(toglsltype_string(x::$imalias) 	  = $(lowercase(string("uniform ", glslalias))))) # method for shader type mapping
 	end
 	for n=2:maxdim, n2=2:maxdim, typ in [GLdouble, GLfloat]
 		glsldim 	= n==n2 ? "$n" : "$(n)x$(n2)"
@@ -64,34 +56,14 @@ macro genuniformfunctions(maxdim::Integer)
 		uniformfunc = symbol(string("glUniformMatrix", glsldim, GL_POSTFIX[typ]))
 
 		push!(expressions, :(typealias $glslalias $imalias)) #GLSL alike alias
-		push!(expressions, :(gluniform(location::Integer, x::$imalias) = (tmp = [x;] ; $uniformfunc(location, 1, GL_FALSE, tmp)))) # uniform function for single uniforms
-		push!(expressions, :(gluniform(location::Integer, x::Vector{$imalias}) = $uniformfunc(location, length(x), GL_FALSE, pointer(x)))) #uniform function for arrays of uniforms
-		push!(expressions, :($glslalias(x::Real) = $name(convert($typ, x)))) # Single valued constructor
+		push!(expressions, :(gluniform(location::Integer, x::$imalias) = (tmp = [x;] ; $uniformfunc(location, 1, GL_FALSE, Ptr{eltype(x)}(pointer(tmp)))))) # uniform function for single uniforms
+		push!(expressions, :(gluniform(location::Integer, x::Vector{$imalias}) = $uniformfunc(location, length(x), GL_FALSE, Ptr{eltype(eltype(x))}(pointer(x))))) #uniform function for arrays of uniforms
 		push!(expressions, Expr(:export, glslalias))
 		#########################################################################
 		push!(expressions, :(toglsltype_string(x::$imalias) = $(lowercase(string("uniform ", glslalias))))) # method for shader type mapping
 	end
 	return esc(Expr(:block, expressions...))
 end
-
-# Extend Vector class a bit
-Base.length{T}(::Type{Vector1{T}}) = 1
-Base.length{T}(::Type{Vector2{T}}) = 2
-Base.length{T}(::Type{Vector3{T}}) = 3
-Base.length{T}(::Type{Vector4{T}}) = 4
-
-Base.size{T}(::Type{Matrix4x4{T}}) = (4,4)
-Base.size{T}(::Type{Matrix3x3{T}}) = (3,3)
-Base.size{T}(::Type{Matrix2x2{T}}) = (2,2)
-
-Base.size{T}(::Type{Matrix2x4{T}}) = (2,4)
-Base.size{T}(::Type{Matrix3x4{T}}) = (3,4)
-
-Base.size{T}(::Type{Matrix2x3{T}}) = (2,3)
-Base.size{T}(::Type{Matrix4x3{T}}) = (4,3)
-
-Base.size{T}(::Type{Matrix3x2{T}}) = (3,2)
-Base.size{T}(::Type{Matrix4x2{T}}) = (4,2)
 
 @genuniformfunctions 4 
 
@@ -108,10 +80,11 @@ gluniform(location::Integer, x::Signal) = gluniform(location, x.value)
 
 gluniform(location::Integer, x::Union(GLubyte, GLushort, GLuint)) 		 = glUniform1ui(location, x)
 gluniform(location::Integer, x::Union(GLbyte, GLshort, GLint, Bool)) 	 = glUniform1i(location, x)
+gluniform(location::Integer, x::GLfloat) 	 							 = glUniform1f(location, x)
 
 # Needs to be 
-gluniform(location::Integer, x::RGB{Float32}) 		     				 = (tmp = [x;] ; glUniform3fv(location, 1, convert(Ptr{Float32}, pointer(tmp))))
-gluniform(location::Integer, x::AlphaColorValue{RGB{Float32}, Float32})  = (tmp = [x;] ; glUniform4fv(location, 1, convert(Ptr{Float32}, pointer(tmp))))
+gluniform(location::Integer, x::RGB{Float32}) 		     				 = (tmp = [x;] ; glUniform3fv(location, 1, Ptr{Float32}(pointer(tmp))))
+gluniform(location::Integer, x::AlphaColorValue{RGB{Float32}, Float32})  = (tmp = [x;] ; glUniform4fv(location, 1, Ptr{Float32}(pointer(tmp))))
 
 gluniform{T <: AbstractRGB}(location::Integer, x::Vector{T}) 			 = gluniform(location, reinterpret(Vector3{eltype(T)}, x))
 gluniform{T <: AbstractAlphaColorValue}(location::Integer, x::Vector{T}) = gluniform(location, reinterpret(Vector4{eltype(T)}, x))

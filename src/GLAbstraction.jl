@@ -1,9 +1,13 @@
 module GLAbstraction
 
-using ImmutableArrays
+using Quaternions
+import Quaternions.normalize
+
+using AbstractGPUArray
+using FixedSizeArrays
+using GeometryTypes
 using ModernGL
 using Reactive
-using Quaternions
 using Color
 using FixedPointNumbers
 using Compat
@@ -11,7 +15,6 @@ using Compat
 #import Lumberjack
 import Mustache
 
-import Base.delete!
 
 
 include("GLUtils.jl")
@@ -68,6 +71,11 @@ import ModernGL.glGenFramebuffers
 import ModernGL.glGetTexLevelParameteriv
 import ModernGL.glViewport
 import ModernGL.glGenRenderbuffers
+import ModernGL.glDeleteTextures
+import ModernGL.glDeleteVertexArrays
+import ModernGL.glDeleteBuffers
+
+
 include("GLExtendedFunctions.jl")
 export glTexImage
 

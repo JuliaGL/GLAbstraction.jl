@@ -1,24 +1,5 @@
 
-SupportedEltypes = Union(Real, AbstractFixedVector, AbstractArray, ColorValue, AbstractAlphaColorValue)
 
-begin
-    #Supported datatypes
-    local const TO_GL_TYPE = Dict(
-        GLubyte     => GL_UNSIGNED_BYTE,
-        GLbyte      => GL_BYTE,
-        GLuint      => GL_UNSIGNED_INT,
-        GLushort    => GL_UNSIGNED_SHORT,
-        GLshort     => GL_SHORT,
-        GLint       => GL_INT,
-        GLfloat     => GL_FLOAT
-    )
-    glpixelformat{T <: Real}(x::Type{T}) = get(TO_GL_TYPE, x) do
-        error("Type: $(x) not supported as pixel datatype")
-    end
-    glpixelformat{T <: FixedPoint}(x::Type{T})       = glpixelformat(FixedPointNumbers.rawtype(x))
-    glpixelformat{T <: SupportedEltypes}(x::Type{T}) = glpixelformat(eltype(x))
-    glpixelformat(x::SupportedEltypes)               = glpixelformat(eltype(x))
-end
 #Supported texture modes/dimensions
 function default_texturetype(ndim::Integer)
     ndim == 1 && return GL_TEXTURE_1D
@@ -27,16 +8,16 @@ function default_texturetype(ndim::Integer)
     error("Dimensionality: $(ndim), not supported for OpenGL texture")
 end
 
-type Texture{T <: SupportedEltypes, NDIM} <: DenseArray{T, NDIM}
-    id::GLuint
-    texturetype::GLenum
-    pixeltype::GLenum
-    internalformat::GLenum
-    format::GLenum
-    size::NTuple{Int, NDIM}
+type Texture{T <: GLArrayEltypes, NDIM} <: GPUArray{T, NDIM}
+    id              ::GLuint
+    texturetype     ::GLenum
+    pixeltype       ::GLenum
+    internalformat  ::GLenum
+    format          ::GLenum
+    size            ::NTuple{NDIM, Int}
 end
 
-function Texture{T}(data::Ptr{T}, dims, ttype::GLenum, internalformat::GLenum, format::GLenum, parameters::Vector{(GLenum, GLenum)}, keepinram::Bool)
+function Texture{T}(data::Ptr{T}, dims, ttype::GLenum, internalformat::GLenum, format::GLenum, parameters::Vector{(GLenum, GLenum)})
     id = glGenTextures()
     glBindTexture(ttype, id)
 
@@ -50,23 +31,21 @@ function Texture{T}(data::Ptr{T}, dims, ttype::GLenum, internalformat::GLenum, f
         glTexParameteri(ttype, elem...)
     end
 
-    pixeltype       = glpixelformat(T)
+    pixeltype       = julia2glenum(T)
     NDim            = length(dims)
 
     glTexImage(ttype, 0, internalformat, dims..., 0, format, pixeltype, data)
 
-    obj = Texture{T, NDim}(id, ttype, pixeltype, internalformat, format, [dims...], ram)
-    finalizer(obj, delete!)
+    obj = Texture{T, NDim}(id, ttype, pixeltype, internalformat, format, tuple(dims...))
+    #finalizer(obj, free)
     obj
 end
-function delete!(x::Texture)
-    glDeleteTextures(1, [x.id])
-end
+
 
 #=
 Main constructor, which shouldn't be used. It will initializes all the missing values and pass it to the inner Texture constructor
 =#
-function Texture{T <: SupportedEltypes}(data::Vector{Array{T,2}}, texture_properties::Vector{(Symbol, Any)})
+function Texture{T <: GLArrayEltypes}(data::Vector{Array{T,2}}, texture_properties::Vector{(Symbol, Any)})
     Base.length{ET <: Real}(::Type{ET}) = 1
     NDim            = 3
     ColorDim        = length(T)
@@ -74,7 +53,7 @@ function Texture{T <: SupportedEltypes}(data::Vector{Array{T,2}}, texture_proper
     Texture(data, GL_TEXTURE_2D_ARRAY, defaults[:internalformat], defaults[:format], defaults[:parameters])
 end
 
-function Texture{T <: SupportedEltypes}(data::Vector{Array{T,2}}, ttype::GLenum, internalformat::GLenum, format::GLenum, parameters::Vector{(GLenum, GLenum)})
+function Texture{T <: GLArrayEltypes}(data::Vector{Array{T,2}}, ttype::GLenum, internalformat::GLenum, format::GLenum, parameters::Vector{(GLenum, GLenum)})
     id = glGenTextures()
     glBindTexture(ttype, id)
 
@@ -92,7 +71,7 @@ function Texture{T <: SupportedEltypes}(data::Vector{Array{T,2}}, ttype::GLenum,
         glTexParameteri(ttype, elem...)
     end
 
-    pixeltype = glpixelformat(T)
+    pixeltype = julia2glenum(T)
 
     layers  = length(data)
     dims    = map(size, data)
@@ -106,8 +85,8 @@ function Texture{T <: SupportedEltypes}(data::Vector{Array{T,2}}, ttype::GLenum,
         width, height = size(texel)
         glTexSubImage3D(GL_TEXTURE_2D_ARRAY, 0, 0, 0, layer-1, width, height, 1, format, pixeltype, texel)
     end
-    ColorDim        = length(T)
-    Texture{T, ColorDim, 3}(id, ttype, pixeltype, internalformat, format, [maxdims..., layers], Array(T, 0,0,0))
+
+    Texture{T, 3}(id, ttype, pixeltype, internalformat, format, tuple(maxdims..., layers))
 
 end
 function default_colorformat(colordim::Integer, isinteger::Bool, colororder::String)
@@ -124,7 +103,7 @@ end
 
 default_colorformat{T <: Real}(colordim::Type{T})              = default_colorformat(1, T <: Integer, "RED")
 default_colorformat{T <: AbstractArray}(colordim::Type{T})     = default_colorformat(length(T), eltype(T) <: Integer, "RGBA")
-default_colorformat{T <: AbstractFixedVector}(colordim::Type{T}) = default_colorformat(length(T), eltype(T) <: Integer, "RGBA")
+default_colorformat{T <: FixedVector}(colordim::Type{T}) = default_colorformat(length(T), eltype(T) <: Integer, "RGBA")
 function default_colorformat{T <: AbstractAlphaColorValue}(colordim::Type{T})
     colororder = string(T.parameters[1].name.name) * "A"
     return default_colorformat(length(T), eltype(T) <: Integer, colororder)
@@ -189,12 +168,12 @@ Texture(data... ; texture_properties...) = Texture(data..., convert(Vector{(Symb
 #=
 Main constructor, which shouldn't be used. It will initializes all the missing values and pass it to the inner Texture constructor
 =#
-function Texture{T <: SupportedEltypes}(data::Ptr{T}, dims::AbstractVector, texture_properties::Vector{(Symbol, Any)})
+function Texture{T <: GLArrayEltypes}(data::Ptr{T}, dims::AbstractVector, texture_properties::Vector{(Symbol, Any)})
     Base.length{ET <: Real}(::Type{ET}) = 1
     NDim            = length(dims)
     ColorDim        = length(T)
     defaults        = gendefaults(texture_properties, ColorDim, T, NDim)
-    Texture(data, dims, defaults[:texturetype], defaults[:internalformat], defaults[:format], defaults[:parameters], defaults[:keepinram])
+    Texture(data, dims, defaults[:texturetype], defaults[:internalformat], defaults[:format], defaults[:parameters])
 end
 
 #=
@@ -202,7 +181,7 @@ Constructor for empty initialization with NULL pointer instead of an array with 
 You just need to pass the wanted color/vector type and the dimensions.
 To which values the texture gets initialized is driver dependent
 =#
-function Texture{T <: SupportedEltypes}(datatype::Type{T}, dims::AbstractVector, texture_properties::Vector{(Symbol, Any)})
+function Texture{T <: GLArrayEltypes}(datatype::Type{T}, dims::AbstractVector, texture_properties::Vector{(Symbol, Any)})
     Texture(convert(Ptr{T}, C_NULL), dims, texture_properties)
 end
 
@@ -212,7 +191,7 @@ So Array{Real, 2} == Texture2D with 1D Color dimension
 Array{Vec1/2/3/4, 2} == Texture2D with 1/2/3/4D Color dimension
 Colors from Colors.jl should mostly work as well
 =#
-function Texture{T <: SupportedEltypes, NDim}(image::Array{T, NDim}, texture_properties::Vector{(Symbol, Any)})
+function Texture{T <: GLArrayEltypes, NDim}(image::Array{T, NDim}, texture_properties::Vector{(Symbol, Any)})
     Texture(pointer(image), [size(image)...], texture_properties)
 end
 #=
@@ -259,17 +238,9 @@ function Base.show{T,D}(io::IO, t::Texture{T,D})
 end
 
 
+# GPUArray interface:
 
-texsubimage{T}(t::Texture{T, 1}, newvalue::Array{T, 1}, xrange::UnitRange, level=0) = glTexSubImage1D(
-    t.texturetype, level, first(xrange)-1, length(xrange), t.format, t.pixeltype, newvalue
-)
-texsubimage{T}(t::Texture{T, 2}, newvalue::Array{T, 2}, xrange::UnitRange, yrange::UnitRange, level=0) = glTexSubImage2D(
-    t.texturetype, level, first(xrange)-1, length(xrange), first(yrange)-1, length(yrange), t.format, t.pixeltype, newvalue
-)
-texsubimage{T}(t::Texture{T, 2}, newvalue::Array{T, 3}, xrange::UnitRange, yrange::UnitRange, zrange::UnitRange, level=0) = glTexSubImage2D(
-    t.texturetype, level, first(xrange)-1, length(xrange), first(yrange)-1, length(yrange), first(yrange)-1, length(yrange), t.format, t.pixeltype, newvalue
-)
-function unsafe_setindex!{T, N}(t::Texture{T, N}, newvalue::Array{T, N}, indexes::Union(UnitRange,Integer)...)
+function gpu_setindex!{T, N}(t::Texture{T, N}, newvalue::Array{T, N}, indexes::Union(UnitRange,Integer)...)
     glBindTexture(t.texturetype, t.id)
     texsubimage(t, newvalue, indexes...)
 end
@@ -291,5 +262,13 @@ function gpu_resize!{T, ND, I <: Integer}(t::Texture{T, ND}, newdims::NTuple{ND,
     t
 end
 
-
+texsubimage{T}(t::Texture{T, 1}, newvalue::Array{T, 1}, xrange::UnitRange, level=0) = glTexSubImage1D(
+    t.texturetype, level, first(xrange)-1, length(xrange), t.format, t.pixeltype, newvalue
+)
+texsubimage{T}(t::Texture{T, 2}, newvalue::Array{T, 2}, xrange::UnitRange, yrange::UnitRange, level=0) = glTexSubImage2D(
+    t.texturetype, level, first(xrange)-1, length(xrange), first(yrange)-1, length(yrange), t.format, t.pixeltype, newvalue
+)
+texsubimage{T}(t::Texture{T, 2}, newvalue::Array{T, 3}, xrange::UnitRange, yrange::UnitRange, zrange::UnitRange, level=0) = glTexSubImage2D(
+    t.texturetype, level, first(xrange)-1, length(xrange), first(yrange)-1, length(yrange), first(yrange)-1, length(yrange), t.format, t.pixeltype, newvalue
+)
 

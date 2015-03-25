@@ -115,7 +115,6 @@ function uniformlocations(nametypedict::Dict{Symbol, GLenum}, program)
     return Dict{Symbol,Tuple}(map(nametypedict) do name_type
         name, typ = name_type
         loc = get_uniform_location(program, name)
-        println(GLENUM(typ).name)
         if istexturesampler(typ)
             texturetarget += 1
             return (name, (loc, texturetarget))

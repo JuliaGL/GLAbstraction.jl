@@ -1,4 +1,4 @@
-using GLAbstraction, ImmutableArrays, ModernGL, Compat
+using GLAbstraction, GeometryTypes, ModernGL, Compat
 using GLFW # <- need GLFW for context initialization.. Hopefully replaced by some native initialization
 using Base.Test
 
@@ -27,12 +27,10 @@ indexes = indexbuffer(GLuint[0,1,2])
 #v = Vec2f[Vec2f(0.0, 0.5), Vec2f(0.5, -0.5), Vec2f(-0.5,-0.5)]
 
 v = Vector2{Float32}[Vector2{Float32}(0.0, 0.5), Vector2{Float32}(0.5, -0.5), Vector2{Float32}(-0.5,-0.5)]
+
 verts = GLBuffer(v)
-println(indexes)
-println(verts)
 # lets define some uniforms
 # uniforms are shader variables, which are supposed to stay the same for an entire draw call
-
 
 const triangle = RenderObject(
 	@compat(Dict(
@@ -51,4 +49,9 @@ while !GLFW.WindowShouldClose(window)
 	GLFW.PollEvents()
 	sleep(0.01)
 end
+
+
+
 GLFW.Terminate()
+
+

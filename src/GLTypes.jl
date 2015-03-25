@@ -1,49 +1,27 @@
-abstract AbstractFixedVector{T, NDim}
-
-
-##############################################################################
-abstract Shape
-immutable Circle{T <: Real} <: Shape
-    x::T
-    y::T
-    r::T
-end
-
-type Rectangle{T <: Real} <: Shape
-    x::T
-    y::T
-    w::T
-    h::T
-end
-#Axis Aligned Bounding Box
-immutable AABB{T}
-  min::Vector3{T}
-  max::Vector3{T}
-end
 ############################################################################
 
 type GLProgram
-    id::GLuint
-    names::Vector{Symbol}
-    nametype::Dict{Symbol, GLenum}
-    uniformloc::Dict{Symbol, Tuple}
+    id          ::GLuint
+    names       ::Vector{Symbol}
+    nametype    ::Dict{Symbol, GLenum}
+    uniformloc  ::Dict{Symbol, Tuple}
+
     function GLProgram(id::GLuint, names::Vector{Symbol}, nametype::Dict{Symbol, GLenum}, uniformloc::Dict{Symbol, Tuple})
         obj = new(id, names, nametype, uniformloc)
-        finalizer(obj, delete!)
+        #finalizer(obj, free)
         obj
     end
 end
-function Base.delete!(x::GLProgram)
-    glDeleteProgram(x.id)
-end
+
 
 
 ############################################
 # Framebuffers and the like
 
 immutable RenderBuffer
-    id::GLuint
-    format::GLenum
+    id      ::GLuint
+    format  ::GLenum
+
     function RenderBuffer(format, dimension)
         @assert length(dimensions) == 2
         id = GLuint[0]
@@ -62,8 +40,8 @@ function resize!(rb::RenderBuffer, newsize::AbstractArray)
 end
 
 immutable FrameBuffer{T}
-    id::GLuint
-    attachments::Vector{Any}
+    id          ::GLuint
+    attachments ::Vector{Any}
 
     function FrameBuffer(dimensions::Input)
         fb = glGenFramebuffers()
@@ -80,51 +58,40 @@ function resize!(fbo::FrameBuffer, newsize::AbstractArray)
 end
 
 ########################################################################################
-
-#=
-type Texture{T <: TEXTURE_COMPATIBLE_NUMBER_TYPES, ColorDIM, NDIM}
-    id::GLuint
-    pixeltype::GLenum
-    internalformat::GLenum
-    format::GLenum
-    size::Vector{Int}
-end
-=#
-include("GLTexture.jl")
-########################################################################
+# OpenGL Arrays
 
 
-type GLBuffer{T, Cardinality} #<: DenseArray{T, 1}
-    
-    id::GLuint
-    length::Int
-    buffertype::GLenum
-    usage::GLenum
+const GLArrayEltypes = Union(FixedVector, Real)
 
-    function GLBuffer(ptr::Ptr{T}, buffsize::Int, buffertype::GLenum, usage::GLenum)
-        @assert buffsize % sizeof(T) == 0
-        len = div(buffsize, sizeof(T))
-        @assert len % Cardinality == 0
-        len = div(len, Cardinality)
+#Transfomr julia datatypes to opengl enum type
+julia2glenum{T <: FixedPoint}(x::Type{T})               = julia2glenum(FixedPointNumbers.rawtype(x))
+julia2glenum{T <: GLArrayEltypes}(x::Union(Type{T}, T)) = julia2glenum(eltype(x))
 
-        id = glGenBuffers()
-        glBindBuffer(buffertype, id)
-        glBufferData(buffertype, buffsize, ptr, usage)
-        glBindBuffer(buffertype, 0)
-
-        obj = new(id, len, buffertype, usage)
-        finalizer(obj, delete!)
-        obj
+let TO_GL_TYPE = Dict(
+        GLubyte     => GL_UNSIGNED_BYTE,
+        GLbyte      => GL_BYTE,
+        GLuint      => GL_UNSIGNED_INT,
+        GLushort    => GL_UNSIGNED_SHORT,
+        GLshort     => GL_SHORT,
+        GLint       => GL_INT,
+        GLfloat     => GL_FLOAT
+    )
+    julia2glenum{T <: Real}(x::Type{T}) = get(TO_GL_TYPE, x) do
+        error("Type: $(x) not supported as pixel datatype")
     end
 end
 
+include("GLTexture.jl")
 include("GLBuffer.jl")
 
+########################################################################
+
+
 type GLVertexArray
-  program::GLProgram
-  id::GLuint
-  length::Int
-  indexlength::Int # is negative if not indexed
+  program       ::GLProgram
+  id            ::GLuint
+  length        ::Int
+  indexlength   ::Int # is negative if not indexed
 
   function GLVertexArray(bufferDict::Dict{Symbol, GLBuffer}, program::GLProgram)
     #get the size of the first array, to assert later, that all have the same size
@@ -136,7 +103,7 @@ type GLVertexArray
 
       if buffer.buffertype == GL_ELEMENT_ARRAY_BUFFER
         glBindBuffer(buffer.buffertype, buffer.id)
-        indexSize = buffer.length * cardinality(buffer)
+        indexSize = length(buffer) * cardinality(buffer)
       else
         attribute   = string(name)
         if len == -1 
@@ -147,33 +114,32 @@ type GLVertexArray
         end
         glBindBuffer(buffer.buffertype, buffer.id)
         attribLocation = get_attribute_location(program.id, attribute)
-        glVertexAttribPointer(attribLocation, cardinality(buffer), glpixelformat(eltype(buffer)), GL_FALSE, 0, C_NULL)
+        glVertexAttribPointer(attribLocation, cardinality(buffer), julia2glenum(eltype(buffer)), GL_FALSE, 0, C_NULL)
         glEnableVertexAttribArray(attribLocation)
       end
     end
     glBindVertexArray(0)
     obj = new(program, id, len, indexSize)
-    finalizer(obj, delete!)
+    finalizer(obj, free)
     obj
   end
 end
 GLVertexArray(bufferDict::Dict{ASCIIString, GLBuffer}, program::GLProgram) = GLVertexArray(mapkeys(symbol, bufferdict), program)
 
-function Base.delete!(x::GLVertexArray)
-    glDeleteVertexArrays(1, [x.id])
-end
+free(x::GLVertexArray) = glDeleteVertexArrays(1, [x.id])
+
 
 
 ##################################################################################
 
 type RenderObject
-    uniforms::Dict{Symbol, Any}
-    alluniforms::Dict{Symbol, Any}
-    vertexarray::GLVertexArray
-    prerenderfunctions::Dict{Function, Tuple}
-    postrenderfunctions::Dict{Function, Tuple}
-    id::GLushort
-    boundingbox::Function # workaround for having lazy boundingbox queries, while not using multiple dispatch for boundingbox function (No type hierarchy for RenderObjects)
+    uniforms            ::Dict{Symbol, Any}
+    alluniforms         ::Dict{Symbol, Any}
+    vertexarray         ::GLVertexArray
+    prerenderfunctions  ::Dict{Function, Tuple}
+    postrenderfunctions ::Dict{Function, Tuple}
+    id                  ::GLushort
+    boundingbox         ::Function # workaround for having lazy boundingbox queries, while not using multiple dispatch for boundingbox function (No type hierarchy for RenderObjects)
 
     objectid = GLushort(0)
 
@@ -203,3 +169,8 @@ include("GLRenderObject.jl")
 
 
 ####################################################################################
+# freeing
+free(x::GLProgram)      = try glDeleteProgram(x.id) end # context might not be active anymore, so it errors and doesn' need to be freed anymore
+free(x::GLBuffer)       = try glDeleteBuffers(x.id) end
+free(x::Texture)        = try glDeleteTextures(x.id) end
+free(x::GLVertexArray)  = try glDeleteVertexArrays(x.id) end

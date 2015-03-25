@@ -47,7 +47,7 @@ const tex_frag = frag"""
     }
 """
 # mostly taken from glvisualize
-function visualize{T, D}(img::Texture{T, D, 2}, cam)
+function visualize{T}(img::Texture{T, 2}, cam)
   w, h = size(img)
   texparams = [
      (GL_TEXTURE_MIN_FILTER, GL_NEAREST),

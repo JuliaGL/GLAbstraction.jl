@@ -131,6 +131,24 @@ function glGenFramebuffers()
     id
 end
 
+function glDeleteTextures(id::GLuint)
+  arr = [id]
+  glDeleteTextures(1, arr)
+end
+function glDeleteVertexArrays(id::GLuint)
+  arr = [id]
+  glDeleteVertexArrays(1, arr)
+end
+function glDeleteBuffers(id::GLuint)
+  arr = [id]
+  glDeleteBuffers(1, arr)
+end
+
+
+
+
+
+
 function glGetTexLevelParameteriv(target::GLenum, level, name::GLenum)
   result = GLint[0]
   glGetTexLevelParameteriv(target, level, name, result)
