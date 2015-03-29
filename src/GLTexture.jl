@@ -108,7 +108,7 @@ function default_colorformat{T <: AbstractAlphaColorValue}(colordim::Type{T})
     colororder = string(T.parameters[1].name.name) * "A"
     return default_colorformat(length(T), eltype(T) <: Integer, colororder)
 end
-default_colorformat{T <: ColorValue}(colordim::Type{T}) = default_colorformat(length(T), eltype(T) <: Integer, string(T.name.name))
+default_colorformat{T <: Color}(colordim::Type{T}) = default_colorformat(length(T), eltype(T) <: Integer, string(T.name.name))
 
 function default_internalcolorformat(colordim::Int, typ::DataType)
     if colordim > 4 || colordim < 1

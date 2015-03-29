@@ -66,6 +66,22 @@ macro genuniformfunctions(maxdim::Integer)
 end
 
 @genuniformfunctions 4 
+gluniform(location::Integer, x::FixedArray, ::Val{1}, ::Type{GLFloat}) = glunform1f(location, x)
+gluniform(location::Integer, x::FixedArray, ::Val{2}, ::Type{GLFloat}) = glunform2f(location, x)
+gluniform(location::Integer, x::FixedArray, ::Val{3}, ::Type{GLFloat}) = glunform3f(location, x)
+gluniform(location::Integer, x::FixedArray, ::Val{4}, ::Type{GLFloat}) = glunform4f(location, x)
+
+gluniform(location::Integer, x::FixedArray, ::Val{1}, ::Type{GLDouble}) = glunform1d(location, x)
+gluniform(location::Integer, x::FixedArray, ::Val{2}, ::Type{GLDouble}) = glunform2d(location, x)
+gluniform(location::Integer, x::FixedArray, ::Val{3}, ::Type{GLDouble}) = glunform3d(location, x)
+gluniform(location::Integer, x::FixedArray, ::Val{4}, ::Type{GLDouble}) = glunform4d(location, x)
+
+
+"ui" => Union(GLubyte, GLushort, GLuint)
+"i" => Union(GLbyte, GLshort, GLint, Bool)
+"f" => Uniont(GLflot, Ufixed32)
+gluniform{FSA <: FixedArray}(location::Integer, x::FSA) = gluniform(location, x, Val{size(FSA)}, eltype(FSA))
+    
 
 #Some additional uniform functions, not related to Imutable Arrays
 gluniform(location::Integer, target::Integer, t::Texture) = gluniform(convert(GLint, location), convert(GLint, target), t)
@@ -76,18 +92,10 @@ function gluniform(location::GLint, target::GLint, t::Texture)
     glBindTexture(t.texturetype, t.id)
     gluniform(location, target)
 end
-gluniform(location::Integer, x::Signal) = gluniform(location, x.value)
-
+gluniform(location::Integer, x::Signal)                                  = gluniform(location, x.value)
 gluniform(location::Integer, x::Union(GLubyte, GLushort, GLuint)) 		 = glUniform1ui(location, x)
 gluniform(location::Integer, x::Union(GLbyte, GLshort, GLint, Bool)) 	 = glUniform1i(location, x)
 gluniform(location::Integer, x::GLfloat) 	 							 = glUniform1f(location, x)
-
-# Needs to be 
-gluniform(location::Integer, x::RGB{Float32}) 		     				 = (tmp = [x;] ; glUniform3fv(location, 1, Ptr{Float32}(pointer(tmp))))
-gluniform(location::Integer, x::AlphaColorValue{RGB{Float32}, Float32})  = (tmp = [x;] ; glUniform4fv(location, 1, Ptr{Float32}(pointer(tmp))))
-
-gluniform{T <: AbstractRGB}(location::Integer, x::Vector{T}) 			 = gluniform(location, reinterpret(Vector3{eltype(T)}, x))
-gluniform{T <: AbstractAlphaColorValue}(location::Integer, x::Vector{T}) = gluniform(location, reinterpret(Vector4{eltype(T)}, x))
 
 #Uniform upload functions for julia arrays...
 gluniform(location::GLint, x::Vector{Float32}) 	= glUniform1fv(location, length(x), pointer(x))

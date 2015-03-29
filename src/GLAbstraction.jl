@@ -8,8 +8,8 @@ using FixedSizeArrays
 using GeometryTypes
 using ModernGL
 using Reactive
-using Color
 using FixedPointNumbers
+using ColorTypes
 using Compat
 #import Images: imread, colorspace, Image, AbstractGray, RGB4, ARGB, Images
 #import Lumberjack
