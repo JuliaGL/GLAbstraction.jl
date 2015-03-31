@@ -25,8 +25,8 @@ Base.setindex!(obj::RenderObject, value, symbol::Symbol, x::Function)       = se
 Base.setindex!(obj::RenderObject, value, ::Val{:prerender}, x::Function)    = obj.prerenderfunctions[x] = value
 Base.setindex!(obj::RenderObject, value, ::Val{:postrender}, x::Function)   = obj.postrenderfunctions[x] = value
 
-function instancedobject(data, amount::Integer, program::GLProgram, primitive::GLenum=GL_TRIANGLES, bbf::Function=(x)->error("boundingbox not implemented"))
-    obj = RenderObject(data, Input(program), bbf)
+function instancedobject(data, amount::Integer, program::Signal{GLProgram}, primitive::GLenum=GL_TRIANGLES, bbf::Function=(x)->error("boundingbox not implemented"))
+    obj = RenderObject(data, program, bbf)
     postrender!(obj, renderinstanced, obj.vertexarray, amount, primitive)
     obj
 end

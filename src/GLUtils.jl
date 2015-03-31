@@ -75,7 +75,7 @@ Base.readbytes(x::File)  = readbytes(abspath(x))
 Base.readall(x::File)    = readbytes(abspath(x))
 
 function print_with_lines(text::AbstractString)
-    for (i,line) in enumerate(split(shadercode, "\n"))
+    for (i,line) in enumerate(split(text, "\n"))
         @printf("%-4d: %s\n", i, line)
     end
 end

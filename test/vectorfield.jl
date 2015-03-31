@@ -4,10 +4,6 @@ rgbaU8(r,g,b,a) = RGBA{Ufixed8}(r,g,b,a)
 
 const window = createwindow("Vectorfield", 1024, 1024, debugging=false)
 const shaderdir = Pkg.dir("GLPlot", "src", "shader")
-const glsl_attributes = Dict(
-  "instance_functions"  => readall(open(joinpath(shaderdir,"instance_functions.vert"))),
-  "GLSL_EXTENSIONS"     => "#extension GL_ARB_draw_instanced : enable"
-)
 
 
 const parameters = [
@@ -38,10 +34,12 @@ function toopengl(
     :modelmatrix    => eye(Mat4),
     :vertex         => GLBuffer(cubez[1]),
     :index          => indexbuffer(cubez[4]),
-    :normal_vector  => GLBuffer(cubez[3]),
+    :normal_vector  => GLBuffer(cubez[3])
+
   ), Dict{Symbol, Any}(rest))
   # Depending on what the is, additional values have to be calculated
-  program = TemplateProgram(File(shaderdir, "vectorfield.vert"), File(shaderdir, "phongblinn.frag"), view=glsl_attributes, attributes=data)
+  program = TemplateProgram(File(shaderdir, "vectorfield.vert"), File(shaderdir, "phongblinn.frag"), attributes=data)
+
   obj     = instancedobject(data, length(vectorfield), program, GL_TRIANGLES)
   prerender!(obj, glEnable, GL_DEPTH_TEST, glDepthFunc, GL_LEQUAL, glDisable, GL_CULL_FACE, enabletransparency)
   obj
@@ -58,11 +56,10 @@ vectorfiledRO  = toopengl(directions)
 while !GLFW.WindowShouldClose(window.nativewindow)
 
     yield()
-    render(vectorfiledRO)
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
-    render(texobj)
+    render(vectorfiledRO)
     GLFW.SwapBuffers(window.nativewindow)
     GLFW.PollEvents()
-    sleep(0.01)
+    
 end
 GLFW.Terminate()

@@ -1,7 +1,7 @@
 #some workaround for missing generic constructors in fixedsizearrays
 function Base.convert(a::Type{Matrix3x3}, b::Matrix4x4)
     Matrix3x3(
-        b[1,2], b[1,2], b[1,3],
+        b[1,1], b[1,2], b[1,3],
         b[2,1], b[2,2], b[2,3],
         b[3,1], b[3,2], b[3,3],
     )
@@ -103,41 +103,11 @@ function frustum{T}(left::T, right::T, bottom::T, top::T, znear::T, zfar::T)
     M[3, 4] = -1.0
     return Matrix4x4(M)
 end
-#=
-    Create perspective projection matrix
 
-    Parameters
-    ----------
-    fovy : float
-        The field of view along the y axis.
-    aspect : float
-        Aspect ratio of the view.
-    znear : float
-        Near coordinate of the field of view.
-    zfar : float
-        Far coordinate of the field of view.
-
-    Returns
-    -------
-    M : array
-        Perspective projection matrix (4x4).
-=#
-function perspective(fovyRadians, aspect, zNear, zFar )
-
-    f = tan((( pi/2 ) - ( 0.5f0 * fovyRadians )))
-    rangeInv = ( 1.0f / ( zNear - zFar ) )
-    return Matrix4x4(
-        ( f / aspect ), 0.0f, 0.0f, 0.0f,
-        0.0f, f, 0.0f, 0.0f,
-        0.0f, 0.0f, ( ( zNear + zFar ) * rangeInv ), -1.0f,
-        0.0f, 0.0f, ( ( ( zNear * zFar ) * rangeInv ) * 2.0f ), 0.0f 
-    )
-end
 function perspectiveprojection{T}(fovy::T, aspect::T, znear::T, zfar::T)
-
     @assert znear != zfar
-    h = convert(T, tan(fovy / 360.0 * pi) * znear)
-    w = convert(T, h * aspect)
+    h = T(tan(fovy / 360.0 * pi) * znear)
+    w = T(h * aspect)
     return frustum(-w, w, -h, h, znear, zfar)
 end
 
@@ -152,7 +122,7 @@ function orthoInverse( tfrm )
         Vector3( ( -( ( inv0 * tfrm.getCol3().getX() ) + ( ( inv1 * tfrm.getCol3().getY() ) + ( inv2 * tfrm.getCol3().getZ() ) ) ) ) )
     );
 end
-function orthoInverse(mat )
+function orthoInverse(mat)
 
     tfrm = Matrix3x4(
     Vector3(mat.c1[1:3]...),
@@ -169,15 +139,6 @@ function orthoInverse(mat )
         inv2..., 0f0,
         ( -( ( inv0 * tfrm.c4[1] ) + ( ( inv1 * tfrm.c4[2] ) + ( inv2 * tfrm.c4[3] ) ) ) )..., 0f0
     )
-end
-export lookAt
-function lookAt(eyePos,lookAtPos, upVec )
-    v3Y = normalize( upVec )
-    v3Z = normalize( ( eyePos - lookAtPos ) )
-    v3X = normalize( cross( v3Y, v3Z ) )
-    v3Y = cross( v3Z, v3X )
-    m4EyeFrame = Matrix4x4(v3X..., 0f0,  v3Y..., 0f0, v3Z..., 0f0, VeyePos..., 0f0 )
-    return orthoInverse(m4EyeFrame)
 end
 
 function lookat{T}(eyePos::Vector3{T}, lookAt::Vector3{T}, up::Vector3{T})
@@ -254,15 +215,13 @@ function rotationmatrix4{T}(q::Quaternion{T})
     )
 end
 function transformationmatrix(p::Pivot)
-    trans_origin        = translationmatrix(p.origin)
-    trans_origin_back   = translationmatrix(-p.origin)
-    rotation_m          = rotationmatrix4(p.rotation)
-    translation_m       = translationmatrix(p.translation)
-    tmp = trans_origin #go to origin
-    tmp = tmp*rotation_m #rotate
-    tmp = tmp*trans_origin_back #go to origin
-    tmp = tmp*translation_m #apply translation
-    tmp
+    (
+    translationmatrix(p.origin)* #go to origin
+    rotationmatrix4(p.rotation)*
+        #scalematrix(p.scale)*
+    translationmatrix(-p.origin)* # go back to origin
+    translationmatrix(p.translation)
+    ) 
 end
 #Calculate rotation between two vectors
 function rotation{T}(u::Vector3{T}, v::Vector3{T})

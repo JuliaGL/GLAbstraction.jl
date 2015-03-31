@@ -5,7 +5,11 @@ Its also to do some more complex error handling, not handled by the debug callba
 
 
 
-
+function ModernGL.glGetShaderiv(shaderID::GLuint, variable::GLenum)
+  const result = GLint[-1]
+  glGetShaderiv(shaderID, variable, result)
+  result[1]
+end
 function glShaderSource(shaderID::GLuint, shadercode::Vector{Uint8})
     shader_code_ptrs  = Ptr{Uint8}[pointer(shadercode)]
     len               = GLint[length(shadercode)]

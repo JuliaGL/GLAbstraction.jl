@@ -105,7 +105,7 @@ type GLVertexArray
         glBindBuffer(buffer.buffertype, buffer.id)
         indexSize = length(buffer) * cardinality(buffer)
       else
-        attribute   = string(name)
+        attribute = string(name)
         if len == -1 
             len = length(buffer)
         end

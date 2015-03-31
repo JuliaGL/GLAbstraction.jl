@@ -131,5 +131,8 @@ export gencubenormals
 export mergemesh
 
 
-
+include("GLInfo.jl")
+export getUniformsInfo
+export getProgramInfo
+export getAttributesInfo
 end # module
