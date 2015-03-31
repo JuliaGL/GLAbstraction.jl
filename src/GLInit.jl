@@ -51,7 +51,8 @@ function createcontextinfo(dict)
 	dict[:maxtexturesize]   = glGetIntegerv(GL_MAX_TEXTURE_SIZE)
 	
 	n 	 = glGetIntegerv(GL_NUM_EXTENSIONS)
-	test = [glGetStringi(GL_EXTENSIONS, i) for i = 0:(n[1]-1)]
+	println(n)
+	#test = [glGetStringi(GL_EXTENSIONS, i) for i = 0:(n[1]-1)]
 
 end
 function glsl_version_string()

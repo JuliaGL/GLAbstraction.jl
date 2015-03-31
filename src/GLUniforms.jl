@@ -5,7 +5,7 @@
 
 GLSL_COMPATIBLE_NUMBER_TYPES = [GLdouble, GLfloat, GLint, GLuint]
 
-GLSL_PREFIX = @compat Dict(
+GLSL_PREFIX = Dict(
 	GLdouble 	=> "d", 
 	GLfloat 	=> "", 
 	GLint 		=> "i", 
@@ -14,7 +14,7 @@ GLSL_PREFIX = @compat Dict(
     Uint16      => "u"
 )
 
-GL_POSTFIX = @compat Dict(
+GL_POSTFIX = Dict(
 	GLdouble 	=> "dv", 
 	GLfloat 	=> "fv", 
 	GLint 		=> "iv", 
@@ -39,10 +39,7 @@ macro genuniformfunctions(maxdim::Integer)
 		uniformfunc = symbol(string("glUniform", n, GL_POSTFIX[typ]))
 
 		push!(expressions, :(typealias $glslalias $imalias)) # glsl alike type alias
-		push!(expressions, :(gluniform(location::Integer, x::$imalias) 		   = (tmp = [x;] ; $uniformfunc(location, 1, Ptr{eltype(x)}(tmp))))) # uniform function for single uniforms
-		push!(expressions, :(gluniform(location::Integer, x::Vector{$imalias}) = $uniformfunc(location, length(x), Ptr{eltype(eltype(x))}(pointer(x))))) #uniform function for arrays of uniforms
 		push!(expressions, Expr(:export, glslalias))
-		
 
 		#########################################################################
         push!(expressions, :(toglsltype_string(x::Type{$imalias}) = $(lowercase(string("uniform ", glslalias))))) # method for shader type mapping
@@ -56,8 +53,6 @@ macro genuniformfunctions(maxdim::Integer)
 		uniformfunc = symbol(string("glUniformMatrix", glsldim, GL_POSTFIX[typ]))
 
 		push!(expressions, :(typealias $glslalias $imalias)) #GLSL alike alias
-		push!(expressions, :(gluniform(location::Integer, x::$imalias) = (tmp = [x;] ; $uniformfunc(location, 1, GL_FALSE, Ptr{eltype(x)}(pointer(tmp)))))) # uniform function for single uniforms
-		push!(expressions, :(gluniform(location::Integer, x::Vector{$imalias}) = $uniformfunc(location, length(x), GL_FALSE, Ptr{eltype(eltype(x))}(pointer(x))))) #uniform function for arrays of uniforms
 		push!(expressions, Expr(:export, glslalias))
 		#########################################################################
 		push!(expressions, :(toglsltype_string(x::$imalias) = $(lowercase(string("uniform ", glslalias))))) # method for shader type mapping
@@ -66,22 +61,30 @@ macro genuniformfunctions(maxdim::Integer)
 end
 
 @genuniformfunctions 4 
-gluniform(location::Integer, x::FixedArray, ::Val{1}, ::Type{GLFloat}) = glunform1f(location, x)
-gluniform(location::Integer, x::FixedArray, ::Val{2}, ::Type{GLFloat}) = glunform2f(location, x)
-gluniform(location::Integer, x::FixedArray, ::Val{3}, ::Type{GLFloat}) = glunform3f(location, x)
-gluniform(location::Integer, x::FixedArray, ::Val{4}, ::Type{GLFloat}) = glunform4f(location, x)
-
-gluniform(location::Integer, x::FixedArray, ::Val{1}, ::Type{GLDouble}) = glunform1d(location, x)
-gluniform(location::Integer, x::FixedArray, ::Val{2}, ::Type{GLDouble}) = glunform2d(location, x)
-gluniform(location::Integer, x::FixedArray, ::Val{3}, ::Type{GLDouble}) = glunform3d(location, x)
-gluniform(location::Integer, x::FixedArray, ::Val{4}, ::Type{GLDouble}) = glunform4d(location, x)
 
 
-"ui" => Union(GLubyte, GLushort, GLuint)
-"i" => Union(GLbyte, GLshort, GLint, Bool)
-"f" => Uniont(GLflot, Ufixed32)
-gluniform{FSA <: FixedArray}(location::Integer, x::FSA) = gluniform(location, x, Val{size(FSA)}, eltype(FSA))
+function uniformfunc(typ::DataType, dims::(Int,))
+    func = symbol(string("glUniform", first(dims), GL_POSTFIX[typ]))
     
+end
+function uniformfunc(typ::DataType, dims::(Int, Int))
+    M,N = dims
+    func = symbol(string("glUniformMatrix", M==N ? "$M":"$(M)x$(N)", GL_POSTFIX[typ]))
+end
+
+function gluniform{FSA <: FixedArray}(location::Integer, x::FSA)
+    x = [x]
+    gluniform(location, x)
+end
+stagedfunction gluniform{FSA <: FixedArray}(location::Integer, x::Vector{FSA})
+    func = uniformfunc(eltype(FSA), size(FSA))
+    if ndims(FSA) == 2 
+        :($func(location, length(x), GL_FALSE, pointer(x)))
+    else
+        :($func(location, length(x), pointer(x)))
+    end
+end
+
 
 #Some additional uniform functions, not related to Imutable Arrays
 gluniform(location::Integer, target::Integer, t::Texture) = gluniform(convert(GLint, location), convert(GLint, target), t)
@@ -124,7 +127,7 @@ end
 
 
 
-UNIFORM_TYPES = Union(AbstractArray, ColorValue, AbstractAlphaColorValue)
+UNIFORM_TYPES = FixedArray
 
 # This is needed to varify, that the correct uniform is uploaded to a shader
 # Should partly be integrated into the genuniformfunctions macro

@@ -46,7 +46,7 @@ function genquad{T}(downleft::Vector3{T}, width::Vector3{T}, height::Vector3{T})
     ]
     indexes = GLuint[0,1,2,2,3,0]
 
-    normal = unit(cross(width, height))
+    normal = normalize(cross(width, height))
     (v, uv, Vector3{T}[normal for i=1:4], indexes)
 end
 

@@ -29,7 +29,19 @@ function mousediff{T}(v0::(Bool, Vector2{T}, Vector2{T}),  clicked::Bool, pos::V
     end
     return (clicked, pos, Vector2(0.0))
 end
-
+function viewmatrix(v0, scroll_x, scroll_y, buttonset)
+	translatevec = Vec3(0f0)
+	if scroll_x == 0f0
+		if in(341, buttonset) # left strg
+			translatevec = Vec3(scroll_y*10f0, 0f0, 0f0)
+		else
+			translatevec = Vec3(0f0, scroll_y*10f0, 0f0)
+		end
+	else
+		translatevec = Vec3(scroll_x*10f0, scroll_y*10f0, 0f0)
+	end
+	v0 * translationmatrix(translatevec)	
+end
 
 #= 
 Creates an orthographic camera with the pixel perfect plane in z == 0
@@ -48,21 +60,7 @@ function OrthographicPixelCamera(inputs::Dict{Symbol, Any})
 	buttonspressed  = inputs[:buttonspressed]
 	
 	#Should be rather in Image coordinates
-	view = foldl(eye(Mat4), 
-				inputs[:scroll_x], inputs[:scroll_y], buttonspressed) do v0, scroll_x, scroll_y, buttonset
-
-		translatevec = Vec3(0f0)
-		if scroll_x == 0f0
-			if in(341, buttonset) # left strg
-				translatevec = Vec3(scroll_y*10f0, 0f0, 0f0)
-			else
-				translatevec = Vec3(0f0, scroll_y*10f0, 0f0)
-			end
-		else
-			translatevec = Vec3(scroll_x*10f0, scroll_y*10f0, 0f0)
-		end
-		v0 * translationmatrix(translatevec)	
-	end
+	view = foldl(viewmatrix, eye(Mat4), inputs[:scroll_x], inputs[:scroll_y], buttonspressed)
 
 	OrthographicCamera(
 				inputs[:window_size],

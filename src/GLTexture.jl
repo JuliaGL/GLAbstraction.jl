@@ -18,6 +18,12 @@ type Texture{T <: GLArrayEltypes, NDIM} <: GPUArray{T, NDIM}
 end
 
 function Texture{T}(data::Ptr{T}, dims, ttype::GLenum, internalformat::GLenum, format::GLenum, parameters::Vector{(GLenum, GLenum)})
+    println(T)
+    println(GLENUM(ttype).name)
+    println(GLENUM(format).name)
+    println(GLENUM(internalformat).name)
+    println("dims: ", dims)
+
     id = glGenTextures()
     glBindTexture(ttype, id)
 
@@ -33,9 +39,10 @@ function Texture{T}(data::Ptr{T}, dims, ttype::GLenum, internalformat::GLenum, f
 
     pixeltype       = julia2glenum(T)
     NDim            = length(dims)
+    println(GLENUM(pixeltype).name)
 
     glTexImage(ttype, 0, internalformat, dims..., 0, format, pixeltype, data)
-
+    println("I got here")
     obj = Texture{T, NDim}(id, ttype, pixeltype, internalformat, format, tuple(dims...))
     #finalizer(obj, free)
     obj

@@ -246,15 +246,17 @@ function rotationmatrix4{T}(q::Quaternion{T})
     xx, xy, xz = 2q.v1^2, 2q.v1*q.v2, 2q.v1*q.v3
     yy, yz, zz = 2q.v2^2, 2q.v2*q.v3, 2q.v3^2
 
-    Matrix4x4([1-(yy+zz) xy-sz xz+sy 0;
-        xy+sz 1-(xx+zz) yz-sx 0;
-        xz-sy yz+sx 1-(xx+yy) 0;
-        0 0 0 1])
+    Matrix4x4{T}(
+        1-(yy+zz), xy-sz, xz+sy, 0,
+        xy+sz, 1-(xx+zz), yz-sx, 0,
+        xz-sy, yz+sx, 1-(xx+yy), 0,
+        0, 0, 0, 1
+    )
 end
 function transformationmatrix(p::Pivot)
     trans_origin        = translationmatrix(p.origin)
     trans_origin_back   = translationmatrix(-p.origin)
-    rotation_m          = Matrix4x4(rotationmatrix4(p.rotation))
+    rotation_m          = rotationmatrix4(p.rotation)
     translation_m       = translationmatrix(p.translation)
     tmp = trans_origin #go to origin
     tmp = tmp*rotation_m #rotate

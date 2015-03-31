@@ -2,7 +2,7 @@ using GLAbstraction, GLWindow, ModernGL, GeometryTypes, ColorTypes, FixedPointNu
 
 rgbaU8(r,g,b,a) = RGBA{Ufixed8}(r,g,b,a)
 
-const window = createwindow("Vectorfield", 1024, 1024, debugging=true)
+const window = createwindow("Vectorfield", 1024, 1024, debugging=false)
 const shaderdir = Pkg.dir("GLPlot", "src", "shader")
 const glsl_attributes = Dict(
   "instance_functions"  => readall(open(joinpath(shaderdir,"instance_functions.vert"))),
