@@ -3,8 +3,6 @@ using GLAbstraction, GLWindow, ModernGL, GeometryTypes, ColorTypes, FixedPointNu
 rgbaU8(r,g,b,a) = RGBA{Ufixed8}(r,g,b,a)
 
 const window = createwindow("Vectorfield", 1024, 1024, debugging=false)
-const shaderdir = Pkg.dir("GLPlot", "src", "shader")
-
 
 const parameters = [
     (GL_TEXTURE_MIN_FILTER, GL_NEAREST),
@@ -13,6 +11,9 @@ const parameters = [
     (GL_TEXTURE_WRAP_T,  GL_CLAMP_TO_EDGE),
     (GL_TEXTURE_WRAP_R,  GL_CLAMP_TO_EDGE),
   ]
+
+
+
 function toopengl(
             vectorfield::Array{Vector3{Float32}, 3}; 
             xrange=(-1,1), yrange=(-1,1), zrange=(-1,1), colorrange=(-1,1),
@@ -38,7 +39,7 @@ function toopengl(
 
   ), Dict{Symbol, Any}(rest))
   # Depending on what the is, additional values have to be calculated
-  program = TemplateProgram(File(shaderdir, "vectorfield.vert"), File(shaderdir, "phongblinn.frag"), attributes=data)
+  program = TemplateProgram(file"vectorfield.vert", file"vectorfield.frag", attributes=data)
 
   obj     = instancedobject(data, length(vectorfield), program, GL_TRIANGLES)
   prerender!(obj, glEnable, GL_DEPTH_TEST, glDepthFunc, GL_LEQUAL, glDisable, GL_CULL_FACE, enabletransparency)
