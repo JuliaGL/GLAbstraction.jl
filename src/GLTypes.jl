@@ -188,6 +188,7 @@ type RenderObject
     prerenderfunctions::Dict{Function, Tuple}
     postrenderfunctions::Dict{Function, Tuple}
     id::GLushort
+    manipVirtuals::Dict{Symbol,Any}   # added a hook for virtual interfaces
     boundingbox::Function # workaround for having lazy boundingbox queries, while not using multiple dispatch for boundingbox function (No type hierarchy for RenderObjects)
 
     objectid::GLushort = 0
@@ -211,7 +212,7 @@ type RenderObject
                  optimizeduniforms[uniform_name] = uniforms[uniform_name]
             end
         end # only use active uniforms && check the type
-        new(optimizeduniforms, uniforms, vertexarray, Dict{Function, Tuple}(), Dict{Function, Tuple}(), objectid, bbf)
+        new(optimizeduniforms, uniforms, vertexarray, Dict{Function, Tuple}(), Dict{Function, Tuple}(), objectid, Dict{Symbol,Any}() ,bbf)
     end
 end
 function Base.show(io::IO, obj::RenderObject)
