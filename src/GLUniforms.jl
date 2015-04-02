@@ -239,5 +239,3 @@ function istexturesampler(typ::GLenum)
     )
 end
 
-
-

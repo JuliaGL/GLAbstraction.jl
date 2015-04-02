@@ -4,8 +4,11 @@
 in vec3 vertex;
 in vec3 normal_vector; // normal might not be an uniform, whereas the other will be allways uniforms
 
-uniform vec3 cube_from; 
-uniform vec3 cube_to; 
+struct Cube{
+    vec3 min; 
+    vec3 max;   
+} boundingbox;
+
 uniform vec2 color_range; 
 
 uniform sampler3D vectorfield;
@@ -62,23 +65,18 @@ mat4 getmodelmatrix(vec3 xyz, vec3 scale)
       vec4(0, 0, scale.z, 0),
       vec4(xyz, 1));
 }
-/*
-mat3 lookat(vec3 eyePos)
+int ind2sub(int dim, int linearindex)
 {
-    vec3 zaxis = normalize(eyePos);
-    vec3 xaxis = normalize(cross(up, zaxis));
-    vec3 yaxis = normalize(cross(zaxis, xaxis));
-
-    mat3 viewMatrix = mat3(1.0);
-    viewMatrix[0] = xaxis;
-    viewMatrix[1] = yaxis;
-    viewMatrix[2] = zaxis;
-    mat3 translationmatrix = mat3(1.0);
-    translationmatrix[]
-    return viewMatrix * translationmatrix(-eyePos)
+    return linearindex;
 }
-*/
-
+ivec2 ind2sub(ivec2 dim, int linearindex)
+{
+    return ivec2(linearindex % dim.x, linearindex / dim.x);
+}
+ivec3 ind2sub(ivec3 dim, int linearindex)
+{
+    return ivec3(linearindex / (dim.y * dim.z), (linearindex / dim.z) % dim.y, linearindex % dim.z);
+}
 void render(vec3 vertex, vec3 normal, mat4 model)
 {
     mat4 modelview              = view * model;
@@ -99,10 +97,10 @@ void render(vec3 vertex, vec3 normal, mat4 model)
 
 
 void main(){
-    ivec3 cubesize    = textureSize(vectorfield, 0);
-    ivec3 fieldindex  = ivec3(gl_InstanceID / (cubesize.y * cubesize.z), (gl_InstanceID / cubesize.z) % cubesize.y, gl_InstanceID % cubesize.z);
-    vec3 uvw          = vec3(fieldindex) / vec3(cubesize);
-    vec3 vectororigin = stretch(uvw, cube_from, cube_to);
+    ivec3 texdims     = textureSize(vectorfield, 0);
+    ivec3 fieldindex  = ind2sub(texdims, gl_InstanceID);
+    vec3 uvw          = vec3(fieldindex) / vec3(texdims);
+    vec3 vectororigin = stretch(uvw, boundingbox.min, boundingbox.max);
     vec3 vector       = texelFetch(vectorfield, fieldindex, 0).xyz;
     float vlength     = length(vector);
     mat4 rotation_mat = rotation(vector);

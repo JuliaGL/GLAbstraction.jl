@@ -4,6 +4,10 @@ Its also to do some more complex error handling, not handled by the debug callba
 =#
 
 
+function Base.symbol(name::Vector{GLchar}, length_written::Integer)
+  @assert length(name) >= length_written "bytestring is shorter, than string requested. length requested: $length_written, bytebuffer length: $(length(name))"
+  symbol(bytestring(pointer(name), length_written))
+end
 
 function ModernGL.glGetShaderiv(shaderID::GLuint, variable::GLenum)
   const result = GLint[-1]
@@ -52,6 +56,54 @@ function get_uniform_location(program::GLuint, name::ASCIIString)
    location
 end
 
+function ModernGL.glGetActiveUniformsiv(programID::GLuint, indices::Vector{GLuint}, variable::GLenum)
+    const result = zeros(GLint, length(indices))
+    glGetActiveUniformsiv(programID, length(indices), indices, variable, result)
+    result
+end
+function ModernGL.glGetActiveUniformsiv(programID::GLuint, indices::Integer, variable::GLenum)
+    const result = GLint[-1]
+    glGetActiveUniformsiv(programID, 1, GLuint[indices], variable, result)
+    result[1]
+end
+function ModernGL.glGetActiveUniformBlockiv(programID::GLuint, uniformBlockIndex::Integer, variable::GLenum)
+    const result = GLint[-1]
+    glGetActiveUniformBlockiv(programID, convert(GLuint, uniformBlockIndex), variable, result)
+    result[1]
+end
+function ModernGL.glGetActiveUniformName(programID::GLuint, uniformIndex::GLuint, bufsize=255)
+    const name           = zeros(GLchar, bufsize)
+    const length_written = GLsizei[0]
+    glGetActiveUniformName(programID, uniformIndex, bufsize, length_written, name)
+    symbol(name, length_written[1])
+end
+ModernGL.glGetActiveUniformBlockName(programID::GLuint, uniformIndex::Integer, bufsize=255) = 
+  glGetActiveUniformBlockName(programID, convert(GLuint, uniformIndex), bufsize)
+function ModernGL.glGetActiveUniformBlockName(programID::GLuint, uniformIndex::GLuint, bufsize=255)
+    const name           = zeros(GLchar, bufsize)
+    const length_written = GLsizei[0]
+    glGetActiveUniformBlockName(programID, uniformIndex, bufsize, length_written, name)
+    symbol(name, length_written[1])
+end
+function ModernGL.glGetActiveUniformBlockiv(programID::GLuint, uniformBlockIndex::Integer, variable::GLenum)
+    const result = GLint[-1]
+    glGetActiveUniformBlockiv(programID, convert(GLuint, uniformBlockIndex), variable, result)
+    result[1]
+end
+function ModernGL.glGetUniformIndices{T <: String}(programID::GLuint, uniformNames::Vector{T})
+    uniformCount = length(uniformNames)
+    const result = zeros(GLuint, uniformCount)
+    glGetUniformIndices(programID, uniformCount, map(bytestring, uniformNames), result)
+    result
+end
+ModernGL.glGetUniformIndices{T <: String}(programID::GLuint, uniformNames::T) = glGetUniformIndices(programID, [uniformNames])[1]
+
+function ModernGL.glGetIntegeri_v(variable::GLenum, index::Integer)
+    const result = GLint[-1]
+    glGetIntegeri_v(variable, convert(GLuint, index), result)
+    result[1]
+end
+
 function glGetActiveUniform(programID::GLuint, index::Integer)
     const actualLength   = GLsizei[1]
     const uniformSize    = GLint[1]
@@ -61,8 +113,7 @@ function glGetActiveUniform(programID::GLuint, index::Integer)
 
     glGetActiveUniform(programID, index, maxcharsize, actualLength, uniformSize, typ, name)
     if actualLength[1] > 0
-    	uname = bytestring(pointer(name), actualLength[1])
-    	uname = symbol(replace(uname, r"\[\d*\]", "")) # replace array brackets. This is not really a good solution.
+    	uname = symbol(bytestring(pointer(name), actualLength[1]))
     	(uname, typ[1], uniformSize[1])
     else
     	error("No active uniform at given index. Index: ", index)

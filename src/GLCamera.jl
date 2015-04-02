@@ -14,7 +14,6 @@ immutable PerspectiveCamera{T} <: Camera{T}
 	view::Signal{Matrix4x4{T}}
 	projection::Signal{Matrix4x4{T}}
 	projectionview::Signal{Matrix4x4{T}}
-	normalmatrix::Signal{Matrix3x3{T}}
 	eyeposition::Signal{Vector3{T}}
 	lookat::Signal{Vector3{T}}
 	up::Signal{Vector3{T}}
@@ -356,7 +355,6 @@ function PerspectiveCamera{T <: Real}(
 			view,
 			projection,
 			projectionview,
-			normalmatrix,
 			positionvec,
 			lookatvec1,
 			up

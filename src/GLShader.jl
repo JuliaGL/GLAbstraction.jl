@@ -13,25 +13,34 @@ end
 Shader(s::Shader; name=s.name, source=s.source, typ=s.typ) = Shader(name, source, typ)
 # Different shader string literals- usage: e.g. frag" my shader code"
 macro frag_str(source::AbstractString)
-    quote
-        Shader(symbol(@__FILE__), $(Vector{Uint8}(ascii(source))), GL_FRAGMENT_SHADER)
-    end
+    :(Shader(symbol(@__FILE__), $(Vector{Uint8}(ascii(source))), GL_FRAGMENT_SHADER))
 end
 macro vert_str(source::AbstractString)
-    quote
-        Shader(symbol(@__FILE__), $(Vector{Uint8}(ascii(source))), GL_VERTEX_SHADER)
-    end
+    :(Shader(symbol(@__FILE__), $(Vector{Uint8}(ascii(source))), GL_VERTEX_SHADER))
 end
 macro geom_str(source::AbstractString)
-    quote
-        Shader(symbol(@__FILE__), $(Vector{Uint8}(ascii(source))), GL_GEOMETRY_SHADER)
-    end
+    :(Shader(symbol(@__FILE__), $(Vector{Uint8}(ascii(source))), GL_GEOMETRY_SHADER))
 end
 macro comp_str(source::AbstractString)
-    quote
-        Shader(symbol(@__FILE__), $(Vector{Uint8}(ascii(source))), GL_COMPUTE_SHADER)
-    end
+    :(Shader(symbol(@__FILE__), $(Vector{Uint8}(ascii(source))), GL_COMPUTE_SHADER))
 end
+
+shadertype(s::Shader)               = s.typ
+
+shadertype(::File{:comp})           = GL_COMPUTE_SHADER
+shadertype(::File{:vert})           = GL_VERTEX_SHADER
+shadertype(::File{:frag})           = GL_FRAGMENT_SHADER
+shadertype(::File{:geom})           = GL_GEOMETRY_SHADER
+shadertype{Ending}(::File{Ending})  = error("File ending doesn't correspond to a shader type. Ending: $(Ending), File: $(abspath(file))")
+
+#Implement File IO interface
+Base.read(f::File{:vert}) = Shader(f)
+Base.read(f::File{:frag}) = Shader(f)
+Base.read(f::File{:geom}) = Shader(f)
+Base.write(io::IO, f::File{:vert}) = write(io, f.source)
+Base.write(io::IO, f::File{:frag}) = write(io, f.source)
+Base.write(io::IO, f::File{:geom}) = write(io, f.source)
+
 
 function getinfolog(obj::GLuint)
     # Return the info log for obj, whether it be a shader or a program.
@@ -73,21 +82,6 @@ function createprogram()
     p::GLuint
 end
 
-shadertype(s::Shader)               = s.typ
-
-shadertype(::File{:comp})           = GL_COMPUTE_SHADER
-shadertype(::File{:vert})           = GL_VERTEX_SHADER
-shadertype(::File{:frag})           = GL_FRAGMENT_SHADER
-shadertype(::File{:geom})           = GL_GEOMETRY_SHADER
-shadertype{Ending}(::File{Ending})  = error("File ending doesn't correspond to a shader type. Ending: $(Ending), File: $(abspath(file))")
-
-#Implement File IO interface
-Base.read(f::File{:vert}) = Shader(f)
-Base.read(f::File{:frag}) = Shader(f)
-Base.read(f::File{:geom}) = Shader(f)
-Base.write(io::IO, f::File{:vert}) = write(io, f.source)
-Base.write(io::IO, f::File{:frag}) = write(io, f.source)
-Base.write(io::IO, f::File{:geom}) = write(io, f.source)
 
 compileshader(file::File, program::GLuint) = compileshader(read(file), program)
 
@@ -114,13 +108,7 @@ function uniformlocations(nametypedict::Dict{Symbol, GLenum}, program)
     texturetarget = -1 # start -1, as texture samplers start at 0
     return Dict{Symbol,Tuple}(map(nametypedict) do name_type
         name, typ = name_type
-        loc = get_uniform_location(program, name)
-        if istexturesampler(typ)
-            texturetarget += 1
-            return (name, (loc, texturetarget))
-        else
-            return (name, (loc,))
-        end
+        (name, (Int32(0),))
     end)
 end
 
@@ -153,6 +141,7 @@ function GLProgram(
 
     # generate the link locations
     nametypedict        = uniform_name_type(program)
+    println(nametypedict)
     uniformlocationdict = uniformlocations(nametypedict, program)
 
     return GLProgram(program, map(name,shaders), nametypedict, uniformlocationdict)
