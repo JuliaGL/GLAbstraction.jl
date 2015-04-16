@@ -155,7 +155,9 @@ function GLProgram(
     nametypedict        = uniform_name_type(program)
     uniformlocationdict = uniformlocations(nametypedict, program)
 
-    return GLProgram(program, map(name,shaders), nametypedict, uniformlocationdict)
+    prg = GLProgram(program, map(name,shaders), nametypedict, uniformlocationdict)
+    println(prg)
+    prg
 end
 
 
@@ -242,7 +244,7 @@ end
 # Gets used to access a 
 glsl_variable_access{T,D}(keystring, ::Texture{T, D}) = "texture($(keystring), uv)."*"rgba"[1:length(T)]*";"
 
-glsl_variable_access(keystring, ::Union(Real, GLBuffer, AbstractArray, AbstractRGB, AbstractAlphaColorValue)) = keystring*";"
+glsl_variable_access(keystring, ::Union(Real, GLBuffer, FixedArray)) = keystring*";"
 
 glsl_variable_access(keystring, s::Signal)  = glsl_variable_access(keystring, s.value)
 glsl_variable_access(keystring, t::Any)     = error("no glsl variable calculation available for :", keystring, " of type ", typeof(t))

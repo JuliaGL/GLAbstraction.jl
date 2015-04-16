@@ -104,8 +104,8 @@ end
 default_colorformat{T <: Real}(colordim::Type{T})              = default_colorformat(1, T <: Integer, "RED")
 default_colorformat{T <: AbstractArray}(colordim::Type{T})     = default_colorformat(length(T), eltype(T) <: Integer, "RGBA")
 default_colorformat{T <: FixedVector}(colordim::Type{T}) = default_colorformat(length(T), eltype(T) <: Integer, "RGBA")
-function default_colorformat{T <: AbstractAlphaColorValue}(colordim::Type{T})
-    colororder = string(T.parameters[1].name.name) * "A"
+function default_colorformat{T <: AbstractAlphaColor}(colordim::Type{T})
+    colororder = string(T.name.name)
     return default_colorformat(length(T), eltype(T) <: Integer, colororder)
 end
 default_colorformat{T <: Color}(colordim::Type{T}) = default_colorformat(length(T), eltype(T) <: Integer, string(T.name.name))
@@ -151,6 +151,7 @@ end
 # The function overwrites the defaults with values from texture_properties, so that one can customize the defaults
 # Here is a good place for parameter checking, yet not implemented though...
 function gendefaults(texture_properties::Vector{(Symbol, Any)}, ColorDim::Integer, Typ::DataType, NDim::Integer)
+    println(Typ)
     return merge(@compat(Dict(
         :internalformat  => default_internalcolorformat(ColorDim, Typ),
         :parameters      => default_textureparameters(NDim, eltype(Typ)),

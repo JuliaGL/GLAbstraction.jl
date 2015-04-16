@@ -116,8 +116,11 @@ toglsltype_string(t::GLint)                     = "uniform int"
 toglsltype_string(t::Signal)                    = toglsltype_string(t.value)
 toglsltype_string(t::StepRange)                 = toglsltype_string(Vec3(first(t), step(t), last(t)))
 
-toglsltype_string(t::AbstractAlphaColorValue)   = toglsltype_string(Vec4)
-toglsltype_string(t::AbstractRGB)               = toglsltype_string(Vec3)
+toglsltype_string(t::FixedVector)                = string(GLSL_PREFIX[eltype(t)],"vec",length(t))
+function toglsltype_string(t::FixedMatrix)
+    M,N = size(t)
+    string(GLSL_PREFIX[eltype(t)],"mat", M==N ? "$M" : "$(M)x$(N)")
+end
 
 function toglsltype_string(t::GLBuffer)          
     typ = cardinality(t) > 1 ? "vec$(cardinality(t))" : "float"

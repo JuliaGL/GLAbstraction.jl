@@ -208,9 +208,9 @@ function rotationmatrix4{T}(q::Quaternion{T})
     yy, yz, zz = 2q.v2^2, 2q.v2*q.v3, 2q.v3^2
 
     Matrix4x4{T}(
-        1-(yy+zz), xy-sz, xz+sy, 0,
-        xy+sz, 1-(xx+zz), yz-sx, 0,
-        xz-sy, yz+sx, 1-(xx+yy), 0,
+        1-(yy+zz), xy+sz, xz-sy, 0,
+        xy-sz, 1-(xx+zz), yz+sx, 0,
+        xz+sy, yz-sx, 1-(xx+yy), 0,
         0, 0, 0, 1
     )
 end
