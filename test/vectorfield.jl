@@ -29,7 +29,6 @@ function toopengl(
     :colormap       => Texture(colormap),
     :projection     => camera.projection,
     :view           => camera.view,
-    :normalmatrix   => camera.normalmatrix,
     :light_position => lightposition,
     :modelmatrix    => eye(Mat4),
     :vertex         => GLBuffer(cubez[1]),

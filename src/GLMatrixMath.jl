@@ -154,26 +154,23 @@ function lookat{T}(eyePos::Vector3{T}, lookAt::Vector3{T}, up::Vector3{T})
 
     Matrix4x4(viewMatrix) * translationmatrix(-eyePos)
 end
+orthographicprojection{T}(wh::Vector4, near::T, far::T) = 
+    orthographicprojection(zero(T), convert(T, wh[3]), zero(T), convert(T, wh[4]), near, far)
 
 function orthographicprojection{T}(
                         left::T,   right::T,
                        bottom::T, top::T,
                        znear::T,  zfar::T)
 
-    @assert right  != left
-    @assert bottom != top
-    @assert znear  != zfar
-
-    matrix = zeros(T, 4,4)
-
-    matrix[1,1] = 2.0/(right-left)
-    matrix[1,4] = -(right+left)/(right-left)
-    matrix[2,2] = 2.0/(top-bottom)
-    matrix[2,4] = -(top+bottom)/(top-bottom)
-    matrix[3,3] = -2.0/(zfar-znear)
-    matrix[3,4] = -(zfar+znear)/(zfar-znear)
-    matrix[4,4] = 1.0
-    Matrix4x4(matrix)
+    (right  == left ||
+    bottom == top  ||
+    znear  == zfar) && return eye(Matrix4x4{T})
+    #test this
+    Matrix4x4{T}(
+        2.0/(right-left), 0,  0, 0,
+        0, 2.0/(top-bottom),  0, 0,
+        0, 0, -2.0/(zfar-znear), 0,
+        -(right+left)/(right-left), -(top+bottom)/(top-bottom), -(zfar+znear)/(zfar-znear), 1.0)
 end
 
 

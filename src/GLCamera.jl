@@ -14,7 +14,6 @@ immutable PerspectiveCamera{T} <: Camera{T}
 	view::Signal{Matrix4x4{T}}
 	projection::Signal{Matrix4x4{T}}
 	projectionview::Signal{Matrix4x4{T}}
-	normalmatrix::Signal{Matrix3x3{T}}
 	eyeposition::Signal{Vector3{T}}
 	lookat::Signal{Vector3{T}}
 	up::Signal{Vector3{T}}
@@ -71,6 +70,7 @@ function OrthographicPixelCamera(inputs::Dict{Symbol, Any})
 
 end
 
+times_n(v0, v1, n) = Float32(v0+(v1*n))
 #= 
 Creates an orthographic camera from a dict of signals
 Signals needed:
@@ -88,15 +88,16 @@ function OrthographicCamera(inputs::Dict{Symbol, Any})
 	clicked         = inputs[:mousebuttonspressed]
 	keypressed      = inputs[:buttonspressed]
 	
-	zoom 			= foldl((a,b) -> Float32(a+(b*0.1f0)) , 1.0f0, inputs[:scroll_y])
+	zoom 			= foldl(times_n , 1.0f0, inputs[:scroll_y], Input(0.1f0)) # add up and multiply by 0.1f0
 
 	#Should be rather in Image coordinates
 	normedposition 		= lift((a,b) -> Vector2((a./b[3:4])...), inputs[:mouseposition], inputs[:window_size])
 	clickedwithoutkeyL 	= lift((mb, kb) -> in(0, mb) && isempty(kb), Bool, clicked, keypressed)
-	translate 			= lift(x-> Float32(x[3]), Vec2, # Extract the mouseposition from the diff tuple
-							keepwhen(clickedwithoutkeyL, (false, Vector2(0.0), Vector2(0.0)), # Don't do unnecessary updates, so just signal when mouse is actually clicked
+	mouse_diff 			= keepwhen(clickedwithoutkeyL, (false, Vector2(0.0), Vector2(0.0)), # Don't do unnecessary updates, so just signal when mouse is actually clicked
 								foldl(mousediff, (false, Vector2(0.0), Vector2(0.0)),  # Get the difference, starting when the mouse is down
-									clickedwithoutkeyL, normedposition)))
+									clickedwithoutkeyL, normedposition))
+	translate 			= lift(getindex, Vec2, mouse_diff, Input(3))# Extract the mouseposition from the diff tuple
+							
 	OrthographicCamera(
 				inputs[:window_size],
 				zoom,
@@ -115,6 +116,7 @@ Args:
 normedposition: Pivot for translations
 
 =#
+
 function OrthographicCamera{T}(
 									windows_size::Signal{Vector4{Int}},
 									view::Signal{Matrix4x4{T}},
@@ -123,19 +125,7 @@ function OrthographicCamera{T}(
 									farclip::Signal{T}
 								)
 
-	projection = lift(Matrix4x4{T}, 
-						windows_size, nearclip, farclip) do wh, near, far
-
-		left, bottom, right, top = (zero(T), zero(T), convert(T, wh[3]), convert(T, wh[4]))
-
-		if (right  != left &&
-    	   	bottom != top &&
-    		near  != far)
-	  		return orthographicprojection(left, right, bottom, top, near, far)
-	  	else
-	  		return eye(Matrix4x4{T})
-	  	end
-	end
+	projection = lift(orthographicprojection, windows_size, nearclip, farclip) 
 	#projection = Input(eye(Mat4))
 	#view = Input(eye(Mat4))
 	projectionview = lift(*, Matrix4x4{T}, projection, view)
@@ -195,10 +185,12 @@ function OrthographicCamera{T}(
 
 end
 
+mousepressed_without_keyboard(mousebuttons::IntSet, button::Int, keyboard::IntSet) = 
+	in(button, mousebuttons) && isempty(keyboard)
 
+isnotempty(A) = !isempty(A)
 #= 
 Creates a perspective camera from a dict of signals
-
 Args:
 
       inputs: Dict of signals, looking like this:
@@ -218,24 +210,25 @@ function PerspectiveCamera{T}(inputs::Dict{Symbol,Any}, eyeposition::Vector3{T},
 	clicked         	= inputs[:mousebuttonspressed]
 	keypressed      	= inputs[:buttonspressed]
 
-	clickedwithoutkeyL 	= lift((mb, kb) -> in(0, mb) && isempty(kb), Bool, clicked, keypressed)
-	clickedwithoutkeyM 	= lift((mb, kb) -> in(2, mb) && isempty(kb), Bool, clicked, keypressed)
+	clickedwithoutkeyL 	= lift(mousepressed_without_keyboard, Bool, clicked, Input(0), keypressed)
+	clickedwithoutkeyM 	= lift(mousepressed_without_keyboard, Bool, clicked, Input(2), keypressed)
 
-	nokeydown 			= lift((kb) -> isempty(kb), Bool, keypressed)
-	anymousedown 		= lift((mb) -> !isempty(mb), Bool, clicked)
+	nokeydown 			= lift(isempty, Bool, keypressed)
+	anymousedown 		= lift(isnotempty, Bool, clicked)
 
-	mousedraggdiffL = lift(x->x[3], Vector2{Float64}, foldl(mousediff, (false, Vector2(0.0), Vector2(0.0)), clickedwithoutkeyL, mouseposition))
-	mousedraggdiffM = lift(x->x[3], Vector2{Float64}, foldl(mousediff, (false, Vector2(0.0), Vector2(0.0)), clickedwithoutkeyM, mouseposition))
+	mousedraggdiffL = lift(last, Vector2{Float64}, foldl(mousediff, (false, Vector2(0.0), Vector2(0.0)), clickedwithoutkeyL, mouseposition))
+	mousedraggdiffM = lift(last, Vector2{Float64}, foldl(mousediff, (false, Vector2(0.0), Vector2(0.0)), clickedwithoutkeyM, mouseposition))
 
-	speed = 50f0
+	speed  = Input(50f0)
 	xtheta = Input(0f0)
-	ytheta = lift(x-> Float32(-x[2]) / speed, Float32, mousedraggdiffL)
-	ztheta = lift(x-> Float32(x[1]) / speed, Float32, mousedraggdiffL)
+	ytheta = lift(-, lift(/, lift(last, Float32, mousedraggdiffL), speed)) # uugly
+	ztheta = lift(/, lift(first, Float32, mousedraggdiffL), speed)
 
 
-	xtrans = lift(x-> Float32(x*0.1f0), Float32, inputs[:scroll_y])
-	ytrans = lift(x-> -Float32(x[1]) / speed, Float32, mousedraggdiffM)
-	ztrans = lift(x-> Float32(x[2]) / speed, Float32, mousedraggdiffM)
+	xtrans = lift(*, Float32, inputs[:scroll_y], Input(0.1f0))
+
+	ytrans = lift(-, lift(/, lift(first, Float32, mousedraggdiffM), speed)) #-(mouse.x / speed)
+	ztrans = lift(/, lift(last, Float32, mousedraggdiffM), speed) # (mouse.x / speed)
 
 	fov 	= Input(41f0)
 
@@ -260,7 +253,27 @@ function PerspectiveCamera{T}(inputs::Dict{Symbol,Any}, eyeposition::Vector3{T},
 end
 
 
+function fold_pivot(v0, v1)
+	xt, yt, zt, xtr, ytr, ztr = v1
 
+	xaxis = v0.rotation * v0.xaxis # rotate the axis
+	yaxis = v0.rotation * v0.yaxis
+	zaxis = v0.rotation * v0.zaxis
+
+	xrot = qrotation(xaxis, xt)
+	yrot = qrotation(yaxis, yt)
+	zrot = qrotation(Vector3(0f0,0f0,1f0), zt)
+
+	v1rot = zrot*xrot*yrot*v0.rotation
+
+	v1trans 	= yaxis*ytr + zaxis*ztr 
+	accumtrans 	= v1trans + v0.translation
+
+	Pivot(v0.origin + v1trans, v0.xaxis, v0.yaxis, v0.zaxis, v1rot, accumtrans + v0.xaxis*xtr, v0.scale)
+end
+
+getupvec(p::Pivot) = p.rotation * p.zaxis
+vec3(v::Vector4) = Vector3(v[1], v[2], v[3])
 #= 
 Creates a perspective camera from signals, controlling the camera
 Args:
@@ -310,42 +323,24 @@ function PerspectiveCamera{T <: Real}(
 	translate 			= Vector3{T}(0,0,0)
 
 
-	p0 = Pivot(origin, xaxis, yaxis, zaxis, Quaternion(1f0,0f0,0f0,0f0), translate, Vector3{T}(1))
-
-
-	pivot = foldl((v0, v1) -> begin
-		xt, yt, zt, xtr, ytr, ztr = v1
-
-		xaxis = v0.rotation * v0.xaxis # rotate the axis
-		yaxis = v0.rotation * v0.yaxis
-		zaxis = v0.rotation * v0.zaxis
-
-		xrot = qrotation(xaxis, xt)
-		yrot = qrotation(yaxis, yt)
-		zrot = qrotation(Vector3{T}(0,0,1), zt)
-
-		v1rot = zrot*xrot*yrot*v0.rotation
-
-		v1trans 	= yaxis*ytr + zaxis*ztr 
-		accumtrans 	= v1trans + v0.translation
-
-		Pivot(v0.origin + v1trans, v0.xaxis, v0.yaxis, v0.zaxis, v1rot, accumtrans + v0.xaxis*xtr, v0.scale)
-		
-	end, p0, lift(tuple, xtheta, ytheta, ztheta, xtrans, ytrans, ztrans))
+	p0 				= Pivot(origin, xaxis, yaxis, zaxis, Quaternion(1f0,0f0,0f0,0f0), translate, Vector3{T}(1))
+	pivot 			= foldl(fold_pivot, p0, lift(tuple, xtheta, ytheta, ztheta, xtrans, ytrans, ztrans))
 
 	modelmatrix 	= lift(transformationmatrix, Matrix4x4{T}, pivot)
-	positionvec 	= lift((m,v) -> (r=(convert(Array,m)*T[v...,1]) ; Vector3(r[1:3])), Vector3{T}, modelmatrix, Input(eyeposition))
-	up 				= lift(p->p.rotation * p.zaxis , Vector3{T}, pivot)
-	lookatvec1 		= lift(p->p.origin , Vector3{T}, pivot)
+	positionvec 	= lift(*, Vector4{T}, modelmatrix, Input(Vector4(eyeposition..., one(T))))
+	positionvec 	= lift(vec3, Vector3{T}, positionvec)
+
+	up 				= lift(getupvec, Vector3{T}, pivot)
+	lookatvec1 		= lift(getfield, Vector3{T}, pivot, Input(:origin)) # silly way of geting a field
 
 	view 			= lift(lookat, Matrix4x4{T}, positionvec, lookatvec1, up)
-
-	window_ratio 	= lift(x -> x[3] / x[4], T, window_size)
+	w 				= lift(getindex, window_size, Input(3))
+	h 				= lift(last, window_size)
+	window_ratio 	= lift(/, T, w, h)
 	projection 		= lift(perspectiveprojection, Matrix4x4{T}, fov, window_ratio, nearclip, farclip)
 
 	projectionview 	= lift(*, Matrix4x4{T}, projection, view)
 
-	normalmatrix 	= lift(x -> inv(Matrix3x3(x))', Matrix3x3{T}, projectionview)
 
 	return PerspectiveCamera{T}(
 			pivot,
@@ -356,7 +351,6 @@ function PerspectiveCamera{T <: Real}(
 			view,
 			projection,
 			projectionview,
-			normalmatrix,
 			positionvec,
 			lookatvec1,
 			up
