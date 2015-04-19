@@ -189,7 +189,7 @@ function template2source(source::AbstractString, attributes::Dict{Symbol, Any}, 
     ascii(code_source)
 end
 
-
+TemplateProgram() = error("Can't create TemplateProgram without parameters")
 function TemplateProgram(shaders::File...;
                             view::Dict{ASCIIString, ASCIIString}=Dict{ASCIIString, ASCIIString}(), 
                             attributes::Dict{Symbol, Any}=Dict{Symbol, Any}(),
@@ -199,7 +199,8 @@ function TemplateProgram(shaders::File...;
     TemplateProgram(code_signals, view=view, attributes=attributes, fragdatalocation=fragdatalocation)
 end
 function TemplateProgram(
-                            shaders::Vector{Reactive.Lift{Shader}}, p=createprogram(); 
+                            shaders::Reactive.Lift{Shader}...; 
+                            p=createprogram(),
                             view::Dict{ASCIIString, ASCIIString}=Dict{ASCIIString, ASCIIString}(), 
                             attributes::Dict{Symbol, Any}=Dict{Symbol, Any}(),
                             fragdatalocation=(Int, ASCIIString)[]
@@ -208,12 +209,13 @@ function TemplateProgram(
     program_signal = lift(shaders...) do _unused... #just needed to update the signal
         # extract values from signals
         shader_values = map(value, shaders)::Vector{Shader}
-        TemplateProgram(shader_values, p, view=view, attributes=attributes, fragdatalocation=fragdatalocation)
+        TemplateProgram(shader_values, p=p, view=view, attributes=attributes, fragdatalocation=fragdatalocation)
     end
 end
 
 function TemplateProgram(
-                            shaders::Vector{Shader}, p=createprogram(); 
+                            shaders::Shader...; 
+                            p=createprogram(),
                             view::Dict{ASCIIString, ASCIIString}=Dict{ASCIIString, ASCIIString}(), 
                             attributes::Dict{Symbol, Any}=Dict{Symbol, Any}(),
                             fragdatalocation=(Int, ASCIIString)[]

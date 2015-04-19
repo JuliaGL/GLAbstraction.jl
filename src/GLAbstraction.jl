@@ -11,6 +11,8 @@ using Reactive
 using FixedPointNumbers
 using ColorTypes
 using Compat
+using ImageIO
+using FileIO
 #import Images: imread, colorspace, Image, AbstractGray, RGB4, ARGB, Images
 #import Lumberjack
 import Mustache
@@ -36,7 +38,7 @@ export GLProgram                # Shader/program object
 export Texture                  # Texture object, basically a 1/2/3D OpenGL data array
 export update!                  # gets the data of texture as a Julia Array
 export data
-export AbstractFixedVector      # First step into the direction of integrating FixedSizeArrays
+
 export RenderObject             # An object which holds all GPU handles and datastructes to ready for rendering by calling render(obj)
 export prerender!               # adds a function to a RenderObject, which gets executed befor setting the OpenGL render state
 export postrender!              # adds a function to a RenderObject, which gets executed after setting the OpenGL render states

@@ -34,7 +34,6 @@ function Texture{T}(data::Ptr{T}, dims, ttype::GLenum, internalformat::GLenum, f
 
     pixeltype       = julia2glenum(T)
     NDim            = length(dims)
-
     glTexImage(ttype, 0, internalformat, dims..., 0, format, pixeltype, data)
     obj = Texture{T, NDim}(id, ttype, pixeltype, internalformat, format, tuple(dims...))
     #finalizer(obj, free)

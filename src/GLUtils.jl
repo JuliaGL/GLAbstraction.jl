@@ -51,28 +51,6 @@ end
 function mapkeys(func::Union(Function, Base.Func), collection::Dict)
    [func(key) => value for (key, value) in collection]
 end
-# Simple file wrapper, which encodes the type of the file in its parameter
-# Usefull for file IO
-immutable File{Ending}
-  abspath::UTF8String
-end
-File(folders...) = File(joinpath(folders...))
-function File(file)
-  @assert !isdir(file) "file string refers to a path, not a file. Path: $file"
-  file  = abspath(file)
-  path  = dirname(file)
-  name  = file[length(path):end]
-  ending  = rsearch(name, ".")
-  ending  = isempty(ending) ? "" : name[first(ending)+1:end]
-  File{symbol(ending)}(file)
-end
-macro file_str(path::AbstractString)
-  File(path)
-end
-Base.open(x::File)       = open(abspath(x))
-Base.abspath(x::File)    = x.abspath
-Base.readbytes(x::File)  = readbytes(abspath(x))
-Base.readall(x::File)    = readbytes(abspath(x))
 
 function print_with_lines(text::AbstractString)
     for (i,line) in enumerate(split(text, "\n"))
