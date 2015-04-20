@@ -150,7 +150,6 @@ end
 # The function overwrites the defaults with values from texture_properties, so that one can customize the defaults
 # Here is a good place for parameter checking, yet not implemented though...
 function gendefaults(texture_properties::Vector{(Symbol, Any)}, ColorDim::Integer, Typ::DataType, NDim::Integer)
-    println(Typ)
     return merge(@compat(Dict(
         :internalformat  => default_internalcolorformat(ColorDim, Typ),
         :parameters      => default_textureparameters(NDim, eltype(Typ)),

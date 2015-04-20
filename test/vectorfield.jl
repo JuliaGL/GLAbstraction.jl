@@ -5,7 +5,6 @@ rgbaU8(r,g,b,a) = RGBA{Ufixed8}(r,g,b,a)
 const window = createwindow("Vectorfield", 1024, 1024, debugging=false)
 const shaderdir = Pkg.dir("GLPlot", "src", "shader")
 
-
 const parameters = [
     (GL_TEXTURE_MIN_FILTER, GL_NEAREST),
     (GL_TEXTURE_MAG_FILTER, GL_NEAREST),

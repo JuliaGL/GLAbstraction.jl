@@ -76,3 +76,29 @@ mergedefault!{S}(style::Style{S}, styles, customdata) = merge!(copy(styles[S]), 
 
 
 Base.length{T <: Real}(::Type{T}) = 1
+
+
+#splats keys from a dict into variables
+macro materialize(dict_splat)
+    keynames, dict = dict_splat.args
+    dict_instance = gensym()
+    kd = [:($key = $dict_instance[$(Expr(:quote, key))]) for key in keynames.args]
+    kdblock = Expr(:block, kd...)
+    expr = quote
+        $dict_instance = $dict # handle if dict is not a variable but an expression 
+        $kdblock
+    end
+    esc(expr)
+end
+
+macro materialize!(dict_splat)
+    keynames, dict = dict_splat.args
+    dict_instance = gensym()
+    kd = [:($key = pop!($dict_instance, $(Expr(:quote, key)))) for key in keynames.args]
+    kdblock = Expr(:block, kd...)
+    expr = quote
+        $dict_instance = $dict # handle if dict is not a variable but an expression 
+        $kdblock
+    end
+    esc(expr)
+end

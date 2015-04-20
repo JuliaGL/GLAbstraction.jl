@@ -190,36 +190,34 @@ function template2source(source::AbstractString, attributes::Dict{Symbol, Any}, 
 end
 
 TemplateProgram() = error("Can't create TemplateProgram without parameters")
-function TemplateProgram(shaders::File...;
-                            view::Dict{ASCIIString, ASCIIString}=Dict{ASCIIString, ASCIIString}(), 
-                            attributes::Dict{Symbol, Any}=Dict{Symbol, Any}(),
-                            fragdatalocation=(Int, ASCIIString)[]
-                        )
-    code_signals = Reactive.Lift{Shader}[lift_shader(shader_file) for shader_file in shaders]
-    TemplateProgram(code_signals, view=view, attributes=attributes, fragdatalocation=fragdatalocation)
-end
-function TemplateProgram(
-                            shaders::Reactive.Lift{Shader}...; 
-                            p=createprogram(),
-                            view::Dict{ASCIIString, ASCIIString}=Dict{ASCIIString, ASCIIString}(), 
-                            attributes::Dict{Symbol, Any}=Dict{Symbol, Any}(),
-                            fragdatalocation=(Int, ASCIIString)[]
-                        )
 
+
+let TEMPLATE_PROGRAM_KW_DEFAULTS = @compat(Dict(
+    :view               => Dict{ASCIIString, ASCIIString}(), 
+    :attributes         => Dict{Symbol, Any}(),
+    :fragdatalocation   => (Int, ASCIIString)[]
+)),  SHADER_TYPES = Union(Shader, File, Reactive.Lift{Shader})
+   
+    TemplateProgram(x::SHADER_TYPES...; p=createprogram(), kw_args...) = 
+        TemplateProgram(x, merge(TEMPLATE_PROGRAM_KW_DEFAULTS, Dict{Symbol, Any}(kw_args), Dict(:p=>p)))
+end
+
+function TemplateProgram{N}(shaders::NTuple{N, File}, kw_args)
+    file_signals = map(lift_shader, shaders)
+    TemplateProgram(file_signals, kw_args)
+end
+function TemplateProgram{N}(shaders::NTuple{N, Reactive.Lift{Shader}}, kw_args)
     program_signal = lift(shaders...) do _unused... #just needed to update the signal
         # extract values from signals
-        shader_values = map(value, shaders)::Vector{Shader}
-        TemplateProgram(shader_values, p=p, view=view, attributes=attributes, fragdatalocation=fragdatalocation)
+        shader_values = map(value, shaders)
+        TemplateProgram(shader_values, kw_args)
     end
 end
 
-function TemplateProgram(
-                            shaders::Shader...; 
-                            p=createprogram(),
-                            view::Dict{ASCIIString, ASCIIString}=Dict{ASCIIString, ASCIIString}(), 
-                            attributes::Dict{Symbol, Any}=Dict{Symbol, Any}(),
-                            fragdatalocation=(Int, ASCIIString)[]
-                        )
+
+function TemplateProgram{N}(shaders::NTuple{N, Shader}, kw_args)
+    @materialize p, view, attributes, fragdatalocation = kw_args
+
     if haskey(view, "in") || haskey(view, "out") || haskey(view, "GLSL_VERSION")
         println("warning: using internal keyword \"$(in/out/GLSL_VERSION)\" for shader template. The value will be overwritten")
     end
@@ -229,10 +227,10 @@ function TemplateProgram(
         #for now we just append the extensions
         extension *= "\n" * view["GLSL_EXTENSIONS"]
     end
-    internaldata = @compat(Dict(
+    internaldata = @compat Dict(
         "GLSL_VERSION"    => glsl_version_string(),
         "GLSL_EXTENSIONS" => extension
-    ))
+    )
     view = merge(internaldata, view)
 
     # transform dict of templates into actual shader source
@@ -240,6 +238,7 @@ function TemplateProgram(
 
     return GLProgram(code, p, fragdatalocation=fragdatalocation)
 end
+
 
 
 

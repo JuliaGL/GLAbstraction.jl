@@ -1,6 +1,8 @@
 using GLWindow, GLAbstraction, ModernGL, Reactive
-const window = createwindow("Compute Shader", 512, 512, debugging=true)
+println("loaded stuff")
 
+const window = createwindow("Compute Shader", 512, 512, debugging=false)
+println("created stuff")
 # In order to write to a texture, we have to introduce it as image2D.
 # local_size_x/y/z layout variables define the work group size.
 # gl_GlobalInvocationID is a uvec3 variable giving the global ID of the thread,
@@ -69,7 +71,7 @@ function visualize{T}(img::Texture{T, 2}, cam)
     :projectionview   => cam.projectionview,
   )
 
-  textureshader = TemplateProgram([tex_frag, tex_vert], attributes=data)
+  textureshader = TemplateProgram(tex_frag, tex_vert, attributes=data)
   obj           = RenderObject(data, Input(textureshader))
 
   prerender!(obj, glDisable, GL_DEPTH_TEST, enabletransparency, glDisable, GL_CULL_FACE)
@@ -77,7 +79,7 @@ function visualize{T}(img::Texture{T, 2}, cam)
   obj
 end
 
-prg = TemplateProgram([shader;])
+prg = TemplateProgram(shader)
 
 i = 0f0
 const roll = lift(Float32, every(0.1)) do x
