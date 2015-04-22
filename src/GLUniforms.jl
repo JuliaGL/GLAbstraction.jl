@@ -210,7 +210,7 @@ function uniform_type(targetuniform::GLenum)
 end
 
 function uniform_name_type(program::GLuint)
-    uniformLength   = glGetProgramiv(program, GL_ACTIVE_UNIFORMS)
+    uniformLength = glGetProgramiv(program, GL_ACTIVE_UNIFORMS)
     if uniformLength == 0
         return Dict{Symbol, GLenum}()    
     else
@@ -244,3 +244,20 @@ end
 
 
 
+gl_convert{BUFF <: GLBuffer, T <: Triangle}(::Type{BUFF}, a::Vector{T}) = indexbuffer(s)
+gl_convert{BUFF <: GLBuffer, T}(::Type{BUFF},         a::Vector{T}) = BUFF(s)
+gl_convert{TEX  <: Texture,  T}(::Type{TEX},          s::Array{T})  = TEX(a)
+
+const NATIVE_TYPES = Union(FixedArray, Real, GLBuffer, Texture)
+
+#native types need no convert
+function gl_convert{GL, T <: NATIVE_TYPES}(::Type{GL}, s::Signal{T})
+    GL == T && return s
+    lift(gl_convert, Input(GL), s)
+end
+
+function gl_convert{GL, T <: Array}(::Type{GL}, s::Signal{T})
+    globj = julia2gl(s.value)
+    lift(update!, Input(globj), intensities)
+    globj
+end

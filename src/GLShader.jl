@@ -90,9 +90,9 @@ Base.write(io::IO, f::File{:frag}) = write(io, f.source)
 Base.write(io::IO, f::File{:geom}) = write(io, f.source)
 
 compileshader(file::File, program::GLuint) = compileshader(read(file), program)
-
                     #(shadertype, shadercode) -> shader id
 let shader_cache = Dict{(GLenum, Vector{Uint8}), GLuint}() # shader cache prevents that a shader is compiled more than one time
+    #finalizer(shader_cache, dict->foreach(glDeleteShader, values(dict))) # delete all shaders when done
     function compileshader(shader::Shader)
         get!(shader_cache, (shader.typ, shader.source)) do 
             shaderid = createshader(shader.typ)
@@ -149,15 +149,14 @@ function GLProgram(
     
     #link program
     glLinkProgram(program)
-    foreach(glDeleteShader, shader_ids) # Can be deleted, as they will still be linked to Program and released after program gets released
+
+    #foreach(glDeleteShader, shader_ids) # Can be deleted, as they will still be linked to Program and released after program gets released
 
     # generate the link locations
     nametypedict        = uniform_name_type(program)
     uniformlocationdict = uniformlocations(nametypedict, program)
 
-    prg = GLProgram(program, map(name,shaders), nametypedict, uniformlocationdict)
-    println(prg)
-    prg
+    GLProgram(program, map(name,shaders), nametypedict, uniformlocationdict)
 end
 
 

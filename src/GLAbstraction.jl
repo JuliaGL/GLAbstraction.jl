@@ -13,14 +13,12 @@ using ColorTypes
 using Compat
 using ImageIO
 using FileIO
-using Meshes
 using MeshIO
-
-#import Images: imread, colorspace, Image, AbstractGray, RGB4, ARGB, Images
 #import Lumberjack
 import Mustache
+import Base.merge
 
-
+importall AbstractGPUArray
 
 include("GLUtils.jl")
 export @gputime
