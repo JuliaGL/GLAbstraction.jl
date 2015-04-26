@@ -7,12 +7,12 @@ cam = PerspectiveCamera(window.inputs, Vec3(2,2,0.5), Vec3(0.0))
 # render objects creation
 shader = TemplateProgram(Pkg.dir("GLPlot", "src", "shader", "standard.vert"), Pkg.dir("GLPlot", "src", "shader", "phongblinn.frag"))
 RGBAU8 = AlphaColorValue{RGB{Ufixed8}, Ufixed8}
-Color.rgba(r::Real, g::Real, b::Real, a::Real)    = AlphaColorValue(RGB{Float32}(r,g,b), float32(a))
+Color.rgba(r::Real, g::Real, b::Real, a::Real)    = AlphaColorValue(RGB{Float32}(r,g,b), Float32(a))
 rgbaU8(r::Real, g::Real, b::Real, a::Real)  = AlphaColorValue(RGB{Ufixed8}(r,g,b), ufixed8(a))
 #GLPlot.toopengl{T <: AbstractRGB}(colorinput::Input{T}) = toopengl(lift(x->AlphaColorValue(x, one(T)), RGBA{T}, colorinput))
 tohsva(rgba)     = AlphaColorValue(convert(HSV, rgba.c), rgba.alpha)
 torgba(hsva)     = AlphaColorValue(convert(RGB, hsva.c), hsva.alpha)
-tohsva(h,s,v,a)  = AlphaColorValue(HSV(float32(h), float32(s), float32(v)), float32(a))
+tohsva(h,s,v,a)  = AlphaColorValue(HSV(Float32(h), Float32(s), Float32(v)), Float32(a))
 Base.convert{T <: AbstractAlphaColorValue}(typ::Type{T}, x::AbstractAlphaColorValue) = AlphaColorValue(convert(RGB{eltype(typ)}, x.c), convert(eltype(typ), x.alpha))
     
 

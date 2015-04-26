@@ -1,42 +1,70 @@
-cardinality{T, C}(::GLBuffer{T, C}) = C
-Base.length(b::GLBuffer) = b.length
-#Function to deal with any Immutable type with Real as Subtype
-function GLBuffer{T <: Union(AbstractArray, AbstractFixedVector)}(
-            buffer::Vector{T};
-            buffertype::GLenum = GL_ARRAY_BUFFER, usage::GLenum = GL_STATIC_DRAW
-        )
-    #This is a workaround, to deal with all kinds of immutable vector types
-    ptrtype, cardinality = opengl_compatible(T)
-    ptr = convert(Ptr{ptrtype}, pointer(buffer))
-    GLBuffer{ptrtype, cardinality}(ptr, sizeof(buffer), buffertype, usage)
+type GLBuffer{T} <: GPUArray{T, 1}
+    id          ::GLuint
+    size        ::NTuple{1, Int}
+    buffertype  ::GLenum
+    usage       ::GLenum
+
+    function GLBuffer(ptr::Ptr{T}, buff_length::Int, buffertype::GLenum, usage::GLenum)
+        id = glGenBuffers()
+        glBindBuffer(buffertype, id)
+        glBufferData(buffertype, buff_length*sizeof(T), ptr, usage)
+        glBindBuffer(buffertype, 0)
+
+        obj = new(id, (buff_length,), buffertype, usage)
+        #finalizer(obj, free)
+        obj
+    end
 end
 
-function GLBuffer{T <: Real}(
-            buffer::Vector{T}, cardinality::Int;
+
+cardinality{T}(::GLBuffer{T}) = length(T)
+    
+#Function to deal with any Immutable type with Real as Subtype
+function GLBuffer{T <: GLArrayEltypes}(
+            buffer::DenseVector{T};
             buffertype::GLenum = GL_ARRAY_BUFFER, usage::GLenum = GL_STATIC_DRAW
         )
-    GLBuffer{T, cardinality}(convert(Ptr{T}, pointer(buffer)), sizeof(buffer), buffertype, usage)
+    GLBuffer{T}(pointer(buffer), length(buffer), buffertype, usage)
 end
-function indexbuffer{T<:Integer}(buffer::Vector{T}; usage::GLenum = GL_STATIC_DRAW)
-    GLBuffer(buffer, 1, buffertype = GL_ELEMENT_ARRAY_BUFFER, usage=usage)
-end
-function indexbuffer{T<:Union(AbstractArray, AbstractFixedVector)}(buffer::Vector{T}; usage::GLenum = GL_STATIC_DRAW)
+
+
+function indexbuffer{T<:GLArrayEltypes}(buffer::Vector{T}; usage::GLenum = GL_STATIC_DRAW)
     GLBuffer(buffer, buffertype = GL_ELEMENT_ARRAY_BUFFER, usage=usage)
 end
 
-function update!{T}(b::GLBuffer{T,1}, data::Vector{Vector1{T}})
+# GPUArray interface
+function gpu_data{T}(b::GLBuffer{T})
+    data = Array(T, length(b))
     glBindBuffer(b.buffertype, b.id)
-    glBufferSubData(b.buffertype, 0, sizeof(data), data)
+    glGetBufferSubData(b.buffertype, 0, sizeof(data), data)
+    data
 end
-function update!{T}(b::GLBuffer{T,2}, data::Vector{Vector2{T}})
+
+
+# Resize buffer
+function gpu_resize!{T, I <: Integer}(b::GLBuffer{T}, newdims::NTuple{1, I})
     glBindBuffer(b.buffertype, b.id)
-    glBufferSubData(b.buffertype, 0, sizeof(data), data)
+    oldata = data(b)
+    len = first(newdims)
+    resize!(oldata, len)
+    glBufferData(b.buffertype, len, oldata, b.usage)
+    b.length = len
+    nothing
 end
-function update!{T}(b::GLBuffer{T,3}, data::Vector{Vector3{T}})
+
+
+
+function gpu_setindex!{T}(b::GLBuffer{T}, value::Vector{T}, offset::Integer)
+    multiplicator = sizeof(T)
     glBindBuffer(b.buffertype, b.id)
-    glBufferSubData(b.buffertype, 0, sizeof(data), data)
+    glBufferSubData(b.buffertype, multiplicator*offset-1, sizeof(value), value)
 end
-function update!{T}(b::GLBuffer{T,4}, data::Vector{Vector4{T}})
+
+function gpu_getindex{T}(b::GLBuffer{T}, range::UnitRange)
+    multiplicator = sizeof(T)
+    offset        = first(range)
+    value         = Array(T, length(range))
     glBindBuffer(b.buffertype, b.id)
-    glBufferSubData(b.buffertype, 0, sizeof(data), data)
+    glGetBufferSubData(b.buffertype, multiplicator*offset-1, sizeof(value), value)
+    value
 end
