@@ -43,7 +43,9 @@ export data
 export RenderObject             # An object which holds all GPU handles and datastructes to ready for rendering by calling render(obj)
 export prerender!               # adds a function to a RenderObject, which gets executed befor setting the OpenGL render state
 export postrender!              # adds a function to a RenderObject, which gets executed after setting the OpenGL render states
-export instancedobject          # simplification for creating a RenderObject which renders instances
+export std_renderobject			# creates a renderobject with standard parameters
+export instanced_renderobject	# simplification for creating a RenderObject which renders instances
+
 export GLVertexArray            # VertexArray wrapper object
 export GLBuffer                 # OpenGL Buffer object wrapper
 export indexbuffer              # Shortcut to create an OpenGL Buffer object for indexes (1D, cardinality of one and GL_ELEMENT_ARRAY_BUFFER set)

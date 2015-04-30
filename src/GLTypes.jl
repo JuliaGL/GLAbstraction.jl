@@ -110,7 +110,7 @@ type GLVertexArray
             len = length(buffer)
         end
         if len != length(buffer)
-            error("buffer $attribute has not the same length as the other buffers. Has: $(buffer.length). Should have: $len")
+            error("buffer $attribute has not the same length as the other buffers. Has: $(length(buffer)). Should have: $len")
         end
         glBindBuffer(buffer.buffertype, buffer.id)
         attribLocation = get_attribute_location(program.id, attribute)
@@ -144,6 +144,7 @@ type RenderObject
     objectid = GLushort(0)
 
     function RenderObject(data::Dict{Symbol, Any}, program::Signal{GLProgram}, bbf::Function=(x)->error("boundingbox not implemented"))
+
         objectid             += GLushort(1)
         program              = program.value
         buffers              = filter((key, value) -> isa(value, GLBuffer), data)
@@ -160,6 +161,7 @@ type RenderObject
                  optimizeduniforms[uniform_name] = uniforms[uniform_name]
             end
         end # only use active uniforms && check the type
+
         return new(optimizeduniforms, uniforms, vertexarray, Dict{Function, Tuple}(), Dict{Function, Tuple}(), objectid, bbf)
     end
 end

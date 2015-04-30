@@ -38,7 +38,7 @@ function rotationmatrix_x{T}(angle::T)
         0, sin(angle), cos(angle), 0,
         0, 0, 0, 1)
 end
-function rotationmatrix_z{T}(angle::T)
+function rotationmatrix_y{T}(angle::T)
     Matrix4x4{T}(
         cos(angle), 0, sin(angle), 0,
         0, 1, 0, 0,

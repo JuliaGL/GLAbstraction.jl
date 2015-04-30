@@ -96,6 +96,7 @@ let shader_cache = Dict{(GLenum, Vector{Uint8}), GLuint}() # shader cache preven
     function compileshader(shader::Shader)
         get!(shader_cache, (shader.typ, shader.source)) do 
             shaderid = createshader(shader.typ)
+            @assert isascii(bytestring(shader.source))
             glShaderSource(shaderid, shader.source)
             glCompileShader(shaderid)
             if !iscompiled(shaderid)

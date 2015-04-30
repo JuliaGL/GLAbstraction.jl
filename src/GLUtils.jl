@@ -54,7 +54,7 @@ end
 
 function print_with_lines(text::AbstractString)
     for (i,line) in enumerate(split(text, "\n"))
-        @printf("%-4d: %s", i, line)
+        @printf("%-4d: %s\n", i, line)
     end
 end
 
