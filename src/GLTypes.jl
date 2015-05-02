@@ -139,11 +139,11 @@ type RenderObject
     prerenderfunctions  ::Dict{Function, Tuple}
     postrenderfunctions ::Dict{Function, Tuple}
     id                  ::GLushort
-    boundingbox         ::Function # workaround for having lazy boundingbox queries, while not using multiple dispatch for boundingbox function (No type hierarchy for RenderObjects)
+    boundingbox         ::Signal # workaround for having lazy boundingbox queries, while not using multiple dispatch for boundingbox function (No type hierarchy for RenderObjects)
 
-    objectid = GLushort(0)
+    objectid = zero(GLushort)
 
-    function RenderObject(data::Dict{Symbol, Any}, program::Signal{GLProgram}, bbf::Function=(x)->error("boundingbox not implemented"))
+    function RenderObject(data::Dict{Symbol, Any}, program::Signal{GLProgram}, bbs=Input(AABB(Vec3(0),Vec3(1))))
 
         objectid             += GLushort(1)
         program              = program.value
@@ -162,9 +162,12 @@ type RenderObject
             end
         end # only use active uniforms && check the type
 
-        return new(optimizeduniforms, uniforms, vertexarray, Dict{Function, Tuple}(), Dict{Function, Tuple}(), objectid, bbf)
+        return new(optimizeduniforms, uniforms, vertexarray, Dict{Function, Tuple}(), Dict{Function, Tuple}(), objectid, bbs)
     end
 end
+
+
+
 include("GLRenderObject.jl")
 
 

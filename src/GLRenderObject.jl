@@ -25,8 +25,8 @@ Base.setindex!(obj::RenderObject, value, symbol::Symbol, x::Function)       = se
 Base.setindex!(obj::RenderObject, value, ::Val{:prerender}, x::Function)    = obj.prerenderfunctions[x] = value
 Base.setindex!(obj::RenderObject, value, ::Val{:postrender}, x::Function)   = obj.postrenderfunctions[x] = value
 
-function instanced_renderobject(data, amount::Integer, program::Signal{GLProgram}, primitive::GLenum=GL_TRIANGLES, bbf::Function=(x)->error("boundingbox not implemented"))
-    robj = RenderObject(data, program, bbf)
+function instanced_renderobject(data, amount::Integer, program::Signal{GLProgram}, bb=Input(AABB(Vec3(0), Vec3(1))), primitive::GLenum=GL_TRIANGLES)
+    robj = RenderObject(data, program, bb)
     prerender!(robj, 
         glEnable, GL_DEPTH_TEST, 
         glDepthFunc, GL_LEQUAL, 
@@ -38,8 +38,8 @@ function instanced_renderobject(data, amount::Integer, program::Signal{GLProgram
 end
 
 
-function std_renderobject(data, shader::Signal{GLProgram}; primitive=GL_TRIANGLES)
-    robj = RenderObject(data, shader)
+function std_renderobject(data, shader::Signal{GLProgram}, bb=Input(AABB(Vec3(0), Vec3(1))), primitive=GL_TRIANGLES)
+    robj = RenderObject(data, shader, bb)
     prerender!(robj, 
         glEnable, GL_DEPTH_TEST, 
         glDepthFunc, GL_LEQUAL, 

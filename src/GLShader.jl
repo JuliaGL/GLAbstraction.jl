@@ -221,7 +221,7 @@ function TemplateProgram{N}(shaders::NTuple{N, Shader}, kw_args)
     if haskey(view, "in") || haskey(view, "out") || haskey(view, "GLSL_VERSION")
         println("warning: using internal keyword \"$(in/out/GLSL_VERSION)\" for shader template. The value will be overwritten")
     end
-    extension = "" #Still empty, but might be replaced by a platform dependant extension string
+    extension = "#extension GL_ARB_draw_instanced : enable" #Still empty, but might be replaced by a platform dependant extension string
     if haskey(view, "GLSL_EXTENSIONS")
         #to do: check custom extension...
         #for now we just append the extensions
