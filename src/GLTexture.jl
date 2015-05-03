@@ -17,7 +17,7 @@ type Texture{T <: GLArrayEltypes, NDIM} <: GPUArray{T, NDIM}
     size            ::NTuple{NDIM, Int}
 end
 
-function Texture{T}(data::Ptr{T}, dims, ttype::GLenum, internalformat::GLenum, format::GLenum, parameters::Vector{(GLenum, GLenum)})
+function Texture{T}(data::Ptr{T}, dims, ttype::GLenum, internalformat::GLenum, format::GLenum, parameters::Vector{@compat(Tuple{GLenum, GLenum})})
 
     id = glGenTextures()
     glBindTexture(ttype, id)
@@ -44,7 +44,7 @@ end
 #=
 Main constructor, which shouldn't be used. It will initializes all the missing values and pass it to the inner Texture constructor
 =#
-function Texture{T <: GLArrayEltypes}(data::Vector{Array{T,2}}, texture_properties::Vector{(Symbol, Any)})
+function Texture{T <: GLArrayEltypes}(data::Vector{Array{T,2}}, texture_properties::Vector{@compat(Tuple{Symbol, Any})})
     Base.length{ET <: Real}(::Type{ET}) = 1
     NDim            = 3
     ColorDim        = length(T)
@@ -52,7 +52,7 @@ function Texture{T <: GLArrayEltypes}(data::Vector{Array{T,2}}, texture_properti
     Texture(data, GL_TEXTURE_2D_ARRAY, defaults[:internalformat], defaults[:format], defaults[:parameters])
 end
 
-function Texture{T <: GLArrayEltypes}(data::Vector{Array{T,2}}, ttype::GLenum, internalformat::GLenum, format::GLenum, parameters::Vector{(GLenum, GLenum)})
+function Texture{T <: GLArrayEltypes}(data::Vector{Array{T,2}}, ttype::GLenum, internalformat::GLenum, format::GLenum, parameters::Vector{@compat(Tuple{GLenum, GLenum})})
     id = glGenTextures()
     glBindTexture(ttype, id)
 
@@ -102,7 +102,7 @@ end
 
 default_colorformat{T <: Real}(colordim::Type{T})              = default_colorformat(1, T <: Integer, "RED")
 default_colorformat{T <: AbstractArray}(colordim::Type{T})     = default_colorformat(length(T), eltype(T) <: Integer, "RGBA")
-default_colorformat{T <: FixedVector}(colordim::Type{T}) = default_colorformat(length(T), eltype(T) <: Integer, "RGBA")
+default_colorformat{T <: FixedVector}(colordim::Type{T})       = default_colorformat(length(T), eltype(T) <: Integer, "RGBA")
 function default_colorformat{T <: AbstractAlphaColor}(colordim::Type{T})
     colororder = string(T.name.name)
     return default_colorformat(length(T), eltype(T) <: Integer, colororder)
@@ -149,7 +149,7 @@ end
 # As the default parameters of a texture are dependent on the texture, this is done by a function.
 # The function overwrites the defaults with values from texture_properties, so that one can customize the defaults
 # Here is a good place for parameter checking, yet not implemented though...
-function gendefaults(texture_properties::Vector{(Symbol, Any)}, ColorDim::Integer, Typ::DataType, NDim::Integer)
+function gendefaults(texture_properties::Vector{@compat(Tuple{Symbol, Any})}, ColorDim::Integer, Typ::DataType, NDim::Integer)
     return merge(@compat(Dict(
         :internalformat  => default_internalcolorformat(ColorDim, Typ),
         :parameters      => default_textureparameters(NDim, eltype(Typ)),
@@ -162,12 +162,12 @@ end
 As Texture has a lot of variations with the same Keyword arguments, I decided to
 map the keywords into one array, which I pass to the actual constructor
 =#
-Texture(data... ; texture_properties...) = Texture(data..., convert(Vector{(Symbol, Any)}, texture_properties))
+Texture(data... ; texture_properties...) = Texture(data..., convert(Vector{@compat(Tuple{Symbol, Any})}, texture_properties))
 
 #=
 Main constructor, which shouldn't be used. It will initializes all the missing values and pass it to the inner Texture constructor
 =#
-function Texture{T <: GLArrayEltypes}(data::Ptr{T}, dims::Union(AbstractVector, Tuple), texture_properties::Vector{(Symbol, Any)})
+function Texture{T <: GLArrayEltypes}(data::Ptr{T}, dims::Union(AbstractVector, Tuple), texture_properties::Vector{@compat(Tuple{Symbol, Any})})
     Base.length{ET <: Real}(::Type{ET}) = 1
     NDim            = length(dims)
     ColorDim        = length(T)
@@ -180,7 +180,7 @@ Constructor for empty initialization with NULL pointer instead of an array with 
 You just need to pass the wanted color/vector type and the dimensions.
 To which values the texture gets initialized is driver dependent
 =#
-function Texture{T <: GLArrayEltypes}(datatype::Type{T}, dims::Union(AbstractVector, Tuple), texture_properties::Vector{(Symbol, Any)})
+function Texture{T <: GLArrayEltypes}(datatype::Type{T}, dims::Union(AbstractVector, Tuple), texture_properties::Vector{@compat(Tuple{Symbol, Any})})
     Texture(convert(Ptr{T}, C_NULL), dims, texture_properties)
 end
 
@@ -190,7 +190,7 @@ So Array{Real, 2} == Texture2D with 1D Color dimension
 Array{Vec1/2/3/4, 2} == Texture2D with 1/2/3/4D Color dimension
 Colors from Colors.jl should mostly work as well
 =#
-function Texture{T <: GLArrayEltypes, NDim}(image::Array{T, NDim}, texture_properties::Vector{(Symbol, Any)})
+function Texture{T <: GLArrayEltypes, NDim}(image::Array{T, NDim}, texture_properties::Vector{@compat(Tuple{Symbol, Any})})
     Texture(pointer(image), [size(image)...], texture_properties)
 end
 #=
@@ -206,7 +206,7 @@ end
 #=
 Creates a texture from an image, which lays on a path
 =#
-function Texture(path::String, texture_properties::Vector{(Symbol, Any)})
+function Texture(path::String, texture_properties::Vector{@compat(Tuple{Symbol, Any})})
     #isdefined(:Images) || eval(Expr(:using, :Images))
     #Texture(imread(path), texture_properties)
 end
@@ -254,7 +254,7 @@ end
 
 
 # Resize Texture
-function gpu_resize!{T, ND}(t::Texture{T, ND}, newdims::(Int...))
+function gpu_resize!{T, ND}(t::Texture{T, ND}, newdims::@compat(Tuple{Vararg{Int}}))
     glBindTexture(t.texturetype, t.id)
     glTexImage(t.texturetype, 0, t.internalformat, newdims..., 0, t.format, t.pixeltype, C_NULL)
     t.size = newdims

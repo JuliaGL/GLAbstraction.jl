@@ -91,7 +91,7 @@ Base.write(io::IO, f::File{:geom}) = write(io, f.source)
 
 compileshader(file::File, program::GLuint) = compileshader(read(file), program)
                     #(shadertype, shadercode) -> shader id
-let shader_cache = Dict{(GLenum, Vector{Uint8}), GLuint}() # shader cache prevents that a shader is compiled more than one time
+let shader_cache = Dict{@compat(Tuple{GLenum, Vector{Uint8}}), GLuint}() # shader cache prevents that a shader is compiled more than one time
     #finalizer(shader_cache, dict->foreach(glDeleteShader, values(dict))) # delete all shaders when done
     function compileshader(shader::Shader)
         get!(shader_cache, (shader.typ, shader.source)) do 
@@ -195,7 +195,7 @@ TemplateProgram() = error("Can't create TemplateProgram without parameters")
 let TEMPLATE_PROGRAM_KW_DEFAULTS = @compat(Dict(
     :view               => Dict{ASCIIString, ASCIIString}(), 
     :attributes         => Dict{Symbol, Any}(),
-    :fragdatalocation   => (Int, ASCIIString)[]
+    :fragdatalocation   => @compat(Tuple{Int, ASCIIString})[]
 )),  SHADER_TYPES = Union(Shader, File, Reactive.Lift{Shader})
    
     TemplateProgram(x::SHADER_TYPES...; p=createprogram(), kw_args...) = 

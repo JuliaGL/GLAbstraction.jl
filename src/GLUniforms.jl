@@ -63,11 +63,11 @@ end
 @genuniformfunctions 4 
 
 
-function uniformfunc(typ::DataType, dims::(Int,))
+function uniformfunc(typ::DataType, dims::@compat(Tuple{Int}))
     func = symbol(string("glUniform", first(dims), GL_POSTFIX[typ]))
     
 end
-function uniformfunc(typ::DataType, dims::(Int, Int))
+function uniformfunc(typ::DataType, dims::@compat(Tuple{Int, Int}))
     M,N = dims
     func = symbol(string("glUniformMatrix", M==N ? "$M":"$(M)x$(N)", GL_POSTFIX[typ]))
 end
@@ -76,7 +76,7 @@ function gluniform{FSA <: FixedArray}(location::Integer, x::FSA)
     x = [x]
     gluniform(location, x)
 end
-stagedfunction gluniform{FSA <: FixedArray}(location::Integer, x::Vector{FSA})
+@generated function gluniform{FSA <: FixedArray}(location::Integer, x::Vector{FSA})
     func = uniformfunc(eltype(FSA), size(FSA))
     if ndims(FSA) == 2 
         :($func(location, length(x), GL_FALSE, pointer(x)))
@@ -109,14 +109,14 @@ gluniform(location::GLint, x::Vector{GLuint}) 	= glUniform1uiv(location, length(
 glsl_prefix(x::DataType) = GLSL_PREFIX[x]
 glsl_prefix{T <: FixedPoint}(x::Type{T}) = ""
 
-toglsltype_string{T, D}(t::Texture{T, D}) = string("uniform ", glsl_prefix(eltype(T)),"sampler", D, "D")
+toglsltype_string{T, D}(t::Texture{T, D})       = string("uniform ", glsl_prefix(eltype(T)),"sampler", D, "D")
 toglsltype_string(t::GLfloat)                   = "uniform float"
 toglsltype_string(t::GLuint)                    = "uniform uint"
 toglsltype_string(t::GLint)                     = "uniform int"
 toglsltype_string(t::Signal)                    = toglsltype_string(t.value)
 toglsltype_string(t::StepRange)                 = toglsltype_string(Vec3(first(t), step(t), last(t)))
 
-toglsltype_string(t::FixedVector)                = string(GLSL_PREFIX[eltype(t)],"vec",length(t))
+toglsltype_string(t::FixedVector)               = string(GLSL_PREFIX[eltype(t)],"vec",length(t))
 function toglsltype_string(t::FixedMatrix)
     M,N = size(t)
     string(GLSL_PREFIX[eltype(t)],"mat", M==N ? "$M" : "$(M)x$(N)")
