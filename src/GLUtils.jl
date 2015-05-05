@@ -21,7 +21,7 @@ end
 immutable IterOrScalar{T}
   val::T
 end
-minlenght(a::(IterOrScalar...)) = foldl(typemax(Int), a) do len, elem
+minlenght(a::@compat(Tuple{Vararg{IterOrScalar}})) = foldl(typemax(Int), a) do len, elem
   if isa(elem.val, AbstractArray) && len > length(elem.val) 
     return length(elem.val)
   end
@@ -34,7 +34,7 @@ foreach(func::Union(Function, DataType), args...) = foreach(func, map(IterOrScal
 
 # Applies a function over multiple args
 # staged, so it can specialize on the arguments being scalar or iterable
-stagedfunction foreach(func::Function, args::IterOrScalar...)
+@generated function foreach(func::Function, args::IterOrScalar...)
   args_access = [:(args[$i][i]) for i=1:length(args)]
   quote
     len = minlenght(args)
@@ -54,7 +54,7 @@ end
 
 function print_with_lines(text::AbstractString)
     for (i,line) in enumerate(split(text, "\n"))
-        @printf("%-4d: %s", i, line)
+        @printf("%-4d: %s\n", i, line)
     end
 end
 

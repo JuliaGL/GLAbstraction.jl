@@ -21,7 +21,7 @@ end
 
 
 
-function mousediff{T}(v0::(Bool, Vector2{T}, Vector2{T}),  clicked::Bool, pos::Vector2{T})
+function mousediff{T}(v0::@compat(Tuple{Bool, Vector2{T}, Vector2{T}}),  clicked::Bool, pos::Vector2{T})
     clicked0, pos0, pos0diff = v0
     if clicked0 && clicked
         return (clicked, pos, pos - pos0)
@@ -321,7 +321,6 @@ function PerspectiveCamera{T <: Real}(
 	zaxis 				= cross(yaxis, xaxis)
 
 	translate 			= Vector3{T}(0,0,0)
-
 
 	p0 				= Pivot(origin, xaxis, yaxis, zaxis, Quaternion(1f0,0f0,0f0,0f0), translate, Vector3{T}(1))
 	pivot 			= foldl(fold_pivot, p0, lift(tuple, xtheta, ytheta, ztheta, xtrans, ytrans, ztrans))

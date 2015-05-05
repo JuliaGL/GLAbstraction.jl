@@ -91,11 +91,12 @@ Base.write(io::IO, f::File{:geom}) = write(io, f.source)
 
 compileshader(file::File, program::GLuint) = compileshader(read(file), program)
                     #(shadertype, shadercode) -> shader id
-let shader_cache = Dict{(GLenum, Vector{Uint8}), GLuint}() # shader cache prevents that a shader is compiled more than one time
+let shader_cache = Dict{@compat(Tuple{GLenum, Vector{Uint8}}), GLuint}() # shader cache prevents that a shader is compiled more than one time
     #finalizer(shader_cache, dict->foreach(glDeleteShader, values(dict))) # delete all shaders when done
     function compileshader(shader::Shader)
         get!(shader_cache, (shader.typ, shader.source)) do 
             shaderid = createshader(shader.typ)
+            @assert isascii(bytestring(shader.source))
             glShaderSource(shaderid, shader.source)
             glCompileShader(shaderid)
             if !iscompiled(shaderid)
@@ -194,7 +195,7 @@ TemplateProgram() = error("Can't create TemplateProgram without parameters")
 let TEMPLATE_PROGRAM_KW_DEFAULTS = @compat(Dict(
     :view               => Dict{ASCIIString, ASCIIString}(), 
     :attributes         => Dict{Symbol, Any}(),
-    :fragdatalocation   => (Int, ASCIIString)[]
+    :fragdatalocation   => @compat(Tuple{Int, ASCIIString})[]
 )),  SHADER_TYPES = Union(Shader, File, Reactive.Lift{Shader})
    
     TemplateProgram(x::SHADER_TYPES...; p=createprogram(), kw_args...) = 
@@ -220,7 +221,7 @@ function TemplateProgram{N}(shaders::NTuple{N, Shader}, kw_args)
     if haskey(view, "in") || haskey(view, "out") || haskey(view, "GLSL_VERSION")
         println("warning: using internal keyword \"$(in/out/GLSL_VERSION)\" for shader template. The value will be overwritten")
     end
-    extension = "" #Still empty, but might be replaced by a platform dependant extension string
+    extension = "#extension GL_ARB_draw_instanced : enable" #Still empty, but might be replaced by a platform dependant extension string
     if haskey(view, "GLSL_EXTENSIONS")
         #to do: check custom extension...
         #for now we just append the extensions
