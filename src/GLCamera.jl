@@ -26,7 +26,7 @@ function mousediff{T}(v0::@compat(Tuple{Bool, Vector2{T}, Vector2{T}}),  clicked
     if clicked0 && clicked
         return (clicked, pos, pos - pos0)
     end
-    return (clicked, pos, Vector2(0.0))
+    return (clicked, pos, Vector2{T}(0.0))
 end
 function viewmatrix(v0, scroll_x, scroll_y, buttonset)
 	translatevec = Vec3(0f0)
@@ -91,10 +91,10 @@ function OrthographicCamera(inputs::Dict{Symbol, Any})
 	zoom 			= foldl(times_n , 1.0f0, inputs[:scroll_y], Input(0.1f0)) # add up and multiply by 0.1f0
 
 	#Should be rather in Image coordinates
-	normedposition 		= lift((a,b) -> Vector2((a./b[3:4])...), inputs[:mouseposition], inputs[:window_size])
+	normedposition 		= lift((a,b) -> Vector2{Float32}((a./b[3:4])...), inputs[:mouseposition], inputs[:window_size])
 	clickedwithoutkeyL 	= lift((mb, kb) -> in(0, mb) && isempty(kb), Bool, clicked, keypressed)
-	mouse_diff 			= keepwhen(clickedwithoutkeyL, (false, Vector2(0.0), Vector2(0.0)), # Don't do unnecessary updates, so just signal when mouse is actually clicked
-								foldl(mousediff, (false, Vector2(0.0), Vector2(0.0)),  # Get the difference, starting when the mouse is down
+	mouse_diff 			= keepwhen(clickedwithoutkeyL, (false, Vector2(0.0f0), Vector2(0.0f0)), # Don't do unnecessary updates, so just signal when mouse is actually clicked
+								foldl(mousediff, (false, Vector2(0.0f0), Vector2(0.0f0)),  # Get the difference, starting when the mouse is down
 									clickedwithoutkeyL, normedposition))
 	translate 			= lift(getindex, Vec2, mouse_diff, Input(3))# Extract the mouseposition from the diff tuple
 							
@@ -128,7 +128,7 @@ function OrthographicCamera{T}(
 	projection = lift(orthographicprojection, windows_size, nearclip, farclip) 
 	#projection = Input(eye(Mat4))
 	#view = Input(eye(Mat4))
-	projectionview = lift(*, Matrix4x4{T}, projection, view)
+	projectionview = lift(*, projection, view)
 
 	OrthographicCamera{T}(
 							windows_size,
@@ -172,9 +172,9 @@ function OrthographicCamera{T}(
 	view = lift((s, t) -> begin
 	  pivot = Vec3(normedposition.value..., zero(T))
 	  translationmatrix(pivot)*s*translationmatrix(-pivot)*t
-	end, Matrix4x4{T}, scale, translate)
+	end, scale, translate)
 
-	projectionview = lift(*, Matrix4x4{T}, projection, view)
+	projectionview = lift(*, projection, view)
 
 	OrthographicCamera{T}(
 							windows_size,
@@ -206,7 +206,8 @@ Args:
 =#
 function PerspectiveCamera{T}(inputs::Dict{Symbol,Any}, eyeposition::Vector3{T}, lookatvec::Vector3{T})
 
-	mouseposition   	= inputs[:mouseposition]
+	mouseposition   	= lift(Vector2{T}, inputs[:mouseposition])
+	println(mouseposition)
 	clicked         	= inputs[:mousebuttonspressed]
 	keypressed      	= inputs[:buttonspressed]
 
@@ -335,10 +336,10 @@ function PerspectiveCamera{T <: Real}(
 	view 			= lift(lookat,  positionvec, lookatvec1, up)
 	w 				= lift(getindex, window_size, Input(3))
 	h 				= lift(last, window_size)
-	window_ratio 	= lift(/, T, w, h)
+	window_ratio 	= lift(Float32, lift(/, w, h))
 	projection 		= lift(perspectiveprojection, fov, window_ratio, nearclip, farclip)
 
-	projectionview 	= lift(*,  projection, view)
+	projectionview 	= lift(*, projection, view)
 
 
 	return PerspectiveCamera{T}(

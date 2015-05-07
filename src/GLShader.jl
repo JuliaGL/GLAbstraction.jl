@@ -169,12 +169,12 @@ function isupdated(file::File, update_interval=1.0)
         time_edited = mtime(filename)
         (!isapprox(0.0, v0[2] - time_edited), time_edited)
     end
-    return filter(identity, false, lift(first, Bool, file_edited)) # extract bool
+    return filter(identity, false, lift(first, file_edited)) # extract bool
 end
 
 #reads from the file and updates the source whenever the file gets edited
 function lift_shader(shader_file::File)
-    lift(Shader, isupdated(shader_file)) do _unused
+    lift(isupdated(shader_file)) do _unused
         read(shader_file)
     end
 end
