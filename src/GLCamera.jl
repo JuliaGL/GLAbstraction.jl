@@ -128,7 +128,7 @@ function OrthographicCamera{T}(
 	projection = lift(orthographicprojection, windows_size, nearclip, farclip) 
 	#projection = Input(eye(Mat4))
 	#view = Input(eye(Mat4))
-	projectionview = lift(*, Matrix4x4{T}, projection, view)
+	projectionview = lift(*, projection, view)
 
 	OrthographicCamera{T}(
 							windows_size,
@@ -335,7 +335,7 @@ function PerspectiveCamera{T <: Real}(
 	view 			= lift(lookat,  positionvec, lookatvec1, up)
 	w 				= lift(getindex, window_size, Input(3))
 	h 				= lift(last, window_size)
-	window_ratio 	= lift(/, T, w, h)
+	window_ratio 	= lift(/, w, h,typ=T)
 	projection 		= lift(perspectiveprojection, fov, window_ratio, nearclip, farclip)
 
 	projectionview 	= lift(*,  projection, view)

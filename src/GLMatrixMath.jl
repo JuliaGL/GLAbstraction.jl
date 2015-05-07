@@ -143,9 +143,9 @@ end
 
 function lookat{T}(eyePos::Vector3{T}, lookAt::Vector3{T}, up::Vector3{T})
 
-    zaxis  = normalize(eyePos - lookAt)
-    xaxis  = normalize(cross(up, zaxis))
-    yaxis  = normalize(cross(zaxis, xaxis))
+    zaxis  = FixedSizeArrays.normalize(eyePos - lookAt)
+    xaxis  = FixedSizeArrays.normalize(cross(up, zaxis))
+    yaxis  = FixedSizeArrays.normalize(cross(zaxis, xaxis))
 
     viewMatrix = eye(T, 4,4)
     viewMatrix[1, 1:3] = [xaxis...]
