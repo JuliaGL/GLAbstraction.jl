@@ -1,11 +1,11 @@
 abstract Camera{T}
-immutable OrthographicCamera{T} <: Camera{T}
+type OrthographicCamera{T} <: Camera{T}
 	window_size::Signal{Vector4{Int}}
 	view::Signal{Matrix4x4{T}}
 	projection::Signal{Matrix4x4{T}}
 	projectionview::Signal{Matrix4x4{T}}
 end
-immutable PerspectiveCamera{T} <: Camera{T}
+type PerspectiveCamera{T} <: Camera{T}
 	pivot::Signal{Pivot{T}}
 	window_size::Signal{Vector4{Int}}
 	nearclip::Signal{T}
@@ -210,25 +210,25 @@ function PerspectiveCamera{T}(inputs::Dict{Symbol,Any}, eyeposition::Vector3{T},
 	clicked         	= inputs[:mousebuttonspressed]
 	keypressed      	= inputs[:buttonspressed]
 
-	clickedwithoutkeyL 	= lift(mousepressed_without_keyboard, Bool, clicked, Input(0), keypressed)
-	clickedwithoutkeyM 	= lift(mousepressed_without_keyboard, Bool, clicked, Input(2), keypressed)
+	clickedwithoutkeyL 	= lift(mousepressed_without_keyboard, clicked, Input(0), keypressed)
+	clickedwithoutkeyM 	= lift(mousepressed_without_keyboard, clicked, Input(2), keypressed)
 
-	nokeydown 			= lift(isempty, Bool, keypressed)
-	anymousedown 		= lift(isnotempty, Bool, clicked)
+	nokeydown 			= lift(isempty,  keypressed)
+	anymousedown 		= lift(isnotempty,  clicked)
 
-	mousedraggdiffL = lift(last, Vector2{Float64}, foldl(mousediff, (false, Vector2(0.0), Vector2(0.0)), clickedwithoutkeyL, mouseposition))
-	mousedraggdiffM = lift(last, Vector2{Float64}, foldl(mousediff, (false, Vector2(0.0), Vector2(0.0)), clickedwithoutkeyM, mouseposition))
+	mousedraggdiffL = lift(last, foldl(mousediff, (false, Vector2(0.0f0), Vector2(0.0f0)), clickedwithoutkeyL, mouseposition))
+	mousedraggdiffM = lift(last, foldl(mousediff, (false, Vector2(0.0f0), Vector2(0.0f0)), clickedwithoutkeyM, mouseposition))
 
 	speed  = Input(50f0)
 	xtheta = Input(0f0)
-	ytheta = lift(-, lift(/, lift(last, Float32, mousedraggdiffL), speed)) # uugly
-	ztheta = lift(/, lift(first, Float32, mousedraggdiffL), speed)
+	ytheta = lift(-, lift(/, lift(last,  mousedraggdiffL), speed)) # uugly
+	ztheta = lift(/, lift(first,  mousedraggdiffL), speed)
 
 
-	xtrans = lift(*, Float32, inputs[:scroll_y], Input(0.1f0))
+	xtrans = lift(Float32 ,lift(*,  inputs[:scroll_y], Input(0.1f0)))
 
-	ytrans = lift(-, lift(/, lift(first, Float32, mousedraggdiffM), speed)) #-(mouse.x / speed)
-	ztrans = lift(/, lift(last, Float32, mousedraggdiffM), speed) # (mouse.x / speed)
+	ytrans = lift(-, lift(/, lift(first,  mousedraggdiffM), speed)) #-(mouse.x / speed)
+	ztrans = lift(/, lift(last, mousedraggdiffM), speed) # (mouse.x / speed)
 
 	fov 	= Input(41f0)
 
@@ -315,9 +315,9 @@ function PerspectiveCamera{T <: Real}(
 	)
 	eyepositionstart 	= Vector3{T}(1,0,0)
 	origin 				= lookatvec
-
+	vup 				= Vector3{T}(0,0,1)
 	xaxis 				= eyeposition - origin
-	yaxis 				= cross(xaxis, Vector3{T}(0,0,1))
+	yaxis 				= cross(xaxis, vup)
 	zaxis 				= cross(yaxis, xaxis)
 
 	translate 			= Vector3{T}(0,0,0)
@@ -325,20 +325,20 @@ function PerspectiveCamera{T <: Real}(
 	p0 				= Pivot(origin, xaxis, yaxis, zaxis, Quaternion(1f0,0f0,0f0,0f0), translate, Vector3{T}(1))
 	pivot 			= foldl(fold_pivot, p0, lift(tuple, xtheta, ytheta, ztheta, xtrans, ytrans, ztrans))
 
-	modelmatrix 	= lift(transformationmatrix, Matrix4x4{T}, pivot)
-	positionvec 	= lift(*, Vector4{T}, modelmatrix, Input(Vector4(eyeposition..., one(T))))
-	positionvec 	= lift(vec3, Vector3{T}, positionvec)
+	modelmatrix 	= lift(transformationmatrix, pivot)
+	positionvec 	= lift(*, modelmatrix, Input(Vector4(eyeposition..., one(T))))
+	positionvec 	= lift(vec3,  positionvec)
 
-	up 				= lift(getupvec, Vector3{T}, pivot)
-	lookatvec1 		= lift(getfield, Vector3{T}, pivot, Input(:origin)) # silly way of geting a field
+	up 				= lift(getupvec, pivot)
+	lookatvec1 		= lift(getfield, pivot, Input(:origin)) # silly way of geting a field
 
-	view 			= lift(lookat, Matrix4x4{T}, positionvec, lookatvec1, up)
+	view 			= lift(lookat,  positionvec, lookatvec1, up)
 	w 				= lift(getindex, window_size, Input(3))
 	h 				= lift(last, window_size)
 	window_ratio 	= lift(/, T, w, h)
-	projection 		= lift(perspectiveprojection, Matrix4x4{T}, fov, window_ratio, nearclip, farclip)
+	projection 		= lift(perspectiveprojection, fov, window_ratio, nearclip, farclip)
 
-	projectionview 	= lift(*, Matrix4x4{T}, projection, view)
+	projectionview 	= lift(*,  projection, view)
 
 
 	return PerspectiveCamera{T}(
