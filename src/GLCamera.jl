@@ -1,4 +1,5 @@
 abstract Camera{T}
+
 type OrthographicCamera{T} <: Camera{T}
 	window_size::Signal{Vector4{Int}}
 	view::Signal{Matrix4x4{T}}
@@ -261,9 +262,9 @@ function fold_pivot(v0, v1)
 	yaxis = v0.rotation * v0.yaxis
 	zaxis = v0.rotation * v0.zaxis
 
-	xrot = qrotation(xaxis, xt)
-	yrot = qrotation(yaxis, yt)
-	zrot = qrotation(Vector3(0f0,0f0,1f0), zt)
+	xrot = Quaternions.qrotation(xaxis, xt)
+	yrot = Quaternions.qrotation(yaxis, yt)
+	zrot = Quaternions.qrotation(Vector3(0f0,0f0,1f0), zt)
 
 	v1rot = zrot*xrot*yrot*v0.rotation
 
@@ -323,7 +324,7 @@ function PerspectiveCamera{T <: Real}(
 
 	translate 			= Vector3{T}(0,0,0)
 
-	p0 				= Pivot(origin, xaxis, yaxis, zaxis, Quaternion(1f0,0f0,0f0,0f0), translate, Vector3{T}(1))
+	p0 				= Pivot(origin, xaxis, yaxis, zaxis, Quaternions.Quaternion(1f0,0f0,0f0,0f0), translate, Vector3{T}(1))
 	pivot 			= foldl(fold_pivot, p0, lift(tuple, xtheta, ytheta, ztheta, xtrans, ytrans, ztrans))
 
 	modelmatrix 	= lift(transformationmatrix, pivot)

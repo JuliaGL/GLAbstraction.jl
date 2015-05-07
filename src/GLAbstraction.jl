@@ -1,7 +1,6 @@
 module GLAbstraction
 
-using Quaternions
-import Quaternions.normalize
+import Quaternions
 
 using AbstractGPUArray
 using FixedSizeArrays
