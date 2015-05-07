@@ -208,7 +208,6 @@ Args:
 function PerspectiveCamera{T}(inputs::Dict{Symbol,Any}, eyeposition::Vector3{T}, lookatvec::Vector3{T})
 
 	mouseposition   	= lift(Vector2{T}, inputs[:mouseposition])
-	println(mouseposition)
 	clicked         	= inputs[:mousebuttonspressed]
 	keypressed      	= inputs[:buttonspressed]
 
