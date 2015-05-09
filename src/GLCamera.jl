@@ -1,3 +1,30 @@
+#== for patching issue in OrthographicCamera
+==#
+
+using FixedSizeArrays
+import FixedSizeArrays.getindex
+
+# This seems missing    
+function FixedSizeArrays.getindex{T, SZ}(A::FixedArray{T, 1, SZ},j::UnitRange)
+    FixedVector{T, length(j)}(  [ A[k] for k in j ]...      ) 
+end
+
+#
+#   Far from optimal, a quick and dirty way
+#
+function simpleConvert{T,SZ}(A::FixedArray{T, 1, SZ},S)
+           FixedArray{S, 1, SZ}(
+                      [ convert(S, a) for a in A]... 
+                  ) 
+       end
+    
+#==
+    These show more complicated stuff than I would like!!!
+code_native (simpleConvert,(GeometryTypes.Vector4{Int64}, Int64)  )
+code_native (simpleConvert,(GeometryTypes.Vector4{Int64}, Float64)  )
+code_native(getindex, (FixedArray{Float64, 1, 4}, UnitRange))
+==#
+    
 abstract Camera{T}
 
 type OrthographicCamera{T} <: Camera{T}
@@ -92,13 +119,18 @@ function OrthographicCamera(inputs::Dict{Symbol, Any})
 	zoom 			= foldl(times_n , 1.0f0, inputs[:scroll_y], Input(0.1f0)) # add up and multiply by 0.1f0
 
 	#Should be rather in Image coordinates
-	normedposition 		= lift((a,b) -> Vector2{Float32}((a./b[3:4])...), inputs[:mouseposition], inputs[:window_size])
-	clickedwithoutkeyL 	= lift((mb, kb) -> in(0, mb) && isempty(kb), Bool, clicked, keypressed)
-	mouse_diff 			= keepwhen(clickedwithoutkeyL, (false, Vector2(0.0f0), Vector2(0.0f0)), # Don't do unnecessary updates, so just signal when mouse is actually clicked
-								foldl(mousediff, (false, Vector2(0.0f0), Vector2(0.0f0)),  # Get the difference, starting when the mouse is down
+	normedposition 		= lift((a,b) ->  a./(GeometryTypes.Vector2{Float64}(simpleConvert(b,Float64)[3:4])),
+                                       inputs[:mouseposition], inputs[:window_size])
+
+	clickedwithoutkeyL 	= lift((mb, kb) -> in(0, mb) && isempty(kb),  clicked, keypressed)
+
+                                                 # Note 1: Don't do unnecessary updates, so just signal when mouse is actually clicked
+                                                 # Note 2: Get the difference, starting when the mouse is down
+	mouse_diff 			= keepwhen(clickedwithoutkeyL, (false, Vector2(0.0f0), Vector2(0.0f0)),  ## (Note 1) 
+					               foldl(mousediff, (false, Vector2(0.0f0), Vector2(0.0f0)), ## (Note 2) 
 									clickedwithoutkeyL, normedposition))
-	translate 			= lift(getindex, Vec2, mouse_diff, Input(3))# Extract the mouseposition from the diff tuple
-							
+        translate 			= lift( x->x[3], mouse_diff)  # Extract the mouseposition from the diff tuple
+    
 	OrthographicCamera(
 				inputs[:window_size],
 				zoom,
@@ -156,7 +188,7 @@ function OrthographicCamera{T}(
 									normedposition::Signal{Vector2{Float64}}
 								)
 
-	projection = lift(Matrix4x4{T}, windows_size) do wh
+	projection = lift( windows_size) do wh      
 	  if wh[3] < 1 || wh[4] < 1
 	  	return eye(Matrix4x4{T})
 	  end
