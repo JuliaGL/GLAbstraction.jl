@@ -104,3 +104,10 @@ macro materialize!(dict_splat)
     end
     esc(expr)
 end
+
+
+makesignal(s::Signal) = s
+makesignal(v)         = Input(v)
+function Reactive.lift(f::Reactive.Callable, inputs...)
+    lift(f, map(makesignal, inputs)...)
+end

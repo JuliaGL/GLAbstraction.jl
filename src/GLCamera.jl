@@ -130,7 +130,7 @@ function OrthographicCamera(inputs::Dict{Symbol, Any})
 	mouse_diff 			= keepwhen(clickedwithoutkeyL, (false, Vector2(0.0f0), Vector2(0.0f0)),  ## (Note 1) 
 					               foldl(mousediff, (false, Vector2(0.0f0), Vector2(0.0f0)), ## (Note 2) 
 									clickedwithoutkeyL, normedposition))
-        translate 		= lift(getindex, mouse_diff, 3)  # Extract the mouseposition from the diff tuple
+        translate 		= lift(getindex, mouse_diff, Input(3))  # Extract the mouseposition from the diff tuple
     
 	OrthographicCamera(
 				inputs[:window_size],
@@ -186,7 +186,7 @@ function OrthographicCamera{T}(
 									windows_size::Signal{Vector4{Int}},
 									zoom::Signal{T},
 									translatevec::Signal{Vector2{T}},
-									normedposition::Signal{Vector2{Float64}}
+									normedposition::Signal{Vector2{T}}
 								)
 
 	projection = lift( windows_size) do wh      
