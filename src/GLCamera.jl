@@ -12,7 +12,7 @@ end
 #
 #   Far from optimal, a quick and dirty way
 #
-function simpleConvert{T,SZ}(A::FixedArray{T, 1, SZ},S)
+function simpleConvert{T,SZ}(A::FixedArray{T, 1, SZ}, S)
            FixedArray{S, 1, SZ}(
                       [ convert(S, a) for a in A]... 
                   ) 
@@ -99,6 +99,8 @@ function OrthographicPixelCamera(inputs::Dict{Symbol, Any})
 end
 
 times_n(v0, v1, n) = Float32(v0+(v1*n))
+normalize_positionf0(a, b) = Vec2(a) ./ Vec2(b[3], b[4])
+is_leftclicked_without_keyboard(mb, kb) = in(0, mb) && isempty(kb)
 #= 
 Creates an orthographic camera from a dict of signals
 Signals needed:
@@ -119,17 +121,16 @@ function OrthographicCamera(inputs::Dict{Symbol, Any})
 	zoom 			= foldl(times_n , 1.0f0, inputs[:scroll_y], Input(0.1f0)) # add up and multiply by 0.1f0
 
 	#Should be rather in Image coordinates
-	normedposition 		= lift((a,b) ->  a./(GeometryTypes.Vector2{Float64}(simpleConvert(b,Float64)[3:4])),
-                                       inputs[:mouseposition], inputs[:window_size])
+	normedposition 		= lift(normalize_positionf0, inputs[:mouseposition], inputs[:window_size])
 
-	clickedwithoutkeyL 	= lift((mb, kb) -> in(0, mb) && isempty(kb),  clicked, keypressed)
+	clickedwithoutkeyL 	= lift(is_leftclicked_without_keyboard, clicked, keypressed)
 
-                                                 # Note 1: Don't do unnecessary updates, so just signal when mouse is actually clicked
-                                                 # Note 2: Get the difference, starting when the mouse is down
+                         # Note 1: Don't do unnecessary updates, so just signal when mouse is actually clicked
+                         # Note 2: Get the difference, starting when the mouse is down
 	mouse_diff 			= keepwhen(clickedwithoutkeyL, (false, Vector2(0.0f0), Vector2(0.0f0)),  ## (Note 1) 
 					               foldl(mousediff, (false, Vector2(0.0f0), Vector2(0.0f0)), ## (Note 2) 
 									clickedwithoutkeyL, normedposition))
-        translate 			= lift( x->x[3], mouse_diff)  # Extract the mouseposition from the diff tuple
+        translate 		= lift(getindex, mouse_diff, 3)  # Extract the mouseposition from the diff tuple
     
 	OrthographicCamera(
 				inputs[:window_size],
