@@ -1,5 +1,4 @@
 
-
 #Supported texture modes/dimensions
 function default_texturetype(ndim::Integer)
     ndim == 1 && return GL_TEXTURE_1D

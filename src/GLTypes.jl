@@ -93,13 +93,13 @@ type GLVertexArray
   length        ::Int
   indexlength   ::Int # is negative if not indexed
 
-  function GLVertexArray(bufferDict::Dict{Symbol, GLBuffer}, program::GLProgram)
+  function GLVertexArray(bufferdict::Dict{Symbol, GLBuffer}, program::GLProgram)
     #get the size of the first array, to assert later, that all have the same size
     indexSize = -1
     len = -1
     id = glGenVertexArrays()
     glBindVertexArray(id)
-    for (name, buffer) in bufferDict
+    for (name, buffer) in bufferdict
 
       if buffer.buffertype == GL_ELEMENT_ARRAY_BUFFER
         glBindBuffer(buffer.buffertype, buffer.id)
