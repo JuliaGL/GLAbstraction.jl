@@ -1,11 +1,14 @@
-julia 0.3-
+julia 0.4-
+
+AbstractGPUArray
+FixedSizeArrays
+GeometryTypes
 ModernGL
-ImmutableArrays
-Images
 Reactive
-Mustache
-Quaternions
-Color
 FixedPointNumbers
-Lumberjack
+ColorTypes
 Compat
+ImageIO
+FileIO
+MeshIO
+Mustache

@@ -13,10 +13,10 @@ using Compat
 using ImageIO
 using FileIO
 using MeshIO
-#import Lumberjack
 import Mustache
-import Base.merge
 
+
+import Base.merge
 importall AbstractGPUArray
 
 #Methods which got overloaded by GLExtendedFunctions.jl:
