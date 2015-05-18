@@ -1,7 +1,6 @@
 const INIT_FUNCTION_LIST = Function[]
 
 
-
 function init_after_context_creation(f::Function)
 	push!(INIT_FUNCTION_LIST, f)
 end
@@ -14,15 +13,15 @@ function init_glutils()
 end
 
 
-global const OPENGL_CONTEXT = Dict{Symbol, Any}()
-global GLSL_VERSION = ""
-global GLSL_VARYING_QUALIFIER = ""
+global const OPENGL_CONTEXT 	= Dict{Symbol, Any}()
+global GLSL_VERSION 			= ""
+global GLSL_VARYING_QUALIFIER 	= ""
 
 function createcontextinfo(dict)
 	global GLSL_VERSION, GLSL_VARYING_QUALIFIER
 	glsl = split(bytestring(glGetString(GL_SHADING_LANGUAGE_VERSION)), ['.', ' '])
 	if length(glsl) >= 2
-		glsl = VersionNumber(int(glsl[1]), int(glsl[2])) 
+		glsl = VersionNumber(parse(Int, glsl[1]), parse(Int, glsl[2])) 
 		if glsl.major == 1 && glsl.minor <= 2
 			error("OpenGL shading Language version too low. Try updating graphic driver!")
 		end
@@ -38,7 +37,7 @@ function createcontextinfo(dict)
 
 	glv = split(bytestring(glGetString(GL_VERSION)), ['.', ' '])
 	if length(glv) >= 2
-		glv = VersionNumber(int(glv[1]), int(glv[2])) 
+		glv = VersionNumber(parse(Int, glv[1]), parse(Int, glv[2])) 
 		if glv.major < 3
 			error("OpenGL version too low. Try updating graphic driver!")
 		end
@@ -52,16 +51,16 @@ function createcontextinfo(dict)
 	dict[:maxtexturesize]   = glGetIntegerv(GL_MAX_TEXTURE_SIZE)
 	
 	n 	 = glGetIntegerv(GL_NUM_EXTENSIONS)
-	test = [glGetStringi(GL_EXTENSIONS, i) for i = 0:(n[1]-1)]
+	#test = [glGetStringi(GL_EXTENSIONS, i) for i = 0:(n[1]-1)]
 
 end
-function get_glsl_version_string()
-	if isempty(GLSL_VERSION)
-		error("couldn't get GLSL version, GLUTils not initialized, or context not created?")
-	end
+function glsl_version_string()
+	isempty(GLSL_VERSION) && error("couldn't get GLSL version, GLUTils not initialized, or context not created?")
+		
 	return "#version $(GLSL_VERSION)\n"
 end
 
-get_glsl_out_qualifier_string() = GLSL_VARYING_QUALIFIER == "in" ? "out" : GLSL_VARYING_QUALIFIER
-get_glsl_in_qualifier_string() = GLSL_VARYING_QUALIFIER
+glsl_out_qualifier_string() = GLSL_VARYING_QUALIFIER == "in" ? "out" : GLSL_VARYING_QUALIFIER
+glsl_in_qualifier_string() 	= GLSL_VARYING_QUALIFIER
+
 maxtexturesize() = OPENGL_CONTEXT[:maxtexturesize]

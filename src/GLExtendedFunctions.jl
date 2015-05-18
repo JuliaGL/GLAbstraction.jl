@@ -3,15 +3,25 @@ This is the place, where I put functions, which are so annoying in OpenGL, that 
 Its also to do some more complex error handling, not handled by the debug callback
 =#
 
-function ModernGL.glGetAttachedShaders(program::GLuint)
-    actualLength  = Array(GLsizei, 1)
-    shaders = Array(GLuint, 2)
-    glGetAttachedShaders(program, 2, actualLength, shaders)
-    if actualLength[1] == 2
-      return shaders
-    else
-      error("glGetAttachedShaders: no shaders attached or other error")
-    end
+
+
+function ModernGL.glGetShaderiv(shaderID::GLuint, variable::GLenum)
+  const result = GLint[-1]
+  glGetShaderiv(shaderID, variable, result)
+  result[1]
+end
+function glShaderSource(shaderID::GLuint, shadercode::Vector{Uint8})
+    shader_code_ptrs  = Ptr{Uint8}[pointer(shadercode)]
+    len               = GLint[length(shadercode)]
+    glShaderSource(shaderID, 1, shader_code_ptrs, len)
+end
+function glGetAttachedShaders(program::GLuint)
+    shader_count   = glGetProgramiv(program, GL_ATTACHED_SHADERS)
+    length_written = GLsizei[0]
+    shaders        = zeros(GLuint, shader_count)
+
+    glGetAttachedShaders(program, shader_count, length_written, shaders)
+    shaders[1:first(length_written)]
 end
 
 
@@ -42,7 +52,7 @@ function get_uniform_location(program::GLuint, name::ASCIIString)
    location
 end
 
-function ModernGL.glGetActiveUniform(programID::GLuint, index::Integer)
+function glGetActiveUniform(programID::GLuint, index::Integer)
     const actualLength   = GLsizei[1]
     const uniformSize    = GLint[1]
     const typ            = GLenum[1]
@@ -58,7 +68,7 @@ function ModernGL.glGetActiveUniform(programID::GLuint, index::Integer)
     	error("No active uniform at given index. Index: ", index)
     end
 end
-function ModernGL.glGetActiveAttrib(programID::GLuint, index::Integer)
+function glGetActiveAttrib(programID::GLuint, index::Integer)
     const actualLength   = GLsizei[1]
     const attributeSize  = GLint[1]
     const typ            = GLenum[1]
@@ -74,18 +84,21 @@ function ModernGL.glGetActiveAttrib(programID::GLuint, index::Integer)
       error("No active uniform at given index. Index: ", index)
     end
 end
-function ModernGL.glGetProgramiv(programID::GLuint, variable::GLenum)
+function glGetProgramiv(programID::GLuint, variable::GLenum)
     const result = GLint[-1]
     glGetProgramiv(programID, variable, result)
     result[1]
 end
-function ModernGL.glGetIntegerv(variable::GLenum)
+function glGetIntegerv(variable::GLenum)
     const result = GLint[-1]
-    glGetIntegerv(uint32(variable), result)
+    glGetIntegerv(Uint32(variable), result)
     result[1]
 end
 
-function ModernGL.glGenBuffers()
+
+
+
+function glGenBuffers()
     const result = GLuint[0]
     glGenBuffers(1, result)
     id = result[1]
@@ -94,7 +107,7 @@ function ModernGL.glGenBuffers()
     end
     id
 end
-function ModernGL.glGenVertexArrays()
+function glGenVertexArrays()
     const result = GLuint[0]
     glGenVertexArrays(1, result)
     id = result[1]
@@ -103,7 +116,7 @@ function ModernGL.glGenVertexArrays()
     end
     id
 end
-function ModernGL.glGenTextures()
+function glGenTextures()
     const result = GLuint[0]
     glGenTextures(1, result)
     id = result[1]
@@ -112,7 +125,7 @@ function ModernGL.glGenTextures()
     end
     id
 end
-function ModernGL.glGenFramebuffers()
+function glGenFramebuffers()
     const result = GLuint[0]
     glGenFramebuffers(1, result)
     id = result[1]
@@ -122,14 +135,42 @@ function ModernGL.glGenFramebuffers()
     id
 end
 
-function ModernGL.glGetTexLevelParameteriv(target::GLenum, level, name::GLenum)
+function glDeleteTextures(id::GLuint)
+  arr = [id]
+  glDeleteTextures(1, arr)
+end
+function glDeleteVertexArrays(id::GLuint)
+  arr = [id]
+  glDeleteVertexArrays(1, arr)
+end
+function glDeleteBuffers(id::GLuint)
+  arr = [id]
+  glDeleteBuffers(1, arr)
+end
+
+
+
+
+
+
+function glGetTexLevelParameteriv(target::GLenum, level, name::GLenum)
   result = GLint[0]
   glGetTexLevelParameteriv(target, level, name, result)
   result[1]
 end
-function checktexture(target::GLenum)
 
+glViewport(x::Rectangle) = glViewport(x.x, x.y, x.w, x.h)
+
+function glGenRenderbuffers(format::GLenum, attachment::GLenum, dimensions)
+    renderbuffer = GLuint[0]
+    glGenRenderbuffers(1, renderbuffer)
+    glBindRenderbuffer(GL_RENDERBUFFER, renderbuffer[1])
+    glRenderbufferStorage(GL_RENDERBUFFER, format, dimensions...)
+    glFramebufferRenderbuffer(GL_FRAMEBUFFER, attachment, GL_RENDERBUFFER, renderbuffer[1])
+    renderbuffer[1]
 end
+
+
 function glTexImage(ttype::GLenum, level::Integer, internalFormat::GLenum, w::Integer, h::Integer, d::Integer, border::Integer, format::GLenum, datatype::GLenum, data)  
 
   glTexImage3D(GL_PROXY_TEXTURE_3D, level, internalFormat, w, h, d, border, format, datatype, C_NULL)
@@ -188,14 +229,3 @@ function glTexImage(ttype::GLenum, level::Integer, internalFormat::GLenum, w::In
 end
 
 
-ModernGL.glViewport(x::Rectangle) = glViewport(x.x, x.y, x.w, x.h)
-
-
-function ModernGL.glGenRenderbuffers(format::GLenum, attachment::GLenum, dimensions)
-    renderbuffer = GLuint[0]
-    glGenRenderbuffers(1, renderbuffer)
-    glBindRenderbuffer(GL_RENDERBUFFER, renderbuffer[1])
-    glRenderbufferStorage(GL_RENDERBUFFER, format, dimensions...)
-    glFramebufferRenderbuffer(GL_FRAMEBUFFER, attachment, GL_RENDERBUFFER, renderbuffer[1])
-    renderbuffer[1]
-end
