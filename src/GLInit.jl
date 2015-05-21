@@ -51,8 +51,8 @@ function createcontextinfo(dict)
 	dict[:maxtexturesize]   = glGetIntegerv(GL_MAX_TEXTURE_SIZE)
 	
 	n 	 = glGetIntegerv(GL_NUM_EXTENSIONS)
-	#test = [glGetStringi(GL_EXTENSIONS, i) for i = 0:(n[1]-1)]
-
+	test = [glGetStringi(GL_EXTENSIONS, i) for i = 0:(n[1]-1)]
+	dict[:extensions] = test
 end
 function glsl_version_string()
 	isempty(GLSL_VERSION) && error("couldn't get GLSL version, GLUTils not initialized, or context not created?")

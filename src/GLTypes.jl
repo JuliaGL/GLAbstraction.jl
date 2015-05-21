@@ -74,10 +74,11 @@ let TO_GL_TYPE = Dict(
         GLushort    => GL_UNSIGNED_SHORT,
         GLshort     => GL_SHORT,
         GLint       => GL_INT,
-        GLfloat     => GL_FLOAT
+        GLfloat     => GL_FLOAT,
+        Float16     => GL_HALF_FLOAT
     )
     julia2glenum{T <: Real}(::Type{T}) = get(TO_GL_TYPE, T) do
-        error("Type: $(x) not supported as pixel datatype")
+        error("Type: $T not supported as pixel datatype")
     end
 end
 

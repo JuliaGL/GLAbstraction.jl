@@ -243,6 +243,27 @@ function gpu_setindex!{T, N}(t::Texture{T, N}, newvalue::Array{T, N}, indexes::U
     texsubimage(t, newvalue, indexes...)
 end
 
+
+function gpu_setindex!{T}(target::Texture{T, 2}, source::Texture{T, 2}, fbo=glGenFramebuffers())
+    glBindFramebuffer(GL_FRAMEBUFFER, fbo);
+    glFramebufferTexture2D(GL_READ_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, 
+                           GL_TEXTURE_2D, source.id, 0);
+    glFramebufferTexture2D(GL_DRAW_FRAMEBUFFER, GL_COLOR_ATTACHMENT1, 
+                           GL_TEXTURE_2D, target.id, 0);
+    glDrawBuffer(GL_COLOR_ATTACHMENT1);
+    w, h = map(minimum, zip(size(target), size(source)))
+    glBlitFramebuffer(0, 0, w, h, 0, 0, w, h, 
+                      GL_COLOR_BUFFER_BIT, GL_NEAREST);
+end
+#=
+function gpu_setindex!{T}(target::Texture{T, 2}, source::Texture{T, 2}, fbo=glGenFramebuffers())
+    w, h = map(minimum, zip(size(target), size(source)))
+    glCopyImageSubData( source.id, source.texturetype,
+    0,0,0,0,
+    target.id, target.texturetype,
+    0,0,0,0, w,h,0);
+end
+=#
 # Implementing the GPUArray interface
 function gpu_data{T, ND}(t::Texture{T, ND})
     result = Array(T, size(t))
@@ -250,13 +271,21 @@ function gpu_data{T, ND}(t::Texture{T, ND})
     glGetTexImage(t.texturetype, 0, t.format, t.pixeltype, result)
     result
 end
-
-
-# Resize Texture
-function gpu_resize!{T, ND}(t::Texture{T, ND}, newdims::@compat(Tuple{Vararg{Int}}))
+export resize_nocopy!
+function resize_nocopy!{T, ND}(t::Texture{T, ND}, newdims::@compat(Tuple{Vararg{Int}}))
     glBindTexture(t.texturetype, t.id)
     glTexImage(t.texturetype, 0, t.internalformat, newdims..., 0, t.format, t.pixeltype, C_NULL)
     t.size = newdims
+    t
+end
+# Resize Texture
+function gpu_resize!{T, ND}(t::Texture{T, ND}, newdims::@compat(Tuple{Vararg{Int}}))
+    newtex   = Texture(T, newdims)
+    old_size = size(t)
+    gpu_setindex!(newtex, t)
+    t.size   = newdims
+    free(t) 
+    t.id     = newtex.id
     t
 end
 
