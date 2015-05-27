@@ -217,7 +217,6 @@ end
 
 function TemplateProgram{N}(shaders::NTuple{N, Shader}, kw_args)
     @materialize p, view, attributes, fragdatalocation = kw_args
-
     if haskey(view, "in") || haskey(view, "out") || haskey(view, "GLSL_VERSION")
         println("warning: using internal keyword \"$(in/out/GLSL_VERSION)\" for shader template. The value will be overwritten")
     end
@@ -235,7 +234,6 @@ function TemplateProgram{N}(shaders::NTuple{N, Shader}, kw_args)
 
     # transform dict of templates into actual shader source
     code = Shader[Shader(shader, source=template2source(shader.source, attributes, view)) for shader in shaders]
-
     return GLProgram(code, p, fragdatalocation=fragdatalocation)
 end
 
@@ -243,7 +241,7 @@ end
 
 
 # Gets used to access a 
-glsl_variable_access{T,D}(keystring, ::Texture{T, D}) = "texture($(keystring), uv)."*"rgba"[1:length(T)]*";"
+glsl_variable_access{T,D}(keystring, ::Texture{T, D}) = "getindex($(keystring), index)."*"rgba"[1:length(T)]*";"
 
 glsl_variable_access(keystring, ::Union(Real, GLBuffer, FixedArray)) = keystring*";"
 
@@ -253,14 +251,13 @@ glsl_variable_access(keystring, t::Any)     = error("no glsl variable calculatio
 
 function createview(x::Dict{Symbol, Any}, keys)
   view = Dict{ASCIIString, ASCIIString}()
-  for (key, value) in x
-    if !isa(value, String)
+  for (key, val) in x
+    if !isa(val, String)
         keystring = string(key)
         typekey = keystring*"_type"
         calculationkey = keystring*"_calculation"
-
-        in(typekey, keys) && (view[keystring*"_type"] = toglsltype_string(value))
-        in(calculationkey, keys) && (view[keystring*"_calculation"] = glsl_variable_access(keystring, value))
+        in(typekey, keys) && (view[keystring*"_type"] = toglsltype_string(val))
+        in(calculationkey, keys) && (view[keystring*"_calculation"] = glsl_variable_access(keystring, val))
     end
   end
   view
