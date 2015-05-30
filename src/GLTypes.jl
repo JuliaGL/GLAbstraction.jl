@@ -146,7 +146,7 @@ type RenderObject
 
     function RenderObject(data::Dict{Symbol, Any}, program::Signal{GLProgram}, bbs=Input(AABB(Vec3(0),Vec3(1))))
 
-        objectid             += GLushort(1)
+        objectid             += one(GLushort)
         program              = program.value
         buffers              = filter((key, value) -> isa(value, GLBuffer), data)
         uniforms             = filter((key, value) -> !isa(value, GLBuffer), data)
