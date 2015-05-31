@@ -58,9 +58,9 @@ end
 function iscompiled(shader::GLuint)
     success = GLint[0]
     glGetShaderiv(shader, GL_COMPILE_STATUS, success)
-    first(success) == GL_TRUE
+    return first(success) == GL_TRUE
 end
-
+islinked(program::GLuint) = glGetProgramiv(program, GL_LINK_STATUS) == GL_TRUE
 
 function createshader(shadertype::GLenum)
     shaderid = glCreateShader(shadertype)
@@ -150,7 +150,7 @@ function GLProgram(
     
     #link program
     glLinkProgram(program)
-
+    !islinked(program) && error("program $program not linked. Error in: \n", join(map(x->x.name, shaders), " or\n"), "\n", getinfolog(program))
     #foreach(glDeleteShader, shader_ids) # Can be deleted, as they will still be linked to Program and released after program gets released
 
     # generate the link locations
