@@ -6,16 +6,18 @@ function render(list::AbstractVector)
 end
 
 function render(renderobject::RenderObject, vertexarray=renderobject.vertexarray)
-    for elem in renderobject.prerenderfunctions
-        elem[1](elem[2]...)
-    end
-    program = vertexarray.program
-    glUseProgram(program.id)
-    for (key,value) in program.uniformloc
-        haskey(renderobject.uniforms, key) && gluniform(value..., renderobject.uniforms[key])
-    end
-    for elem in renderobject.postrenderfunctions
-        elem[1](elem[2]...)
+    if value(renderobject.alluniforms[:visible])
+        for elem in renderobject.prerenderfunctions
+            elem[1](elem[2]...)
+        end
+        program = vertexarray.program
+        glUseProgram(program.id)
+        for (key,value) in program.uniformloc
+            haskey(renderobject.uniforms, key) && gluniform(value..., renderobject.uniforms[key])
+        end
+        for elem in renderobject.postrenderfunctions
+            elem[1](elem[2]...)
+        end
     end
 end
 

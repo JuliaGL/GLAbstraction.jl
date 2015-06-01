@@ -141,7 +141,6 @@ type RenderObject
     postrenderfunctions ::Dict{Function, Tuple}
     id                  ::GLushort
     boundingbox         ::Signal # workaround for having lazy boundingbox queries, while not using multiple dispatch for boundingbox function (No type hierarchy for RenderObjects)
-
     objectid = zero(GLushort)
 
     function RenderObject(data::Dict{Symbol, Any}, program::Signal{GLProgram}, bbs=Input(AABB(Vec3(0),Vec3(1))))
@@ -151,6 +150,7 @@ type RenderObject
         buffers              = filter((key, value) -> isa(value, GLBuffer), data)
         uniforms             = filter((key, value) -> !isa(value, GLBuffer), data)
         uniforms[:objectid]  = objectid # automatucally integrate object ID, will be discarded if shader doesn't use it
+        get!(uniforms, :visible, true) # make sure, visibility is set
         
         vertexarray          = GLVertexArray(Dict{Symbol, GLBuffer}(buffers), program)
         
@@ -163,7 +163,7 @@ type RenderObject
             end
         end # only use active uniforms && check the type
 
-        return new(optimizeduniforms, uniforms, vertexarray, Dict{Function, Tuple}(), Dict{Function, Tuple}(), objectid, bbs)
+        return new(optimizeduniforms, uniforms, vertexarray, Dict{Function, Tuple}(), Dict{Function, Tuple}(), objectid, bbs, )
     end
 end
 
