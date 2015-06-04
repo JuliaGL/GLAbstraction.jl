@@ -202,13 +202,7 @@ function Texture{T <: Real, NDim}(image::Array{ARGB{T}, NDim}, texture_propertie
     Texture(pointer(data), [size(data)...], texture_properties)
 end
 =#
-#=
-Creates a texture from an image, which lays on a path
-=#
-function _Texture(path::String, texture_properties::Vector{@compat(Tuple{Symbol, Any})})
-    #isdefined(:Images) || eval(Expr(:using, :Images))
-    #Texture(imread(path), texture_properties)
-end
+
 #=
 Creates a texture from an Image
 =#
