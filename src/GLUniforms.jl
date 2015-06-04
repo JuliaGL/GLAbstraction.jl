@@ -214,7 +214,7 @@ function uniform_name_type(program::GLuint)
     if uniformLength == 0
         return Dict{Symbol, GLenum}()    
     else
-        nametypelist = ntuple(uniformLength, i -> glGetActiveUniform(program, i-1)[1:2]) # take size and name
+        nametypelist = ntuple(i -> glGetActiveUniform(program, i-1)[1:2], uniformLength) # take size and name
         return Dict{Symbol, GLenum}(nametypelist)
     end
 end
