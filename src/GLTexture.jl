@@ -161,12 +161,12 @@ end
 As Texture has a lot of variations with the same Keyword arguments, I decided to
 map the keywords into one array, which I pass to the actual constructor
 =#
-Texture(data... ; texture_properties...) = Texture(data..., convert(Vector{@compat(Tuple{Symbol, Any})}, texture_properties))
+Texture(data... ; texture_properties...) = _Texture(data..., convert(Vector{@compat(Tuple{Symbol, Any})}, texture_properties))
 
 #=
 Main constructor, which shouldn't be used. It will initializes all the missing values and pass it to the inner Texture constructor
 =#
-function Texture{T <: GLArrayEltypes}(data::Ptr{T}, dims::Union(AbstractVector, Tuple), texture_properties::Vector{@compat(Tuple{Symbol, Any})})
+function _Texture{T <: GLArrayEltypes}(data::Ptr{T}, dims::Union(AbstractVector, Tuple), texture_properties::Vector{@compat(Tuple{Symbol, Any})})
     Base.length{ET <: Real}(::Type{ET}) = 1
     NDim            = length(dims)
     ColorDim        = length(T)
@@ -179,8 +179,8 @@ Constructor for empty initialization with NULL pointer instead of an array with 
 You just need to pass the wanted color/vector type and the dimensions.
 To which values the texture gets initialized is driver dependent
 =#
-function Texture{T <: GLArrayEltypes}(datatype::Type{T}, dims::Union(AbstractVector, Tuple), texture_properties::Vector{@compat(Tuple{Symbol, Any})})
-    Texture(convert(Ptr{T}, C_NULL), dims, texture_properties)
+function _Texture{T <: GLArrayEltypes}(datatype::Type{T}, dims::Union(AbstractVector, Tuple), texture_properties::Vector{@compat(Tuple{Symbol, Any})})
+    _Texture(convert(Ptr{T}, C_NULL), dims, texture_properties)
 end
 
 #=
@@ -189,8 +189,8 @@ So Array{Real, 2} == Texture2D with 1D Color dimension
 Array{Vec1/2/3/4, 2} == Texture2D with 1/2/3/4D Color dimension
 Colors from Colors.jl should mostly work as well
 =#
-function Texture{T <: GLArrayEltypes, NDim}(image::Array{T, NDim}, texture_properties::Vector{@compat(Tuple{Symbol, Any})})
-    Texture(pointer(image), [size(image)...], texture_properties)
+function _Texture{T <: GLArrayEltypes, NDim}(image::Array{T, NDim}, texture_properties::Vector{@compat(Tuple{Symbol, Any})})
+    _Texture(pointer(image), [size(image)...], texture_properties)
 end
 #=
 Some special treatmend for types, with alpha in the First place
@@ -205,7 +205,7 @@ end
 #=
 Creates a texture from an image, which lays on a path
 =#
-function Texture(path::String, texture_properties::Vector{@compat(Tuple{Symbol, Any})})
+function _Texture(path::String, texture_properties::Vector{@compat(Tuple{Symbol, Any})})
     #isdefined(:Images) || eval(Expr(:using, :Images))
     #Texture(imread(path), texture_properties)
 end
