@@ -59,6 +59,32 @@ function gpu_setindex!{T}(b::GLBuffer{T}, value::Vector{T}, offset::Integer)
     glBindBuffer(b.buffertype, b.id)
     glBufferSubData(b.buffertype, multiplicator*offset-1, sizeof(value), value)
 end
+function gpu_setindex!{T}(b::GLBuffer{T}, value::Vector{T}, offset::UnitRange{Int})
+    multiplicator = sizeof(T)
+    glBindBuffer(b.buffertype, b.id)
+    glBufferSubData(b.buffertype, multiplicator*first(offset-1), sizeof(value), value)
+end
+
+# copy between two buffers
+# could be a setindex! operation, with subarrays for buffers
+function Base.unsafe_copy!{T}(a::GLBuffer{T}, b::GLBuffer{T}, readoffset::Int, writeoffset::Int, len::Int)
+    multiplicator = sizeof(T)
+    glBindBuffer(GL_COPY_READ_BUFFER, a.id)
+    glBindBuffer(GL_COPY_WRITE_BUFFER, b.id)
+    glCopyBufferSubData(GL_COPY_READ_BUFFER, GL_COPY_WRITE_BUFFER, 
+        multiplicator*readoffset, 
+        multiplicator*writeoffset, 
+        multiplicator*len)
+end
+#copy inside one buffer
+function Base.unsafe_copy!{T}(buffer::GLBuffer{T}, readoffset::Int, writeoffset::Int, len::Int)
+    glBindBuffer(buffer.buffertype, buffer.id)
+    ptr = Ptr{T}(glMapBuffer(buffer.buffertype, GL_READ_WRITE))
+    for i=1:len+1
+        unsafe_store!(ptr, unsafe_load(ptr, i+readoffset-1), i+writeoffset-1)
+    end
+    glUnmapBuffer(buffer.buffertype)
+end
 
 function gpu_getindex{T}(b::GLBuffer{T}, range::UnitRange)
     multiplicator = sizeof(T)

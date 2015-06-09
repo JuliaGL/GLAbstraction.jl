@@ -82,8 +82,8 @@ let TO_GL_TYPE = Dict(
     end
 end
 
-include("GLTexture.jl")
 include("GLBuffer.jl")
+include("GLTexture.jl")
 
 ########################################################################
 

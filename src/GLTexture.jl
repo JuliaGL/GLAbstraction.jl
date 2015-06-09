@@ -14,9 +14,10 @@ type Texture{T <: GLArrayEltypes, NDIM} <: GPUArray{T, NDIM}
     internalformat  ::GLenum
     format          ::GLenum
     size            ::NTuple{NDIM, Int}
+    buffer          ::Nullable{GLBuffer{T}} # Textures can be optionally created from a buffer, in which case we need a reference to the buffer
 end
 
-function Texture{T}(data::Ptr{T}, dims, ttype::GLenum, internalformat::GLenum, format::GLenum, parameters::Vector{@compat(Tuple{GLenum, GLenum})})
+function Texture{T}(data::Ptr{T}, dims, ttype::GLenum, internalformat::GLenum, format::GLenum, parameters::Vector{Tuple{GLenum, GLenum}})
 
     id = glGenTextures()
     glBindTexture(ttype, id)
@@ -34,7 +35,7 @@ function Texture{T}(data::Ptr{T}, dims, ttype::GLenum, internalformat::GLenum, f
     pixeltype       = julia2glenum(T)
     NDim            = length(dims)
     glTexImage(ttype, 0, internalformat, dims..., 0, format, pixeltype, data)
-    obj = Texture{T, NDim}(id, ttype, pixeltype, internalformat, format, tuple(dims...))
+    obj = Texture{T, NDim}(id, ttype, pixeltype, internalformat, format, tuple(dims...), Nullable{GLBuffer{T}}())
     #finalizer(obj, free)
     obj
 end
@@ -192,6 +193,20 @@ Colors from Colors.jl should mostly work as well
 function _Texture{T <: GLArrayEltypes, NDim}(image::Array{T, NDim}, texture_properties::Vector{@compat(Tuple{Symbol, Any})})
     _Texture(pointer(image), [size(image)...], texture_properties)
 end
+
+
+texture_buffer{T <: GLArrayEltypes}(buffer::Vector{T}) =
+    _Texture(GLBuffer(buffer, buffertype=GL_TEXTURE_BUFFER, usage=GL_DYNAMIC_DRAW), Tuple{Symbol, Any}[])
+
+function _Texture{T <: GLArrayEltypes}(buffer::GLBuffer{T}, texture_properties::Vector{@compat(Tuple{Symbol, Any})})
+    texture_type = GL_TEXTURE_BUFFER
+    id = glGenTextures()
+    glBindTexture(texture_type, id)
+    internalformat = default_internalcolorformat(length(T), T)
+    glTexBuffer(texture_type, internalformat, buffer.id)
+    Texture{T, 1}(id, texture_type, julia2glenum(T), internalformat, default_colorformat(T), size(buffer), buffer)
+end
+
 #=
 Some special treatmend for types, with alpha in the First place
 
@@ -231,6 +246,16 @@ end
 
 
 # GPUArray interface:
+function gpu_setindex!{T, I <: Integer}(t::Texture{T, 1}, newvalue::Array{T, 1}, indexes::UnitRange{I})
+    if isnull(t.buffer)
+        glBindTexture(t.texturetype, t.id)
+        texsubimage(t, newvalue, indexes...)
+    else
+        b = get(t.buffer)
+        b[indexes] = newvalue # set buffer indexes
+        glTexBuffer(t.texturetype, t.internalformat, b.id) # update texture
+    end
+end
 
 function gpu_setindex!{T, N}(t::Texture{T, N}, newvalue::Array{T, N}, indexes::Union(UnitRange,Integer)...)
     glBindTexture(t.texturetype, t.id)
@@ -260,10 +285,14 @@ end
 =#
 # Implementing the GPUArray interface
 function gpu_data{T, ND}(t::Texture{T, ND})
-    result = Array(T, size(t))
-    glBindTexture(t.texturetype, t.id)
-    glGetTexImage(t.texturetype, 0, t.format, t.pixeltype, result)
-    result
+    if isnull(t.buffer)
+        result = Array(T, size(t))
+        glBindTexture(t.texturetype, t.id)
+        glGetTexImage(t.texturetype, 0, t.format, t.pixeltype, result)
+        return result
+    else
+        return gpu_data(get(t.buffer))
+    end
 end
 export resize_nocopy!
 function resize_nocopy!{T, ND}(t::Texture{T, ND}, newdims::@compat(Tuple{Vararg{Int}}))

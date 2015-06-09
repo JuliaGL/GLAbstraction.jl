@@ -1,30 +1,3 @@
-#== for patching issue in OrthographicCamera
-==#
-
-using FixedSizeArrays
-import FixedSizeArrays.getindex
-
-# This seems missing    
-function FixedSizeArrays.getindex{T, SZ}(A::FixedArray{T, 1, SZ},j::UnitRange)
-    FixedVector{T, length(j)}(  [ A[k] for k in j ]...      ) 
-end
-
-#
-#   Far from optimal, a quick and dirty way
-#
-function simpleConvert{T,SZ}(A::FixedArray{T, 1, SZ}, S)
-           FixedArray{S, 1, SZ}(
-                      [ convert(S, a) for a in A]... 
-                  ) 
-       end
-    
-#==
-    These show more complicated stuff than I would like!!!
-code_native (simpleConvert,(GeometryTypes.Vector4{Int64}, Int64)  )
-code_native (simpleConvert,(GeometryTypes.Vector4{Int64}, Float64)  )
-code_native(getindex, (FixedArray{Float64, 1, 4}, UnitRange))
-==#
-    
 abstract Camera{T}
 
 type OrthographicCamera{T} <: Camera{T}
