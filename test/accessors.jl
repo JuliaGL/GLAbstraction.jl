@@ -1,17 +1,15 @@
 using GLAbstraction,GLVisualize, GLWindow, ModernGL, GeometryTypes, AbstractGPUArray, FixedPointNumbers
 using Base.Test
 
-a = GLVisualize.GLSpriteStyle[GLVisualize.GLSpriteStyle(i,0) for i=1:20]
-tgpua = texture_buffer(a)
-a[1:10] = GLVisualize.GLSpriteStyle[GLVisualize.GLSpriteStyle(77, 0) for i=1:10]
-tgpua[1:10] = GLVisualize.GLSpriteStyle[GLVisualize.GLSpriteStyle(77, 0) for i=1:10]
-println(a)
-println(gpu_data(tgpua))
-
-
 
 const TEST_1D = Any[]
 const TEST_2D = Any[]
+
+a = texture_buffer(fill(GLSpriteStyle(0,1), 77))
+for i=1:length(a)
+	r = i:i
+	a[r] = fill(GLSpriteStyle(0,1), length(r))
+end
 
 const N = 21 # some prime number to make things nasty
 # Generate some data
@@ -45,7 +43,7 @@ function test()
 			if ndims(gpu_array) == 1
 				newdata 		= copy(origin[11:20])
 				origin[1:10] 	= newdata
-					gpu_array[1:10] = newdata
+				gpu_array[1:10] = newdata
 				@test origin == gpu_data(gpu_array)
 			end
 		end

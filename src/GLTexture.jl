@@ -252,6 +252,7 @@ function gpu_setindex!{T, I <: Integer}(t::Texture{T, 1}, newvalue::Array{T, 1},
         texsubimage(t, newvalue, indexes...)
     else
         b = get(t.buffer)
+        glBindTexture(t.texturetype, t.id)
         b[indexes] = newvalue # set buffer indexes
         glTexBuffer(t.texturetype, t.internalformat, b.id) # update texture
     end
