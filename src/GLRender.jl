@@ -28,6 +28,8 @@ function render(vao::GLVertexArray, mode::GLenum=GL_TRIANGLES)
     else
         glDrawArrays(mode, 0, vao.length)
     end
+    glBindVertexArray(0)
+
 end
 
 function renderinstanced(vao::GLVertexArray, amount::Integer, primitive=GL_TRIANGLES)
@@ -35,6 +37,8 @@ function renderinstanced(vao::GLVertexArray, amount::Integer, primitive=GL_TRIAN
     #If you get an error here, notify me and try:
     #glDrawElementsInstancedEXT(primitive, vao.indexlength, GL_UNSIGNED_INT, C_NULL, amount)
     glDrawElementsInstanced(primitive, vao.indexlength, GL_UNSIGNED_INT, C_NULL, amount)
+    glBindVertexArray(0)
+    
 end
 
 #handle all uniform objects
