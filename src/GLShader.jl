@@ -128,7 +128,7 @@ end
 # Actually compiles and links shader sources
 function GLProgram(
                         shaders::Vector{Shader}, program=createprogram(); 
-                        fragdatalocation=(Int, ASCIIString)[]
+                        fragdatalocation=Tuple{Int, ASCIIString}[]
                     )
 
     # Remove old shaders
@@ -192,11 +192,11 @@ end
 TemplateProgram() = error("Can't create TemplateProgram without parameters")
 
 
-let TEMPLATE_PROGRAM_KW_DEFAULTS = @compat(Dict(
+let TEMPLATE_PROGRAM_KW_DEFAULTS = Dict(
     :view               => Dict{ASCIIString, ASCIIString}(), 
     :attributes         => Dict{Symbol, Any}(),
-    :fragdatalocation   => @compat(Tuple{Int, ASCIIString})[]
-)),  SHADER_TYPES = Union(Shader, File, Reactive.Lift{Shader})
+    :fragdatalocation   => Tuple{Int, ASCIIString}[]
+),  SHADER_TYPES = Union(Shader, File, Reactive.Lift{Shader})
    
     TemplateProgram(x::SHADER_TYPES...; p=createprogram(), kw_args...) = 
         TemplateProgram(x, merge(TEMPLATE_PROGRAM_KW_DEFAULTS, Dict{Symbol, Any}(kw_args), Dict(:p=>p)))
