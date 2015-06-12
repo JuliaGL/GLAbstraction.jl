@@ -33,11 +33,13 @@ import ModernGL.glGenVertexArrays
 import ModernGL.glGenTextures
 import ModernGL.glGenFramebuffers
 import ModernGL.glGetTexLevelParameteriv
-import ModernGL.glViewport
 import ModernGL.glGenRenderbuffers
 import ModernGL.glDeleteTextures
 import ModernGL.glDeleteVertexArrays
 import ModernGL.glDeleteBuffers
+
+import ModernGL.glViewport
+import ModernGL.glScissor
 
 
 
