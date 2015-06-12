@@ -249,7 +249,7 @@ end
 function gpu_setindex!{T, I <: Integer}(t::Texture{T, 1}, newvalue::Array{T, 1}, indexes::UnitRange{I})
     if isnull(t.buffer)
         glBindTexture(t.texturetype, t.id)
-        texsubimage(t, newvalue, indexes...)
+        texsubimage(t, newvalue, indexes)
     else
         b = get(t.buffer)
         glBindTexture(t.texturetype, t.id)
