@@ -17,7 +17,7 @@ import Mustache
 
 Reactive.value(any) = any # add this, to make it easier to work with a combination of signals and constants
 
-import Base.merge
+import Base: merge, resize!
 importall AbstractGPUArray
 
 #Methods which got overloaded by GLExtendedFunctions.jl:

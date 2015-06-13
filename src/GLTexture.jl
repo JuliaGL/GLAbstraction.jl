@@ -13,11 +13,22 @@ type Texture{T <: GLArrayEltypes, NDIM} <: GPUArray{T, NDIM}
     pixeltype       ::GLenum
     internalformat  ::GLenum
     format          ::GLenum
+    parameters      ::Vector{Tuple{GLenum, GLenum}}
     size            ::NTuple{NDIM, Int}
     buffer          ::Nullable{GLBuffer{T}} # Textures can be optionally created from a buffer, in which case we need a reference to the buffer
 end
+function set_parameters(t::Texture, parameters::Vector{Tuple{GLenum, GLenum}})
+    parameters==t.parameters && return nothing
+    for elem in parameters
+        glTexParameteri(t.texturetype, elem...)
+    end
+    nothing
+end
 
-function Texture{T}(data::Ptr{T}, dims, ttype::GLenum, internalformat::GLenum, format::GLenum, parameters::Vector{Tuple{GLenum, GLenum}})
+function Texture{T}(
+        data::Ptr{T}, dims, ttype::GLenum, internalformat::GLenum, 
+        format::GLenum, parameters::Vector{Tuple{GLenum, GLenum}}
+    )
 
     id = glGenTextures()
     glBindTexture(ttype, id)
@@ -34,17 +45,26 @@ function Texture{T}(data::Ptr{T}, dims, ttype::GLenum, internalformat::GLenum, f
 
     pixeltype       = julia2glenum(T)
     NDim            = length(dims)
+
     glTexImage(ttype, 0, internalformat, dims..., 0, format, pixeltype, data)
-    obj = Texture{T, NDim}(id, ttype, pixeltype, internalformat, format, tuple(dims...), Nullable{GLBuffer{T}}())
+    texture = Texture{T, NDim}(
+        id, ttype, pixeltype, internalformat, format,
+        default_textureparameters(NDim, T),
+        tuple(dims...), Nullable{GLBuffer{T}}()
+    )
+    set_parameters(texture, parameters)
     #finalizer(obj, free)
-    obj
+    texture
 end
 
 
 #=
 Main constructor, which shouldn't be used. It will initializes all the missing values and pass it to the inner Texture constructor
 =#
-function Texture{T <: GLArrayEltypes}(data::Vector{Array{T,2}}, texture_properties::Vector{@compat(Tuple{Symbol, Any})})
+function Texture{T <: GLArrayEltypes}(
+        data::Vector{Array{T,2}}, 
+        texture_properties::Vector{Tuple{Symbol, Any}}
+    )
     Base.length{ET <: Real}(::Type{ET}) = 1
     NDim            = 3
     ColorDim        = length(T)
@@ -198,13 +218,18 @@ end
 texture_buffer{T <: GLArrayEltypes}(buffer::Vector{T}) =
     _Texture(GLBuffer(buffer, buffertype=GL_TEXTURE_BUFFER, usage=GL_DYNAMIC_DRAW), Tuple{Symbol, Any}[])
 
-function _Texture{T <: GLArrayEltypes}(buffer::GLBuffer{T}, texture_properties::Vector{@compat(Tuple{Symbol, Any})})
+function _Texture{T <: GLArrayEltypes}(buffer::GLBuffer{T}, texture_properties::Vector{Tuple{Symbol, Any}})
     texture_type = GL_TEXTURE_BUFFER
     id = glGenTextures()
     glBindTexture(texture_type, id)
     internalformat = default_internalcolorformat(length(T), T)
     glTexBuffer(texture_type, internalformat, buffer.id)
-    Texture{T, 1}(id, texture_type, julia2glenum(T), internalformat, default_colorformat(T), size(buffer), buffer)
+    Texture{T, 1}(
+        id, texture_type, julia2glenum(T), internalformat, 
+        default_colorformat(T), Tuple{GLenum, GLenum}[], 
+        size(buffer), buffer, 
+        
+    )
 end
 
 #=
@@ -291,25 +316,45 @@ function gpu_data{T, ND}(t::Texture{T, ND})
         glBindTexture(t.texturetype, t.id)
         glGetTexImage(t.texturetype, 0, t.format, t.pixeltype, result)
         return result
-    else
-        return gpu_data(get(t.buffer))
     end
+    return gpu_data(get(t.buffer))
 end
 export resize_nocopy!
-function resize_nocopy!{T, ND}(t::Texture{T, ND}, newdims::@compat(Tuple{Vararg{Int}}))
+function resize_nocopy!{T, ND}(t::Texture{T, ND}, newdims::Tuple{Vararg{Int}})
     glBindTexture(t.texturetype, t.id)
     glTexImage(t.texturetype, 0, t.internalformat, newdims..., 0, t.format, t.pixeltype, C_NULL)
     t.size = newdims
     t
 end
+
+function similar{T, NDim}(t::Texture{T, NDim}, newdims::NTuple{NDim, Int})
+    Texture(
+        Ptr{T}(C_NULL), 
+        newdims, t.texturetype,
+        t.pixeltype,
+        t.internalformat,
+        t.format,
+        t.parameters
+    )
+end
 # Resize Texture
-function gpu_resize!{T, ND}(t::Texture{T, ND}, newdims::@compat(Tuple{Vararg{Int}}))
-    newtex   = Texture(T, newdims)
-    old_size = size(t)
-    gpu_setindex!(newtex, t)
+function gpu_resize!{T, ND}(t::Texture{T, ND}, newdims::NTuple{ND, Int})
+    if isnull(t.buffer) 
+        # dangerous code right here...Better write a few tests for this
+        newtex   = similar(t, newdims)
+        old_size = size(t)
+        gpu_setindex!(newtex, t)
+        t.size   = newdims
+        free(t)
+        t.id     = newtex.id
+        return t
+    end
+    # MUST. HANDLE. BUFFERTEXTURE. DIFFERENTLY ... Did I mention that this is ugly?
+    buffer = get(t.buffer)
+    resize!(buffer, newdims) 
+    glBindTexture(t.texturetype, t.id)
+    glTexBuffer(t.texturetype, t.internalformat, buffer.id) #update data in texture
     t.size   = newdims
-    free(t) 
-    t.id     = newtex.id
     t
 end
 

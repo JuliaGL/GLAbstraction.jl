@@ -15,7 +15,9 @@ type GLBuffer{T} <: GPUArray{T, 1}
         obj
     end
 end
-
+function similar{T}(x::GLBuffer{T}, buff_length::Int)
+    GLBuffer{T}(Ptr{T}(C_NULL), buff_length, x.buffertype, x.usage)
+end
 
 cardinality{T}(::GLBuffer{T}) = length(T)
     
@@ -42,13 +44,12 @@ end
 
 
 # Resize buffer
-function gpu_resize!{T, I <: Integer}(b::GLBuffer{T}, newdims::NTuple{1, I})
-    glBindBuffer(b.buffertype, b.id)
-    oldata = data(b)
-    len = first(newdims)
-    resize!(oldata, len)
-    glBufferData(b.buffertype, len, oldata, b.usage)
-    b.length = len
+function gpu_resize!{T}(buffer::GLBuffer{T}, newdims::NTuple{1, Int})
+    #TODO make this safe!
+    newbuff     = similar(buffer, newdims...)
+    unsafe_copy!(buffer, newbuff, 0, 0, length(buffer))
+    buffer.id   = newbuff.id
+    buffer.size = newbuff.size
     nothing
 end
 
