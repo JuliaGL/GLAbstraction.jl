@@ -145,6 +145,9 @@ function OrthographicCamera{T}(
 						)
 
 end
+
+
+
 #= 
 Creates an orthographic camera from signals, controlling the camera
 Args:

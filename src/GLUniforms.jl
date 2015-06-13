@@ -3,23 +3,22 @@
 # here is my approach, to handle all of the uniforms with one function, namely gluniform
 # For uniforms, the Vector and Matrix types from ImmutableArrays should be used, as they map the relation almost 1:1
 
-GLSL_COMPATIBLE_NUMBER_TYPES = [GLdouble, GLfloat, GLint, GLuint]
+GLSL_COMPATIBLE_NUMBER_TYPES = (GLdouble, GLfloat, GLint, GLuint)
 
-GLSL_PREFIX = Dict(
-	GLdouble 	=> "d", 
-	GLfloat 	=> "", 
-	GLint 		=> "i", 
-    GLuint      => "u",
-    Uint8       => "u",
-    Uint16      => "u"
-)
+to_opengl_prefix{T}(x::T) = error("Type $T is not a supported uniform element type")
+to_opengl_prefix{T <: Union(FixedPoint, Float32)}(x::Type{T})   = ""
+to_opengl_prefix{T <: Float64}(x::Type{T})                      = "d"
+to_opengl_prefix(x::Type{Cint})                                 = "i"
+to_opengl_prefix{T <: Union(Cuint, Uint8, Uint16)}(x::Type{T})   = "u"
 
-GL_POSTFIX = Dict(
-	GLdouble 	=> "dv", 
-	GLfloat 	=> "fv", 
-	GLint 		=> "iv", 
-	GLuint 		=> "uiv"
-)
+to_opengl_postfix{T}(x::Type{T})    = error("Type $T is not a supported uniform element type")
+to_opengl_postfix(x::Type{Float64}) = "dv"
+to_opengl_postfix(x::Type{Float32}) = "fv"
+to_opengl_postfix(x::Type{Cint})    = "iv"
+to_opengl_postfix(x::Type{Cuint})   = "uiv"
+
+
+
 
 # Generates uniform upload functions for ImmutableArrays.
 # Also it defines glsl alike aliases and constructors.
@@ -33,10 +32,10 @@ macro genuniformfunctions(maxdim::Integer)
 	expressions = Any[]
     
 	for n=2:maxdim, typ in GLSL_COMPATIBLE_NUMBER_TYPES
-		glslalias 	= symbol(string(GLSL_PREFIX[typ],glslVector,n)) 
+		glslalias 	= symbol(string(to_opengl_prefix(typ),glslVector,n)) 
 		name 		= symbol(string(imVector, n))
 		imalias 	= :($name {$typ})
-		uniformfunc = symbol(string("glUniform", n, GL_POSTFIX[typ]))
+		uniformfunc = symbol(string("glUniform", n, to_opengl_postfix(typ)))
 
 		push!(expressions, :(typealias $glslalias $imalias)) # glsl alike type alias
 		push!(expressions, Expr(:export, glslalias))
@@ -47,10 +46,10 @@ macro genuniformfunctions(maxdim::Integer)
 	end
 	for n=2:maxdim, n2=2:maxdim, typ in [GLdouble, GLfloat]
 		glsldim 	= n==n2 ? "$n" : "$(n)x$(n2)"
-		glslalias 	= symbol(string(GLSL_PREFIX[typ], glslMatrix, glsldim)) 
+		glslalias 	= symbol(string(to_opengl_prefix(typ), glslMatrix, glsldim)) 
 		name 		= symbol(string(imMatrix, n,"x",n2))
 		imalias 	= :($name {$typ})
-		uniformfunc = symbol(string("glUniformMatrix", glsldim, GL_POSTFIX[typ]))
+		uniformfunc = symbol(string("glUniformMatrix", glsldim, to_opengl_postfix(typ)))
 
 		push!(expressions, :(typealias $glslalias $imalias)) #GLSL alike alias
 		push!(expressions, Expr(:export, glslalias))
@@ -63,13 +62,13 @@ end
 @genuniformfunctions 4 
 
 
-function uniformfunc(typ::DataType, dims::@compat(Tuple{Int}))
-    func = symbol(string("glUniform", first(dims), GL_POSTFIX[typ]))
+function uniformfunc(typ::DataType, dims::Tuple{Int})
+    func = symbol(string("glUniform", first(dims), to_opengl_postfix(typ)))
     
 end
-function uniformfunc(typ::DataType, dims::@compat(Tuple{Int, Int}))
+function uniformfunc(typ::DataType, dims::Tuple{Int, Int})
     M,N = dims
-    func = symbol(string("glUniformMatrix", M==N ? "$M":"$(M)x$(N)", GL_POSTFIX[typ]))
+    func = symbol(string("glUniformMatrix", M==N ? "$M":"$(M)x$(N)", to_opengl_postfix(typ)))
 end
 
 function gluniform{FSA <: FixedArray}(location::Integer, x::FSA)
@@ -106,20 +105,18 @@ gluniform(location::GLint, x::Vector{GLint}) 	= glUniform1iv(location, length(x)
 gluniform(location::GLint, x::Vector{GLuint}) 	= glUniform1uiv(location, length(x), pointer(x))
 
 
-glsl_prefix(x::DataType) = GLSL_PREFIX[x]
-glsl_prefix{T <: FixedPoint}(x::Type{T}) = ""
 
-toglsltype_string{T, D}(t::Texture{T, D})       = string("uniform ", glsl_prefix(eltype(T)),"sampler", D, "D")
+toglsltype_string{T, D}(t::Texture{T, D})       = string("uniform ", to_opengl_prefix(eltype(T)),"sampler", D, "D")
 toglsltype_string(t::GLfloat)                   = "uniform float"
 toglsltype_string(t::GLuint)                    = "uniform uint"
 toglsltype_string(t::GLint)                     = "uniform int"
 toglsltype_string(t::Signal)                    = toglsltype_string(t.value)
 toglsltype_string(t::StepRange)                 = toglsltype_string(Vec3(first(t), step(t), last(t)))
 
-toglsltype_string(t::FixedVector)               = "uniform " * string(GLSL_PREFIX[eltype(t)],"vec",length(t))
+toglsltype_string(t::FixedVector)               = "uniform " * string(to_opengl_prefix(eltype(t)),"vec",length(t))
 function toglsltype_string(t::FixedMatrix)
     M,N = size(t)
-    string(GLSL_PREFIX[eltype(t)],"mat", M==N ? "$M" : "$(M)x$(N)")
+    string(to_opengl_prefix(eltype(t)),"mat", M==N ? "$M" : "$(M)x$(N)")
 end
 
 function toglsltype_string(t::GLBuffer)          
