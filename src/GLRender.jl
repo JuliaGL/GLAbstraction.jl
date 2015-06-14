@@ -6,7 +6,7 @@ function render(list::AbstractVector)
 end
 
 function render(renderobject::RenderObject, vertexarray=renderobject.vertexarray)
-    if value(renderobject.alluniforms[:visible])
+    if value(renderobject.uniforms[:visible])
         for elem in renderobject.prerenderfunctions
             elem[1](elem[2]...)
         end

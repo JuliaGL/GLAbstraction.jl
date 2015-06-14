@@ -123,9 +123,11 @@ export @geom_str
 
 
 include("GLCamera.jl")
+export Camera
 export OrthographicCamera #simple orthographic camera
 export PerspectiveCamera #simple perspective camera
 export OrthographicPixelCamera # orthographic camera with pixels as a unit
+export DummyCamera
 
 include("GLShapes.jl")
 export gencircle  # generates 2d vertices for a circle

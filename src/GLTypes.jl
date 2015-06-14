@@ -135,7 +135,6 @@ free(x::GLVertexArray) = glDeleteVertexArrays(1, [x.id])
 
 type RenderObject
     uniforms            ::Dict{Symbol, Any}
-    alluniforms         ::Dict{Symbol, Any}
     vertexarray         ::GLVertexArray
     prerenderfunctions  ::Dict{Function, Tuple}
     postrenderfunctions ::Dict{Function, Tuple}
@@ -153,17 +152,15 @@ type RenderObject
         get!(uniforms, :visible, true) # make sure, visibility is set
         
         vertexarray          = GLVertexArray(Dict{Symbol, GLBuffer}(buffers), program)
-        
-        uniformtypesandnames = uniform_name_type(program.id) # get active uniforms and types from program
-        optimizeduniforms    = Dict{Symbol, Any}()
 
-        for (uniform_name, typ) in uniformtypesandnames
-            if haskey(uniforms, uniform_name)
-                 optimizeduniforms[uniform_name] = uniforms[uniform_name]
-            end
-        end # only use active uniforms && check the type
-
-        return new(optimizeduniforms, uniforms, vertexarray, Dict{Function, Tuple}(), Dict{Function, Tuple}(), objectid, bbs, )
+        return new(
+            uniforms, 
+            vertexarray, 
+            Dict{Function, Tuple}(), 
+            Dict{Function, Tuple}(), 
+            objectid, 
+            bbs
+        )
     end
 end
 

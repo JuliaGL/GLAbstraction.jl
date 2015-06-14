@@ -20,7 +20,32 @@ type PerspectiveCamera{T} <: Camera{T}
 	up::Signal{Vector3{T}}
 end
 
+type DummyCamera{T} <: Camera{T}
+	window_size 	::Signal{Rectangle{Int}}
+	view 			::Signal{Matrix4x4{T}}
+	projection 		::Signal{Matrix4x4{T}}
+	projectionview 	::Signal{Matrix4x4{T}}
+end
 
+function DummyCamera(;
+		window_size		= Input(Rectangle(-1, -1, 2, 2)),
+		view 			= Input(eye(Mat4)),
+		nearclip 		= Input(10000f0),
+		farclip 		= Input(-10000f0),
+		projection 		= lift(orthographicprojection, lift(x->Vec4(x.x,x.y,x.w,x.h), window_size), nearclip, farclip),
+		projectionview 	= lift(*, projection, view)
+	)
+	DummyCamera{Float32}(window_size, view, projection, projectionview)
+end
+
+function Base.collect(camera::Camera)
+	collected = Dict{Symbol, Any}()
+	names 	  = fieldnames(camera)
+	for name in (:view, :projection, :projectionview, :eyeposition)
+		(name in names) && (collected[name] = camera.(name))
+	end
+	return collected
+end
 
 function mousediff{T}(v0::@compat(Tuple{Bool, Vector2{T}, Vector2{T}}),  clicked::Bool, pos::Vector2{T})
     clicked0, pos0, pos0diff = v0

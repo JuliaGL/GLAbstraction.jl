@@ -29,6 +29,7 @@ function instanced_renderobject(data, amount::Integer, program::Signal{GLProgram
     robj = RenderObject(data, program, bb)
     prerender!(robj, 
         glEnable, GL_DEPTH_TEST, 
+        glDepthMask, GL_TRUE,
         glDepthFunc, GL_LEQUAL, 
         glDisable, GL_CULL_FACE, 
         enabletransparency)
@@ -42,6 +43,7 @@ function std_renderobject(data, shader::Signal{GLProgram}, bb=Input(AABB(Vec3(0)
     robj = RenderObject(data, shader, bb)
     prerender!(robj, 
         glEnable, GL_DEPTH_TEST, 
+        glDepthMask, GL_TRUE,
         glDepthFunc, GL_LEQUAL, 
         glDisable, GL_CULL_FACE, 
         enabletransparency)
