@@ -86,8 +86,9 @@ end
 
 
 #Some additional uniform functions, not related to Imutable Arrays
-gluniform(location::Integer, target::Integer, t::Texture) = gluniform(convert(GLint, location), convert(GLint, target), t)
-gluniform(location::Integer, target::Integer, t::Signal)  = gluniform(convert(GLint, location), convert(GLint, target), t.value)
+gluniform(location::Integer, target::Integer, t::Texture)   = gluniform(GLint(location), GLint(target), t)
+gluniform(location::Integer, target::Integer, t::GPUVector) = gluniform(GLint(location), GLint(target), t.buffer)
+gluniform(location::Integer, target::Integer, t::Signal)    = gluniform(convert(GLint, location), convert(GLint, target), t.value)
 function gluniform(location::GLint, target::GLint, t::Texture)
     activeTarget = GL_TEXTURE0 + UInt32(target)
     glActiveTexture(activeTarget)
