@@ -137,3 +137,6 @@ function close_to_square(n::Real)
     # Take the largest factor in the list d
     (candidates[end], div(n, candidates[end]))
 end
+
+
+Base.IntSet(a...)   = IntSet(a)
