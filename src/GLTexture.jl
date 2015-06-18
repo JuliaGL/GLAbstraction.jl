@@ -115,6 +115,7 @@ function default_colorformat(colordim::Integer, isinteger::Bool, colororder::Str
     sym = "GL_"
     # Handle that colordim == 1 => RED instead of R
     color = colordim == 1 ? "RED" : colororder[1:colordim]
+    # Handle gray value
     integer = isinteger ? "_INTEGER" : ""
     sym *= color * integer
     return eval(symbol(sym))
@@ -127,7 +128,11 @@ function default_colorformat{T <: AbstractAlphaColor}(colordim::Type{T})
     colororder = string(T.name.name)
     return default_colorformat(length(T), eltype(T) <: Integer, colororder)
 end
+default_colorformat{T}(colordim::Type{GrayAlpha{T}}) = GL_LUMINANCE_ALPHA
 default_colorformat{T <: Color}(colordim::Type{T}) = default_colorformat(length(T), eltype(T) <: Integer, string(T.name.name))
+
+
+default_internalcolorformat{T}(colordim::Int, ::Type{GrayAlpha{T}}) = GL_LUMINANCE_ALPHA
 
 function default_internalcolorformat(colordim::Int, typ::DataType)
     if colordim > 4 || colordim < 1
