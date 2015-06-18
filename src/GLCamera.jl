@@ -365,10 +365,10 @@ function PerspectiveCamera{T <: Real}(
 	positionvec 	= lift(vec3,  positionvec)
 
 	up 				= lift(getupvec, pivot)
-	lookatvec1 		= lift(getfield, pivot, Input(:origin)) # silly way of geting a field
+	lookatvec1 		= lift(getfield, pivot, :origin) # silly way of geting a field
 
 	view 			= lift(lookat,  positionvec, lookatvec1, up)
-	w 				= lift(getindex, window_size, Input(3))
+	w 				= lift(getindex, window_size, 3)
 	h 				= lift(last, window_size)
 	window_ratio 	= lift(Float32, lift(/, w, h))
 	projection 		= lift(perspectiveprojection, fov, window_ratio, nearclip, farclip)
