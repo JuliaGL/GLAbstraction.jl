@@ -63,7 +63,7 @@ end
 function gpu_setindex!{T}(b::GLBuffer{T}, value::Vector{T}, offset::UnitRange{Int})
     multiplicator = sizeof(T)
     glBindBuffer(b.buffertype, b.id)
-    glBufferSubData(b.buffertype, multiplicator*first(offset-1), sizeof(value), value)
+    glBufferSubData(b.buffertype, multiplicator*(first(offset)-1), sizeof(value), value)
     return nothing 
 end
 
