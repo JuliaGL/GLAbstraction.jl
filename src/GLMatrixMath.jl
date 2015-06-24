@@ -89,7 +89,7 @@ end
          View frustum matrix (4x4).
 =#
 function frustum{T}(left::T, right::T, bottom::T, top::T, znear::T, zfar::T)
-    (right == left || bottom == top || znear == zfar) && return mat(Matrix4x4{T})
+    (right == left || bottom == top || znear == zfar) && return eye(Matrix4x4{T})
 
     M = zeros(T, 4, 4)
     M[1, 1] = +2.0 * znear / (right - left)
