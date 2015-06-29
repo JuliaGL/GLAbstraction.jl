@@ -1,4 +1,4 @@
-RenderObject{T}(data::Dict{Symbol, T}, program::GLProgram) = RenderObject(Dict{Symbol, Any}(data), program)
+RenderObject{T}(data::Dict{Symbol, T}, program::GLProgram) = RenderObject(Dict{Symbol, Any}(data), Input(program))
 
 
 function Base.show(io::IO, obj::RenderObject)

@@ -52,7 +52,7 @@ function createcontextinfo(dict)
 	
 	n 	 = glGetIntegerv(GL_NUM_EXTENSIONS)
 	test = [glGetStringi(GL_EXTENSIONS, i) for i = 0:(n[1]-1)]
-	dict[:extensions] = test
+	dict[:extensions] = map(bytestring, test)
 end
 function glsl_version_string()
 	isempty(GLSL_VERSION) && error("couldn't get GLSL version, GLUTils not initialized, or context not created?")
