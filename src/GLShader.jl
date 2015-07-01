@@ -238,8 +238,6 @@ function TemplateProgram{N}(shaders::NTuple{N, Shader}, kw_args)
 end
 
 
-
-
 # Gets used to access a 
 function glsl_variable_access{T,D}(keystring, t::Texture{T, D})
     t.texturetype == GL_TEXTURE_BUFFER && return "texelFetch($(keystring), index)."*"rgba"[1:length(T)]*";"

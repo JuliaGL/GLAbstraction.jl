@@ -107,7 +107,13 @@ gluniform(location::GLint, x::Vector{GLuint}) 	= glUniform1uiv(location, length(
 
 
 
-toglsltype_string{T, D}(t::Texture{T, D})       = string("uniform ", to_opengl_prefix(eltype(T)),"sampler", D, "D")
+function toglsltype_string{T, D}(t::Texture{T, D})
+    if isnull(t.buffer)
+        string("uniform ", to_opengl_prefix(eltype(T)),"sampler", D, "D")
+    else
+        string("uniform ", to_opengl_prefix(eltype(T)),"samplerBuffer")
+    end
+end
 toglsltype_string(t::GLfloat)                   = "uniform float"
 toglsltype_string(t::GLuint)                    = "uniform uint"
 toglsltype_string(t::GLint)                     = "uniform int"
