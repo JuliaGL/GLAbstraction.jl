@@ -107,7 +107,7 @@ type GLVertexArray
         indexSize = length(buffer) * cardinality(buffer)
       else
         attribute = string(name)
-        if len == -1 
+        if len == -1
             len = length(buffer)
         end
         if len != length(buffer)
@@ -133,6 +133,9 @@ free(x::GLVertexArray) = glDeleteVertexArrays(1, [x.id])
 
 ##################################################################################
 
+objectid_obscure = zero(GLushort)
+
+
 type RenderObject
     uniforms            ::Dict{Symbol, Any}
     vertexarray         ::GLVertexArray
@@ -140,25 +143,24 @@ type RenderObject
     postrenderfunctions ::Dict{Function, Tuple}
     id                  ::GLushort
     boundingbox         ::Signal # workaround for having lazy boundingbox queries, while not using multiple dispatch for boundingbox function (No type hierarchy for RenderObjects)
-    objectid = zero(GLushort)
 
     function RenderObject(data::Dict{Symbol, Any}, program::Signal{GLProgram}, bbs=Input(AABB(Vec3(0),Vec3(1))))
-
-        objectid             += one(GLushort)
+        global objectid_obscure
+        objectid_obscure             += one(GLushort)
         program              = program.value
         buffers              = filter((key, value) -> isa(value, GLBuffer), data)
         uniforms             = filter((key, value) -> !isa(value, GLBuffer), data)
-        uniforms[:objectid]  = objectid # automatucally integrate object ID, will be discarded if shader doesn't use it
+        uniforms[:objectid]  = objectid_obscure # automatucally integrate object ID, will be discarded if shader doesn't use it
         get!(uniforms, :visible, true) # make sure, visibility is set
-        
+
         vertexarray          = GLVertexArray(Dict{Symbol, GLBuffer}(buffers), program)
 
         return new(
-            uniforms, 
-            vertexarray, 
-            Dict{Function, Tuple}(), 
-            Dict{Function, Tuple}(), 
-            objectid, 
+            uniforms,
+            vertexarray,
+            Dict{Function, Tuple}(),
+            Dict{Function, Tuple}(),
+            objectid_obscure,
             bbs
         )
     end
