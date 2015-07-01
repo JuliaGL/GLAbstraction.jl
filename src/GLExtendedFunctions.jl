@@ -150,9 +150,6 @@ end
 
 
 
-
-
-
 function glGetTexLevelParameteriv(target::GLenum, level, name::GLenum)
   result = GLint[0]
   glGetTexLevelParameteriv(target, level, name, result)
@@ -160,6 +157,8 @@ function glGetTexLevelParameteriv(target::GLenum, level, name::GLenum)
 end
 
 glViewport(x::Rectangle) = glViewport(x.x, x.y, x.w, x.h)
+glScissor(x::Rectangle) = glScissor(x.x, x.y, x.w, x.h)
+
 
 function glGenRenderbuffers(format::GLenum, attachment::GLenum, dimensions)
     renderbuffer = GLuint[0]

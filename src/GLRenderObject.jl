@@ -1,4 +1,4 @@
-RenderObject{T}(data::Dict{Symbol, T}, program::GLProgram) = RenderObject(Dict{Symbol, Any}(data), program)
+RenderObject{T}(data::Dict{Symbol, T}, program::GLProgram) = RenderObject(Dict{Symbol, Any}(data), Input(program))
 
 
 function Base.show(io::IO, obj::RenderObject)
@@ -25,10 +25,11 @@ Base.setindex!(obj::RenderObject, value, symbol::Symbol, x::Function)       = se
 Base.setindex!(obj::RenderObject, value, ::Val{:prerender}, x::Function)    = obj.prerenderfunctions[x] = value
 Base.setindex!(obj::RenderObject, value, ::Val{:postrender}, x::Function)   = obj.postrenderfunctions[x] = value
 
-function instanced_renderobject(data, amount::Integer, program::Signal{GLProgram}, bb=Input(AABB(Vec3(0), Vec3(1))), primitive::GLenum=GL_TRIANGLES)
+function instanced_renderobject(data, amount, program::Signal{GLProgram}, bb=Input(AABB(Vec3(0), Vec3(1))), primitive::GLenum=GL_TRIANGLES)
     robj = RenderObject(data, program, bb)
     prerender!(robj, 
         glEnable, GL_DEPTH_TEST, 
+        glDepthMask, GL_TRUE,
         glDepthFunc, GL_LEQUAL, 
         glDisable, GL_CULL_FACE, 
         enabletransparency)
@@ -42,6 +43,7 @@ function std_renderobject(data, shader::Signal{GLProgram}, bb=Input(AABB(Vec3(0)
     robj = RenderObject(data, shader, bb)
     prerender!(robj, 
         glEnable, GL_DEPTH_TEST, 
+        glDepthMask, GL_TRUE,
         glDepthFunc, GL_LEQUAL, 
         glDisable, GL_CULL_FACE, 
         enabletransparency)

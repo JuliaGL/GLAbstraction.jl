@@ -17,7 +17,8 @@ import Mustache
 
 Reactive.value(any) = any # add this, to make it easier to work with a combination of signals and constants
 
-import Base.merge
+
+import Base: merge, resize!, unsafe_copy!, similar
 importall AbstractGPUArray
 
 #Methods which got overloaded by GLExtendedFunctions.jl:
@@ -33,11 +34,13 @@ import ModernGL.glGenVertexArrays
 import ModernGL.glGenTextures
 import ModernGL.glGenFramebuffers
 import ModernGL.glGetTexLevelParameteriv
-import ModernGL.glViewport
 import ModernGL.glGenRenderbuffers
 import ModernGL.glDeleteTextures
 import ModernGL.glDeleteVertexArrays
 import ModernGL.glDeleteBuffers
+
+import ModernGL.glViewport
+import ModernGL.glScissor
 
 
 
@@ -58,6 +61,7 @@ export get_glsl_out_qualifier_string
 include("GLTypes.jl")
 export GLProgram                # Shader/program object
 export Texture                  # Texture object, basically a 1/2/3D OpenGL data array
+export texture_buffer			# function to create a texture buffer texture
 export update!                  # updates a gpu array with a Julia array
 export gpu_data 				# gets the data of a gpu array as a Julia Array
 
@@ -120,9 +124,11 @@ export @geom_str
 
 
 include("GLCamera.jl")
+export Camera
 export OrthographicCamera #simple orthographic camera
 export PerspectiveCamera #simple perspective camera
 export OrthographicPixelCamera # orthographic camera with pixels as a unit
+export DummyCamera
 
 include("GLShapes.jl")
 export gencircle  # generates 2d vertices for a circle

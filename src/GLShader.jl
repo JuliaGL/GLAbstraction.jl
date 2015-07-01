@@ -128,7 +128,7 @@ end
 # Actually compiles and links shader sources
 function GLProgram(
                         shaders::Vector{Shader}, program=createprogram(); 
-                        fragdatalocation=(Int, ASCIIString)[]
+                        fragdatalocation=Tuple{Int, ASCIIString}[]
                     )
 
     # Remove old shaders
@@ -185,18 +185,18 @@ template2source(source::Array{UInt8, 1}, attributes::Dict{Symbol, Any}, view::Di
 function template2source(source::AbstractString, attributes::Dict{Symbol, Any}, view::Dict{ASCIIString, ASCIIString})
     code_template    = Mustache.parse(source)
     specialized_view = merge(createview(attributes, mustachekeys(code_template)), view)
-    code_source     = replace(replace(Mustache.render(code_template, specialized_view), "&#x2F;", "/"), "&gt;", ">")
+    code_source      = replace(replace(Mustache.render(code_template, specialized_view), "&#x2F;", "/"), "&gt;", ">")
     ascii(code_source)
 end
 
 TemplateProgram() = error("Can't create TemplateProgram without parameters")
 
 
-let TEMPLATE_PROGRAM_KW_DEFAULTS = @compat(Dict(
+let TEMPLATE_PROGRAM_KW_DEFAULTS = Dict(
     :view               => Dict{ASCIIString, ASCIIString}(), 
     :attributes         => Dict{Symbol, Any}(),
-    :fragdatalocation   => @compat(Tuple{Int, ASCIIString})[]
-)),  SHADER_TYPES = Union(Shader, File, Reactive.Lift{Shader})
+    :fragdatalocation   => Tuple{Int, ASCIIString}[]
+),  SHADER_TYPES = Union(Shader, File, Reactive.Lift{Shader})
    
     TemplateProgram(x::SHADER_TYPES...; p=createprogram(), kw_args...) = 
         TemplateProgram(x, merge(TEMPLATE_PROGRAM_KW_DEFAULTS, Dict{Symbol, Any}(kw_args), Dict(:p=>p)))
@@ -238,10 +238,11 @@ function TemplateProgram{N}(shaders::NTuple{N, Shader}, kw_args)
 end
 
 
-
-
 # Gets used to access a 
-glsl_variable_access{T,D}(keystring, ::Texture{T, D}) = "getindex($(keystring), index)."*"rgba"[1:length(T)]*";"
+function glsl_variable_access{T,D}(keystring, t::Texture{T, D})
+    t.texturetype == GL_TEXTURE_BUFFER && return "texelFetch($(keystring), index)."*"rgba"[1:length(T)]*";"
+    return "getindex($(keystring), index)."*"rgba"[1:length(T)]*";"
+end
 
 glsl_variable_access(keystring, ::Union(Real, GLBuffer, FixedArray)) = keystring*";"
 

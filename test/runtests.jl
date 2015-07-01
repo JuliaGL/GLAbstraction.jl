@@ -1,4 +1,4 @@
-using GLAbstraction, GeometryTypes, ModernGL, Compat
+using GLAbstraction, GeometryTypes, ModernGL, Compat, FileIO
 using GLFW # <- need GLFW for context initialization.. Hopefully replaced by some native initialization
 using Base.Test
 

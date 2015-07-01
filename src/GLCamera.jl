@@ -1,30 +1,3 @@
-#== for patching issue in OrthographicCamera
-==#
-
-using FixedSizeArrays
-import FixedSizeArrays.getindex
-
-# This seems missing    
-function FixedSizeArrays.getindex{T, SZ}(A::FixedArray{T, 1, SZ},j::UnitRange)
-    FixedVector{T, length(j)}(  [ A[k] for k in j ]...      ) 
-end
-
-#
-#   Far from optimal, a quick and dirty way
-#
-function simpleConvert{T,SZ}(A::FixedArray{T, 1, SZ}, S)
-           FixedArray{S, 1, SZ}(
-                      [ convert(S, a) for a in A]... 
-                  ) 
-       end
-    
-#==
-    These show more complicated stuff than I would like!!!
-code_native (simpleConvert,(GeometryTypes.Vector4{Int64}, Int64)  )
-code_native (simpleConvert,(GeometryTypes.Vector4{Int64}, Float64)  )
-code_native(getindex, (FixedArray{Float64, 1, 4}, UnitRange))
-==#
-    
 abstract Camera{T}
 
 type OrthographicCamera{T} <: Camera{T}
@@ -47,7 +20,32 @@ type PerspectiveCamera{T} <: Camera{T}
 	up::Signal{Vector3{T}}
 end
 
+type DummyCamera{T} <: Camera{T}
+	window_size 	::Signal{Rectangle{Int}}
+	view 			::Signal{Matrix4x4{T}}
+	projection 		::Signal{Matrix4x4{T}}
+	projectionview 	::Signal{Matrix4x4{T}}
+end
 
+function DummyCamera(;
+		window_size		= Input(Rectangle(-1, -1, 2, 2)),
+		view 			= Input(eye(Mat4)),
+		nearclip 		= Input(10000f0),
+		farclip 		= Input(-10000f0),
+		projection 		= lift(orthographicprojection, lift(x->Vec4(x.x,x.y,x.w,x.h), window_size), nearclip, farclip),
+		projectionview 	= lift(*, projection, view)
+	)
+	DummyCamera{Float32}(window_size, view, projection, projectionview)
+end
+
+function Base.collect(camera::Camera)
+	collected = Dict{Symbol, Any}()
+	names 	  = fieldnames(camera)
+	for name in (:view, :projection, :projectionview, :eyeposition)
+		(name in names) && (collected[name] = camera.(name))
+	end
+	return collected
+end
 
 function mousediff{T}(v0::@compat(Tuple{Bool, Vector2{T}, Vector2{T}}),  clicked::Bool, pos::Vector2{T})
     clicked0, pos0, pos0diff = v0
@@ -172,6 +170,9 @@ function OrthographicCamera{T}(
 						)
 
 end
+
+
+
 #= 
 Creates an orthographic camera from signals, controlling the camera
 Args:
@@ -364,10 +365,10 @@ function PerspectiveCamera{T <: Real}(
 	positionvec 	= lift(vec3,  positionvec)
 
 	up 				= lift(getupvec, pivot)
-	lookatvec1 		= lift(getfield, pivot, Input(:origin)) # silly way of geting a field
+	lookatvec1 		= lift(getfield, pivot, :origin) # silly way of geting a field
 
 	view 			= lift(lookat,  positionvec, lookatvec1, up)
-	w 				= lift(getindex, window_size, Input(3))
+	w 				= lift(getindex, window_size, 3)
 	h 				= lift(last, window_size)
 	window_ratio 	= lift(Float32, lift(/, w, h))
 	projection 		= lift(perspectiveprojection, fov, window_ratio, nearclip, farclip)
