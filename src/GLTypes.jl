@@ -133,8 +133,7 @@ free(x::GLVertexArray) = glDeleteVertexArrays(1, [x.id])
 
 ##################################################################################
 
-objectid_obscure = zero(GLushort)
-
+RENDER_OBJECT_ID_COUNTER = zero(GLushort)
 
 type RenderObject
     uniforms            ::Dict{Symbol, Any}
@@ -145,12 +144,12 @@ type RenderObject
     boundingbox         ::Signal # workaround for having lazy boundingbox queries, while not using multiple dispatch for boundingbox function (No type hierarchy for RenderObjects)
 
     function RenderObject(data::Dict{Symbol, Any}, program::Signal{GLProgram}, bbs=Input(AABB(Vec3(0),Vec3(1))))
-        global objectid_obscure
-        objectid_obscure             += one(GLushort)
+        global RENDER_OBJECT_ID_COUNTER
+        RENDER_OBJECT_ID_COUNTER     += one(GLushort)
         program              = program.value
         buffers              = filter((key, value) -> isa(value, GLBuffer), data)
         uniforms             = filter((key, value) -> !isa(value, GLBuffer), data)
-        uniforms[:objectid]  = objectid_obscure # automatucally integrate object ID, will be discarded if shader doesn't use it
+        uniforms[:objectid]  = RENDER_OBJECT_ID_COUNTER # automatucally integrate object ID, will be discarded if shader doesn't use it
         get!(uniforms, :visible, true) # make sure, visibility is set
 
         vertexarray          = GLVertexArray(Dict{Symbol, GLBuffer}(buffers), program)
@@ -160,7 +159,7 @@ type RenderObject
             vertexarray,
             Dict{Function, Tuple}(),
             Dict{Function, Tuple}(),
-            objectid_obscure,
+            RENDER_OBJECT_ID_COUNTER,
             bbs
         )
     end
