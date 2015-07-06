@@ -70,3 +70,4 @@ function pushfunction!(target::Dict{Function, Tuple}, fs...)
 end
 prerender!(x::RenderObject, fs...)   = pushfunction!(x.prerenderfunctions, fs...)
 postrender!(x::RenderObject, fs...)  = pushfunction!(x.postrenderfunctions, fs...)
+
