@@ -141,3 +141,5 @@ end
 
 
 Base.IntSet(a...)   = IntSet(a)
+
+isnotempty(A) = !isempty(A)
