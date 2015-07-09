@@ -34,7 +34,7 @@ macro genuniformfunctions(maxdim::Integer)
 	for n=2:maxdim, typ in GLSL_COMPATIBLE_NUMBER_TYPES
 		glslalias 	= symbol(string(to_opengl_prefix(typ),glslVector,n)) 
 		name 		= symbol(string(imVector, n))
-		imalias 	= :($name {$typ})
+		imalias 	= :($name{$typ})
 		uniformfunc = symbol(string("glUniform", n, to_opengl_postfix(typ)))
 
 		push!(expressions, :(typealias $glslalias $imalias)) # glsl alike type alias
@@ -48,7 +48,7 @@ macro genuniformfunctions(maxdim::Integer)
 		glsldim 	= n==n2 ? "$n" : "$(n)x$(n2)"
 		glslalias 	= symbol(string(to_opengl_prefix(typ), glslMatrix, glsldim)) 
 		name 		= symbol(string(imMatrix, n,"x",n2))
-		imalias 	= :($name {$typ})
+		imalias 	= :($name{$typ})
 		uniformfunc = symbol(string("glUniformMatrix", glsldim, to_opengl_postfix(typ)))
 
 		push!(expressions, :(typealias $glslalias $imalias)) #GLSL alike alias
@@ -288,12 +288,11 @@ for numtype in [("BOOL", GLint), ("INT", GLint), ("UNSIGNED_INT", GLuint), ("FLO
 
 
 end
-
+#=
 update_convert{T, T2, ND}(globj::GPUArray{T, ND}, value::Array{T2, ND}) = update!(globj, convert(Array{T, ND}, value))
 function gl_convert{T, T2, ND}(should_be::GLEnumGlobalArray{T, ND}, is::Signal{Array{T2, ND}})
-    gltype = best_opengltype(should_be, is.value)
-    globj  = gltype(is.value)
-    lift(update_convert, globj, is)
+    globject = gl_convert(should_be, is.value)
+    lift(update_convert, globject, is)
     globj 
 end
 
@@ -310,3 +309,4 @@ gl_convert{T, T2, ND, SZ}(should_be::GLEnumTexture{T, ND}, is::Array{T2, ND}) =
 
 gl_convert{T, T2, ND, SZ}(should_be::GLEnumGlobalArray{T, ND}, is::GPUArray{T, ND}) = is
 
+=#
