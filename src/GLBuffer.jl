@@ -30,9 +30,8 @@ function GLBuffer{T <: GLArrayEltypes}(
 end
 
 
-function indexbuffer{T<:GLArrayEltypes}(buffer::Vector{T}; usage::GLenum = GL_STATIC_DRAW)
+indexbuffer{T<:GLArrayEltypes}(buffer::Vector{T}; usage::GLenum = GL_STATIC_DRAW) = 
     GLBuffer(buffer, buffertype = GL_ELEMENT_ARRAY_BUFFER, usage=usage)
-end
 
 # GPUArray interface
 function gpu_data{T}(b::GLBuffer{T})

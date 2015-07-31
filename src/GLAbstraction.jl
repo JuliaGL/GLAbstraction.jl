@@ -15,10 +15,10 @@ using FileIO
 using MeshIO
 import Mustache
 
-Reactive.value(any) = any # add this, to make it easier to work with a combination of signals and constants
 
 
-import Base: merge, resize!, unsafe_copy!, similar
+import Base: merge, resize!, unsafe_copy!, similar, length, getindex, setindex!, consume, IntSet
+import Reactive: value
 importall AbstractGPUArray
 
 #Methods which got overloaded by GLExtendedFunctions.jl:
@@ -38,10 +38,16 @@ import ModernGL.glGenRenderbuffers
 import ModernGL.glDeleteTextures
 import ModernGL.glDeleteVertexArrays
 import ModernGL.glDeleteBuffers
-
+import ModernGL.glGetShaderiv
 import ModernGL.glViewport
 import ModernGL.glScissor
 
+
+include("gltypealias.jl")
+export Triangle
+export GLFace
+export GLTriangle
+export GLQuad
 
 
 include("GLUtils.jl")
@@ -50,17 +56,11 @@ export @materialize #splats keywords from a dict into variables
 export @materialize!  #splats keywords from a dict into variables and deletes them from the dict
 export close_to_square
 
-include("GLInit.jl")
-export init_after_context_creation
-export init_glutils
-export get_glsl_version_string
-export get_glsl_in_qualifier_string
-export get_glsl_out_qualifier_string
-
 
 include("GLTypes.jl")
 export GLProgram                # Shader/program object
 export Texture                  # Texture object, basically a 1/2/3D OpenGL data array
+export TextureParameters
 export texture_buffer			# function to create a texture buffer texture
 export update!                  # updates a gpu array with a Julia array
 export gpu_data 				# gets the data of a gpu array as a Julia Array
@@ -129,10 +129,6 @@ export OrthographicCamera #simple orthographic camera
 export PerspectiveCamera #simple perspective camera
 export OrthographicPixelCamera # orthographic camera with pixels as a unit
 export DummyCamera
-
-include("GLShapes.jl")
-export gencircle  # generates 2d vertices for a circle
-export isinside #tests if something is inside something else
 
 
 include("GLInfo.jl")

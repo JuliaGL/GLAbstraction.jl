@@ -68,9 +68,9 @@ function createshader(shadertype::GLenum)
     shaderid::GLuint
 end
 function createprogram()
-    p = glCreateProgram()
-    @assert p > 0 "couldn't create program. Most likely, opengl context is not active"
-    p::GLuint
+    program = glCreateProgram()
+    @assert program > 0 "couldn't create program. Most likely, opengl context is not active"
+    program::GLuint
 end
 
 shadertype(s::Shader)               = s.typ
@@ -91,7 +91,7 @@ Base.write(io::IO, f::File{:geom}) = write(io, f.source)
 
 compileshader(file::File, program::GLuint) = compileshader(read(file), program)
                     #(shadertype, shadercode) -> shader id
-let shader_cache = Dict{@compat(Tuple{GLenum, Vector{Uint8}}), GLuint}() # shader cache prevents that a shader is compiled more than one time
+let shader_cache = Dict{Tuple{GLenum, Vector{Uint8}}, GLuint}() # shader cache prevents that a shader is compiled more than one time
     #finalizer(shader_cache, dict->foreach(glDeleteShader, values(dict))) # delete all shaders when done
     function compileshader(shader::Shader)
         get!(shader_cache, (shader.typ, shader.source)) do 
@@ -163,9 +163,9 @@ end
 
 
 # Gives back a signal, which signals true everytime the file gets edited
-function isupdated(file::File, update_interval=1.0)
+function isupdated(file::File, updatewhile=Input(true), update_interval=1.0)
     filename    = abspath(file)
-    file_edited = foldl((false, mtime(filename)), every(update_interval)) do v0, v1 
+    file_edited = foldl((false, mtime(filename)), fpswhen(updatewhile, 1.0/update_interval)) do v0, v1 
         time_edited = mtime(filename)
         (!isapprox(0.0, v0[2] - time_edited), time_edited)
     end
@@ -173,8 +173,8 @@ function isupdated(file::File, update_interval=1.0)
 end
 
 #reads from the file and updates the source whenever the file gets edited
-function lift_shader(shader_file::File)
-    lift(isupdated(shader_file)) do _unused
+function lift_shader(shader_file::File, updatewhile=Input(true), update_interval=1.0)
+    lift(isupdated(shader_file, updatewhile, update_interval)) do _unused
         read(shader_file)
     end
 end
@@ -189,34 +189,33 @@ function template2source(source::AbstractString, attributes::Dict{Symbol, Any}, 
     ascii(code_source)
 end
 
-TemplateProgram() = error("Can't create TemplateProgram without parameters")
+#TemplateProgram() = error("Can't create TemplateProgram without parameters")
 
-
-let TEMPLATE_PROGRAM_KW_DEFAULTS = Dict(
-    :view               => Dict{ASCIIString, ASCIIString}(), 
-    :attributes         => Dict{Symbol, Any}(),
-    :fragdatalocation   => Tuple{Int, ASCIIString}[]
-),  SHADER_TYPES = Union(Shader, File, Reactive.Lift{Shader})
-   
-    TemplateProgram(x::SHADER_TYPES...; p=createprogram(), kw_args...) = 
-        TemplateProgram(x, merge(TEMPLATE_PROGRAM_KW_DEFAULTS, Dict{Symbol, Any}(kw_args), Dict(:p=>p)))
+function TemplateProgram(x::Union(Shader, File, Reactive.Lift{Shader})...; kw_args...)
+    TemplateProgram(merge(Dict(
+        :view               => Dict{ASCIIString, ASCIIString}(), 
+        :attributes         => Dict{Symbol, Any}(),
+        :fragdatalocation   => Tuple{Int, ASCIIString}[],
+        :program            => createprogram()
+    ), Dict{Symbol, Any}(kw_args)), x...)
 end
 
-function TemplateProgram{N}(shaders::NTuple{N, File}, kw_args)
-    file_signals = map(lift_shader, shaders)
-    TemplateProgram(file_signals, kw_args)
+function TemplateProgram(kw_args::Dict{Symbol, Any}, s::File, shaders::File...)
+    updatewhile     = get(kw_args, :updatewhile, Input(true))
+    update_interval = get(kw_args, :update_interval, 1.0)
+    shader_signals  = map(s->lift_shader(s, updatewhile, update_interval), [s,shaders...])
+    TemplateProgram(kw_args, shader_signals...)
 end
-function TemplateProgram{N}(shaders::NTuple{N, Reactive.Lift{Shader}}, kw_args)
-    program_signal = lift(shaders...) do _unused... #just needed to update the signal
+function TemplateProgram(kw_args::Dict{Symbol, Any}, s::Reactive.Lift{Shader}, shaders::Reactive.Lift{Shader}...)
+    program_signal = lift(s, shaders...) do _unused... #just needed to update the signal
         # extract values from signals
-        shader_values = map(value, shaders)
-        TemplateProgram(shader_values, kw_args)
+        shader_values = map(value, [s, shaders...])
+        TemplateProgram(kw_args, shader_values...)
     end
 end
 
-
-function TemplateProgram{N}(shaders::NTuple{N, Shader}, kw_args)
-    @materialize p, view, attributes, fragdatalocation = kw_args
+function TemplateProgram(kw_args::Dict{Symbol, Any}, s::Shader, shaders::Shader...)
+    @materialize program, view, attributes, fragdatalocation = kw_args
     if haskey(view, "in") || haskey(view, "out") || haskey(view, "GLSL_VERSION")
         println("warning: using internal keyword \"$(in/out/GLSL_VERSION)\" for shader template. The value will be overwritten")
     end
@@ -233,8 +232,8 @@ function TemplateProgram{N}(shaders::NTuple{N, Shader}, kw_args)
     view = merge(internaldata, view)
 
     # transform dict of templates into actual shader source
-    code = Shader[Shader(shader, source=template2source(shader.source, attributes, view)) for shader in shaders]
-    return GLProgram(code, p, fragdatalocation=fragdatalocation)
+    code = Shader[Shader(shader, source=template2source(shader.source, attributes, view)) for shader in [s, shaders...]]
+    return GLProgram(code, program, fragdatalocation=fragdatalocation)
 end
 
 
@@ -246,8 +245,8 @@ end
 
 glsl_variable_access(keystring, ::Union(Real, GLBuffer, FixedArray)) = keystring*";"
 
-glsl_variable_access(keystring, s::Signal)  = glsl_variable_access(keystring, s.value)
-glsl_variable_access(keystring, t::Any)     = error("no glsl variable calculation available for :", keystring, " of type ", typeof(t))
+glsl_variable_access(keystring, s::Signal) = glsl_variable_access(keystring, s.value)
+glsl_variable_access(keystring, t::Any)    = error("no glsl variable calculation available for :", keystring, " of type ", typeof(t))
 
 
 function createview(x::Dict{Symbol, Any}, keys)
@@ -264,3 +263,15 @@ function createview(x::Dict{Symbol, Any}, keys)
   view
 end
 mustachekeys(mustache::Mustache.MustacheTokens) = map(x->x[2], filter(x-> x[1] == "name", mustache.tokens))
+
+function glsl_version_string()
+    glsl = split(bytestring(glGetString(GL_SHADING_LANGUAGE_VERSION)), ['.', ' '])
+    if length(glsl) >= 2
+        glsl = VersionNumber(parse(Int, glsl[1]), parse(Int, glsl[2])) 
+        glsl.major == 1 && glsl.minor <= 2 && error("OpenGL shading Language version too low. Try updating graphic driver!")
+        glsl_version = string(glsl.major) * rpad(string(glsl.minor),2,"0")
+        return "#version $(glsl_version)\n"
+    else
+        error("could not parse GLSL version: $glsl")
+    end
+end
