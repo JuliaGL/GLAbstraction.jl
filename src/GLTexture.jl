@@ -150,8 +150,8 @@ Creates a texture from an Image
 #end
 
 
-width(t::Texture)  = size(t, 1)
-height(t::Texture) = size(t, 2)
+GeometryTypes.width(t::Texture)  = size(t, 1)
+GeometryTypes.height(t::Texture) = size(t, 2)
 depth(t::Texture)  = size(t, 3)
 
 
@@ -299,11 +299,18 @@ end
 texsubimage{T}(t::Texture{T, 1}, newvalue::Array{T, 1}, xrange::UnitRange, level=0) = glTexSubImage1D(
     t.texturetype, level, first(xrange)-1, length(xrange), t.format, t.pixeltype, newvalue
 )
-texsubimage{T}(t::Texture{T, 2}, newvalue::Array{T, 2}, xrange::UnitRange, yrange::UnitRange, level=0) = glTexSubImage2D(
-    t.texturetype, level,
-    first(xrange)-1, first(yrange)-1, length(xrange), length(yrange),
-    t.format, t.pixeltype, newvalue
-)
+function texsubimage{T}(t::Texture{T, 2}, newvalue::Array{T, 2}, xrange::UnitRange, yrange::UnitRange, level=0)
+   # println(t)
+   # println(size(newvalue))
+   # println(size(t))
+   # println(xrange)
+   # println(yrange)
+    glTexSubImage2D(
+        t.texturetype, level,
+        first(xrange)-1, first(yrange)-1, length(xrange), length(yrange),
+        t.format, t.pixeltype, newvalue
+    )
+end
 texsubimage{T}(t::Texture{T, 3}, newvalue::Array{T, 3}, xrange::UnitRange, yrange::UnitRange, zrange::UnitRange, level=0) = glTexSubImage3D(
     t.texturetype, level,
     first(xrange)-1, first(yrange)-1, first(zrange)-1, length(xrange), length(yrange), length(zrange),

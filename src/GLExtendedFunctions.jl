@@ -4,7 +4,7 @@ Its also to do some more complex error handling, not handled by the debug callba
 =#
 
 function glGetShaderiv(shaderID::GLuint, variable::GLenum)
-    result = Ref(-1)
+    result = Ref{GLint}(-1)
     glGetShaderiv(shaderID, variable, result)
     result[]
 end
@@ -89,12 +89,12 @@ function glGetActiveAttrib(programID::GLuint, index::Integer)
     (uname, typ[1], attributeSize[1])
 end
 function glGetProgramiv(programID::GLuint, variable::GLenum)
-    result = Ref(-1)
+    result = Ref{GLint}(-1)
     glGetProgramiv(programID, variable, result)
     result[]
 end
 function glGetIntegerv(variable::GLenum)
-    result = Ref(-1)
+    result = Ref{GLint}(-1)
     glGetIntegerv(Uint32(variable), result)
     result[]
 end

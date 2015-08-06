@@ -13,8 +13,18 @@ N = 100
 
 
 t1 = Texture(RGBAU8,     (512,10), minfilter=:nearest, x_repeat=:clamp_to_edge)
-t2 = Texture(Vector2{GLushort}, (77,91), minfilter=:nearest, x_repeat=:clamp_to_edge)
+t2 = Texture(Vec{2, GLushort}, (77,91), minfilter=:nearest, x_repeat=:clamp_to_edge)
+typealias Vec2 Vec{2, Float32}
+typealias Vec3 Vec{3, Float32}
+typealias Vec4 Vec{4, Float32}
 
+typealias iVec2 Vec{2, Cint}
+typealias iVec3 Vec{3, Cint}
+typealias iVec4 Vec{4, Cint}
+
+typealias uVec2 Vec{2, Cuint}
+typealias uVec3 Vec{3, Cuint}
+typealias uVec4 Vec{4, Cuint}
 
 intensity2Di 	= Texture(Cint[0 for i=1:N, j=1:N])
 intensity2Dui 	= Texture(Cuint[0 for i=1:N, j=1:N])

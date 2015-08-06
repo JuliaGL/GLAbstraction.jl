@@ -1,10 +1,6 @@
-#some workaround for missing generic constructors in fixedsizearrays
-convert{R, C, R2, C2, T}(a::Type{Mat{R, C, T}}, b::Mat{R2, C2, T}) =
-    Mat(ntuple(c -> ntuple(r -> b[r,c], Val{R}), Val{C}))
-
 function scalematrix{T}(s::Vec{3, T})
     T0, T1 = zero(T), one(T)
-    Mat(
+    Mat{4,4,T}(
         (s[1],T0,  T0,  T0),
         (T0,  s[2],T0,  T0),
         (T0,  T0,  s[3],T0),
@@ -18,11 +14,11 @@ translationmatrix_z{T}(z::T) = translationmatrix(Vec{3, T}(0, 0, z))
 
 function translationmatrix{T}(t::Vec{3, T})
     T0, T1 = zero(T), one(T)
-    Matrix4x4{T}(
+    Mat(
         (T1,  T0,  T0,  T0),
         (T0,  T1,  T0,  T0),
         (T0,  T0,  T1,  T0),
-        (t...,          T1), 
+        (t[1],t[2],t[3],T1), 
     )
 end
 
@@ -30,27 +26,27 @@ rotate{T}(angle::T, axis::Vec{3, T}) = rotationmatrix(qrotation(convert(Array, a
 
 function rotationmatrix_x{T}(angle::T)
     T0, T1 = zero(T), one(T)
-    Mat(
+    Mat{4,4,T}(
         (T1, T0, T0, T0),
-        (T0, cos(angle), -sin(angle), T0),
-        (T0, sin(angle), cos(angle),  T0),
+        (T0, cos(angle), sin(angle), T0),
+        (T0, -sin(angle), cos(angle),  T0),
         (T0, T0, T0, T1)
     )
 end
 function rotationmatrix_y{T}(angle::T)
     T0, T1 = zero(T), one(T)
-    Mat(
-        (cos(angle), T0, sin(angle),  T0),
+    Mat{4,4,T}(
+        (cos(angle), T0, -sin(angle),  T0),
         (T0, T1, T0, T0),
-        (-sin(angle), T0, cos(angle), T0),
+        (sin(angle), T0, cos(angle), T0),
         (T0, T0, T0, T1)
     )
 end
 function rotationmatrix_z{T}(angle::T)
     T0, T1 = zero(T), one(T)
-    Mat(
-        (cos(angle), -sin(angle), T0, T0),
-        (sin(angle), cos(angle),  T0, T0),
+    Mat{4,4,T}(
+        (cos(angle), sin(angle), T0, T0),
+        (-sin(angle), cos(angle),  T0, T0),
         (T0, T0, T1, T0),
         (T0, T0, T0, T1)
     )
@@ -79,13 +75,13 @@ end
          View frustum matrix (4x4).
 =#
 function frustum{T}(left::T, right::T, bottom::T, top::T, znear::T, zfar::T)
-    (right == left || bottom == top || znear == zfar) && return eye(Matrix4x4{T})
+    (right == left || bottom == top || znear == zfar) && return eye(Mat{4,4,T})
     T0, T1, T2 = zero(T), one(T), T(2)
-    return Mat(
-        (T2 * znear / (right - left), T0, (right + left) / (right - left), T0),
-        (T0, T2 * znear / (top - bottom), T0, (top + bottom) / (top - bottom)),
-        (T0, T0, -(zfar + znear) / (zfar - znear), -T2 * znear * zfar / (zfar - znear)),
-        (T0, T0, T1, T0)
+    return Mat{4,4,T}(
+        (T2 * znear / (right - left), T0, T0, T0),
+        (T0, T2 * znear / (top - bottom), T0, T0), 
+        ((right + left) / (right - left), (top + bottom) / (top - bottom), -(zfar + znear) / (zfar - znear), -T1),
+        (T0, T0, (-T2 * znear * zfar) / (zfar - znear), T0)
     )
 end
 
@@ -101,7 +97,7 @@ function lookat{T}(eyePos::Vec{3, T}, lookAt::Vec{3, T}, up::Vec{3, T})
     xaxis  = normalize(cross(up,    zaxis))
     yaxis  = normalize(cross(zaxis, xaxis))
     T0, T1 = zero(T), one(T)
-    return Mat(
+    return Mat{4,4,T}(
         (xaxis[1], yaxis[1], zaxis[1], T0),
         (xaxis[2], yaxis[2], zaxis[2], T0),
         (xaxis[3], yaxis[3], zaxis[3], T0),
@@ -109,16 +105,16 @@ function lookat{T}(eyePos::Vec{3, T}, lookAt::Vec{3, T}, up::Vec{3, T})
     ) * translationmatrix(-eyePos)
 end
 orthographicprojection{T}(wh::Rectangle, near::T, far::T) = 
-    orthographicprojection(zero(T), convert(T, wh.w), zero(T), convert(T, wh.h), near, far)
+    orthographicprojection(zero(T), T(wh.w), zero(T), T(wh.h), near, far)
 
 function orthographicprojection{T}(
         left  ::T, right::T,
         bottom::T, top  ::T,
         znear ::T, zfar ::T
     )
-    (right==left || bottom==top || znear==zfar) && return eye(Matrix4x4{T})
+    (right==left || bottom==top || znear==zfar) && return eye(Mat{4,4,T})
     T0, T1, T2 = zero(T), one(T), T(2)
-    Mat(
+    Mat{4,4,T}(
         (T2/(right-left), T0, T0,  T0),
         (T0, T2/(top-bottom), T0,  T0),
         (T0, T0, -T2/(zfar-znear), T0),
@@ -152,7 +148,7 @@ function rotationmatrix4{T}(q::Quaternions.Quaternion{T})
     xx, xy, xz = 2q.v1^2,    2q.v1*q.v2,  2q.v1*q.v3
     yy, yz, zz = 2q.v2^2,    2q.v2*q.v3,  2q.v3^2
     T0, T1 = zero(T), one(T)
-    Mat(
+    Mat{4,4,T}(
         (T1-(yy+zz), xy+sz,      xz-sy,      T0),
         (xy-sz,      T1-(xx+zz), yz+sx,      T0),
         (xz+sy,      yz-sx,      T1-(xx+yy), T0),

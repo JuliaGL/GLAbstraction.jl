@@ -25,7 +25,7 @@ Base.setindex!(obj::RenderObject, value, symbol::Symbol, x::Function)       = se
 Base.setindex!(obj::RenderObject, value, ::Val{:prerender}, x::Function)    = obj.prerenderfunctions[x] = value
 Base.setindex!(obj::RenderObject, value, ::Val{:postrender}, x::Function)   = obj.postrenderfunctions[x] = value
 
-function instanced_renderobject(data, amount, program::Signal{GLProgram}, bb=Input(AABB(Vec3(0), Vec3(1))), primitive::GLenum=GL_TRIANGLES)
+function instanced_renderobject(data, amount, program::Signal{GLProgram}, bb=Input(AABB(Vec3f0(0), Vec3f0(1))), primitive::GLenum=GL_TRIANGLES)
     robj = RenderObject(data, program, bb)
     prerender!(robj, 
         glEnable, GL_DEPTH_TEST, 
@@ -39,7 +39,7 @@ function instanced_renderobject(data, amount, program::Signal{GLProgram}, bb=Inp
 end
 
 
-function std_renderobject(data, shader::Signal{GLProgram}, bb=Input(AABB(Vec3(0), Vec3(1))), primitive=GL_TRIANGLES)
+function std_renderobject(data, shader::Signal{GLProgram}, bb=Input(AABB(Vec3f0(0), Vec3f0(1))), primitive=GL_TRIANGLES)
     robj = RenderObject(data, shader, bb)
     prerender!(robj, 
         glEnable, GL_DEPTH_TEST, 

@@ -5,13 +5,15 @@
 
 GLSL_COMPATIBLE_NUMBER_TYPES = (GLdouble, GLfloat, GLint, GLuint)
 
-opengl_prefix{T}(x::T) = error("Type $T is not a supported uniform element type")
+opengl_prefix(T)  = error("Object $T is not a supported uniform element type")
+opengl_postfix(T) = error("Object $T is not a supported uniform element type")
+
+
 opengl_prefix{T <: Union(FixedPoint, Float32)}(x::Type{T})  = ""
 opengl_prefix{T <: Float64}(x::Type{T})                     = "d"
 opengl_prefix(x::Type{Cint})                                = "i"
 opengl_prefix{T <: Union(Cuint, Uint8, Uint16)}(x::Type{T}) = "u"
 
-opengl_postfix{T}(x::Type{T})    = error("Type $T is not a supported uniform element type")
 opengl_postfix(x::Type{Float64}) = "dv"
 opengl_postfix(x::Type{Float32}) = "fv"
 opengl_postfix(x::Type{Cint})    = "iv"
