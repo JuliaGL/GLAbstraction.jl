@@ -1,4 +1,6 @@
-using GLWindow, GLAbstraction, ModernGL, Reactive
+using GLWindow, GLAbstraction, ModernGL, Reactive, GLFW, GeometryTypes
+
+GLFW.Init()
 println("loaded stuff")
 
 const window = createwindow("Compute Shader", 512, 512, debugging=false)
@@ -24,15 +26,15 @@ const shader = comp"""
 const tex_vert = vert"""
     {{GLSL_VERSION}}
 
-    in vec2 vertex;
-    in vec2 uv;
+    in vec2 vertices;
+    in vec2 texturecoordinates;
 
     out vec2 uv_frag;
 
     uniform mat4 projectionview;
     void main(){
-      uv_frag = uv;
-      gl_Position = projectionview * vec4(vertex, 0, 1);
+      uv_frag = texturecoordinates;
+      gl_Position = projectionview * vec4(vertices, 0, 1);
     }
 """
 const tex_frag = frag"""
@@ -50,53 +52,57 @@ const tex_frag = frag"""
 """
 # mostly taken from glvisualize
 function visualize{T}(img::Texture{T, 2}, cam)
-  w, h = size(img)
-  texparams = [
-     (GL_TEXTURE_MIN_FILTER, GL_NEAREST),
-    (GL_TEXTURE_MAG_FILTER, GL_NEAREST),
-    (GL_TEXTURE_WRAP_S,  GL_CLAMP_TO_EDGE),
-    (GL_TEXTURE_WRAP_T,  GL_CLAMP_TO_EDGE)
-  ]
 
-  v, uv, indexes = genquad(0f0, 0f0, Float32(w), Float32(h))
-  v_buffer       = GLBuffer(v)
-  uv_buffer      = GLBuffer(uv)
-  i_buffer       = indexbuffer(indexes)
-
-  data = Dict(
-    :vertex           => v_buffer,
-    :index            => i_buffer,
-    :uv               => uv_buffer,
-    :image            => img,
-    :projectionview   => cam.projectionview,
-  )
-
-  textureshader = TemplateProgram(tex_frag, tex_vert, attributes=data)
-  obj           = RenderObject(data, Input(textureshader))
-
-  prerender!(obj, glDisable, GL_DEPTH_TEST, enabletransparency, glDisable, GL_CULL_FACE)
-  postrender!(obj, render, obj.vertexarray)
-  obj
 end
 
 prg = TemplateProgram(shader)
 
 i = 0f0
-const roll = lift(Float32, every(0.1)) do x
+const roll = lift(every(0.1)) do x
     global i
-    i+=0.01f0
+    i::Float32 += 0.01f0
 end
-const tex = Texture(Float32, [512, 512])
+const tex = Texture(Float32, (512, 512))
 glBindImageTexture(0, tex.id, 0, GL_FALSE, 0, GL_WRITE_ONLY, tex.internalformat);
 
-const data = Dict(
-    :roll => roll,
+data = Dict(
+    :roll    => roll,
     :destTex => tex,
 )
 const ro = RenderObject(data, Input(prg))
 postrender!(ro, glDispatchCompute, div(512,16), div(512,16), 1) # 512^2 threads in blocks of 16^2
 
-texobj = visualize(tex, window.orthographiccam)
+cam = window.cameras[:orthographic_pixel]
+function collect_for_gl{T <: HomogenousMesh}(m::T)
+    result = Dict{Symbol, Any}()
+    attribs = attributes(m)
+    @materialize! vertices, faces = attribs
+    result[:vertices]   = GLBuffer(vertices)
+    result[:faces]      = indexbuffer(faces)
+    for (field, val) in attribs
+        if field in [:texturecoordinates, :normals, :attribute_id]
+            result[field] = GLBuffer(val)
+        else
+            result[field] = Texture(val)
+        end
+    end
+    result
+end
+
+    w, h = size(tex)
+
+    msh = GLUVMesh2D(Rectangle{Float32}(0f0,0f0,w,h))
+    data = merge(Dict(
+        :image            => tex,
+        :projectionview   => cam.projectionview,
+    ), collect_for_gl(msh))
+
+    textureshader = TemplateProgram(tex_frag, tex_vert, attributes=data)
+    texobj           = RenderObject(data, Input(textureshader))
+
+    prerender!(texobj, glDisable, GL_DEPTH_TEST, enabletransparency, glDisable, GL_CULL_FACE)
+    postrender!(texobj, render, texobj.vertexarray)
+
 
 glClearColor(0,0,0,1)
 frame = 0f0
