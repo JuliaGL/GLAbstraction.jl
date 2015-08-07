@@ -143,7 +143,7 @@ type RenderObject
     id                  ::GLushort
     boundingbox         ::Signal # workaround for having lazy boundingbox queries, while not using multiple dispatch for boundingbox function (No type hierarchy for RenderObjects)
 
-    function RenderObject(data::Dict{Symbol, Any}, program::Signal{GLProgram}, bbs=Input(AABB(Vec3(0),Vec3(1))))
+    function RenderObject(data::Dict{Symbol, Any}, program::Signal{GLProgram}, bbs=Input(AABB{Float32}(Vec3f0(0),Vec3f0(1))))
         global RENDER_OBJECT_ID_COUNTER
         RENDER_OBJECT_ID_COUNTER     += one(GLushort)
         program              = program.value
