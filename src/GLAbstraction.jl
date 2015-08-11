@@ -17,7 +17,7 @@ import Mustache
 
 
 
-import Base: merge, resize!, unsafe_copy!, similar, length, getindex, setindex!, consume, IntSet
+import Base: merge, resize!, unsafe_copy!, similar, length, getindex, setindex!, consume
 import Reactive: value
 importall AbstractGPUArray
 

@@ -75,9 +75,6 @@ mergedefault!{S}(style::Style{S}, styles, customdata) = merge!(copy(styles[S]), 
 
 
 
-Base.length{T <: Real}(::Type{T}) = 1
-
-
 #splats keys from a dict into variables
 macro materialize(dict_splat)
     keynames, dict = dict_splat.args
@@ -136,9 +133,6 @@ function close_to_square(n::Real)
     # Take the largest factor in the list d
     (candidates[end], div(n, candidates[end]))
 end
-
-
-IntSet(a...)   = IntSet(a)
 
 
 

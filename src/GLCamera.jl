@@ -29,7 +29,7 @@ end
 
 function DummyCamera(;
 		window_size		= Input(Rectangle(-1, -1, 1, 1)),
-		view 			= Input(eye(Mat4)),
+		view 			= Input(eye(Mat{4,4, Float32})),
 		nearclip 		= Input(10000f0),
 		farclip 		= Input(-10000f0),
 		projection 		= lift(orthographicprojection, window_size, nearclip, farclip),
@@ -73,8 +73,8 @@ Creates an orthographic camera with the pixel perfect plane in z == 0
 Signals needed:
 [
 	:window_size					=> Input(Rectangle{Int}),
-	:buttonspressed					=> Input(IntSet()),
-	:mousebuttonspressed			=> Input(IntSet()), 
+	:buttonspressed					=> Input(Int[]),
+	:mousebuttonspressed			=> Input(Int[]), 
 	:mouseposition					=> mouseposition, -> Panning
 	:scroll_y						=> Input(0) -> Zoomig
 ]
@@ -101,8 +101,8 @@ Creates an orthographic camera from a dict of signals
 Signals needed:
 [
 	:window_size					=> Input(Vec{2, Int}),
-	:buttonspressed					=> Input(IntSet()),
-	:mousebuttonspressed			=> Input(IntSet()), 
+	:buttonspressed					=> Input(Int[]),
+	:mousebuttonspressed			=> Input(Int[]), 
 	:mouseposition					=> mouseposition, -> Panning
 	:scroll_y						=> Input(0) -> Zoomig
 ]
@@ -218,8 +218,8 @@ Args:
       inputs: Dict of signals, looking like this:
 			[
 				:window_size					=> Input(Vec{2, Int}),
-				:buttonspressed					=> Input(IntSet()),
-				:mousebuttonspressed			=> Input(IntSet()), 
+				:buttonspressed					=> Input(Int[]),
+				:mousebuttonspressed			=> Input(Int[]), 
 				:mouseposition					=> mouseposition, -> Panning + Rotation
 				:scroll_y						=> Input(0) -> Zoomig
 			]

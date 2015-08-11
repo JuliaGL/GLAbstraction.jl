@@ -22,7 +22,7 @@ colordim{T}(::Type{T})       = length(T)
 colordim{T<:Real}(::Type{T}) = 1
 
 function set_packing_alignment(a) # at some point we should specialize to array/ptr a
-    glPixelStorei(GL_UNPACK_ALIGNMENT, 8)
+    glPixelStorei(GL_UNPACK_ALIGNMENT, 1)
     glPixelStorei(GL_UNPACK_ROW_LENGTH, 0)
     glPixelStorei(GL_UNPACK_SKIP_PIXELS, 0)
     glPixelStorei(GL_UNPACK_SKIP_ROWS, 0)
