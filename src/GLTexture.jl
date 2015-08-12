@@ -158,7 +158,7 @@ depth(t::Texture)  = size(t, 3)
 function Base.show{T,D}(io::IO, t::Texture{T,D})
     println(io, "Texture$(D)D: ")
     println(io, "                  ID: ", t.id)
-    println(io, "                Size: ", reduce("[ColorDim: $(length(T))]", size(t)) do v0, v1
+    println(io, "                Size: ", reduce("Dimensions: ", size(t)) do v0, v1
         v0*"x"*string(v1)
     end)
     println(io, "    Julia pixel type: ", T)
@@ -177,6 +177,7 @@ function Base.unsafe_copy!{T}(a::Vector{T}, readoffset::Int, b::Texture{T, 1}, w
     glBindTexture(b.texturetype, b.id)
     glTexBuffer(b.texturetype, b.internalformat, buffer.id) # update texture
 end
+
 function Base.unsafe_copy!{T}(a::Texture{T, 1}, readoffset::Int, b::Vector{T}, writeoffset::Int, len::Int)
     isnull(a.buffer) && error("copy! is only implemented for texture buffers for now")
     buffer = get(a.buffer)
