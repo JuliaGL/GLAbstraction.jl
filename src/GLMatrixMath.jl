@@ -18,7 +18,7 @@ function translationmatrix{T}(t::Vec{3, T})
         (T1,  T0,  T0,  T0),
         (T0,  T1,  T0,  T0),
         (T0,  T0,  T1,  T0),
-        (t[1],t[2],t[3],T1), 
+        (t[1],t[2],t[3],T1),
     )
 end
 
@@ -79,12 +79,13 @@ function frustum{T}(left::T, right::T, bottom::T, top::T, znear::T, zfar::T)
     T0, T1, T2 = zero(T), one(T), T(2)
     return Mat{4,4,T}(
         (T2 * znear / (right - left), T0, T0, T0),
-        (T0, T2 * znear / (top - bottom), T0, T0), 
+        (T0, T2 * znear / (top - bottom), T0, T0),
         ((right + left) / (right - left), (top + bottom) / (top - bottom), -(zfar + znear) / (zfar - znear), -T1),
         (T0, T0, (-T2 * znear * zfar) / (zfar - znear), T0)
     )
 end
 
+perspectiveprojection{T}(wh::Rectangle, fov::T, near::T, far::T) = perspectiveprojection(fov, T(wh.w/wh.h), near, far)
 function perspectiveprojection{T}(fovy::T, aspect::T, znear::T, zfar::T)
     (znear == zfar) && error("znear ($znear) must be different from tfar ($zfar)")
     h = T(tan(fovy / 360.0 * pi) * znear)
@@ -101,10 +102,10 @@ function lookat{T}(eyePos::Vec{3, T}, lookAt::Vec{3, T}, up::Vec{3, T})
         (xaxis[1], yaxis[1], zaxis[1], T0),
         (xaxis[2], yaxis[2], zaxis[2], T0),
         (xaxis[3], yaxis[3], zaxis[3], T0),
-        (T0,       T0,       T0,       T1) 
+        (T0,       T0,       T0,       T1)
     ) * translationmatrix(-eyePos)
 end
-orthographicprojection{T}(wh::Rectangle, near::T, far::T) = 
+orthographicprojection{T}(wh::Rectangle, near::T, far::T) =
     orthographicprojection(zero(T), T(wh.w), zero(T), T(wh.h), near, far)
 
 function orthographicprojection{T}(
@@ -124,7 +125,7 @@ end
 
 
 import Base: (*)
-function (*){T}(q::Quaternions.Quaternion{T}, v::Vec{3, T}) 
+function (*){T}(q::Quaternions.Quaternion{T}, v::Vec{3, T})
     t = T(2) * cross(Vec(q.v1, q.v2, q.v3), v)
     v + q.s * t + cross(Vec(q.v1, q.v2, q.v3), t)
 end
@@ -160,7 +161,7 @@ transformationmatrix(p::Pivot) = (
     rotationmatrix4(p.rotation) * #apply rotation
     translationmatrix(-p.origin)* # go back to origin
     translationmatrix(p.translation) #apply translation
-) 
+)
 #Calculate rotation between two vectors
 function rotation{T}(u::Vec{3, T}, v::Vec{3, T})
     # It is important that the inputs are of equal length when
@@ -176,5 +177,3 @@ function rotation{T}(u::Vec{3, T}, v::Vec{3, T})
     half = normalize(u+v)
     return Quaternions.Quaternion(dot(u, half), cross(u, half)...)
 end
-
-
