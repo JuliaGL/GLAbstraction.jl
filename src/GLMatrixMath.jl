@@ -135,7 +135,7 @@ function Quaternions.qrotation{T<:Real}(axis::Vec{3, T}, theta::T)
     Quaternions.Quaternion(cos(theta/2), s*u[1], s*u[2], s*u[3], true)
 end
 
-immutable Pivot{T}
+type Pivot{T}
     origin      ::Vec{3, T}
     xaxis       ::Vec{3, T}
     yaxis       ::Vec{3, T}

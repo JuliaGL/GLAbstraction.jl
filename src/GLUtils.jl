@@ -1,5 +1,5 @@
 macro gputime(codeblock)
-    quote 
+    quote
         local const query        = GLuint[1]
         local const elapsed_time = GLuint64[1]
         local const done         = GLint[0]
@@ -14,7 +14,7 @@ macro gputime(codeblock)
                 GL_QUERY_RESULT_AVAILABLE,
                 done
             )
-        end 
+        end
         glGetQueryObjectui64v(query[1], GL_QUERY_RESULT, elapsed_time)
         println("Time Elapsed: ", elapsed_time[1] / 1000000.0, "ms")
     end
@@ -28,7 +28,7 @@ minlenght(a::Tuple{Vararg{IterOrScalar}}) = foldl(typemax(Int), a) do len, elem
     isa(elem.val, AbstractArray) && len > length(elem.val) && return length(elem.val)
     len
 end
-getindex{T<:AbstractArray}(A::IterOrScalar{T}, i::Integer) = A.val[i] 
+getindex{T<:AbstractArray}(A::IterOrScalar{T}, i::Integer) = A.val[i]
 getindex(A::IterOrScalar, i::Integer) = A.val
 
 foreach(func::Union(Function, DataType), args...) = foreach(func, map(IterOrScalar, args)...)
@@ -39,7 +39,7 @@ foreach(func::Union(Function, DataType), args...) = foreach(func, map(IterOrScal
     args_access = [:(args[$i][i]) for i=1:length(args)]
     quote
         len = minlenght(args)
-        for i=1:len 
+        for i=1:len
             func($(args_access...))
         end
     end
@@ -48,7 +48,7 @@ end
 #Some mapping functions for dictionaries
 mapvalues(func::Union(Function, Base.Func), collection::Dict) =
     [key => func(value) for (key, value) in collection]
-mapkeys(func::Union(Function, Base.Func), collection::Dict) = 
+mapkeys(func::Union(Function, Base.Func), collection::Dict) =
     [func(key) => value for (key, value) in collection]
 
 
@@ -83,7 +83,7 @@ macro materialize(dict_splat)
     kd = [:($key = $dict_instance[$(Expr(:quote, key))]) for key in keynames]
     kdblock = Expr(:block, kd...)
     expr = quote
-        $dict_instance = $dict # handle if dict is not a variable but an expression 
+        $dict_instance = $dict # handle if dict is not a variable but an expression
         $kdblock
     end
     esc(expr)
@@ -96,7 +96,7 @@ macro materialize!(dict_splat)
     kd = [:($key = pop!($dict_instance, $(Expr(:quote, key)))) for key in keynames]
     kdblock = Expr(:block, kd...)
     expr = quote
-        $dict_instance = $dict # handle if dict is not a variable but an expression 
+        $dict_instance = $dict # handle if dict is not a variable but an expression
         $kdblock
     end
     esc(expr)
@@ -137,3 +137,6 @@ end
 
 
 isnotempty(A) = !isempty(A)
+
+#Uhm I should remove this. Needed for smooth transition between FixedSizeArrays and Number, though
+Base.length{T <: Number}(::Type{T}) = 1

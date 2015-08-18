@@ -10,12 +10,11 @@ using Reactive
 using FixedPointNumbers
 using ColorTypes
 using Compat
-using ImageIO
-using FileIO
-using MeshIO
 import Mustache
+using FileIO
 
 
+import FileIO: load, save
 
 import Base: merge, resize!, unsafe_copy!, similar, length, getindex, setindex!, consume
 import Reactive: value
@@ -95,7 +94,7 @@ export toglsltype_string        # infers a glsl type string from a julia type. E
 
 include("GLMatrixMath.jl")
 export scalematrix #returns scale matrix
-export lookat # creates the lookat matrix 
+export lookat # creates the lookat matrix
 export perspectiveprojection
 export orthographicprojection
 export translationmatrix, translatematrix_y, translatematrix_z # translates in x, y, z direction
@@ -129,7 +128,7 @@ export OrthographicCamera #simple orthographic camera
 export PerspectiveCamera #simple perspective camera
 export OrthographicPixelCamera # orthographic camera with pixels as a unit
 export DummyCamera
-
+export Projection, PERSPECTIVE, ORTHOGRAPHIC
 
 include("GLInfo.jl")
 export getUniformsInfo

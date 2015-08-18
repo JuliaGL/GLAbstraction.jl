@@ -3,10 +3,10 @@ using GLAbstraction, GLFW
 using ModernGL, GLWindow
 
 
-
 using Base.Test
-sleep(0.1)
+
 GLFW.Init()
+
 global const window = createwindow("Mesh Display", 1000, 1000, debugging = false)
 N = 100
 

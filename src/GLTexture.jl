@@ -104,8 +104,8 @@ function Texture{T <: GLArrayEltypes}(
     end
 
     texture = Texture{T, 3}(
-        id, texturetype, numbertype, 
-        internalformat, format, texparams, 
+        id, texturetype, numbertype,
+        internalformat, format, texparams,
         tuple(maxdims..., layers), Nullable{GLBuffer{T}}()
     )
     set_parameters(texture)
@@ -353,11 +353,11 @@ end
 default_colorformat{T <: Real}(::Type{T})           = default_colorformat(1, T <: Integer, "RED")
 default_colorformat{T <: AbstractArray}(::Type{T})  = default_colorformat(length(T), eltype(T) <: Integer, "RGBA")
 default_colorformat{T <: FixedVector}(::Type{T})    = default_colorformat(length(T), eltype(T) <: Integer, "RGBA")
-default_colorformat{T <: GrayAlpha}(::Type{T})      = GL_LUMINANCE_ALPHA
-default_colorformat{T <: Color}(::Type{T})          = default_colorformat(length(T), eltype(T) <: Integer, string(T.name.name))
+default_colorformat{T <: TransparentGray}(::Type{T})= GL_LUMINANCE_ALPHA
+default_colorformat{T <: Paint}(::Type{T})          = default_colorformat(length(T), eltype(T) <: Integer, string(T.name.name))
 
 
-function default_internalcolorformat{T}(::Type{GrayAlpha{T}})
+function default_internalcolorformat{T}(::Type{TransparentGray{T}})
     s=sizeof(T)*8
     eval(symbol("GL_LUMINANCE$(s)_ALPHA$(s)"))
 end
