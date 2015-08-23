@@ -1,3 +1,4 @@
+VERSION >= v"0.4.0-dev+6521" && __precompile__(true)
 module GLAbstraction
 
 import Quaternions
@@ -41,6 +42,8 @@ import ModernGL.glGetShaderiv
 import ModernGL.glViewport
 import ModernGL.glScissor
 
+include("composition.jl")
+export Composable, Context, convert!, boundingbox
 
 include("gltypealias.jl")
 export Triangle
@@ -69,7 +72,7 @@ export prerender!               # adds a function to a RenderObject, which gets 
 export postrender!              # adds a function to a RenderObject, which gets executed after setting the OpenGL render states
 export std_renderobject			# creates a renderobject with standard parameters
 export instanced_renderobject	# simplification for creating a RenderObject which renders instances
-
+export extract_renderable
 export GLVertexArray            # VertexArray wrapper object
 export GLBuffer                 # OpenGL Buffer object wrapper
 export indexbuffer              # Shortcut to create an OpenGL Buffer object for indexes (1D, cardinality of one and GL_ELEMENT_ARRAY_BUFFER set)

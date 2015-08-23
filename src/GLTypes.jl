@@ -61,7 +61,7 @@ end
 # OpenGL Arrays
 
 
-const GLArrayEltypes = Union(FixedVector, Real, Paint)
+const GLArrayEltypes = Union(FixedVector, Real, Colorant)
 
 #Transfomr julia datatypes to opengl enum type
 julia2glenum{T <: FixedPoint}(x::Type{T})               = julia2glenum(FixedPointNumbers.rawtype(x))
@@ -134,7 +134,7 @@ free(x::GLVertexArray) = glDeleteVertexArrays(1, [x.id])
 
 RENDER_OBJECT_ID_COUNTER = zero(GLushort)
 
-type RenderObject
+type RenderObject <: Composable{DeviceUnit}
     uniforms            ::Dict{Symbol, Any}
     vertexarray         ::GLVertexArray
     prerenderfunctions  ::Dict{Function, Tuple}

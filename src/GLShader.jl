@@ -5,10 +5,9 @@ immutable Shader
 end
 name(s::Shader) = s.name
 
-const ShaderFileFormats = Union(File{format"FRAG"}, File{format"VERT"}, File{format"GEOM"}, File{format"COMP"})
 
 
-function Shader(f::ShaderFileFormats)
+function Shader(f::File{format"GLSLShader"})
     st = stream(open(f))
     s = Shader(symbol(f.filename), readbytes(st), shadertype(f))
     close(st)
@@ -78,21 +77,43 @@ function createprogram()
 end
 
 shadertype(s::Shader)                      = s.typ
-shadertype(::File{format"COMP"})           = GL_COMPUTE_SHADER
-shadertype(::File{format"VERT"})           = GL_VERTEX_SHADER
-shadertype(::File{format"FRAG"})           = GL_FRAGMENT_SHADER
-shadertype(::File{format"GEOM"})           = GL_GEOMETRY_SHADER
-shadertype{Format}(file::File{Format})  = error("File ending doesn't correspond to a shader type. Ending: $(Format), File: $(file)")
+function shadertype(f::File{format"GLSLShader"})
+    ext = file_extension(f)
+    ext == ".comp" && return GL_COMPUTE_SHADER
+    ext == ".vert" && return GL_VERTEX_SHADER
+    ext == ".frag" && return GL_FRAGMENT_SHADER
+    ext == ".geom" && return GL_GEOMETRY_SHADER
+    error("$ext not a valid extension for $f")
+end
+
+"""
+Gives back a signal, which signals true everytime the file gets edited
+"""
+function isupdated(file::File, updatewhile=Input(true), update_interval=1.0)
+    fn = filename(file)
+    file_edited = foldl((false, mtime(fn)), fpswhen(updatewhile, 1.0/update_interval)) do v0, v1
+        time_edited = mtime(fn)
+        (!isapprox(0.0, v0[2] - time_edited), time_edited)
+    end
+    return filter(identity, false, lift(first, file_edited)) # extract bool
+end
+
+#reads from the file and updates the source whenever the file gets edited
+function lift_shader(shader_file::File, updatewhile=Input(true), update_interval=1.0)
+    lift(isupdated(shader_file, updatewhile, update_interval)) do _unused
+        Shader(shader_file)
+    end
+end
 
 #Implement File IO interface
-load(f::ShaderFileFormats) = Shader(f)
-function save(f::ShaderFileFormats, data::Shader)
+load(f::File{format"GLSLShader"}) = lift_shader(f)
+function save(f::File{format"GLSLShader"}, data::Shader)
     s = open(f, "w")
     write(s, data.source)
     close(s)
 end
 
-compileshader(file::ShaderFileFormats, program::GLuint) = compileshader(load(file), program)
+compileshader(file::File{format"GLSLShader"}, program::GLuint) = compileshader(load(file), program)
                     #(shadertype, shadercode) -> shader id
 let shader_cache = Dict{Tuple{GLenum, Vector{Uint8}}, GLuint}() # shader cache prevents that a shader is compiled more than one time
     #finalizer(shader_cache, dict->foreach(glDeleteShader, values(dict))) # delete all shaders when done
@@ -165,22 +186,9 @@ end
 
 
 
-# Gives back a signal, which signals true everytime the file gets edited
-function isupdated(file::File, updatewhile=Input(true), update_interval=1.0)
-    fn = filename(file)
-    file_edited = foldl((false, mtime(fn)), fpswhen(updatewhile, 1.0/update_interval)) do v0, v1
-        time_edited = mtime(fn)
-        (!isapprox(0.0, v0[2] - time_edited), time_edited)
-    end
-    return filter(identity, false, lift(first, file_edited)) # extract bool
-end
 
-#reads from the file and updates the source whenever the file gets edited
-function lift_shader(shader_file::File, updatewhile=Input(true), update_interval=1.0)
-    lift(isupdated(shader_file, updatewhile, update_interval)) do _unused
-        load(shader_file)
-    end
-end
+
+
 
 
 # Takes a shader template and renders the template and returns shader source
@@ -246,7 +254,7 @@ function glsl_variable_access{T,D}(keystring, t::Texture{T, D})
     return "getindex($(keystring), index)."*"rgba"[1:length(T)]*";"
 end
 
-glsl_variable_access(keystring, ::Union(Real, GLBuffer, FixedArray, Paint)) = keystring*";"
+glsl_variable_access(keystring, ::Union(Real, GLBuffer, FixedArray, Colorant)) = keystring*";"
 
 glsl_variable_access(keystring, s::Signal) = glsl_variable_access(keystring, s.value)
 glsl_variable_access(keystring, t::Any)    = error("no glsl variable calculation available for : ", keystring, " of type ", typeof(t))

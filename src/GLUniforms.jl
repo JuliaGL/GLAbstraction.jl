@@ -28,16 +28,16 @@ function uniformfunc(typ::DataType, dims::Tuple{Int, Int})
     func = symbol(string("glUniformMatrix", M==N ? "$M":"$(M)x$(N)", opengl_postfix(typ)))
 end
 
-function gluniform{FSA <: Union(FixedArray, Paint)}(location::Integer, x::FSA)
+function gluniform{FSA <: Union(FixedArray, Colorant)}(location::Integer, x::FSA)
     x = [x]
     gluniform(location, x)
 end
 
-Base.size(p::Paint) = (length(p),)
-Base.size{T <: Paint}(p::Type{T}) = (length(p),)
-Base.ndims{T <: Paint}(p::Type{T}) = 1
+Base.size(p::Colorant) = (length(p),)
+Base.size{T <: Colorant}(p::Type{T}) = (length(p),)
+Base.ndims{T <: Colorant}(p::Type{T}) = 1
 
-@generated function gluniform{FSA <: Union(FixedArray, Paint)}(location::Integer, x::Vector{FSA})
+@generated function gluniform{FSA <: Union(FixedArray, Colorant)}(location::Integer, x::Vector{FSA})
     func = uniformfunc(eltype(FSA), size(FSA))
     if ndims(FSA) == 2
         :($func(location, length(x), GL_FALSE, pointer(x)))
@@ -83,7 +83,7 @@ toglsltype_string(t::Signal)                    = toglsltype_string(t.value)
 toglsltype_string(t::StepRange)                 = toglsltype_string(Vec3(first(t), step(t), last(t)))
 
 toglsltype_string(t::FixedVector)               = "uniform " * string(opengl_prefix(eltype(t)), "vec", length(t))
-toglsltype_string(t::Paint)                     = "uniform " * string(opengl_prefix(eltype(t)), "vec", length(t))
+toglsltype_string(t::Colorant)                     = "uniform " * string(opengl_prefix(eltype(t)), "vec", length(t))
 function toglsltype_string(t::FixedMatrix)
     M,N = size(t)
     string(opengl_prefix(eltype(t)),"mat", M==N ? "$M" : "$(M)x$(N)")

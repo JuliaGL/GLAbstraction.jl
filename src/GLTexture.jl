@@ -61,8 +61,8 @@ Texture{T <: GLArrayEltypes, N}(::Type{T}, dims::NTuple{N, Int}; kw_args...) =
 
 #=
 Constructor for a normal array, with color or Abstract Arrays as elements.
-So Array{Real, 2} == Texture2D with 1D Color dimension
-Array{Vec1/2/3/4, 2} == Texture2D with 1/2/3/4D Color dimension
+So Array{Real, 2} == Texture2D with 1D Colorant dimension
+Array{Vec1/2/3/4, 2} == Texture2D with 1/2/3/4D Colorant dimension
 Colors from Colors.jl should mostly work as well
 =#
 Texture{T <: GLArrayEltypes, NDim}(image::Array{T, NDim}; kw_args...) =
@@ -353,11 +353,11 @@ end
 default_colorformat{T <: Real}(::Type{T})           = default_colorformat(1, T <: Integer, "RED")
 default_colorformat{T <: AbstractArray}(::Type{T})  = default_colorformat(length(T), eltype(T) <: Integer, "RGBA")
 default_colorformat{T <: FixedVector}(::Type{T})    = default_colorformat(length(T), eltype(T) <: Integer, "RGBA")
-default_colorformat{T <: TransparentGray}(::Type{T})= GL_LUMINANCE_ALPHA
-default_colorformat{T <: Paint}(::Type{T})          = default_colorformat(length(T), eltype(T) <: Integer, string(T.name.name))
+default_colorformat{T}(::Type{GrayA{T}})            = GL_LUMINANCE_ALPHA
+default_colorformat{T <: Colorant}(::Type{T})          = default_colorformat(length(T), eltype(T) <: Integer, string(T.name.name))
 
 
-function default_internalcolorformat{T}(::Type{TransparentGray{T}})
+function default_internalcolorformat{T}(::Type{GrayA{T}})
     s=sizeof(T)*8
     eval(symbol("GL_LUMINANCE$(s)_ALPHA$(s)"))
 end

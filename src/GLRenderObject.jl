@@ -27,13 +27,13 @@ Base.setindex!(obj::RenderObject, value, ::Val{:postrender}, x::Function)   = ob
 
 function instanced_renderobject(data, amount, program::Signal{GLProgram}, bb=Input(AABB(Vec3f0(0), Vec3f0(1))), primitive::GLenum=GL_TRIANGLES)
     robj = RenderObject(data, program, bb)
-    prerender!(robj, 
-        glEnable, GL_DEPTH_TEST, 
+    prerender!(robj,
+        glEnable, GL_DEPTH_TEST,
         glDepthMask, GL_TRUE,
-        glDepthFunc, GL_LEQUAL, 
-        glDisable, GL_CULL_FACE, 
+        glDepthFunc, GL_LEQUAL,
+        glDisable, GL_CULL_FACE,
         enabletransparency)
-    postrender!(robj, 
+    postrender!(robj,
         renderinstanced, robj.vertexarray, amount, primitive)
     robj
 end
@@ -41,13 +41,13 @@ end
 
 function std_renderobject(data, shader::Signal{GLProgram}, bb=Input(AABB(Vec3f0(0), Vec3f0(1))), primitive=GL_TRIANGLES)
     robj = RenderObject(data, shader, bb)
-    prerender!(robj, 
-        glEnable, GL_DEPTH_TEST, 
+    prerender!(robj,
+        glEnable, GL_DEPTH_TEST,
         glDepthMask, GL_TRUE,
-        glDepthFunc, GL_LEQUAL, 
-        glDisable, GL_CULL_FACE, 
+        glDepthFunc, GL_LEQUAL,
+        glDisable, GL_CULL_FACE,
         enabletransparency)
-    postrender!(robj, 
+    postrender!(robj,
         render, robj.vertexarray, primitive)
     robj
 end
@@ -71,3 +71,5 @@ end
 prerender!(x::RenderObject, fs...)   = pushfunction!(x.prerenderfunctions, fs...)
 postrender!(x::RenderObject, fs...)  = pushfunction!(x.postrenderfunctions, fs...)
 
+extract_renderable(context::RenderObject) = context
+extract_renderable(context::Context) = RenderObject[extract_renderable(elem) for elem in context.children]

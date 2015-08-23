@@ -212,7 +212,7 @@ mousepressed_without_keyboard(mousebuttons::Vector{Int}, button::Int, keyboard::
     in(button, mousebuttons) && isempty(keyboard)
 
 thetalift(mdL, speed) = Vec3f0(0f0, -mdL[2]/speed, mdL[1]/speed)
-translationlift(scroll_y, mdM, speed) = Vec3f0(scroll_y*speed, -mdM[1]/speed, mdM[2]/speed)
+translationlift(scroll_y, mdM, speed) = Vec3f0(scroll_y/-10f0, mdM[1]/200f0, -mdM[2]/200f0)
 
 
 #=
@@ -243,12 +243,10 @@ function PerspectiveCamera{T}(inputs::Dict{Symbol,Any}, eyeposition::Vec{3, T}, 
     mousedraggdiffL     = lift(last, foldl(mousediff, (false, Vec2f0(0.0f0), Vec2f0(0.0f0)), clickedwithoutkeyL, mouseposition))
     mousedraggdiffM     = lift(last, foldl(mousediff, (false, Vec2f0(0.0f0), Vec2f0(0.0f0)), clickedwithoutkeyM, mouseposition))
 
-    speed_theta = Input(50f0)
-    theta       = lift(thetalift, mousedraggdiffL, speed_theta)
-    speed_trans = Input(100f0)
-    xtrans      = lift(*, scroll_y, speed_trans)
-    ytrans      = lift(/, lift(-, lift(first, mousedraggdiffM)), speed_trans)
-    ztrans      = lift(/, lift(last, mousedraggdiffM), speed_trans)
+    theta       = lift(thetalift, mousedraggdiffL, 100f0)
+    xtrans      = lift(/, scroll_y, 5f0)
+    ytrans      = lift(/, lift(first, mousedraggdiffM), 200f0)
+    ztrans      = lift(/, lift(last, mousedraggdiffM), -200f0)
     trans       = lift(Vec{3, T}, xtrans, ytrans, ztrans)
 
     cam = PerspectiveCamera(

@@ -176,59 +176,59 @@ end
 
 function glTexImage(ttype::GLenum, level::Integer, internalFormat::GLenum, w::Integer, h::Integer, d::Integer, border::Integer, format::GLenum, datatype::GLenum, data)  
 
-  glTexImage3D(GL_PROXY_TEXTURE_3D, level, internalFormat, w, h, d, border, format, datatype, C_NULL)
-  for l in  0:level
-    result = glGetTexLevelParameteriv(GL_PROXY_TEXTURE_3D, l, GL_TEXTURE_WIDTH)
-    if result == 0
-      error("glTexImage 3D: width too large. Width: ", w)
+    glTexImage3D(GL_PROXY_TEXTURE_3D, level, internalFormat, w, h, d, border, format, datatype, C_NULL)
+    for l in  0:level
+        result = glGetTexLevelParameteriv(GL_PROXY_TEXTURE_3D, l, GL_TEXTURE_WIDTH)
+        if result == 0
+            error("glTexImage 3D: width too large. Width: ", w)
+        end
+        result = glGetTexLevelParameteriv(GL_PROXY_TEXTURE_3D, l,GL_TEXTURE_HEIGHT)
+        if result == 0
+            error("glTexImage 3D: height too large. height: ", h)
+        end
+        result = glGetTexLevelParameteriv(GL_PROXY_TEXTURE_3D, l, GL_TEXTURE_DEPTH)
+        if result == 0
+            error("glTexImage 3D: depth too large. Depth: ", d)
+        end
+        result = glGetTexLevelParameteriv(GL_PROXY_TEXTURE_3D, l, GL_TEXTURE_INTERNAL_FORMAT)
+        if result == 0
+            error("glTexImage 3D: internal format not valid. format: ", GLENUM(internalFormat).name)
+        end
     end
-    result = glGetTexLevelParameteriv(GL_PROXY_TEXTURE_3D, l,GL_TEXTURE_HEIGHT)
-    if result == 0
-      error("glTexImage 3D: height too large. height: ", h)
-    end
-    result = glGetTexLevelParameteriv(GL_PROXY_TEXTURE_3D, l, GL_TEXTURE_DEPTH)
-    if result == 0
-      error("glTexImage 3D: depth too large. Depth: ", d)
-    end
-    result = glGetTexLevelParameteriv(GL_PROXY_TEXTURE_3D, l, GL_TEXTURE_INTERNAL_FORMAT)
-    if result == 0
-      error("glTexImage 3D: internal format not valid. format: ", GLENUM(internalFormat).name)
-    end
-  end
-  glTexImage3D(ttype, level, internalFormat, w, h, d, border, format, datatype, data)
+    glTexImage3D(ttype, level, internalFormat, w, h, d, border, format, datatype, data)
 end
 function glTexImage(ttype::GLenum, level::Integer, internalFormat::GLenum, w::Integer, h::Integer, border::Integer, format::GLenum, datatype::GLenum, data)
-  maxsize = glGetIntegerv(GL_MAX_TEXTURE_SIZE)
-  glTexImage2D(GL_PROXY_TEXTURE_2D, level, internalFormat, w, h, border, format, datatype, C_NULL)
-  for l in 0:level
-    result = glGetTexLevelParameteriv(GL_PROXY_TEXTURE_2D, l, GL_TEXTURE_WIDTH)
-    if result == 0
-      error("glTexImage 2D: width too large. Width: ", w)
+    maxsize = glGetIntegerv(GL_MAX_TEXTURE_SIZE)
+    glTexImage2D(GL_PROXY_TEXTURE_2D, level, internalFormat, w, h, border, format, datatype, C_NULL)
+    for l in 0:level
+        result = glGetTexLevelParameteriv(GL_PROXY_TEXTURE_2D, l, GL_TEXTURE_WIDTH)
+        if result == 0
+            error("glTexImage 2D: width too large. Width: ", w)
+        end
+        result = glGetTexLevelParameteriv(GL_PROXY_TEXTURE_2D, l, GL_TEXTURE_HEIGHT)
+        if result == 0
+            error("glTexImage 2D: height too large. height: ", h)
+        end
+        result = glGetTexLevelParameteriv(GL_PROXY_TEXTURE_2D, l, GL_TEXTURE_INTERNAL_FORMAT)
+        if result == 0
+            error("glTexImage 2D: internal format not valid. format: ", GLENUM(internalFormat).name)
+        end
     end
-    result = glGetTexLevelParameteriv(GL_PROXY_TEXTURE_2D, l, GL_TEXTURE_HEIGHT)
-    if result == 0
-      error("glTexImage 2D: height too large. height: ", h)
-    end
-    result = glGetTexLevelParameteriv(GL_PROXY_TEXTURE_2D, l, GL_TEXTURE_INTERNAL_FORMAT)
-    if result == 0
-      error("glTexImage 2D: internal format not valid. format: ", GLENUM(internalFormat).name)
-    end
-  end
-  glTexImage2D(ttype, level, internalFormat, w, h, border, format, datatype, data)
+    glTexImage2D(ttype, level, internalFormat, w, h, border, format, datatype, data)
 end
 function glTexImage(ttype::GLenum, level::Integer, internalFormat::GLenum, w::Integer, border::Integer, format::GLenum, datatype::GLenum, data)
-  glTexImage1D(GL_PROXY_TEXTURE_1D, level, internalFormat, w, border, format, datatype, C_NULL)
-  for l in 0:level
-    result = glGetTexLevelParameteriv(GL_PROXY_TEXTURE_1D, l, GL_TEXTURE_WIDTH)
-    if result == 0
-      error("glTexImage 1D: width too large. Width: ", w)
+    glTexImage1D(GL_PROXY_TEXTURE_1D, level, internalFormat, w, border, format, datatype, C_NULL)
+    for l in 0:level
+        result = glGetTexLevelParameteriv(GL_PROXY_TEXTURE_1D, l, GL_TEXTURE_WIDTH)
+        if result == 0
+            error("glTexImage 1D: width too large. Width: ", w)
+        end
+        result = glGetTexLevelParameteriv(GL_PROXY_TEXTURE_1D, l, GL_TEXTURE_INTERNAL_FORMAT)
+        if result == 0
+            error("glTexImage 1D: internal format not valid. format: ", GLENUM(internalFormat).name)
+        end
     end
-    result = glGetTexLevelParameteriv(GL_PROXY_TEXTURE_1D, l, GL_TEXTURE_INTERNAL_FORMAT)
-    if result == 0
-      error("glTexImage 1D: internal format not valid. format: ", GLENUM(internalFormat).name)
-    end
-  end
-  glTexImage1D(ttype, level, internalFormat, w, border, format, datatype, data)
+    glTexImage1D(ttype, level, internalFormat, w, border, format, datatype, data)
 end
 
 
