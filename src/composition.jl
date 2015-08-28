@@ -6,17 +6,24 @@ immutable DeviceUnit <: Unit end
 
 type Context{Unit} <: Composable{Unit}
     children::Vector{Composable}
-    boundingbox::AABB{Float32}
+    boundingbox::Signal{AABB{Float32}}
+    transformation::Signal{Mat{4,4, Float32}}
 end
-Context() = Context{DeviceUnit}(Composable[], AABB{Float32}(Vec3f0(0), Vec3f0(0)))
+Context() = Context{DeviceUnit}(Composable[], Input(AABB{Float32}(Vec3f0(0), Vec3f0(0))), Input(eye(Mat{4,4, Float32})))
 function Context(a::Composable...)
     c = Context()
     append!(c, a)
     c
 end
-boundingbox(c::Composable) = boundingbox(c.boundingbox)
-boundingbox(c::Signal) = c.value
-boundingbox(c::AABB) = c
+boundingbox(c::Composable) = c.boundingbox
+transformation(c::Composable) = c.transformation
+
+function transformation(c::Composable, model)
+    c.transformation = lift(*, model, c.transformation)
+    for elem in c.children
+        transformation(elem, c.transformation)
+    end
+end
 
 convert!{unit <: Unit}(::Type{unit}, x::Composable) = x # I don't do units just yet
 
@@ -28,7 +35,10 @@ function Base.append!{unit <: Unit, N}(context::Context{unit}, x::Union(Vector{C
 end
 function Base.push!{unit <: Unit}(context::Context{unit}, x::Composable)
     x = convert!(unit, x)
-    context.boundingbox = union(boundingbox(context), boundingbox(x))
+    context.boundingbox = lift(union, boundingbox(context), boundingbox(x))
+    transformation(x, transformation(context))
     push!(context.children, x)
     context
 end
+export transformation
+export boundingbox

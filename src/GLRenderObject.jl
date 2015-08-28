@@ -71,5 +71,15 @@ end
 prerender!(x::RenderObject, fs...)   = pushfunction!(x.prerenderfunctions, fs...)
 postrender!(x::RenderObject, fs...)  = pushfunction!(x.postrenderfunctions, fs...)
 
-extract_renderable(context::RenderObject) = context
-extract_renderable(context::Context) = RenderObject[extract_renderable(elem) for elem in context.children]
+extract_renderable(context::Vector{RenderObject}) = context
+extract_renderable(context::RenderObject) = [context]
+extract_renderable{T <: Composable}(context::Vector{T}) = map(extract_renderable, context)
+function extract_renderable(context::Context)
+    result = extract_renderable(context.children[1])
+    for elem in context.children[2:end]
+        push!(result, extract_renderable(elem)...)
+    end
+    result
+end
+transformation(c::RenderObject) = c[:model]
+transformation(c::RenderObject, model) = (c[:model] = lift(*, model, c[:model]))
