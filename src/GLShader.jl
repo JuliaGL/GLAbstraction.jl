@@ -4,10 +4,13 @@ immutable Shader
     typ::GLenum
 end
 name(s::Shader) = s.name
-function Shader(f::File)
-    stream = open(f)
-    s = Shader(symbol(f.abspath), readbytes(stream), shadertype(f))
-    close(stream)
+
+
+
+function Shader(f::File{format"GLSLShader"})
+    st = stream(open(f))
+    s = Shader(symbol(f.filename), readbytes(st), shadertype(f))
+    close(st)
     s
 end
 Shader(s::Shader; name=s.name, source=s.source, typ=s.typ) = Shader(name, source, typ)
@@ -38,7 +41,7 @@ function getinfolog(obj::GLuint)
     isShader    = glIsShader(obj)
     getiv       = isShader == GL_TRUE ? glGetShaderiv : glGetProgramiv
     get_log     = isShader == GL_TRUE ? glGetShaderInfoLog : glGetProgramInfoLog
-     
+
     # Get the maximum possible length for the descriptive error message
     maxlength = GLint[0]
     getiv(obj, GL_INFO_LOG_LENGTH, maxlength)
@@ -68,33 +71,54 @@ function createshader(shadertype::GLenum)
     shaderid::GLuint
 end
 function createprogram()
-    p = glCreateProgram()
-    @assert p > 0 "couldn't create program. Most likely, opengl context is not active"
-    p::GLuint
+    program = glCreateProgram()
+    @assert program > 0 "couldn't create program. Most likely, opengl context is not active"
+    program::GLuint
 end
 
-shadertype(s::Shader)               = s.typ
+shadertype(s::Shader)                      = s.typ
+function shadertype(f::File{format"GLSLShader"})
+    ext = file_extension(f)
+    ext == ".comp" && return GL_COMPUTE_SHADER
+    ext == ".vert" && return GL_VERTEX_SHADER
+    ext == ".frag" && return GL_FRAGMENT_SHADER
+    ext == ".geom" && return GL_GEOMETRY_SHADER
+    error("$ext not a valid extension for $f")
+end
 
-shadertype(::File{:comp})           = GL_COMPUTE_SHADER
-shadertype(::File{:vert})           = GL_VERTEX_SHADER
-shadertype(::File{:frag})           = GL_FRAGMENT_SHADER
-shadertype(::File{:geom})           = GL_GEOMETRY_SHADER
-shadertype{Ending}(::File{Ending})  = error("File ending doesn't correspond to a shader type. Ending: $(Ending), File: $(abspath(file))")
+"""
+Gives back a signal, which signals true everytime the file gets edited
+"""
+function isupdated(file::File, updatewhile=Input(true), update_interval=1.0)
+    fn = filename(file)
+    file_edited = foldl((false, mtime(fn)), fpswhen(updatewhile, 1.0/update_interval)) do v0, v1
+        time_edited = mtime(fn)
+        (!isapprox(0.0, v0[2] - time_edited), time_edited)
+    end
+    return filter(identity, false, lift(first, file_edited)) # extract bool
+end
+
+#reads from the file and updates the source whenever the file gets edited
+function lift_shader(shader_file::File, updatewhile=Input(true), update_interval=1.0)
+    lift(isupdated(shader_file, updatewhile, update_interval)) do _unused
+        Shader(shader_file)
+    end
+end
 
 #Implement File IO interface
-Base.read(f::File{:vert}) = Shader(f)
-Base.read(f::File{:frag}) = Shader(f)
-Base.read(f::File{:geom}) = Shader(f)
-Base.write(io::IO, f::File{:vert}) = write(io, f.source)
-Base.write(io::IO, f::File{:frag}) = write(io, f.source)
-Base.write(io::IO, f::File{:geom}) = write(io, f.source)
+load(f::File{format"GLSLShader"}) = lift_shader(f)
+function save(f::File{format"GLSLShader"}, data::Shader)
+    s = open(f, "w")
+    write(s, data.source)
+    close(s)
+end
 
-compileshader(file::File, program::GLuint) = compileshader(read(file), program)
+compileshader(file::File{format"GLSLShader"}, program::GLuint) = compileshader(load(file), program)
                     #(shadertype, shadercode) -> shader id
-let shader_cache = Dict{@compat(Tuple{GLenum, Vector{Uint8}}), GLuint}() # shader cache prevents that a shader is compiled more than one time
+let shader_cache = Dict{Tuple{GLenum, Vector{Uint8}}, GLuint}() # shader cache prevents that a shader is compiled more than one time
     #finalizer(shader_cache, dict->foreach(glDeleteShader, values(dict))) # delete all shaders when done
     function compileshader(shader::Shader)
-        get!(shader_cache, (shader.typ, shader.source)) do 
+        get!(shader_cache, (shader.typ, shader.source)) do
             shaderid = createshader(shader.typ)
             @assert isascii(bytestring(shader.source))
             glShaderSource(shaderid, shader.source)
@@ -127,9 +151,9 @@ end
 
 # Actually compiles and links shader sources
 function GLProgram(
-                        shaders::Vector{Shader}, program=createprogram(); 
-                        fragdatalocation=Tuple{Int, ASCIIString}[]
-                    )
+        shaders::Vector{Shader}, program=createprogram();
+        fragdatalocation=Tuple{Int, ASCIIString}[]
+    )
 
     # Remove old shaders
     glUseProgram(0)
@@ -147,7 +171,7 @@ function GLProgram(
     for (location, name) in fragdatalocation
         glBindFragDataLocation(program, location, ascii(name))
     end
-    
+
     #link program
     glLinkProgram(program)
     !islinked(program) && error("program $program not linked. Error in: \n", join(map(x->x.name, shaders), " or\n"), "\n", getinfolog(program))
@@ -162,22 +186,9 @@ end
 
 
 
-# Gives back a signal, which signals true everytime the file gets edited
-function isupdated(file::File, update_interval=1.0)
-    filename    = abspath(file)
-    file_edited = foldl((false, mtime(filename)), every(update_interval)) do v0, v1 
-        time_edited = mtime(filename)
-        (!isapprox(0.0, v0[2] - time_edited), time_edited)
-    end
-    return filter(identity, false, lift(first, file_edited)) # extract bool
-end
 
-#reads from the file and updates the source whenever the file gets edited
-function lift_shader(shader_file::File)
-    lift(isupdated(shader_file)) do _unused
-        read(shader_file)
-    end
-end
+
+
 
 
 # Takes a shader template and renders the template and returns shader source
@@ -189,34 +200,33 @@ function template2source(source::AbstractString, attributes::Dict{Symbol, Any}, 
     ascii(code_source)
 end
 
-TemplateProgram() = error("Can't create TemplateProgram without parameters")
+#TemplateProgram() = error("Can't create TemplateProgram without parameters")
 
-
-let TEMPLATE_PROGRAM_KW_DEFAULTS = Dict(
-    :view               => Dict{ASCIIString, ASCIIString}(), 
-    :attributes         => Dict{Symbol, Any}(),
-    :fragdatalocation   => Tuple{Int, ASCIIString}[]
-),  SHADER_TYPES = Union(Shader, File, Reactive.Lift{Shader})
-   
-    TemplateProgram(x::SHADER_TYPES...; p=createprogram(), kw_args...) = 
-        TemplateProgram(x, merge(TEMPLATE_PROGRAM_KW_DEFAULTS, Dict{Symbol, Any}(kw_args), Dict(:p=>p)))
+function TemplateProgram(x::Union(Shader, File, Reactive.Lift{Shader})...; kw_args...)
+    TemplateProgram(merge(Dict(
+        :view               => Dict{ASCIIString, ASCIIString}(),
+        :attributes         => Dict{Symbol, Any}(),
+        :fragdatalocation   => Tuple{Int, ASCIIString}[],
+        :program            => createprogram()
+    ), Dict{Symbol, Any}(kw_args)), x...)
 end
 
-function TemplateProgram{N}(shaders::NTuple{N, File}, kw_args)
-    file_signals = map(lift_shader, shaders)
-    TemplateProgram(file_signals, kw_args)
+function TemplateProgram(kw_args::Dict{Symbol, Any}, s::File, shaders::File...)
+    updatewhile     = get(kw_args, :updatewhile, Input(true))
+    update_interval = get(kw_args, :update_interval, 1.0)
+    shader_signals  = map(s->lift_shader(s, updatewhile, update_interval), [s,shaders...])
+    TemplateProgram(kw_args, shader_signals...)
 end
-function TemplateProgram{N}(shaders::NTuple{N, Reactive.Lift{Shader}}, kw_args)
-    program_signal = lift(shaders...) do _unused... #just needed to update the signal
+function TemplateProgram(kw_args::Dict{Symbol, Any}, s::Reactive.Lift{Shader}, shaders::Reactive.Lift{Shader}...)
+    program_signal = lift(s, shaders...) do _unused... #just needed to update the signal
         # extract values from signals
-        shader_values = map(value, shaders)
-        TemplateProgram(shader_values, kw_args)
+        shader_values = map(value, [s, shaders...])
+        TemplateProgram(kw_args, shader_values...)
     end
 end
 
-
-function TemplateProgram{N}(shaders::NTuple{N, Shader}, kw_args)
-    @materialize p, view, attributes, fragdatalocation = kw_args
+function TemplateProgram(kw_args::Dict{Symbol, Any}, s::Shader, shaders::Shader...)
+    @materialize program, view, attributes, fragdatalocation = kw_args
     if haskey(view, "in") || haskey(view, "out") || haskey(view, "GLSL_VERSION")
         println("warning: using internal keyword \"$(in/out/GLSL_VERSION)\" for shader template. The value will be overwritten")
     end
@@ -233,21 +243,21 @@ function TemplateProgram{N}(shaders::NTuple{N, Shader}, kw_args)
     view = merge(internaldata, view)
 
     # transform dict of templates into actual shader source
-    code = Shader[Shader(shader, source=template2source(shader.source, attributes, view)) for shader in shaders]
-    return GLProgram(code, p, fragdatalocation=fragdatalocation)
+    code = Shader[Shader(shader, source=template2source(shader.source, attributes, view)) for shader in [s, shaders...]]
+    return GLProgram(code, program, fragdatalocation=fragdatalocation)
 end
 
 
-# Gets used to access a 
+# Gets used to access a
 function glsl_variable_access{T,D}(keystring, t::Texture{T, D})
     t.texturetype == GL_TEXTURE_BUFFER && return "texelFetch($(keystring), index)."*"rgba"[1:length(T)]*";"
     return "getindex($(keystring), index)."*"rgba"[1:length(T)]*";"
 end
 
-glsl_variable_access(keystring, ::Union(Real, GLBuffer, FixedArray)) = keystring*";"
+glsl_variable_access(keystring, ::Union(Real, GLBuffer, FixedArray, Colorant)) = keystring*";"
 
-glsl_variable_access(keystring, s::Signal)  = glsl_variable_access(keystring, s.value)
-glsl_variable_access(keystring, t::Any)     = error("no glsl variable calculation available for :", keystring, " of type ", typeof(t))
+glsl_variable_access(keystring, s::Signal) = glsl_variable_access(keystring, s.value)
+glsl_variable_access(keystring, t::Any)    = error("no glsl variable calculation available for : ", keystring, " of type ", typeof(t))
 
 
 function createview(x::Dict{Symbol, Any}, keys)
@@ -264,3 +274,15 @@ function createview(x::Dict{Symbol, Any}, keys)
   view
 end
 mustachekeys(mustache::Mustache.MustacheTokens) = map(x->x[2], filter(x-> x[1] == "name", mustache.tokens))
+
+function glsl_version_string()
+    glsl = split(bytestring(glGetString(GL_SHADING_LANGUAGE_VERSION)), ['.', ' '])
+    if length(glsl) >= 2
+        glsl = VersionNumber(parse(Int, glsl[1]), parse(Int, glsl[2]))
+        glsl.major == 1 && glsl.minor <= 2 && error("OpenGL shading Language version too low. Try updating graphic driver!")
+        glsl_version = string(glsl.major) * rpad(string(glsl.minor),2,"0")
+        return "#version $(glsl_version)\n"
+    else
+        error("could not parse GLSL version: $glsl")
+    end
+end

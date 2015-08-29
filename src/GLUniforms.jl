@@ -5,79 +5,41 @@
 
 GLSL_COMPATIBLE_NUMBER_TYPES = (GLdouble, GLfloat, GLint, GLuint)
 
-to_opengl_prefix{T}(x::T) = error("Type $T is not a supported uniform element type")
-to_opengl_prefix{T <: Union(FixedPoint, Float32)}(x::Type{T})   = ""
-to_opengl_prefix{T <: Float64}(x::Type{T})                      = "d"
-to_opengl_prefix(x::Type{Cint})                                 = "i"
-to_opengl_prefix{T <: Union(Cuint, Uint8, Uint16)}(x::Type{T})   = "u"
-
-to_opengl_postfix{T}(x::Type{T})    = error("Type $T is not a supported uniform element type")
-to_opengl_postfix(x::Type{Float64}) = "dv"
-to_opengl_postfix(x::Type{Float32}) = "fv"
-to_opengl_postfix(x::Type{Cint})    = "iv"
-to_opengl_postfix(x::Type{Cuint})   = "uiv"
+opengl_prefix(T)  = error("Object $T is not a supported uniform element type")
+opengl_postfix(T) = error("Object $T is not a supported uniform element type")
 
 
+opengl_prefix{T <: Union(FixedPoint, Float32)}(x::Type{T})  = ""
+opengl_prefix{T <: Float64}(x::Type{T})                     = "d"
+opengl_prefix(x::Type{Cint})                                = "i"
+opengl_prefix{T <: Union(Cuint, Uint8, Uint16)}(x::Type{T}) = "u"
+
+opengl_postfix(x::Type{Float64}) = "dv"
+opengl_postfix(x::Type{Float32}) = "fv"
+opengl_postfix(x::Type{Cint})    = "iv"
+opengl_postfix(x::Type{Cuint})   = "uiv"
 
 
-# Generates uniform upload functions for ImmutableArrays.
-# Also it defines glsl alike aliases and constructors.
-# This probably shouldn't be done in the same function, but its for now the easiest solution.
-macro genuniformfunctions(maxdim::Integer)
-	glslVector  = "Vec"
-	glslMatrix  = "Mat"
+uniformfunc(typ::DataType, dims::Tuple{Int}) =
+    symbol(string("glUniform", first(dims), opengl_postfix(typ)))
 
-	imVector    = "Vector"
-	imMatrix    = "Matrix"
-	expressions = Any[]
-    
-	for n=2:maxdim, typ in GLSL_COMPATIBLE_NUMBER_TYPES
-		glslalias 	= symbol(string(to_opengl_prefix(typ),glslVector,n)) 
-		name 		= symbol(string(imVector, n))
-		imalias 	= :($name{$typ})
-		uniformfunc = symbol(string("glUniform", n, to_opengl_postfix(typ)))
-
-		push!(expressions, :(typealias $glslalias $imalias)) # glsl alike type alias
-		push!(expressions, Expr(:export, glslalias))
-
-		#########################################################################
-        push!(expressions, :(toglsltype_string(x::Type{$imalias}) = $(lowercase(string("uniform ", glslalias))))) # method for shader type mapping
-        push!(expressions, :(toglsltype_string(x::$imalias) 	  = $(lowercase(string("uniform ", glslalias))))) # method for shader type mapping
-	end
-	for n=2:maxdim, n2=2:maxdim, typ in [GLdouble, GLfloat]
-		glsldim 	= n==n2 ? "$n" : "$(n)x$(n2)"
-		glslalias 	= symbol(string(to_opengl_prefix(typ), glslMatrix, glsldim)) 
-		name 		= symbol(string(imMatrix, n,"x",n2))
-		imalias 	= :($name{$typ})
-		uniformfunc = symbol(string("glUniformMatrix", glsldim, to_opengl_postfix(typ)))
-
-		push!(expressions, :(typealias $glslalias $imalias)) #GLSL alike alias
-		push!(expressions, Expr(:export, glslalias))
-		#########################################################################
-		push!(expressions, :(toglsltype_string(x::$imalias) = $(lowercase(string("uniform ", glslalias))))) # method for shader type mapping
-	end
-	return esc(Expr(:block, expressions...))
-end
-
-@genuniformfunctions 4 
-
-
-function uniformfunc(typ::DataType, dims::Tuple{Int})
-    func = symbol(string("glUniform", first(dims), to_opengl_postfix(typ)))
-    
-end
 function uniformfunc(typ::DataType, dims::Tuple{Int, Int})
     M,N = dims
-    func = symbol(string("glUniformMatrix", M==N ? "$M":"$(M)x$(N)", to_opengl_postfix(typ)))
+    func = symbol(string("glUniformMatrix", M==N ? "$M":"$(M)x$(N)", opengl_postfix(typ)))
 end
 
-function gluniform{FSA <: FixedArray}(location::Integer, x::FSA)
+function gluniform{FSA <: Union(FixedArray, Colorant)}(location::Integer, x::FSA)
     x = [x]
     gluniform(location, x)
 end
-@generated function gluniform{FSA <: FixedArray}(location::Integer, x::Vector{FSA})
+
+Base.size(p::Colorant) = (length(p),)
+Base.size{T <: Colorant}(p::Type{T}) = (length(p),)
+Base.ndims{T <: Colorant}(p::Type{T}) = 1
+
+@generated function gluniform{FSA <: Union(FixedArray, Colorant)}(location::Integer, x::Vector{FSA})
     func = uniformfunc(eltype(FSA), size(FSA))
-    if ndims(FSA) == 2 
+    if ndims(FSA) == 2
         :($func(location, length(x), GL_FALSE, pointer(x)))
     else
         :($func(location, length(x), pointer(x)))
@@ -88,30 +50,30 @@ end
 #Some additional uniform functions, not related to Imutable Arrays
 gluniform(location::Integer, target::Integer, t::Texture)   = gluniform(GLint(location), GLint(target), t)
 gluniform(location::Integer, target::Integer, t::GPUVector) = gluniform(GLint(location), GLint(target), t.buffer)
-gluniform(location::Integer, target::Integer, t::Signal)    = gluniform(convert(GLint, location), convert(GLint, target), t.value)
+gluniform(location::Integer, target::Integer, t::Signal)    = gluniform(GLint(location), GLint(target), t.value)
 function gluniform(location::GLint, target::GLint, t::Texture)
     activeTarget = GL_TEXTURE0 + UInt32(target)
     glActiveTexture(activeTarget)
     glBindTexture(t.texturetype, t.id)
     gluniform(location, target)
 end
-gluniform(location::Integer, x::Signal)                                  = gluniform(location, x.value)
-gluniform(location::Integer, x::Union(GLubyte, GLushort, GLuint)) 		 = glUniform1ui(location, x)
-gluniform(location::Integer, x::Union(GLbyte, GLshort, GLint, Bool)) 	 = glUniform1i(location, x)
-gluniform(location::Integer, x::GLfloat) 	 							 = glUniform1f(location, x)
+gluniform(location::Integer, x::Signal)                              = gluniform(GLint(location),    value(x))
+gluniform(location::Integer, x::Union(GLubyte, GLushort, GLuint)) 	 = glUniform1ui(GLint(location), x)
+gluniform(location::Integer, x::Union(GLbyte, GLshort, GLint, Bool)) = glUniform1i(GLint(location),  x)
+gluniform(location::Integer, x::GLfloat) 	 						 = glUniform1f(GLint(location),  x)
 
 #Uniform upload functions for julia arrays...
-gluniform(location::GLint, x::Vector{Float32}) 	= glUniform1fv(location, length(x), pointer(x))
-gluniform(location::GLint, x::Vector{GLint}) 	= glUniform1iv(location, length(x), pointer(x))
-gluniform(location::GLint, x::Vector{GLuint}) 	= glUniform1uiv(location, length(x), pointer(x))
+gluniform(location::GLint, x::Vector{Float32}) = glUniform1fv(location,  length(x), pointer(x))
+gluniform(location::GLint, x::Vector{GLint})   = glUniform1iv(location,  length(x), pointer(x))
+gluniform(location::GLint, x::Vector{GLuint})  = glUniform1uiv(location, length(x), pointer(x))
 
 
 
 function toglsltype_string{T, D}(t::Texture{T, D})
     if isnull(t.buffer)
-        string("uniform ", to_opengl_prefix(eltype(T)),"sampler", D, "D")
+        string("uniform ", opengl_prefix(eltype(T)),"sampler", D, "D")
     else
-        string("uniform ", to_opengl_prefix(eltype(T)),"samplerBuffer")
+        string("uniform ", opengl_prefix(eltype(T)),"samplerBuffer")
     end
 end
 toglsltype_string(t::GLfloat)                   = "uniform float"
@@ -120,19 +82,17 @@ toglsltype_string(t::GLint)                     = "uniform int"
 toglsltype_string(t::Signal)                    = toglsltype_string(t.value)
 toglsltype_string(t::StepRange)                 = toglsltype_string(Vec3(first(t), step(t), last(t)))
 
-toglsltype_string(t::FixedVector)               = "uniform " * string(to_opengl_prefix(eltype(t)),"vec",length(t))
+toglsltype_string(t::FixedVector)               = "uniform " * string(opengl_prefix(eltype(t)), "vec", length(t))
+toglsltype_string(t::Colorant)                     = "uniform " * string(opengl_prefix(eltype(t)), "vec", length(t))
 function toglsltype_string(t::FixedMatrix)
     M,N = size(t)
-    string(to_opengl_prefix(eltype(t)),"mat", M==N ? "$M" : "$(M)x$(N)")
+    string(opengl_prefix(eltype(t)),"mat", M==N ? "$M" : "$(M)x$(N)")
 end
 
-function toglsltype_string(t::GLBuffer)          
+function toglsltype_string(t::GLBuffer)
     typ = cardinality(t) > 1 ? "vec$(cardinality(t))" : "float"
     "$(get_glsl_in_qualifier_string()) $typ"
 end
-
-
-
 
 UNIFORM_TYPES = FixedArray
 
@@ -141,7 +101,7 @@ UNIFORM_TYPES = FixedArray
 iscorrect(a, b) = false
 
 is_unsigned_uniform_type{T}(::Type{T}) = eltype(T) <: Unsigned
-is_integer_uniform_type{T}(::Type{T}) = eltype(T) <: Integer 
+is_integer_uniform_type{T}(::Type{T}) = eltype(T) <: Integer
 is_float_uniform_type{T}(::Type{T}) = eltype(T) <: FloatingPoint || eltype(T) <: FixedPoint
 is_bool_uniform_type{T}(::Type{T}) = eltype(T) <: Bool || is_integer_uniform_type(T)
 
@@ -216,7 +176,7 @@ end
 function uniform_name_type(program::GLuint)
     uniformLength = glGetProgramiv(program, GL_ACTIVE_UNIFORMS)
     if uniformLength == 0
-        return Dict{Symbol, GLenum}()    
+        return Dict{Symbol, GLenum}()
     else
         nametypelist = ntuple(i -> glGetActiveUniform(program, i-1)[1:2], uniformLength) # take size and name
         return Dict{Symbol, GLenum}(nametypelist)
@@ -227,9 +187,9 @@ function attribute_name_type(program::GLuint)
     if uniformLength == 0
         return ()
     else
-        nametypelist = [begin 
-        	name, typ = glGetActiveAttrib(program, i-1) 
-        	name => typ 
+        nametypelist = [begin
+        	name, typ = glGetActiveAttrib(program, i-1)
+        	name => typ
         	end for i=0:uniformLength-1] # take size and name
         return Dict{Symbol, GLenum}(nametypelist)
     end
@@ -238,7 +198,7 @@ function istexturesampler(typ::GLenum)
     return (
         typ == GL_SAMPLER_BUFFER || typ == GL_INT_SAMPLER_BUFFER || typ == GL_UNSIGNED_INT_SAMPLER_BUFFER ||
     	typ == GL_IMAGE_2D ||
-        typ == GL_SAMPLER_1D || typ == GL_SAMPLER_2D || typ == GL_SAMPLER_3D ||  
+        typ == GL_SAMPLER_1D || typ == GL_SAMPLER_2D || typ == GL_SAMPLER_3D ||
         typ == GL_UNSIGNED_INT_SAMPLER_1D || typ == GL_UNSIGNED_INT_SAMPLER_2D || typ == GL_UNSIGNED_INT_SAMPLER_3D ||
         typ == GL_INT_SAMPLER_1D || typ == GL_INT_SAMPLER_2D || typ == GL_INT_SAMPLER_3D ||
         typ == GL_SAMPLER_1D_ARRAY || typ == GL_SAMPLER_2D_ARRAY ||
@@ -268,10 +228,6 @@ function gl_convert{GL, T <: Array}(::Type{GL}, s::Signal{T})
 end
 
 
-
-
-
-
 abstract GLEnumArray{T, SZ}
 abstract GLEnumUniformArray{T, SZ}  <: GLEnumArray{T, SZ}
 abstract GLEnumMatrix{T, M, N}      <: GLEnumUniformArray{T, Tuple{M,N}}
@@ -293,17 +249,17 @@ update_convert{T, T2, ND}(globj::GPUArray{T, ND}, value::Array{T2, ND}) = update
 function gl_convert{T, T2, ND}(should_be::GLEnumGlobalArray{T, ND}, is::Signal{Array{T2, ND}})
     globject = gl_convert(should_be, is.value)
     lift(update_convert, globject, is)
-    globj 
+    globj
 end
 
 gl_convert{T, ND, SZ}(should_be::GLEnumUniformArray{T, SZ},     is::FixedArray{T, ND, SZ})  = is
 gl_convert{T, T2, ND, SZ}(should_be::GLEnumUniformArray{T, SZ}, is::FixedArray{T2, ND, SZ}) = convert_elems(T, is)
 
 
-gl_convert{T, T2, ND, SZ}(should_be::GLEnumTextureBuffer{T, ND}, is::Array{T2, ND}) = 
+gl_convert{T, T2, ND, SZ}(should_be::GLEnumTextureBuffer{T, ND}, is::Array{T2, ND}) =
     texture_buffer(convert(Array{T, ND}, is))
 
-gl_convert{T, T2, ND, SZ}(should_be::GLEnumTexture{T, ND}, is::Array{T2, ND}) = 
+gl_convert{T, T2, ND, SZ}(should_be::GLEnumTexture{T, ND}, is::Array{T2, ND}) =
     Texture(convert(Array{T, ND}, is))
 
 

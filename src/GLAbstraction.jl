@@ -1,3 +1,4 @@
+VERSION >= v"0.4.0-dev+6521" && __precompile__(true)
 module GLAbstraction
 
 import Quaternions
@@ -10,15 +11,14 @@ using Reactive
 using FixedPointNumbers
 using ColorTypes
 using Compat
-using ImageIO
-using FileIO
-using MeshIO
 import Mustache
+using FileIO
 
-Reactive.value(any) = any # add this, to make it easier to work with a combination of signals and constants
 
+import FileIO: load, save
 
-import Base: merge, resize!, unsafe_copy!, similar
+import Base: merge, resize!, unsafe_copy!, similar, length, getindex, setindex!, consume
+import Reactive: value
 importall AbstractGPUArray
 
 #Methods which got overloaded by GLExtendedFunctions.jl:
@@ -38,10 +38,18 @@ import ModernGL.glGenRenderbuffers
 import ModernGL.glDeleteTextures
 import ModernGL.glDeleteVertexArrays
 import ModernGL.glDeleteBuffers
-
+import ModernGL.glGetShaderiv
 import ModernGL.glViewport
 import ModernGL.glScissor
 
+include("composition.jl")
+export Composable, Context, convert!, boundingbox
+
+include("gltypealias.jl")
+export Triangle
+export GLFace
+export GLTriangle
+export GLQuad
 
 
 include("GLUtils.jl")
@@ -50,17 +58,11 @@ export @materialize #splats keywords from a dict into variables
 export @materialize!  #splats keywords from a dict into variables and deletes them from the dict
 export close_to_square
 
-include("GLInit.jl")
-export init_after_context_creation
-export init_glutils
-export get_glsl_version_string
-export get_glsl_in_qualifier_string
-export get_glsl_out_qualifier_string
-
 
 include("GLTypes.jl")
 export GLProgram                # Shader/program object
 export Texture                  # Texture object, basically a 1/2/3D OpenGL data array
+export TextureParameters
 export texture_buffer			# function to create a texture buffer texture
 export update!                  # updates a gpu array with a Julia array
 export gpu_data 				# gets the data of a gpu array as a Julia Array
@@ -70,7 +72,7 @@ export prerender!               # adds a function to a RenderObject, which gets 
 export postrender!              # adds a function to a RenderObject, which gets executed after setting the OpenGL render states
 export std_renderobject			# creates a renderobject with standard parameters
 export instanced_renderobject	# simplification for creating a RenderObject which renders instances
-
+export extract_renderable
 export GLVertexArray            # VertexArray wrapper object
 export GLBuffer                 # OpenGL Buffer object wrapper
 export indexbuffer              # Shortcut to create an OpenGL Buffer object for indexes (1D, cardinality of one and GL_ELEMENT_ARRAY_BUFFER set)
@@ -95,7 +97,7 @@ export toglsltype_string        # infers a glsl type string from a julia type. E
 
 include("GLMatrixMath.jl")
 export scalematrix #returns scale matrix
-export lookat # creates the lookat matrix 
+export lookat # creates the lookat matrix
 export perspectiveprojection
 export orthographicprojection
 export translationmatrix, translatematrix_y, translatematrix_z # translates in x, y, z direction
@@ -129,11 +131,7 @@ export OrthographicCamera #simple orthographic camera
 export PerspectiveCamera #simple perspective camera
 export OrthographicPixelCamera # orthographic camera with pixels as a unit
 export DummyCamera
-
-include("GLShapes.jl")
-export gencircle  # generates 2d vertices for a circle
-export isinside #tests if something is inside something else
-
+export Projection, PERSPECTIVE, ORTHOGRAPHIC
 
 include("GLInfo.jl")
 export getUniformsInfo
