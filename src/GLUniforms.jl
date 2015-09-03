@@ -9,6 +9,7 @@ opengl_prefix(T)  = error("Object $T is not a supported uniform element type")
 opengl_postfix(T) = error("Object $T is not a supported uniform element type")
 
 
+
 opengl_prefix{T <: Union(FixedPoint, Float32)}(x::Type{T})  = ""
 opengl_prefix{T <: Float64}(x::Type{T})                     = "d"
 opengl_prefix(x::Type{Cint})                                = "i"
@@ -61,6 +62,7 @@ gluniform(location::Integer, x::Signal)                              = gluniform
 gluniform(location::Integer, x::Union(GLubyte, GLushort, GLuint)) 	 = glUniform1ui(GLint(location), x)
 gluniform(location::Integer, x::Union(GLbyte, GLshort, GLint, Bool)) = glUniform1i(GLint(location),  x)
 gluniform(location::Integer, x::GLfloat) 	 						 = glUniform1f(GLint(location),  x)
+
 
 #Uniform upload functions for julia arrays...
 gluniform(location::GLint, x::Vector{Float32}) = glUniform1fv(location,  length(x), pointer(x))

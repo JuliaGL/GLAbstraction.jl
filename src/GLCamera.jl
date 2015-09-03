@@ -262,6 +262,7 @@ function PerspectiveCamera{T}(inputs::Dict{Symbol,Any}, eyeposition::Vec{3, T}, 
 end
 
 
+
 function fold_pivot(v0, v1)
     theta, translation, reset, resetto = v1
     xaxis = v0.rotation * v0.xaxis # rotate the axis
