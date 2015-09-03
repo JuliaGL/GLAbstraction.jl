@@ -6,16 +6,18 @@ function render(list::AbstractVector)
 end
 
 function render(renderobject::RenderObject, vertexarray=renderobject.vertexarray)
-    for elem in renderobject.prerenderfunctions
-        elem[1](elem[2]...)
-    end
-    program = vertexarray.program
-    glUseProgram(program.id)
-    for (key,value) in program.uniformloc
-        haskey(renderobject.uniforms, key) && gluniform(value..., renderobject.uniforms[key])
-    end
-    for elem in renderobject.postrenderfunctions
-        elem[1](elem[2]...)
+    if value(renderobject.uniforms[:visible])
+        for elem in renderobject.prerenderfunctions
+            elem[1](elem[2]...)
+        end
+        program = vertexarray.program
+        glUseProgram(program.id)
+        for (key,value) in program.uniformloc
+            haskey(renderobject.uniforms, key) && gluniform(value..., renderobject.uniforms[key])
+        end
+        for elem in renderobject.postrenderfunctions
+            elem[1](elem[2]...)
+        end
     end
 end
 
@@ -26,15 +28,22 @@ function render(vao::GLVertexArray, mode::GLenum=GL_TRIANGLES)
     else
         glDrawArrays(mode, 0, vao.length)
     end
+    glBindVertexArray(0)
+
 end
 
-function renderinstanced(vao::GLVertexArray, amount::Integer, primitive=GL_TRIANGLES)
+function renderinstanced(vao::GLVertexArray, amount, primitive=GL_TRIANGLES)
     glBindVertexArray(vao.id)
     #If you get an error here, notify me and try:
     #glDrawElementsInstancedEXT(primitive, vao.indexlength, GL_UNSIGNED_INT, C_NULL, amount)
     glDrawElementsInstanced(primitive, vao.indexlength, GL_UNSIGNED_INT, C_NULL, amount)
+    glBindVertexArray(0)
 end
-
+function renderinstanced(vao::GLVertexArray, amount::GPUVector, primitive=GL_TRIANGLES)
+    glBindVertexArray(vao.id)
+    glDrawElementsInstanced(primitive, vao.indexlength, GL_UNSIGNED_INT, C_NULL, length(amount))
+    glBindVertexArray(0)
+end
 #handle all uniform objects
 
 
