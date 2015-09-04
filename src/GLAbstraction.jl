@@ -19,7 +19,6 @@ import FileIO: load, save
 
 import Base: merge, resize!, unsafe_copy!, similar, length, getindex, setindex!, consume
 import Reactive: value
-importall AbstractGPUArray
 
 #Methods which got overloaded by GLExtendedFunctions.jl:
 import ModernGL.glShaderSource
