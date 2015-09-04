@@ -1,5 +1,4 @@
 using GLAbstraction, GeometryTypes, ModernGL, Compat, FileIO
-using Base.Test
 
 #=
 # initilization,  with GLWindow this reduces to "createwindow("name", w,h)"
