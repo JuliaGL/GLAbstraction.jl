@@ -3,7 +3,6 @@ module GLAbstraction
 
 import Quaternions
 
-using AbstractGPUArray
 using FixedSizeArrays
 using GeometryTypes
 using ModernGL
@@ -14,6 +13,7 @@ using Compat
 import Mustache
 using FileIO
 
+include("AbstractGPUArray.jl")
 
 import FileIO: load, save
 
