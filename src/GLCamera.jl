@@ -189,7 +189,7 @@ function OrthographicCamera{T}(
     end
 
     scale             = lift(x -> scalematrix(Vec{3, T}(x, x, one(T))), zoom)
-    transaccum           = foldl(+, Vec{2,T}(0), translatevec)
+    transaccum        = foldl(+, Vec{2,T}(0), translatevec)
     translate         = lift(x-> translationmatrix(Vec{3,T}(x, zero(T))), transaccum)
 
     view = lift(scale, translate) do s, t
@@ -212,9 +212,21 @@ mousepressed_without_keyboard(mousebuttons::Vector{Int}, button::Int, keyboard::
     in(button, mousebuttons) && isempty(keyboard)
 
 thetalift(mdL, speed) = Vec3f0(0f0, -mdL[2]/speed, mdL[1]/speed)
-translationlift(scroll_y, mdM, speed) = Vec3f0(scroll_y/-10f0, mdM[1]/200f0, -mdM[2]/200f0)
+translationlift(scroll_y, mdM) = Vec3f0(scroll_y, mdM[1]/200f0, -mdM[2]/200f0)
+function default_camera_control(inputs, T = Float32)
+    @materialize mouseposition, mousebuttonspressed, buttonspressed, scroll_y = inputs
+    
+    mouseposition       = lift(Vec{2, T}, mouseposition);
+    clickedwithoutkeyL  = lift(GLAbstraction.mousepressed_without_keyboard, mousebuttonspressed, Input(0), buttonspressed)
+    clickedwithoutkeyM  = lift(GLAbstraction.mousepressed_without_keyboard, mousebuttonspressed, Input(2), buttonspressed)
+    mousedraggdiffL     = lift(last, foldl(GLAbstraction.mousediff, (false, Vec2f0(0.0f0), Vec2f0(0.0f0)), clickedwithoutkeyL, mouseposition));
+    mousedraggdiffM     = lift(last, foldl(GLAbstraction.mousediff, (false, Vec2f0(0.0f0), Vec2f0(0.0f0)), clickedwithoutkeyM, mouseposition));
 
-
+    zoom        = lift(Float32, lift(/, scroll_y, 5f0))
+    theta       = lift(GLAbstraction.thetalift, mousedraggdiffL, 50f0)
+    trans       = lift(GLAbstraction.translationlift, zoom, mousedraggdiffM)
+    theta, trans, zoom
+end
 #=
 Creates a perspective camera from a dict of signals
 Args:
@@ -224,37 +236,22 @@ inputs: Dict of signals, looking like this:
 :window_size                    => Input(Vec{2, Int}),
 :buttonspressed                    => Input(Int[]),
 :mousebuttonspressed            => Input(Int[]),
-:mouseposition                    => mouseposition, -> Panning + Rotation
+:mouseposition                   => mouseposition, -> Panning + Rotation
 :scroll_y                        => Input(0) -> Zoomig
 ]
 eyeposition: Position of the camera
 lookatvec: Point the camera looks at
 =#
 function PerspectiveCamera{T}(inputs::Dict{Symbol,Any}, eyeposition::Vec{3, T}, lookatvec::Vec{3, T})
-    @materialize mouseposition, mousebuttonspressed, buttonspressed, scroll_y, window_size = inputs
-    mouseposition       = lift(Vec{2, T}, mouseposition)
-
-    clickedwithoutkeyL  = lift(mousepressed_without_keyboard, mousebuttonspressed, Input(0), buttonspressed)
-    clickedwithoutkeyM  = lift(mousepressed_without_keyboard, mousebuttonspressed, Input(2), buttonspressed)
-
-    nokeydown           = lift(isempty,    buttonspressed)
-    anymousedown        = lift(isnotempty, mousebuttonspressed)
-
-    mousedraggdiffL     = lift(last, foldl(mousediff, (false, Vec2f0(0.0f0), Vec2f0(0.0f0)), clickedwithoutkeyL, mouseposition))
-    mousedraggdiffM     = lift(last, foldl(mousediff, (false, Vec2f0(0.0f0), Vec2f0(0.0f0)), clickedwithoutkeyM, mouseposition))
-
-    theta       = lift(thetalift, mousedraggdiffL, 100f0)
-    xtrans      = lift(/, scroll_y, 5f0)
-    ytrans      = lift(/, lift(first, mousedraggdiffM), 200f0)
-    ztrans      = lift(/, lift(last, mousedraggdiffM), -200f0)
-    trans       = lift(Vec{3, T}, xtrans, ytrans, ztrans)
+    theta,trans,zoom = default_camera_control(inputs, T)
 
     cam = PerspectiveCamera(
-        window_size,
+        inputs[:window_size],
         eyeposition,
         lookatvec,
         theta,
         trans,
+        zoom,
         Input(41f0),
         Input(1f0),
         Input(100f0)
@@ -294,10 +291,11 @@ end
 @enum Projection PERSPECTIVE ORTHOGRAPHIC
 getupvec(p::Pivot) = p.rotation * p.zaxis
 
-function projection_switch(w::Rectangle, fov::Number, near::Number, far::Number, projection::Projection)
+function projection_switch(w::Rectangle, fov::Number, near::Number, far::Number, projection::Projection, zoom::Number)
     projection == PERSPECTIVE && return perspectiveprojection(w, fov, near, far)
-    aspect = Float32(w.w/w.h)
-    orthographicprojection(-1f0, aspect, -1f0, 1f0, near, far) # can only be orthographic...
+    zoom   = Float32(zoom/10f0)
+    aspect = Float32((w.w/w.h)*zoom)
+    orthographicprojection(-zoom, aspect, -zoom, zoom, near, far) # can only be orthographic...
 end
 
 #=
@@ -327,6 +325,7 @@ function PerspectiveCamera{T <: Real}(
         lookatvec       ::Vec{3, T},
         theta           ::Signal{Vec{3, T}},
         trans           ::Signal{Vec{3, T}},
+        zoom            ::Signal{T},
         fov             ::Signal{T},
         nearclip        ::Signal{T},
         farclip         ::Signal{T},
@@ -355,7 +354,8 @@ function PerspectiveCamera{T <: Real}(
     lookatvec1      = lift(getfield, pivot, :origin) # silly way of geting a field
 
     view            = lift(lookat, positionvec, lookatvec1, up)
-    pmatrix      	= lift(projection_switch, window_size, fov, nearclip, farclip, projection)
+    zoom            = foldl(+, 1f0, zoom)
+    pmatrix      	= lift(projection_switch, window_size, fov, nearclip, farclip, projection, zoom)
 
     projectionview  = lift(*, pmatrix, view)
 
