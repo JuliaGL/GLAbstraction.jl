@@ -293,7 +293,7 @@ getupvec(p::Pivot) = p.rotation * p.zaxis
 
 function projection_switch(w::Rectangle, fov::Number, near::Number, far::Number, projection::Projection, zoom::Number)
     projection == PERSPECTIVE && return perspectiveprojection(w, fov, near, far)
-    zoom   = Float32(zoom/10f0)
+    zoom   = Float32(zoom)
     aspect = Float32((w.w/w.h)*zoom)
     orthographicprojection(-zoom, aspect, -zoom, zoom, near, far) # can only be orthographic...
 end
