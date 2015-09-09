@@ -91,22 +91,22 @@ Gives back a signal, which signals true everytime the file gets edited
 """
 function isupdated(file::File, updatewhile=Input(true), update_interval=1.0)
     fn = filename(file)
-    file_edited = foldl((false, mtime(fn)), fpswhen(updatewhile, 1.0/update_interval)) do v0, v1
+    file_edited = foldp((false, mtime(fn)), fpswhen(updatewhile, 1.0/update_interval)) do v0, v1
         time_edited = mtime(fn)
         (!isapprox(0.0, v0[2] - time_edited), time_edited)
     end
-    return filter(identity, false, lift(first, file_edited)) # extract bool
+    return filter(identity, false, const_lift(first, file_edited)) # extract bool
 end
 
 #reads from the file and updates the source whenever the file gets edited
-function lift_shader(shader_file::File, updatewhile=Input(true), update_interval=1.0)
-    lift(isupdated(shader_file, updatewhile, update_interval)) do _unused
+function const_lift_shader(shader_file::File, updatewhile=Input(true), update_interval=1.0)
+    const_lift(isupdated(shader_file, updatewhile, update_interval)) do _unused
         Shader(shader_file)
     end
 end
 
 #Implement File IO interface
-load(f::File{format"GLSLShader"}) = lift_shader(f)
+load(f::File{format"GLSLShader"}) = const_lift_shader(f)
 function save(f::File{format"GLSLShader"}, data::Shader)
     s = open(f, "w")
     write(s, data.source)
@@ -202,7 +202,8 @@ end
 
 #TemplateProgram() = error("Can't create TemplateProgram without parameters")
 
-function TemplateProgram(x::Union{Shader, File, Reactive.Lift{Shader}}...; kw_args...)
+
+function TemplateProgram(x::Union{Shader, File, Signal{Shader}}...; kw_args...)
     TemplateProgram(merge(Dict(
         :view               => Dict{ASCIIString, ASCIIString}(),
         :attributes         => Dict{Symbol, Any}(),
@@ -214,11 +215,11 @@ end
 function TemplateProgram(kw_args::Dict{Symbol, Any}, s::File, shaders::File...)
     updatewhile     = get(kw_args, :updatewhile, Input(true))
     update_interval = get(kw_args, :update_interval, 1.0)
-    shader_signals  = map(s->lift_shader(s, updatewhile, update_interval), [s,shaders...])
+    shader_signals  = map(s->const_lift_shader(s, updatewhile, update_interval), [s,shaders...])
     TemplateProgram(kw_args, shader_signals...)
 end
-function TemplateProgram(kw_args::Dict{Symbol, Any}, s::Reactive.Lift{Shader}, shaders::Reactive.Lift{Shader}...)
-    program_signal = lift(s, shaders...) do _unused... #just needed to update the signal
+function TemplateProgram(kw_args::Dict{Symbol, Any}, s::Signal{Shader}, shaders::Signal{Shader}...)
+    program_signal = const_lift(s, shaders...) do _unused... #just needed to update the signal
         # extract values from signals
         shader_values = map(value, [s, shaders...])
         TemplateProgram(kw_args, shader_values...)

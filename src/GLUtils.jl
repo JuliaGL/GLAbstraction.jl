@@ -106,8 +106,8 @@ value(any) = any # add this, to make it easier to work with a combination of sig
 
 makesignal(s::Signal) = s
 makesignal(v)         = Input(v)
-consume(f::Reactive.Callable, inputs...) = consume(f, map(makesignal, inputs)...)
-
+const_lift(f::Union(DataType, Function), inputs...) = map(f, map(makesignal, inputs)...)
+export const_lift
 
 function close_to_square(n::Real)
     # a cannot be greater than the square root of n

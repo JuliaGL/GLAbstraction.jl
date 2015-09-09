@@ -6,7 +6,6 @@ import Base: resize!
 import Base: setindex!
 import Base: getindex
 import Base: map
-import Base: foldl
 import Base: length
 import Base: eltype
 import Base: endof

@@ -221,12 +221,12 @@ const NATIVE_TYPES = Union{FixedArray, Real, GLBuffer, Texture}
 #native types need no convert
 function gl_convert{GL, T <: NATIVE_TYPES}(::Type{GL}, s::Signal{T})
     GL == T && return s
-    lift(gl_convert, GL, s)
+    const_lift(gl_convert, GL, s)
 end
 
 function gl_convert{GL, T <: Array}(::Type{GL}, s::Signal{T})
     globj = julia2gl(s.value)
-    lift(update!, Input(globj), intensities)
+    const_lift(update!, Input(globj), intensities)
     globj
 end
 
@@ -251,7 +251,7 @@ end
 update_convert{T, T2, ND}(globj::GPUArray{T, ND}, value::Array{T2, ND}) = update!(globj, convert(Array{T, ND}, value))
 function gl_convert{T, T2, ND}(should_be::GLEnumGlobalArray{T, ND}, is::Signal{Array{T2, ND}})
     globject = gl_convert(should_be, is.value)
-    lift(update_convert, globject, is)
+    const_lift(update_convert, globject, is)
     globj
 end
 
