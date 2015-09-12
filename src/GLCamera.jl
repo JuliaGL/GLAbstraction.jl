@@ -213,7 +213,8 @@ mousepressed_without_keyboard(mousebuttons::Vector{Int}, button::Int, keyboard::
 
 thetalift(mdL, speed) = Vec3f0(0f0, -mdL[2]/speed, mdL[1]/speed)
 translationlift(scroll_y, mdM) = Vec3f0(scroll_y, mdM[1]/200f0, -mdM[2]/200f0)
-function default_camera_control(inputs, T = Float32)
+
+function default_camera_control(inputs, T = Float32; trans=Input(Vec3f0(0)), theta=Input(Vec3f0(0)))
     @materialize mouseposition, mousebuttonspressed, buttonspressed, scroll_y = inputs
     
     mouseposition       = lift(Vec{2, T}, mouseposition);
@@ -223,9 +224,9 @@ function default_camera_control(inputs, T = Float32)
     mousedraggdiffM     = lift(last, foldl(GLAbstraction.mousediff, (false, Vec2f0(0.0f0), Vec2f0(0.0f0)), clickedwithoutkeyM, mouseposition));
 
     zoom        = lift(Float32, lift(/, scroll_y, 5f0))
-    theta       = lift(GLAbstraction.thetalift, mousedraggdiffL, 50f0)
-    trans       = lift(GLAbstraction.translationlift, zoom, mousedraggdiffM)
-    theta, trans, zoom
+    _theta       = merge(lift(GLAbstraction.thetalift, mousedraggdiffL, 50f0), theta)
+    _trans       = merge(lift(GLAbstraction.translationlift, zoom, mousedraggdiffM), trans)
+    _theta, _trans, zoom
 end
 #=
 Creates a perspective camera from a dict of signals
@@ -260,7 +261,7 @@ end
 
 
 
-function fold_pivot(v0, v1)
+function update_pivot(v0, v1)
     theta, translation, reset, resetto = v1
     xaxis = v0.rotation * v0.xaxis # rotate the axis
     yaxis = v0.rotation * v0.yaxis
@@ -322,7 +323,7 @@ farclip: Far clip plane
 function PerspectiveCamera{T <: Real}(
         window_size     ::Signal{Rectangle{Int}},
         eyeposition     ::Vec{3, T},
-        lookatvec       ::Vec{3, T},
+        lookatvec       ::Union(Signal{Vec{3, T}}, Vec{3, T}),
         theta           ::Signal{Vec{3, T}},
         trans           ::Signal{Vec{3, T}},
         zoom            ::Signal{T},
@@ -334,17 +335,14 @@ function PerspectiveCamera{T <: Real}(
         resetto 	= Input(Quaternions.Quaternion(T(1),T(0),T(0),T(0)))
     )
 
-    eyepositionstart= Vec{3, T}(1,0,0)
     origin          = lookatvec
     vup             = Vec{3, T}(0,0,1)
-    xaxis           = eyeposition - origin
-    yaxis           = cross(xaxis, vup)
-    zaxis           = cross(yaxis, xaxis)
+    xaxis           = lift(-, eyeposition, lookatvec)
+    yaxis           = lift(cross, xaxis, vup)
+    zaxis           = lift(cross, yaxis, xaxis)
 
-    translate       = Vec{3, T}(0)
-
-    p0              = Pivot(origin, xaxis, yaxis, zaxis, Quaternions.Quaternion(T(1),T(0),T(0),T(0)), translate, Vec{3, T}(1))
-    pivot           = foldl(fold_pivot, p0, lift(tuple, theta, trans, reset, resetto))
+    pivot0          = Pivot(value(lookatvec), value(xaxis), value(yaxis), value(zaxis), Quaternions.Quaternion(T(1),T(0),T(0),T(0)), zero(Vec{3, T}), Vec{3, T}(1))
+    pivot           = foldl(update_pivot, pivot0, lift(tuple, theta, trans, reset, resetto))
 
     modelmatrix     = lift(transformationmatrix, pivot)
     positionvec     = lift(*, modelmatrix, Input(Vec(eyeposition, one(T))))
