@@ -27,7 +27,7 @@ end
 
 convert!{unit <: Unit}(::Type{unit}, x::Composable) = x # I don't do units just yet
 
-function Base.append!{unit <: Unit, N}(context::Context{unit}, x::Union(Vector{Composable}, NTuple{N, Composable}))
+function Base.append!{unit <: Unit, N}(context::Context{unit}, x::Union{Vector{Composable}, NTuple{N, Composable}})
     for elem in x
         push!(context, elem)
     end

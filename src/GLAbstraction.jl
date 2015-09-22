@@ -101,7 +101,7 @@ export perspectiveprojection
 export orthographicprojection
 export translationmatrix, translatematrix_y, translatematrix_z # translates in x, y, z direction
 export rotationmatrix_x, rotationmatrix_y, rotationmatrix_z # returns rotation matrix which rotates around x, y, z axis
-export rotation #rotation matrix for rotation between 2 vectors.
+export rotation, rotate #rotation matrix for rotation between 2 vectors.
 export qrotation    # quaternion rotation
 export Pivot # Pivot object, putting axis, scale position into one object
 export transformationmatrix # creates a transformation matrix from a pivot
@@ -114,6 +114,7 @@ export enabletransparency # can be pushed to an renderobject, enables transparen
 export renderinstanced # renders objects instanced
 
 include("GLShader.jl")
+export Shader 			#Shader Type
 export readshader 			#reads a shader
 export glsl_variable_access # creates access string from julia variable for the use in glsl shaders
 export createview #creates a view from a templated shader

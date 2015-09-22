@@ -61,11 +61,11 @@ end
 # OpenGL Arrays
 
 
-const GLArrayEltypes = Union(FixedVector, Real, Colorant)
+const GLArrayEltypes = Union{FixedVector, Real, Colorant}
 
 #Transfomr julia datatypes to opengl enum type
 julia2glenum{T <: FixedPoint}(x::Type{T})               = julia2glenum(FixedPointNumbers.rawtype(x))
-julia2glenum{T <: GLArrayEltypes}(x::Union(Type{T}, T)) = julia2glenum(eltype(x))
+julia2glenum{T <: GLArrayEltypes}(x::Union{Type{T}, T}) = julia2glenum(eltype(x))
 
 let TO_GL_TYPE = Dict(
         GLubyte     => GL_UNSIGNED_BYTE,
@@ -135,6 +135,7 @@ free(x::GLVertexArray) = glDeleteVertexArrays(1, [x.id])
 RENDER_OBJECT_ID_COUNTER = zero(GLushort)
 
 type RenderObject <: Composable{DeviceUnit}
+    main                ::Any # main object
     uniforms            ::Dict{Symbol, Any}
     vertexarray         ::GLVertexArray
     prerenderfunctions  ::Dict{Function, Tuple}
@@ -142,7 +143,7 @@ type RenderObject <: Composable{DeviceUnit}
     id                  ::GLushort
     boundingbox         ::Signal # workaround for having lazy boundingbox queries, while not using multiple dispatch for boundingbox function (No type hierarchy for RenderObjects)
 
-    function RenderObject(data::Dict{Symbol, Any}, program::Signal{GLProgram}, bbs=Input(AABB{Float32}(Vec3f0(0),Vec3f0(1))))
+    function RenderObject(data::Dict{Symbol, Any}, program::Signal{GLProgram}, bbs=Input(AABB{Float32}(Vec3f0(0),Vec3f0(1))), main=nothing)
         global RENDER_OBJECT_ID_COUNTER
         RENDER_OBJECT_ID_COUNTER     += one(GLushort)
         program              = program.value
@@ -154,6 +155,7 @@ type RenderObject <: Composable{DeviceUnit}
         vertexarray = GLVertexArray(Dict{Symbol, GLBuffer}(buffers), program)
 
         return new(
+            main,
             uniforms,
             vertexarray,
             Dict{Function, Tuple}(),

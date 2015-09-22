@@ -208,7 +208,7 @@ function gpu_setindex!{T, I <: Integer}(t::Texture{T, 1}, newvalue::Array{T, 1},
     end
 end
 
-function gpu_setindex!{T, N}(t::Texture{T, N}, newvalue::Array{T, N}, indexes::Union(UnitRange,Integer)...)
+function gpu_setindex!{T, N}(t::Texture{T, N}, newvalue::Array{T, N}, indexes::Union{UnitRange,Integer}...)
     glBindTexture(t.texturetype, t.id)
     texsubimage(t, newvalue, indexes...)
 end
@@ -223,7 +223,7 @@ function gpu_setindex!{T}(target::Texture{T, 2}, source::Texture{T, 2}, fbo=glGe
     glDrawBuffer(GL_COLOR_ATTACHMENT1);
     w, h = map(minimum, zip(size(target), size(source)))
     glBlitFramebuffer(0, 0, w, h, 0, 0, w, h,
-                      GL_COLOR_BUFFER_BIT, GL_NEAREST);
+                      GL_COLOR_BUFFER_BIT, GL_NEAREST)
 end
 
 
@@ -249,6 +249,10 @@ function gpu_data{T, ND}(t::Texture{T, ND})
 end
 
 function gpu_getindex{T}(t::GLAbstraction.Texture{T,1}, i::UnitRange{Int64})
+    isnull(t.buffer) && error("getindex operation only defined for texture buffers")
+    return get(t.buffer)[i]
+end
+function gpu_getindex{T}(t::GLAbstraction.Texture{T,1}, i::UnitRange{Int64}, j::UnitRange{Int64})
     isnull(t.buffer) && error("getindex operation only defined for texture buffers")
     return get(t.buffer)[i]
 end
@@ -301,11 +305,6 @@ texsubimage{T}(t::Texture{T, 1}, newvalue::Array{T, 1}, xrange::UnitRange, level
     t.texturetype, level, first(xrange)-1, length(xrange), t.format, t.pixeltype, newvalue
 )
 function texsubimage{T}(t::Texture{T, 2}, newvalue::Array{T, 2}, xrange::UnitRange, yrange::UnitRange, level=0)
-   # println(t)
-   # println(size(newvalue))
-   # println(size(t))
-   # println(xrange)
-   # println(yrange)
     glTexSubImage2D(
         t.texturetype, level,
         first(xrange)-1, first(yrange)-1, length(xrange), length(yrange),
@@ -340,7 +339,7 @@ end
 
 
 
-function default_colorformat(colordim::Integer, isinteger::Bool, colororder::String)
+function default_colorformat(colordim::Integer, isinteger::Bool, colororder::AbstractString)
     colordim > 4 && error("no colors with dimension > 4 allowed. Dimension given: ", colordim)
     sym = "GL_"
     # Handle that colordim == 1 => RED instead of R
@@ -373,7 +372,7 @@ function default_internalcolorformat(T::DataType)
     sym *= "RGBA"[1:cdim]
     bits = sizeof(eltyp) * 8
     sym *= bits <= 32 ? string(bits) : error("$(T) has too many bits")
-    if eltyp <: FloatingPoint
+    if eltyp <: AbstractFloat
         sym *= "F"
     elseif eltyp <: FixedPoint
         sym *= eltyp <: Ufixed ? "" : "_SNORM"

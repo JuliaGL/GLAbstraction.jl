@@ -39,14 +39,14 @@ ndims{T, NDim}(A::GPUArray{T, NDim})                    = NDim
 size(A::GPUArray)                                       = A.size
 size(A::GPUArray, i::Integer)                           = A.size[i]
 
-function checkdimensions(value::Array, ranges::Union(Integer, UnitRange)...)
+function checkdimensions(value::Array, ranges::Union{Integer, UnitRange}...)
     array_size   = size(value)
     indexes_size = map(length, ranges)
 
     (array_size != indexes_size) && throw(DimensionMismatch("asigning a $array_size to a $(indexes_size) location"))
     true
 end
-function setindex!{I <: Integer, T, N}(A::GPUArray, value::Array{T, N}, indexes::Union(UnitRange, I)...)
+function setindex!{I <: Integer, T, N}(A::GPUArray, value::Array{T, N}, indexes::Union{UnitRange, I}...)
     ranges = map(indexes) do val
         isa(val, Integer) && return val:val
         val # can only be unitrange        
@@ -183,7 +183,7 @@ copy!(a::Vector,   a_offset::Int, b::GPUArray, b_offset::Int, amount::Int) = _co
 copy!(a::GPUArray, a_offset::Int, b::GPUArray, b_offset::Int, amount::Int) = _copy!(a, a_offset, b, b_offset, amount)
 
 #don't overwrite Base.copy! with a::Vector, b::Vector
-function _copy!(a::Union(Vector, GPUArray), a_offset::Int, b::Union(Vector, GPUArray), b_offset::Int, amount::Int)
+function _copy!(a::Union{Vector, GPUArray}, a_offset::Int, b::Union{Vector, GPUArray}, b_offset::Int, amount::Int)
     (amount <= 0) && return nothing
     @assert a_offset > 0 && (a_offset-1) + amount <= length(a) "a_offset $a_offset, amount $amount, lengtha $(length(a))"
     @assert b_offset > 0 && (b_offset-1) + amount <= length(b) "b_offset $b_offset, amount $amount, lengthb $(length(b))"

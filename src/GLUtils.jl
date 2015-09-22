@@ -31,7 +31,7 @@ end
 getindex{T<:AbstractArray}(A::IterOrScalar{T}, i::Integer) = A.val[i]
 getindex(A::IterOrScalar, i::Integer) = A.val
 
-foreach(func::Union(Function, DataType), args...) = foreach(func, map(IterOrScalar, args)...)
+foreach(func::Union{Function, DataType}, args...) = foreach(func, map(IterOrScalar, args)...)
 
 # Applies a function over multiple args
 # staged, so it can specialize on the arguments being scalar or iterable
@@ -46,9 +46,9 @@ foreach(func::Union(Function, DataType), args...) = foreach(func, map(IterOrScal
 end
 
 #Some mapping functions for dictionaries
-mapvalues(func::Union(Function, Base.Func), collection::Dict) =
+mapvalues(func::Union{Function, Base.Func}, collection::Dict) =
     [key => func(value) for (key, value) in collection]
-mapkeys(func::Union(Function, Base.Func), collection::Dict) =
+mapkeys(func::Union{Function, Base.Func}, collection::Dict) =
     [func(key) => value for (key, value) in collection]
 
 

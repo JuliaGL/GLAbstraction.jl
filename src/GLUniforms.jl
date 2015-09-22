@@ -10,10 +10,10 @@ opengl_postfix(T) = error("Object $T is not a supported uniform element type")
 
 
 
-opengl_prefix{T <: Union(FixedPoint, Float32)}(x::Type{T})  = ""
+opengl_prefix{T <: Union{FixedPoint, Float32}}(x::Type{T})  = ""
 opengl_prefix{T <: Float64}(x::Type{T})                     = "d"
 opengl_prefix(x::Type{Cint})                                = "i"
-opengl_prefix{T <: Union(Cuint, Uint8, Uint16)}(x::Type{T}) = "u"
+opengl_prefix{T <: Union{Cuint, UInt8, UInt16}}(x::Type{T}) = "u"
 
 opengl_postfix(x::Type{Float64}) = "dv"
 opengl_postfix(x::Type{Float32}) = "fv"
@@ -29,7 +29,7 @@ function uniformfunc(typ::DataType, dims::Tuple{Int, Int})
     func = symbol(string("glUniformMatrix", M==N ? "$M":"$(M)x$(N)", opengl_postfix(typ)))
 end
 
-function gluniform{FSA <: Union(FixedArray, Colorant)}(location::Integer, x::FSA)
+function gluniform{FSA <: Union{FixedArray, Colorant}}(location::Integer, x::FSA)
     x = [x]
     gluniform(location, x)
 end
@@ -38,7 +38,7 @@ Base.size(p::Colorant) = (length(p),)
 Base.size{T <: Colorant}(p::Type{T}) = (length(p),)
 Base.ndims{T <: Colorant}(p::Type{T}) = 1
 
-@generated function gluniform{FSA <: Union(FixedArray, Colorant)}(location::Integer, x::Vector{FSA})
+@generated function gluniform{FSA <: Union{FixedArray, Colorant}}(location::Integer, x::Vector{FSA})
     func = uniformfunc(eltype(FSA), size(FSA))
     if ndims(FSA) == 2
         :($func(location, length(x), GL_FALSE, pointer(x)))
@@ -59,9 +59,10 @@ function gluniform(location::GLint, target::GLint, t::Texture)
     gluniform(location, target)
 end
 gluniform(location::Integer, x::Signal)                              = gluniform(GLint(location),    value(x))
-gluniform(location::Integer, x::Union(GLubyte, GLushort, GLuint)) 	 = glUniform1ui(GLint(location), x)
-gluniform(location::Integer, x::Union(GLbyte, GLshort, GLint, Bool)) = glUniform1i(GLint(location),  x)
-gluniform(location::Integer, x::GLfloat) 	 						 = glUniform1f(GLint(location),  x)
+gluniform(location::Integer, x::Union{GLubyte, GLushort, GLuint}) 	 = glUniform1ui(GLint(location), x)
+gluniform(location::Integer, x::Union{GLbyte, GLshort, GLint, Bool}) = glUniform1i(GLint(location),  x)
+gluniform(location::Integer, x::GLfloat)                             = glUniform1f(GLint(location),  x)
+gluniform(location::Integer, x::Enum) 	 						     = glUniform1f(GLint(location),  GLint(x))
 
 
 #Uniform upload functions for julia arrays...
@@ -85,7 +86,7 @@ toglsltype_string(t::Signal)                    = toglsltype_string(t.value)
 toglsltype_string(t::StepRange)                 = toglsltype_string(Vec3(first(t), step(t), last(t)))
 
 toglsltype_string(t::FixedVector)               = "uniform " * string(opengl_prefix(eltype(t)), "vec", length(t))
-toglsltype_string(t::Colorant)                     = "uniform " * string(opengl_prefix(eltype(t)), "vec", length(t))
+toglsltype_string(t::Colorant)                  = "uniform " * string(opengl_prefix(eltype(t)), "vec", length(t))
 function toglsltype_string(t::FixedMatrix)
     M,N = size(t)
     string(opengl_prefix(eltype(t)),"mat", M==N ? "$M" : "$(M)x$(N)")
@@ -104,7 +105,7 @@ iscorrect(a, b) = false
 
 is_unsigned_uniform_type{T}(::Type{T}) = eltype(T) <: Unsigned
 is_integer_uniform_type{T}(::Type{T}) = eltype(T) <: Integer
-is_float_uniform_type{T}(::Type{T}) = eltype(T) <: FloatingPoint || eltype(T) <: FixedPoint
+is_float_uniform_type{T}(::Type{T}) = eltype(T) <: AbstractFloat || eltype(T) <: FixedPoint
 is_bool_uniform_type{T}(::Type{T}) = eltype(T) <: Bool || is_integer_uniform_type(T)
 
 
@@ -215,7 +216,7 @@ gl_convert{BUFF <: GLBuffer, T <: Triangle}(::Type{BUFF}, a::Vector{T}) = indexb
 gl_convert{BUFF <: GLBuffer, T}(::Type{BUFF},         a::Vector{T})     = BUFF(s)
 gl_convert{TEX  <: Texture,  T}(::Type{TEX},          s::Array{T})      = TEX(a)
 
-const NATIVE_TYPES = Union(FixedArray, Real, GLBuffer, Texture)
+const NATIVE_TYPES = Union{FixedArray, Real, GLBuffer, Texture}
 
 #native types need no convert
 function gl_convert{GL, T <: NATIVE_TYPES}(::Type{GL}, s::Signal{T})

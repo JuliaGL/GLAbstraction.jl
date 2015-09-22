@@ -294,7 +294,7 @@ getupvec(p::Pivot) = p.rotation * p.zaxis
 
 function projection_switch(w::Rectangle, fov::Number, near::Number, far::Number, projection::Projection, zoom::Number)
     projection == PERSPECTIVE && return perspectiveprojection(w, fov, near, far)
-    zoom   = Float32(zoom)
+    zoom   = Float32(zoom/2f0)
     aspect = Float32((w.w/w.h)*zoom)
     orthographicprojection(-zoom, aspect, -zoom, zoom, near, far) # can only be orthographic...
 end
@@ -323,7 +323,7 @@ farclip: Far clip plane
 function PerspectiveCamera{T <: Real}(
         window_size     ::Signal{Rectangle{Int}},
         eyeposition     ::Vec{3, T},
-        lookatvec       ::Union(Signal{Vec{3, T}}, Vec{3, T}),
+        lookatvec       ::Union{Signal{Vec{3, T}}, Vec{3, T}},
         theta           ::Signal{Vec{3, T}},
         trans           ::Signal{Vec{3, T}},
         zoom            ::Signal{T},

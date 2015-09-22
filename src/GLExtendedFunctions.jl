@@ -8,8 +8,8 @@ function glGetShaderiv(shaderID::GLuint, variable::GLenum)
     glGetShaderiv(shaderID, variable, result)
     result[]
 end
-function glShaderSource(shaderID::GLuint, shadercode::Vector{Uint8})
-    shader_code_ptrs = Ptr{Uint8}[pointer(shadercode)]
+function glShaderSource(shaderID::GLuint, shadercode::Vector{UInt8})
+    shader_code_ptrs = Ptr{UInt8}[pointer(shadercode)]
     len              = Ref{GLint}(length(shadercode))
     glShaderSource(shaderID, 1, shader_code_ptrs, len)
 end
@@ -95,7 +95,7 @@ function glGetProgramiv(programID::GLuint, variable::GLenum)
 end
 function glGetIntegerv(variable::GLenum)
     result = Ref{GLint}(-1)
-    glGetIntegerv(Uint32(variable), result)
+    glGetIntegerv(UInt32(variable), result)
     result[]
 end
 

@@ -1,6 +1,6 @@
 immutable Shader
     name::Symbol
-    source::Vector{Uint8}
+    source::Vector{UInt8}
     typ::GLenum
 end
 name(s::Shader) = s.name
@@ -17,22 +17,22 @@ Shader(s::Shader; name=s.name, source=s.source, typ=s.typ) = Shader(name, source
 # Different shader string literals- usage: e.g. frag" my shader code"
 macro frag_str(source::AbstractString)
     quote
-        Shader(symbol(@__FILE__), $(Vector{Uint8}(ascii(source))), GL_FRAGMENT_SHADER)
+        Shader(symbol(@__FILE__), $(Vector{UInt8}(ascii(source))), GL_FRAGMENT_SHADER)
     end
 end
 macro vert_str(source::AbstractString)
     quote
-        Shader(symbol(@__FILE__), $(Vector{Uint8}(ascii(source))), GL_VERTEX_SHADER)
+        Shader(symbol(@__FILE__), $(Vector{UInt8}(ascii(source))), GL_VERTEX_SHADER)
     end
 end
 macro geom_str(source::AbstractString)
     quote
-        Shader(symbol(@__FILE__), $(Vector{Uint8}(ascii(source))), GL_GEOMETRY_SHADER)
+        Shader(symbol(@__FILE__), $(Vector{UInt8}(ascii(source))), GL_GEOMETRY_SHADER)
     end
 end
 macro comp_str(source::AbstractString)
     quote
-        Shader(symbol(@__FILE__), $(Vector{Uint8}(ascii(source))), GL_COMPUTE_SHADER)
+        Shader(symbol(@__FILE__), $(Vector{UInt8}(ascii(source))), GL_COMPUTE_SHADER)
     end
 end
 
@@ -115,7 +115,7 @@ end
 
 compileshader(file::File{format"GLSLShader"}, program::GLuint) = compileshader(load(file), program)
                     #(shadertype, shadercode) -> shader id
-let shader_cache = Dict{Tuple{GLenum, Vector{Uint8}}, GLuint}() # shader cache prevents that a shader is compiled more than one time
+let shader_cache = Dict{Tuple{GLenum, Vector{UInt8}}, GLuint}() # shader cache prevents that a shader is compiled more than one time
     #finalizer(shader_cache, dict->foreach(glDeleteShader, values(dict))) # delete all shaders when done
     function compileshader(shader::Shader)
         get!(shader_cache, (shader.typ, shader.source)) do
@@ -125,7 +125,7 @@ let shader_cache = Dict{Tuple{GLenum, Vector{Uint8}}, GLuint}() # shader cache p
             glCompileShader(shaderid)
             if !iscompiled(shaderid)
                 print_with_lines(bytestring(shader.source))
-                error("shader $(shader.name) didn't compile. \n$(getinfolog(shaderid))")
+                warn("shader $(shader.name) didn't compile. \n$(getinfolog(shaderid))")
             end
             shaderid
         end
@@ -174,7 +174,7 @@ function GLProgram(
 
     #link program
     glLinkProgram(program)
-    !islinked(program) && error("program $program not linked. Error in: \n", join(map(x->x.name, shaders), " or\n"), "\n", getinfolog(program))
+    !islinked(program) && warn("program $program not linked. Error in: \n", join(map(x->x.name, shaders), " or\n"), "\n", getinfolog(program))
     #foreach(glDeleteShader, shader_ids) # Can be deleted, as they will still be linked to Program and released after program gets released
 
     # generate the link locations
@@ -202,7 +202,7 @@ end
 
 #TemplateProgram() = error("Can't create TemplateProgram without parameters")
 
-function TemplateProgram(x::Union(Shader, File, Reactive.Lift{Shader})...; kw_args...)
+function TemplateProgram(x::Union{Shader, File, Reactive.Lift{Shader}}...; kw_args...)
     TemplateProgram(merge(Dict(
         :view               => Dict{ASCIIString, ASCIIString}(),
         :attributes         => Dict{Symbol, Any}(),
@@ -254,7 +254,7 @@ function glsl_variable_access{T,D}(keystring, t::Texture{T, D})
     return "getindex($(keystring), index)."*"rgba"[1:length(T)]*";"
 end
 
-glsl_variable_access(keystring, ::Union(Real, GLBuffer, FixedArray, Colorant)) = keystring*";"
+glsl_variable_access(keystring, ::Union{Real, GLBuffer, FixedArray, Colorant}) = keystring*";"
 
 glsl_variable_access(keystring, s::Signal) = glsl_variable_access(keystring, s.value)
 glsl_variable_access(keystring, t::Any)    = error("no glsl variable calculation available for : ", keystring, " of type ", typeof(t))
@@ -263,7 +263,7 @@ glsl_variable_access(keystring, t::Any)    = error("no glsl variable calculation
 function createview(x::Dict{Symbol, Any}, keys)
   view = Dict{ASCIIString, ASCIIString}()
   for (key, val) in x
-    if !isa(val, String)
+    if !isa(val, AbstractString)
         keystring = string(key)
         typekey = keystring*"_type"
         calculationkey = keystring*"_calculation"

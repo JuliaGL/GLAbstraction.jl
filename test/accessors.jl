@@ -18,14 +18,14 @@ push!(TEST_1D, rand(Int32, N*N))
 push!(TEST_1D, Point3{Float32}[rand(Point3{Float32}) for i=1:N*N])
 push!(TEST_1D, Point4{Ufixed8}[rand(Point4{Float32}) for i=1:N*N])
 push!(TEST_1D, Point4{Int8}[rand(Point4{Int8}) for i=1:N*N])
-#push!(TEST_1D, Point3{Uint8}[rand(Point3{Uint8}) for i=1:N*N]) #unaligned
+#push!(TEST_1D, Point3{UInt8}[rand(Point3{UInt8}) for i=1:N*N]) #unaligned
 
 push!(TEST_2D, rand(Float32, N,N))
 push!(TEST_2D, rand(Int32, N,N))
 push!(TEST_2D, Point3{Float32}[rand(Point3{Float32}) for i=1:N,j=1:N])
 push!(TEST_2D, Point4{Ufixed8}[rand(Point4{Float32}) for i=1:N,j=1:N])
 push!(TEST_2D, Point4{Int8}[rand(Point4{Int8}) for i=1:N,j=1:N])
-#push!(TEST_2D, Point3{Uint8}[rand(Point3{Uint8}) for i=1:N,j=1:N]) #unaligned
+#push!(TEST_2D, Point3{UInt8}[rand(Point3{UInt8}) for i=1:N,j=1:N]) #unaligned
 
 
 test_data = Dict(

@@ -22,7 +22,7 @@ function translationmatrix{T}(t::Vec{3, T})
     )
 end
 
-rotate{T}(angle::T, axis::Vec{3, T}) = rotationmatrix(qrotation(convert(Array, axis), angle))
+rotate{T}(angle::T, axis::Vec{3, T}) = rotationmatrix4(Quaternions.qrotation(convert(Array, axis), angle))
 
 function rotationmatrix_x{T}(angle::T)
     T0, T1 = zero(T), one(T)
@@ -144,7 +144,10 @@ type Pivot{T}
     translation ::Vec{3, T}
     scale       ::Vec{3, T}
 end
-function rotationmatrix4{T}(q::Quaternions.Quaternion{T})
+
+rotationmatrix4{T}(q::Quaternions.Quaternion{T}) = Mat{4,4,T}(q)
+
+function call{T}(::Type{Mat{4,4,T}}, q::Quaternions.Quaternion)
     sx, sy, sz = 2q.s*q.v1,  2q.s*q.v2,   2q.s*q.v3
     xx, xy, xz = 2q.v1^2,    2q.v1*q.v2,  2q.v1*q.v3
     yy, yz, zz = 2q.v2^2,    2q.v2*q.v3,  2q.v3^2
@@ -154,6 +157,17 @@ function rotationmatrix4{T}(q::Quaternions.Quaternion{T})
         (xy-sz,      T1-(xx+zz), yz+sx,      T0),
         (xz+sy,      yz-sx,      T1-(xx+yy), T0),
         (T0,         T0,         T0,         T1)
+    )
+end
+function call{T}(::Type{Mat{3,3,T}}, q::Quaternions.Quaternion)
+    sx, sy, sz = 2q.s*q.v1,  2q.s*q.v2,   2q.s*q.v3
+    xx, xy, xz = 2q.v1^2,    2q.v1*q.v2,  2q.v1*q.v3
+    yy, yz, zz = 2q.v2^2,    2q.v2*q.v3,  2q.v3^2
+    T0, T1 = zero(T), one(T)
+    Mat{3,3,T}(
+        (T1-(yy+zz), xy+sz,      xz-sy     ),
+        (xy-sz,      T1-(xx+zz), yz+sx     ),
+        (xz+sy,      yz-sx,      T1-(xx+yy))
     )
 end
 transformationmatrix(p::Pivot) = (
