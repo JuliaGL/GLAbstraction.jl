@@ -56,7 +56,7 @@ export @gputime # measures the time an OpenGL call takes on the GPU (usually Ope
 export @materialize #splats keywords from a dict into variables
 export @materialize!  #splats keywords from a dict into variables and deletes them from the dict
 export close_to_square
-
+export collect_for_gl
 
 include("GLTypes.jl")
 export GLProgram                # Shader/program object
