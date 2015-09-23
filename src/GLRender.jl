@@ -32,14 +32,8 @@ function render(vao::GLVertexArray, mode::GLenum=GL_TRIANGLES)
 
 end
 
-function renderinstanced(vao::GLVertexArray, amount, primitive=GL_TRIANGLES)
-    glBindVertexArray(vao.id)
-    #If you get an error here, notify me and try:
-    #glDrawElementsInstancedEXT(primitive, vao.indexlength, GL_UNSIGNED_INT, C_NULL, amount)
-    glDrawElementsInstanced(primitive, vao.indexlength, GL_UNSIGNED_INT, C_NULL, amount)
-    glBindVertexArray(0)
-end
-function renderinstanced(vao::GLVertexArray, amount::GPUVector, primitive=GL_TRIANGLES)
+
+function renderinstanced(vao::GLVertexArray, amount::Union{GPUArray, GPUVector}, primitive=GL_TRIANGLES)
     glBindVertexArray(vao.id)
     glDrawElementsInstanced(primitive, vao.indexlength, GL_UNSIGNED_INT, C_NULL, length(amount))
     glBindVertexArray(0)
