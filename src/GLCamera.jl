@@ -208,24 +208,23 @@ function OrthographicCamera{T}(
     )
 end
 
-mousepressed_without_keyboard(mousebuttons::Vector{Int}, button::Int, keyboard::Vector{Int}) =
-    in(button, mousebuttons) && isempty(keyboard)
+mousepressed(mousebuttons::Vector{Int}, button::Int) = in(button, mousebuttons)
 
 thetalift(mdL, speed) = Vec3f0(0f0, -mdL[2]/speed, mdL[1]/speed)
 translationlift(scroll_y, mdM) = Vec3f0(scroll_y, mdM[1]/200f0, -mdM[2]/200f0)
 
-function default_camera_control(inputs, T = Float32; trans=Input(Vec3f0(0)), theta=Input(Vec3f0(0)))
-    @materialize mouseposition, mousebuttonspressed, buttonspressed, scroll_y = inputs
+function default_camera_control(inputs, T = Float32; trans=Input(Vec3f0(0)), theta=Input(Vec3f0(0)), filtersignal=Input(true))
+    @materialize mouseposition, mousebuttonspressed, scroll_y = inputs
     
-    mouseposition       = lift(Vec{2, T}, mouseposition);
-    clickedwithoutkeyL  = lift(GLAbstraction.mousepressed_without_keyboard, mousebuttonspressed, Input(0), buttonspressed)
-    clickedwithoutkeyM  = lift(GLAbstraction.mousepressed_without_keyboard, mousebuttonspressed, Input(2), buttonspressed)
-    mousedraggdiffL     = lift(last, foldl(GLAbstraction.mousediff, (false, Vec2f0(0.0f0), Vec2f0(0.0f0)), clickedwithoutkeyL, mouseposition));
-    mousedraggdiffM     = lift(last, foldl(GLAbstraction.mousediff, (false, Vec2f0(0.0f0), Vec2f0(0.0f0)), clickedwithoutkeyM, mouseposition));
+    mouseposition       = lift(Vec{2, T}, mouseposition)
+    clickedkeyL         = lift(GLAbstraction.mousepressed, mousebuttonspressed, Input(0))
+    clickedkeyM         = lift(GLAbstraction.mousepressed, mousebuttonspressed, Input(2))
+    mousedraggdiffL     = lift(last, foldl(GLAbstraction.mousediff, (false, Vec2f0(0.0f0), Vec2f0(0.0f0)), clickedkeyL, mouseposition));
+    mousedraggdiffM     = lift(last, foldl(GLAbstraction.mousediff, (false, Vec2f0(0.0f0), Vec2f0(0.0f0)), clickedkeyM, mouseposition));
 
-    zoom        = lift(Float32, lift(/, scroll_y, 5f0))
-    _theta       = merge(lift(GLAbstraction.thetalift, mousedraggdiffL, 50f0), theta)
-    _trans       = merge(lift(GLAbstraction.translationlift, zoom, mousedraggdiffM), trans)
+    zoom         = keepwhen(filtersignal, 0f0, lift(Float32, lift(/, scroll_y, 5f0)))
+    _theta       = keepwhen(filtersignal, Vec3f0(0), merge(lift(GLAbstraction.thetalift, mousedraggdiffL, 50f0), theta))
+    _trans       = keepwhen(filtersignal, Vec3f0(0), merge(lift(GLAbstraction.translationlift, zoom, mousedraggdiffM), trans))
     _theta, _trans, zoom
 end
 #=
