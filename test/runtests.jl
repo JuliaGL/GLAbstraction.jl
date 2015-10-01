@@ -1,22 +1,18 @@
-using GLAbstraction, GeometryTypes, ModernGL, Compat, FileIO
+using GLAbstraction, GeometryTypes, ModernGL, Compat, FileIO, GLFW
+if isinteractive() # only do test if called from REPL... this is for automated testing environments which fail for OpenGL stuff, but I'd like to test if at least including works
 
-#=
 # initilization,  with GLWindow this reduces to "createwindow("name", w,h)"
 GLFW.Init()
 GLFW.WindowHint(GLFW.SAMPLES, 4)
 
-@osx_only begin
-	GLFW.WindowHint(GLFW.CONTEXT_VERSION_MAJOR, 3)
-	GLFW.WindowHint(GLFW.CONTEXT_VERSION_MINOR, 3)
-	GLFW.WindowHint(GLFW.OPENGL_FORWARD_COMPAT, GL_TRUE)
-	GLFW.WindowHint(GLFW.OPENGL_PROFILE, GLFW.OPENGL_CORE_PROFILE)
-end
+GLFW.WindowHint(GLFW.CONTEXT_VERSION_MAJOR, 3)
+GLFW.WindowHint(GLFW.CONTEXT_VERSION_MINOR, 3)
+GLFW.WindowHint(GLFW.OPENGL_FORWARD_COMPAT, GL_TRUE)
+GLFW.WindowHint(GLFW.OPENGL_PROFILE, GLFW.OPENGL_CORE_PROFILE)
+
 window = GLFW.CreateWindow(512,512, "test")
 GLFW.MakeContextCurrent(window)
 GLFW.ShowWindow(window)
-
-init_glutils()
-
 
 # Test for creating a GLBuffer with a 1D Julia Array
 # You need to supply the cardinality, as it can't be inferred
@@ -25,18 +21,19 @@ indexes = indexbuffer(GLuint[0,1,2])
 # Test for creating a GLBuffer with a 1D Julia Array of Vectors
 #v = Vec2f[Vec2f(0.0, 0.5), Vec2f(0.5, -0.5), Vec2f(-0.5,-0.5)]
 
-v = Vector2{Float32}[Vector2{Float32}(0.0, 0.5), Vector2{Float32}(0.5, -0.5), Vector2{Float32}(-0.5,-0.5)]
+v = Vec2f0[Vec2f0(0.0, 0.5), Vec2f0(0.5, -0.5), Vec2f0(-0.5,-0.5)]
 
 verts = GLBuffer(v)
 # lets define some uniforms
 # uniforms are shader variables, which are supposed to stay the same for an entire draw call
 
 const triangle = RenderObject(
-	@compat(Dict(
+	Dict(
 		:vertex => verts,
 		:name_doesnt_matter_for_indexes => indexes
-	)),
-	TemplateProgram(file"test.vert", file"test.frag"))
+	),
+	TemplateProgram(load("test.vert"), load("test.frag"))
+)
 
 postrender!(triangle, render, triangle.vertexarray)
 
@@ -49,9 +46,6 @@ while !GLFW.WindowShouldClose(window)
 	sleep(0.01)
 end
 
-
-
 GLFW.Terminate()
-=#
 
-
+end
