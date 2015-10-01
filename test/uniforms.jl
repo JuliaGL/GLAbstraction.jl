@@ -1,16 +1,16 @@
-a = vec4(0)
-b = vec2(2)
-c = vec4(b..., 1,2)
-d = ivec4(b..., 1,2)
-d = uivec4(b..., 1,2)
+a = Vec4f0(0)
+b = Vec2f0(2)
+c = Vec4f0(b, 1,2)
+d = Vec{4, Int}(b, 1,2)
+d = Vec{4, UInt}(b, 1,2)
 
 
-m  = Matrix4x3(9f0)
-m2 = mat3(9f0)
-m2 = mat3(vec3(0), vec3(0), vec3(9))
+m  = Mat{4,3,Float32}(9f0)
+m2 = Mat{3,3,Float32}(9f0)
+m2 = Mat{3,3,Float32}(ntuple(x->0f0, 3), ntuple(x->0f0, 3), ntuple(x->0f0, 3))
 
 
-gluniform(int32(1), a)
-gluniform(int32(1), vec4[a,a])
-gluniform(int32(1), m)
-gluniform(int32(1), mat4x3[m, m])
+gluniform(Int32(1), a)
+gluniform(Int32(1), [a,a])
+gluniform(Int32(1), m)
+gluniform(Int32(1), [m, m])

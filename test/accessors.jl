@@ -1,11 +1,20 @@
-using GLAbstraction,GLVisualize, GLWindow, ModernGL, GeometryTypes, AbstractGPUArray, FixedPointNumbers
-using Base.Test
 
+immutable SpriteStyle{T} <: FixedVector{2, T}
+	#color_id::T # lookup attribute_id for attribute texture
+	#technique::T
+	_::NTuple{2, T}
+end
+
+
+
+
+typealias GLSpriteStyle SpriteStyle{UInt16}
 
 const TEST_1D = Any[]
 const TEST_2D = Any[]
 
 a = texture_buffer(fill(GLSpriteStyle(0,1), 77))
+
 for i=1:length(a)
 	r = i:i
 	a[r] = fill(GLSpriteStyle(0,1), length(r))
@@ -15,16 +24,16 @@ const N = 21 # some prime number to make things nasty
 # Generate some data
 push!(TEST_1D, rand(Float32, N*N))
 push!(TEST_1D, rand(Int32, N*N))
-push!(TEST_1D, Point3{Float32}[rand(Point3{Float32}) for i=1:N*N])
-push!(TEST_1D, Point4{Ufixed8}[rand(Point4{Float32}) for i=1:N*N])
-push!(TEST_1D, Point4{Int8}[rand(Point4{Int8}) for i=1:N*N])
+push!(TEST_1D, Point{3, Float32}[rand(Point{3, Float32}) for i=1:N*N])
+push!(TEST_1D, Point{4, Ufixed8}[rand(Point{4, Float32}) for i=1:N*N])
+push!(TEST_1D, Point{4, Int8}[rand(Point{4, Int8}) for i=1:N*N])
 #push!(TEST_1D, Point3{UInt8}[rand(Point3{UInt8}) for i=1:N*N]) #unaligned
 
 push!(TEST_2D, rand(Float32, N,N))
 push!(TEST_2D, rand(Int32, N,N))
-push!(TEST_2D, Point3{Float32}[rand(Point3{Float32}) for i=1:N,j=1:N])
-push!(TEST_2D, Point4{Ufixed8}[rand(Point4{Float32}) for i=1:N,j=1:N])
-push!(TEST_2D, Point4{Int8}[rand(Point4{Int8}) for i=1:N,j=1:N])
+push!(TEST_2D, Point{3, Float32}[rand(Point{3, Float32}) for i=1:N,j=1:N])
+push!(TEST_2D, Point{4, Ufixed8}[rand(Point{4, Float32}) for i=1:N,j=1:N])
+push!(TEST_2D, Point{4, Int8}[rand(Point{4, Int8}) for i=1:N,j=1:N])
 #push!(TEST_2D, Point3{UInt8}[rand(Point3{UInt8}) for i=1:N,j=1:N]) #unaligned
 
 

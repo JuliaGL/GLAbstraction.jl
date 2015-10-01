@@ -1,4 +1,3 @@
-using GLAbstraction, Compat, Base.Test
 dicta = @compat Dict(
 	:a => 2332,
 	:b => 777,
@@ -31,4 +30,3 @@ dictb = @compat Dict(
 @test b == dicta[:b]
 @test c == dicta[:c]
 
-println("macros successfully tested")

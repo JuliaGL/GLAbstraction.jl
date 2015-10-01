@@ -1,7 +1,12 @@
-using GLAbstraction, GeometryTypes, ModernGL, Compat, FileIO, GLFW
+using GLAbstraction, GeometryTypes, ModernGL, Compat, FileIO, GLFW, FixedSizeArrays, FixedPointNumbers, ColorTypes
+using Base.Test
+
+
 function is_ci()
 	get(ENV, "TRAVIS", "") == "true" || get(ENV, "APPVEYOR", "") == "true" || get(ENV, "CI", "") == "true"
 end
+
+include("macro_test.jl")
 
 if !is_ci() # only do test if not CI... this is for automated testing environments which fail for OpenGL stuff, but I'd like to test if at least including works
 
@@ -17,6 +22,10 @@ GLFW.WindowHint(GLFW.OPENGL_PROFILE, GLFW.OPENGL_CORE_PROFILE)
 window = GLFW.CreateWindow(512,512, "test")
 GLFW.MakeContextCurrent(window)
 GLFW.ShowWindow(window)
+
+include("accessors.jl")
+include("uniforms.jl")
+include("texture.jl")
 
 # Test for creating a GLBuffer with a 1D Julia Array
 # You need to supply the cardinality, as it can't be inferred
