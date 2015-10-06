@@ -106,7 +106,7 @@ value(any) = any # add this, to make it easier to work with a combination of sig
 
 makesignal(s::Signal) = s
 makesignal(v)         = Input(v)
-const_lift(f::Union(DataType, Function), inputs...) = map(f, map(makesignal, inputs)...)
+const_lift(f::Union{DataType, Function}, inputs...) = map(f, map(makesignal, inputs)...)
 export const_lift
 
 function close_to_square(n::Real)

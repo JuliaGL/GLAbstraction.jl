@@ -117,7 +117,7 @@ function OrthographicCamera(inputs::Dict{Symbol, Any})
 
     # Note 1: Don't do unnecessary updates, so just signal when mouse is actually clicked
     # Note 2: Get the difference, starting when the mouse is down
-    mouse_diff             = keepwhen(clickedwithoutkeyL, (false, Vec2f0(0.0f0), Vec2f0(0.0f0)),  ## (Note 1)
+    mouse_diff             = filterwhen(clickedwithoutkeyL, (false, Vec2f0(0.0f0), Vec2f0(0.0f0)),  ## (Note 1)
     foldp(mousediff, (false, Vec2f0(0.0f0), Vec2f0(0.0f0)), ## (Note 2)
     clickedwithoutkeyL, normedposition))
     translate             = const_lift(getindex, mouse_diff, Input(3))  # Extract the mouseposition from the diff tuple
@@ -215,16 +215,16 @@ translationlift(scroll_y, mdM) = Vec3f0(scroll_y, mdM[1]/200f0, -mdM[2]/200f0)
 
 function default_camera_control(inputs, T = Float32; trans=Input(Vec3f0(0)), theta=Input(Vec3f0(0)), filtersignal=Input(true))
     @materialize mouseposition, mousebuttonspressed, scroll_y = inputs
-    
+
     mouseposition       = const_lift(Vec{2, T}, mouseposition)
     clickedkeyL         = const_lift(GLAbstraction.mousepressed, mousebuttonspressed, Input(0))
     clickedkeyM         = const_lift(GLAbstraction.mousepressed, mousebuttonspressed, Input(2))
-    mousedraggdiffL     = const_lift(last, foldl(GLAbstraction.mousediff, (false, Vec2f0(0.0f0), Vec2f0(0.0f0)), clickedkeyL, mouseposition));
-    mousedraggdiffM     = const_lift(last, foldl(GLAbstraction.mousediff, (false, Vec2f0(0.0f0), Vec2f0(0.0f0)), clickedkeyM, mouseposition));
+    mousedraggdiffL     = const_lift(last, foldp(GLAbstraction.mousediff, (false, Vec2f0(0.0f0), Vec2f0(0.0f0)), clickedkeyL, mouseposition));
+    mousedraggdiffM     = const_lift(last, foldp(GLAbstraction.mousediff, (false, Vec2f0(0.0f0), Vec2f0(0.0f0)), clickedkeyM, mouseposition));
 
-    zoom         = keepwhen(filtersignal, 0f0, const_lift(Float32, const_lift(/, scroll_y, 5f0)))
-    _theta       = keepwhen(filtersignal, Vec3f0(0), merge(const_lift(GLAbstraction.thetalift, mousedraggdiffL, 50f0), theta))
-    _trans       = keepwhen(filtersignal, Vec3f0(0), merge(const_lift(GLAbstraction.translationlift, zoom, mousedraggdiffM), trans))
+    zoom         = filterwhen(filtersignal, 0f0, const_lift(Float32, const_lift(/, scroll_y, 5f0)))
+    _theta       = filterwhen(filtersignal, Vec3f0(0), merge(const_lift(GLAbstraction.thetalift, mousedraggdiffL, 50f0), theta))
+    _trans       = filterwhen(filtersignal, Vec3f0(0), merge(const_lift(GLAbstraction.translationlift, zoom, mousedraggdiffM), trans))
     _theta, _trans, zoom
 end
 #=
@@ -341,7 +341,7 @@ function PerspectiveCamera{T <: Real}(
     zaxis           = const_lift(cross, yaxis, xaxis)
 
     pivot0          = Pivot(value(lookatvec), value(xaxis), value(yaxis), value(zaxis), Quaternions.Quaternion(T(1),T(0),T(0),T(0)), zero(Vec{3, T}), Vec{3, T}(1))
-    pivot           = foldl(update_pivot, pivot0, const_lift(tuple, theta, trans, reset, resetto))
+    pivot           = foldp(update_pivot, pivot0, const_lift(tuple, theta, trans, reset, resetto))
 
 
     modelmatrix     = const_lift(transformationmatrix, pivot)
