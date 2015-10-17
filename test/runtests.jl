@@ -1,6 +1,7 @@
 using GLAbstraction, GeometryTypes, ModernGL, Compat, FileIO, GLFW, FixedSizeArrays, FixedPointNumbers, ColorTypes
 using Base.Test
 
+const HERE = dirname(@__FILE__)
 
 function is_ci()
 	get(ENV, "TRAVIS", "") == "true" || get(ENV, "APPVEYOR", "") == "true" || get(ENV, "CI", "") == "true"
@@ -15,9 +16,9 @@ GLFW.Init()
 GLFW.WindowHint(GLFW.SAMPLES, 4)
 
 GLFW.WindowHint(GLFW.CONTEXT_VERSION_MAJOR, 3)
-GLFW.WindowHint(GLFW.CONTEXT_VERSION_MINOR, 3)
+GLFW.WindowHint(GLFW.CONTEXT_VERSION_MINOR, 0)
 GLFW.WindowHint(GLFW.OPENGL_FORWARD_COMPAT, GL_TRUE)
-GLFW.WindowHint(GLFW.OPENGL_PROFILE, GLFW.OPENGL_CORE_PROFILE)
+#GLFW.WindowHint(GLFW.OPENGL_PROFILE, GLFW.OPENGL_CORE_PROFILE) # issue #24
 
 window = GLFW.CreateWindow(512,512, "test")
 GLFW.MakeContextCurrent(window)
@@ -45,7 +46,7 @@ const triangle = RenderObject(
 		:vertex => verts,
 		:name_doesnt_matter_for_indexes => indexes
 	),
-	TemplateProgram(load("test.vert"), load("test.frag"))
+	TemplateProgram(load(joinpath(HERE,"test.vert")), load(joinpath(HERE,"test.frag")))
 )
 
 postrender!(triangle, render, triangle.vertexarray)
