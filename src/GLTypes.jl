@@ -149,14 +149,14 @@ type RenderObject <: Composable{DeviceUnit}
         program              = program.value
         buffers              = filter((key, value) -> isa(value, GLBuffer), data)
         uniforms             = filter((key, value) -> !isa(value, GLBuffer), data)
-        uniforms[:objectid]  = RENDER_OBJECT_ID_COUNTER # automatucally integrate object ID, will be discarded if shader doesn't use it
-        get!(uniforms, :visible, true) # make sure, visibility is set
+        data[:objectid]      = RENDER_OBJECT_ID_COUNTER # automatucally integrate object ID, will be discarded if shader doesn't use it
+        get!(data, :visible, true) # make sure, visibility is set
 
         vertexarray = GLVertexArray(Dict{Symbol, GLBuffer}(buffers), program)
 
         return new(
             main,
-            uniforms,
+            data,
             vertexarray,
             Dict{Function, Tuple}(),
             Dict{Function, Tuple}(),

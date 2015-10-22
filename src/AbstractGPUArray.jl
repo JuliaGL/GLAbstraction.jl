@@ -45,30 +45,31 @@ function checkdimensions(value::Array, ranges::Union{Integer, UnitRange}...)
     (array_size != indexes_size) && throw(DimensionMismatch("asigning a $array_size to a $(indexes_size) location"))
     true
 end
-function setindex!{I <: Integer, T, N}(A::GPUArray, value::Array{T, N}, indexes::Union{UnitRange, I}...)
-    ranges = map(indexes) do val
-        isa(val, Integer) && return val:val
-        val # can only be unitrange        
-    end
-    setindex!(A, value, ranges...)
+to_range(index) = map(index) do val
+    isa(val, Integer) && return val:val
+    isa(val, Range) && return val
+    error("Indexing only defined for integers or ranges. Found: $val")
+end
+
+setindex!{T, N}(A::GPUArray{T, N}, value::Union{T, Array{T, N}}) = (A[1] = value)
+
+function setindex!{T, N}(A::GPUArray{T, N}, value, indexes...)
+    ranges = to_range(indexes)
+    v = isa(value, T) ? [value] : convert(Array{T,N}, value)
+    setindex!(A, v, ranges...)
     nothing
 end
-function setindex!{T}(A::GPUArray{T, 1}, value::Vector{T}, range::UnitRange)
-    checkbounds(A, range)
-    gpu_setindex!(A, value, range)
-    nothing
-end
-function setindex!{T}(A::GPUArray{T, 2}, value::Vector{T}, i, range::UnitRange)
-    checkbounds(A, i, range)
-    gpu_setindex!(A, reshape(value, (length(value),1)), i, range)
-    nothing
-end
+
+setindex!{T}(A::GPUArray{T, 2}, value::Vector{T}, i::Integer, range::UnitRange) =
+   (A[i, range] = reshape(value, (length(value),1)))
+
 function setindex!{T, N}(A::GPUArray{T, N}, value::Array{T, N}, ranges::UnitRange...)
     checkbounds(A, ranges...)
     checkdimensions(value, ranges...)
     gpu_setindex!(A, value, ranges...)
     nothing
 end
+
 function update!{T, N}(A::GPUArray{T, N}, value::Array{T, N})
     @assert length(A) == length(value) "update! needs arrays to have the same length. To update length: $(length(A)), updatevalue $(length(value))"
     dims = map(x->1:x, size(A))
@@ -76,7 +77,7 @@ function update!{T, N}(A::GPUArray{T, N}, value::Array{T, N})
     nothing
 end
 
-getindex{T, N}(A::GPUArray{T, N}, i::Int) = A[i:i][1] # not as bad as its looks, as so far gpu data must be loaded into an array anyways
+getindex{T, N}(A::GPUArray{T, N}, i::Int) = (checkbounds(A, i); gpu_getindex(A, i:i)[1]) # not as bad as its looks, as so far gpu data must be loaded into an array anyways
 function getindex{T, N}(A::GPUArray{T, N}, ranges::UnitRange...)
     checkbounds(A, ranges...)
     gpu_getindex(A, ranges...)
@@ -87,8 +88,8 @@ setindex!{T, N}(A::GPUArray{T, N}, value::Array{T, N}, rect::Rectangle) = (A[rec
 
 
 type GPUVector{T}
-    buffer      
-    size        
+    buffer
+    size
     real_length
 end
 GPUVector(x::GPUArray) = GPUVector{eltype(x)}(x, size(x), length(x))
@@ -198,6 +199,12 @@ gpu_setindex!(t) = error("gpu_setindex! not implemented for: $(typeof(t)). This 
 max_dim(t)       = error("max_dim not implemented for: $(typeof(t)). This happens, when you call setindex! on an array, without implementing the GPUArray interface")
 
 
+function Base.call{T <: GPUArray}(::Type{T}, x::Signal)
+    gpu_mem = T(value(x))
+    const_lift(update!, gpu_mem, x)
+    gpu_mem
+end
+
 export data
 export resize
 export GPUArray
@@ -210,5 +217,3 @@ export gpu_resize!
 export gpu_getindex
 export gpu_setindex!
 export max_dim
-
-

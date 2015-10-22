@@ -353,7 +353,7 @@ default_colorformat{T <: Real}(::Type{T})           = default_colorformat(1, T <
 default_colorformat{T <: AbstractArray}(::Type{T})  = default_colorformat(length(T), eltype(T) <: Integer, "RGBA")
 default_colorformat{T <: FixedVector}(::Type{T})    = default_colorformat(length(T), eltype(T) <: Integer, "RGBA")
 default_colorformat{T}(::Type{GrayA{T}})            = GL_LUMINANCE_ALPHA
-default_colorformat{T <: Colorant}(::Type{T})          = default_colorformat(length(T), eltype(T) <: Integer, string(T.name.name))
+default_colorformat{T <: Colorant}(::Type{T})       = default_colorformat(length(T), eltype(T) <: Integer, string(T.name.name))
 
 
 function default_internalcolorformat{T}(::Type{GrayA{T}})
@@ -362,7 +362,7 @@ function default_internalcolorformat{T}(::Type{GrayA{T}})
 end
 
 
-function default_internalcolorformat(T::DataType)
+@generated function default_internalcolorformat{T}(::Type{T})
     cdim = colordim(T)
     if cdim > 4 || cdim < 1
         error("$(cdim)-dimensional colors not supported")
@@ -375,13 +375,14 @@ function default_internalcolorformat(T::DataType)
     if eltyp <: AbstractFloat
         sym *= "F"
     elseif eltyp <: FixedPoint
-        sym *= eltyp <: Ufixed ? "" : "_SNORM"
+        sym *= eltyp <: UFixed ? "" : "_SNORM"
     elseif eltyp <: Signed
         sym *= "I"
     elseif eltyp <: Unsigned
         sym *= "UI"
     end
-    return eval(symbol(sym))
+    s = symbol(sym)
+    :($(s))
 end
 
 #Supported texture modes/dimensions

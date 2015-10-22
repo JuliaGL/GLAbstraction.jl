@@ -92,6 +92,7 @@ export gluniform                # wrapper of all the OpenGL gluniform functions,
 export toglsltype_string        # infers a glsl type string from a julia type. Example: Matrix4x4 -> uniform mat4
 # Also exports Macro generated GLSL alike aliases for Float32 Matrices and Vectors
 # only difference to GLSL: first character is uppercase uppercase
+export gl_convert
 
 include("GLMatrixMath.jl")
 export scalematrix #returns scale matrix

@@ -25,7 +25,7 @@ uniformfunc(typ::DataType, dims::Tuple{Int}) =
     symbol(string("glUniform", first(dims), opengl_postfix(typ)))
 
 function uniformfunc(typ::DataType, dims::Tuple{Int, Int})
-    M,N = dims
+    M, N = dims
     func = symbol(string("glUniformMatrix", M==N ? "$M":"$(M)x$(N)", opengl_postfix(typ)))
 end
 
@@ -212,23 +212,46 @@ end
 
 
 
-gl_convert{BUFF <: GLBuffer, T <: Triangle}(::Type{BUFF}, a::Vector{T}) = indexbuffer(s)
-gl_convert{BUFF <: GLBuffer, T}(::Type{BUFF},         a::Vector{T})     = BUFF(s)
-gl_convert{TEX  <: Texture,  T}(::Type{TEX},          s::Array{T})      = TEX(a)
-
-const NATIVE_TYPES = Union{FixedArray, Real, GLBuffer, Texture}
+const NATIVE_TYPES = Union{FixedArray, GLSL_COMPATIBLE_NUMBER_TYPES..., GLBuffer, Texture}
 
 #native types need no convert
-function gl_convert{GL, T <: NATIVE_TYPES}(::Type{GL}, s::Signal{T})
-    GL == T && return s
-    const_lift(gl_convert, GL, s)
+gl_convert{T <: NATIVE_TYPES}(s::Signal{T}) = s
+gl_convert{T}(s::Signal{T}) = const_lift(convert, gl_promote(T), s)
+
+gl_promote{T <: Integer}(x::Type{T})       = Cint
+gl_promote(x::Type{Union{Int16, Int8}})    = x
+
+gl_promote{T <: Unsigned}(x::Type{T})      = Cuint
+gl_promote(x::Type{Union{UInt16, UInt8}})  = x
+
+gl_promote{T <: AbstractFloat}(x::Type{T}) = Float32
+gl_promote(x::Type{Float16})               = x
+
+gl_promote{T <: UFixed}(x::Type{T})        = UFixed32
+gl_promote(x::Type{UFixed16})              = x
+gl_promote(x::Type{UFixed8})               = x
+
+typealias Color3{T} Colorant{T, 3}
+typealias Color4{T} Colorant{T, 4}
+gl_promote(x::Type{Bool})                  = GLboolean
+gl_promote{T <: Gray}(x::Type{T})          = Gray{gl_promote(eltype(T))}
+gl_promote{T <: Color3}(x::Type{T})        = RGB{gl_promote(eltype(T))}
+gl_promote{T <: Color4}(x::Type{T})        = RGBA{gl_promote(eltype(T))}
+gl_promote{T <: BGRA}(x::Type{T})          = BGRA{gl_promote(eltype(T))}
+gl_promote{T <: BGR}(x::Type{T})           = BGR{gl_promote(eltype(T))}
+
+for N=1:4
+    @eval gl_convert{T}(x::FixedVector{$N, T}) = map(gl_promote(T), x)
+end
+for N=1:4, M=1:4
+    @eval gl_convert{T}(x::Mat{$N, $M, T}) = map(gl_promote(T), x)
 end
 
-function gl_convert{GL, T <: Array}(::Type{GL}, s::Signal{T})
-    globj = julia2gl(s.value)
-    const_lift(update!, Input(globj), intensities)
-    globj
-end
+gl_convert{T, N}(x::Array{T, N}; kw_args...) = Texture(map(gl_promote(T), x); kw_args...)
+gl_convert{T <: Face}(a::Vector{T}) = indexbuffer(s)
+
+# native types don't need convert!
+gl_convert{T <: NATIVE_TYPES}(a::T) = a
 
 
 abstract GLEnumArray{T, SZ}

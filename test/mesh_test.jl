@@ -6,9 +6,9 @@ cam = PerspectiveCamera(window.inputs, Vec3(2,2,0.5), Vec3(0.0))
 
 # render objects creation
 shader = TemplateProgram(Pkg.dir("GLPlot", "src", "shader", "standard.vert"), Pkg.dir("GLPlot", "src", "shader", "phongblinn.frag"))
-RGBAU8 = AlphaColorValue{RGB{Ufixed8}, Ufixed8}
+RGBAU8 = AlphaColorValue{RGB{UFixed8}, UFixed8}
 Colorant.rgba(r::Real, g::Real, b::Real, a::Real)    = AlphaColorValue(RGB{Float32}(r,g,b), Float32(a))
-rgbaU8(r::Real, g::Real, b::Real, a::Real)  = AlphaColorValue(RGB{Ufixed8}(r,g,b), ufixed8(a))
+rgbaU8(r::Real, g::Real, b::Real, a::Real)  = AlphaColorValue(RGB{UFixed8}(r,g,b), ufixed8(a))
 #GLPlot.toopengl{T <: AbstractRGB}(colorinput::Input{T}) = toopengl(const_lift(x->AlphaColorValue(x, one(T)), RGBA{T}, colorinput))
 tohsva(rgba)     = AlphaColorValue(convert(HSV, rgba.c), rgba.alpha)
 torgba(hsva)     = AlphaColorValue(convert(RGB, hsva.c), hsva.alpha)
@@ -142,7 +142,7 @@ for material_name in collect(keys(obj.materials))
         data[:textures_used] = true
         data[:texture_maps] = Texture(convert(Vector{Matrix{eltype(first(texture_array))}}, texture_array))
     else
-        data[:texture_maps] = Texture(Matrix{RGBA{Ufixed8}}[fill(rgbaU8(0,0,0,0), 1,1)])
+        data[:texture_maps] = Texture(Matrix{RGBA{UFixed8}}[fill(rgbaU8(0,0,0,0), 1,1)])
     end
 
     ro = RenderObject(data, shader)
