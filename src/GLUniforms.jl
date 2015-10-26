@@ -197,7 +197,7 @@ function uniform_name_type(program::GLuint)
     end
 end
 function attribute_name_type(program::GLuint)
-    uniformLength   = glGetProgramiv(program, GL_ACTIVE_ATTRIBUTES)
+    uniformLength = glGetProgramiv(program, GL_ACTIVE_ATTRIBUTES)
     if uniformLength == 0
         return ()
     else
@@ -225,9 +225,7 @@ end
 
 const NATIVE_TYPES = Union{FixedArray, GLSL_COMPATIBLE_NUMBER_TYPES..., GLBuffer, Texture}
 
-#native types need no convert
-gl_convert{T <: NATIVE_TYPES}(s::Signal{T}) = s
-gl_convert{T}(s::Signal{T}) = const_lift(convert, gl_promote(T), s)
+
 
 gl_promote{T <: Integer}(x::Type{T})       = Cint
 gl_promote(x::Type{Union{Int16, Int8}})    = x
@@ -244,12 +242,19 @@ gl_promote(x::Type{UFixed8})               = x
 
 typealias Color3{T} Colorant{T, 3}
 typealias Color4{T} Colorant{T, 4}
+
 gl_promote(x::Type{Bool})                  = GLboolean
 gl_promote{T <: Gray}(x::Type{T})          = Gray{gl_promote(eltype(T))}
 gl_promote{T <: Color3}(x::Type{T})        = RGB{gl_promote(eltype(T))}
 gl_promote{T <: Color4}(x::Type{T})        = RGBA{gl_promote(eltype(T))}
 gl_promote{T <: BGRA}(x::Type{T})          = BGRA{gl_promote(eltype(T))}
 gl_promote{T <: BGR}(x::Type{T})           = BGR{gl_promote(eltype(T))}
+
+
+#native types need no convert
+gl_convert(s::Tuple) = map(gl_convert, s)
+gl_convert{T <: NATIVE_TYPES}(s::Signal{T}) = s
+gl_convert{T}(s::Signal{T}) = const_lift(convert, gl_promote(T), s)
 
 for N=1:4
     @eval gl_convert{T}(x::FixedVector{$N, T}) = map(gl_promote(T), x)
@@ -260,6 +265,9 @@ end
 
 gl_convert{T, N}(x::Array{T, N}; kw_args...) = Texture(map(gl_promote(T), x); kw_args...)
 gl_convert{T <: Face}(a::Vector{T}) = indexbuffer(s)
+
+
+gl_convert(::Type{GLBuffer}, a::Vector{T}; kw_args...) = GLBuffer(map(gl_promote(T), x); kw_args...)
 
 # native types don't need convert!
 gl_convert{T <: NATIVE_TYPES}(a::T) = a
