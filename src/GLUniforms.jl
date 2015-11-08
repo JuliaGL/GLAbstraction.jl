@@ -79,6 +79,7 @@ function toglsltype_string{T, D}(t::Texture{T, D})
         string("uniform ", opengl_prefix(eltype(T)),"samplerBuffer")
     end
 end
+toglsltype_string(t::Nothing)                   = "uniform Nothing"
 toglsltype_string(t::GLfloat)                   = "uniform float"
 toglsltype_string(t::GLuint)                    = "uniform uint"
 toglsltype_string(t::GLint)                     = "uniform int"
@@ -266,8 +267,8 @@ end
 gl_convert{T, N}(x::Array{T, N}; kw_args...) = Texture(map(gl_promote(T), x); kw_args...)
 gl_convert{T <: Face}(a::Vector{T}) = indexbuffer(s)
 
-
-gl_convert(::Type{GLBuffer}, a::Vector{T}; kw_args...) = GLBuffer(map(gl_promote(T), x); kw_args...)
+gl_convert{T}(::Type{GLBuffer}, a::Vector{T}; kw_args...) = GLBuffer(map(gl_promote(T), x); kw_args...)
+gl_convert{T}(::Type{TextureBuffer}, a::Vector{T}; kw_args...) = TextureBuffer(map(gl_promote(T), x); kw_args...)
 
 # native types don't need convert!
 gl_convert{T <: NATIVE_TYPES}(a::T) = a

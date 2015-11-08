@@ -61,7 +61,7 @@ include("GLTypes.jl")
 export GLProgram                # Shader/program object
 export Texture                  # Texture object, basically a 1/2/3D OpenGL data array
 export TextureParameters
-export texture_buffer			# function to create a texture buffer texture
+export TextureBuffer			# OpenGL texture buffer
 export update!                  # updates a gpu array with a Julia array
 export gpu_data 				# gets the data of a gpu array as a Julia Array
 

@@ -50,6 +50,7 @@ mapvalues(func::Union{Function, Base.Func}, collection::Dict) =
     [key => func(value) for (key, value) in collection]
 mapkeys(func::Union{Function, Base.Func}, collection::Dict) =
     [func(key) => value for (key, value) in collection]
+Base.get{KT, VT}(a::Dict{KT, VT}, keys::Vector{KT}) = [a[key] for key in keys]
 
 function print_with_lines(text::AbstractString)
     for (i,line) in enumerate(split(text, "\n"))
