@@ -251,8 +251,13 @@ gl_promote{T <: Color4}(x::Type{T})        = RGBA{gl_promote(eltype(T))}
 gl_promote{T <: BGRA}(x::Type{T})          = BGRA{gl_promote(eltype(T))}
 gl_promote{T <: BGR}(x::Type{T})           = BGR{gl_promote(eltype(T))}
 
+gl_promote{T <: HomogenousMesh}(x::Type{T}) = NativeMesh{T}
+
 
 #native types need no convert
+gl_convert{T <: AbstractMesh}(x::Type{T}) = gl_convert(convert(GLNormalMesh, x))
+gl_convert{T <: HomogenousMesh}(x::Type{T}) = gl_promote(T)(x)
+
 gl_convert(s::Tuple) = map(gl_convert, s)
 gl_convert{T <: NATIVE_TYPES}(s::Signal{T}) = s
 gl_convert{T}(s::Signal{T}) = const_lift(convert, gl_promote(T), s)

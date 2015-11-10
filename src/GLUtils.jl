@@ -72,8 +72,9 @@ Style() = Style{:Default}()
 mergedefault!{S}(style::Style{S}, styles, customdata) = merge!(copy(styles[S]), Dict{Symbol, Any}(customdata))
 
 
-
-#splats keys from a dict into variables
+"""
+splats keys from a dict into variables
+"""
 macro materialize(dict_splat)
     keynames, dict = dict_splat.args
     keynames = isa(keynames, Symbol) ? [keynames] : keynames.args
@@ -86,7 +87,9 @@ macro materialize(dict_splat)
     end
     esc(expr)
 end
-
+"""
+splats keys from a dict into variables and removes them
+"""
 macro materialize!(dict_splat)
     keynames, dict = dict_splat.args
     keynames = isa(keynames, Symbol) ? [keynames] : keynames.args
@@ -143,7 +146,14 @@ isnotempty(A) = !isempty(A)
 Base.length{T <: Number}(::Type{T}) = 1
 
 
-function collect_for_gl{T <: HomogenousMesh}(m::T)
+#Meshtype holding native OpenGL data. 
+immutable NativeMesh{MeshType <: HomogenousMesh}
+    data::Dict{Symbol, Any}
+end
+
+
+Base.call{T <: HomogenousMesh}(::Type{NativeMesh}, m::T) = NativeMesh{T}(m)
+function Base.call{T <: HomogenousMesh}(MT::Type{NativeMesh{T}}, m::T)
     result = Dict{Symbol, Any}()
     attribs = attributes(m)
     @materialize! vertices, faces = attribs
@@ -156,5 +166,5 @@ function collect_for_gl{T <: HomogenousMesh}(m::T)
             result[field] = Texture(val)
         end
     end
-    result
+    MT(result)
 end
