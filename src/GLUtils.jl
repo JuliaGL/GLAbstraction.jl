@@ -51,14 +51,11 @@ mapvalues(func::Union{Function, Base.Func}, collection::Dict) =
 mapkeys(func::Union{Function, Base.Func}, collection::Dict) =
     [func(key) => value for (key, value) in collection]
 
-
 function print_with_lines(text::AbstractString)
     for (i,line) in enumerate(split(text, "\n"))
         @printf("%-4d: %s\n", i, line)
     end
 end
-
-
 
 
 #=
@@ -106,7 +103,10 @@ value(any) = any # add this, to make it easier to work with a combination of sig
 
 makesignal(s::Signal) = s
 makesignal(v)         = Input(v)
-consume(f::Reactive.Callable, inputs...) = consume(f, map(makesignal, inputs)...)
+
+
+@inline const_lift(f::Union{DataType, Function}, inputs...) = map(f, map(makesignal, inputs)...)
+export const_lift
 
 
 function close_to_square(n::Real)

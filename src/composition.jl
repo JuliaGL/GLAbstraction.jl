@@ -19,7 +19,7 @@ boundingbox(c::Composable) = c.boundingbox
 transformation(c::Composable) = c.transformation
 
 function transformation(c::Composable, model)
-    c.transformation = lift(*, model, c.transformation)
+    c.transformation = const_lift(*, model, c.transformation)
     for elem in c.children
         transformation(elem, c.transformation)
     end
@@ -35,7 +35,7 @@ function Base.append!{unit <: Unit, N}(context::Context{unit}, x::Union{Vector{C
 end
 function Base.push!{unit <: Unit}(context::Context{unit}, x::Composable)
     x = convert!(unit, x)
-    context.boundingbox = lift(union, boundingbox(context), boundingbox(x))
+    context.boundingbox = const_lift(union, boundingbox(context), boundingbox(x))
     transformation(x, transformation(context))
     push!(context.children, x)
     context

@@ -58,7 +58,7 @@ end
 prg = TemplateProgram(shader)
 
 i = 0f0
-const roll = lift(every(0.1)) do x
+const roll = const_lift(every(0.1)) do x
     global i
     i::Float32 += 0.01f0
 end

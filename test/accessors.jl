@@ -25,14 +25,14 @@ const N = 21 # some prime number to make things nasty
 push!(TEST_1D, rand(Float32, N*N))
 push!(TEST_1D, rand(Int32, N*N))
 push!(TEST_1D, Point{3, Float32}[rand(Point{3, Float32}) for i=1:N*N])
-push!(TEST_1D, Point{4, Ufixed8}[rand(Point{4, Float32}) for i=1:N*N])
+push!(TEST_1D, Point{4, UFixed8}[rand(Point{4, Float32}) for i=1:N*N])
 push!(TEST_1D, Point{4, Int8}[rand(Point{4, Int8}) for i=1:N*N])
 #push!(TEST_1D, Point3{UInt8}[rand(Point3{UInt8}) for i=1:N*N]) #unaligned
 
 push!(TEST_2D, rand(Float32, N,N))
 push!(TEST_2D, rand(Int32, N,N))
 push!(TEST_2D, Point{3, Float32}[rand(Point{3, Float32}) for i=1:N,j=1:N])
-push!(TEST_2D, Point{4, Ufixed8}[rand(Point{4, Float32}) for i=1:N,j=1:N])
+push!(TEST_2D, Point{4, UFixed8}[rand(Point{4, Float32}) for i=1:N,j=1:N])
 push!(TEST_2D, Point{4, Int8}[rand(Point{4, Int8}) for i=1:N,j=1:N])
 #push!(TEST_2D, Point3{UInt8}[rand(Point3{UInt8}) for i=1:N,j=1:N]) #unaligned
 

@@ -32,8 +32,8 @@ function DummyCamera(;
         view           = Input(eye(Mat{4,4, Float32})),
         nearclip       = Input(10000f0),
         farclip        = Input(-10000f0),
-        projection     = lift(orthographicprojection, window_size, nearclip, farclip),
-        projectionview = lift(*, projection, view)
+        projection     = const_lift(orthographicprojection, window_size, nearclip, farclip),
+        projectionview = const_lift(*, projection, view)
     )
     DummyCamera{Float32}(window_size, view, projection, projectionview)
 end
@@ -82,7 +82,7 @@ Signals needed:
 function OrthographicPixelCamera(inputs::Dict{Symbol, Any})
     @materialize mouseposition, buttonspressed = inputs
     #Should be rather in Image coordinates
-    view = foldl(viewmatrix, eye(Mat{4,4, Float32}), inputs[:scroll_x], inputs[:scroll_y], buttonspressed)
+    view = foldp(viewmatrix, eye(Mat{4,4, Float32}), inputs[:scroll_x], inputs[:scroll_y], buttonspressed)
     OrthographicCamera(
         inputs[:window_size],
         view,
@@ -110,17 +110,17 @@ Signals needed:
 function OrthographicCamera(inputs::Dict{Symbol, Any})
     @materialize mouseposition, mousebuttonspressed, buttonspressed, window_size = inputs
 
-    zoom                 = foldl(times_n , 1.0f0, inputs[:scroll_y], Input(0.1f0)) # add up and multiply by 0.1f0
+    zoom                 = foldp(times_n , 1.0f0, inputs[:scroll_y], Input(0.1f0)) # add up and multiply by 0.1f0
     #Should be rather in Image coordinates
-    normedposition         = lift(normalize_positionf0, inputs[:mouseposition], inputs[:window_size])
-    clickedwithoutkeyL     = lift(is_leftclicked_without_keyboard, mousebuttonspressed, buttonspressed)
+    normedposition         = const_lift(normalize_positionf0, inputs[:mouseposition], inputs[:window_size])
+    clickedwithoutkeyL     = const_lift(is_leftclicked_without_keyboard, mousebuttonspressed, buttonspressed)
 
     # Note 1: Don't do unnecessary updates, so just signal when mouse is actually clicked
     # Note 2: Get the difference, starting when the mouse is down
-    mouse_diff             = keepwhen(clickedwithoutkeyL, (false, Vec2f0(0.0f0), Vec2f0(0.0f0)),  ## (Note 1)
-    foldl(mousediff, (false, Vec2f0(0.0f0), Vec2f0(0.0f0)), ## (Note 2)
+    mouse_diff             = filterwhen(clickedwithoutkeyL, (false, Vec2f0(0.0f0), Vec2f0(0.0f0)),  ## (Note 1)
+    foldp(mousediff, (false, Vec2f0(0.0f0), Vec2f0(0.0f0)), ## (Note 2)
     clickedwithoutkeyL, normedposition))
-    translate             = lift(getindex, mouse_diff, Input(3))  # Extract the mouseposition from the diff tuple
+    translate             = const_lift(getindex, mouse_diff, Input(3))  # Extract the mouseposition from the diff tuple
 
     OrthographicCamera(
     window_size,
@@ -145,10 +145,10 @@ function OrthographicCamera{T}(
     farclip      ::Signal{T}
     )
 
-    projection = lift(orthographicprojection, windows_size, nearclip, farclip)
+    projection = const_lift(orthographicprojection, windows_size, nearclip, farclip)
     #projection = Input(eye(Mat4))
     #view = Input(eye(Mat4))
-    projectionview = lift(*, projection, view)
+    projectionview = const_lift(*, projection, view)
 
     OrthographicCamera{T}(
         windows_size,
@@ -177,7 +177,7 @@ function OrthographicCamera{T}(
         normedposition   ::Signal{Vec{2, T}}
     )
 
-    projection = lift(windows_size) do wh
+    projection = const_lift(windows_size) do wh
         w,h = width(wh), height(wh)
         if w < 1 || h < 1
             return eye(Mat{4,4,T})
@@ -188,17 +188,17 @@ function OrthographicCamera{T}(
         orthographicprojection(zero(T), T(wh[1]), zero(T), T(wh[2]), -one(T), T(10))
     end
 
-    scale             = lift(x -> scalematrix(Vec{3, T}(x, x, one(T))), zoom)
-    transaccum        = foldl(+, Vec{2,T}(0), translatevec)
-    translate         = lift(x-> translationmatrix(Vec{3,T}(x, zero(T))), transaccum)
+    scale             = const_lift(x -> scalematrix(Vec{3, T}(x, x, one(T))), zoom)
+    transaccum        = foldp(+, Vec{2,T}(0), translatevec)
+    translate         = const_lift(x-> translationmatrix(Vec{3,T}(x, zero(T))), transaccum)
 
-    view = lift(scale, translate) do s, t
+    view = const_lift(scale, translate) do s, t
         pivot = Vec(normedposition.value..., zero(T))
         translationmatrix(pivot)*s*translationmatrix(-pivot)*t
     end
 
 
-    projectionview = lift(*, projection, view)
+    projectionview = const_lift(*, projection, view)
 
     OrthographicCamera{T}(
         windows_size,
@@ -215,16 +215,16 @@ translationlift(scroll_y, mdM) = Vec3f0(scroll_y, mdM[1]/200f0, -mdM[2]/200f0)
 
 function default_camera_control(inputs, T = Float32; trans=Input(Vec3f0(0)), theta=Input(Vec3f0(0)), filtersignal=Input(true))
     @materialize mouseposition, mousebuttonspressed, scroll_y = inputs
-    
-    mouseposition       = lift(Vec{2, T}, mouseposition)
-    clickedkeyL         = lift(GLAbstraction.mousepressed, mousebuttonspressed, Input(0))
-    clickedkeyM         = lift(GLAbstraction.mousepressed, mousebuttonspressed, Input(2))
-    mousedraggdiffL     = lift(last, foldl(GLAbstraction.mousediff, (false, Vec2f0(0.0f0), Vec2f0(0.0f0)), clickedkeyL, mouseposition));
-    mousedraggdiffM     = lift(last, foldl(GLAbstraction.mousediff, (false, Vec2f0(0.0f0), Vec2f0(0.0f0)), clickedkeyM, mouseposition));
 
-    zoom         = keepwhen(filtersignal, 0f0, lift(Float32, lift(/, scroll_y, 5f0)))
-    _theta       = keepwhen(filtersignal, Vec3f0(0), merge(lift(GLAbstraction.thetalift, mousedraggdiffL, 50f0), theta))
-    _trans       = keepwhen(filtersignal, Vec3f0(0), merge(lift(GLAbstraction.translationlift, zoom, mousedraggdiffM), trans))
+    mouseposition       = const_lift(Vec{2, T}, mouseposition)
+    clickedkeyL         = const_lift(GLAbstraction.mousepressed, mousebuttonspressed, Input(0))
+    clickedkeyM         = const_lift(GLAbstraction.mousepressed, mousebuttonspressed, Input(2))
+    mousedraggdiffL     = const_lift(last, foldp(GLAbstraction.mousediff, (false, Vec2f0(0.0f0), Vec2f0(0.0f0)), clickedkeyL, mouseposition));
+    mousedraggdiffM     = const_lift(last, foldp(GLAbstraction.mousediff, (false, Vec2f0(0.0f0), Vec2f0(0.0f0)), clickedkeyM, mouseposition));
+
+    zoom         = filterwhen(filtersignal, 0f0, const_lift(Float32, const_lift(/, scroll_y, 5f0)))
+    _theta       = filterwhen(filtersignal, Vec3f0(0), merge(const_lift(GLAbstraction.thetalift, mousedraggdiffL, 50f0), theta))
+    _trans       = filterwhen(filtersignal, Vec3f0(0), merge(const_lift(GLAbstraction.translationlift, zoom, mousedraggdiffM), trans))
     _theta, _trans, zoom
 end
 #=
@@ -336,25 +336,26 @@ function PerspectiveCamera{T <: Real}(
 
     origin          = lookatvec
     vup             = Vec{3, T}(0,0,1)
-    xaxis           = lift(-, eyeposition, lookatvec)
-    yaxis           = lift(cross, xaxis, vup)
-    zaxis           = lift(cross, yaxis, xaxis)
+    xaxis           = const_lift(-, eyeposition, lookatvec)
+    yaxis           = const_lift(cross, xaxis, vup)
+    zaxis           = const_lift(cross, yaxis, xaxis)
 
     pivot0          = Pivot(value(lookatvec), value(xaxis), value(yaxis), value(zaxis), Quaternions.Quaternion(T(1),T(0),T(0),T(0)), zero(Vec{3, T}), Vec{3, T}(1))
-    pivot           = foldl(update_pivot, pivot0, lift(tuple, theta, trans, reset, resetto))
+    pivot           = foldp(update_pivot, pivot0, const_lift(tuple, theta, trans, reset, resetto))
 
-    modelmatrix     = lift(transformationmatrix, pivot)
-    positionvec     = lift(*, modelmatrix, Input(Vec(eyeposition, one(T))))
-    positionvec     = lift(Vec{3,T}, positionvec)
 
-    up              = lift(getupvec, pivot)
-    lookatvec1      = lift(getfield, pivot, :origin) # silly way of geting a field
+    modelmatrix     = const_lift(transformationmatrix, pivot)
+    positionvec     = const_lift(*, modelmatrix, Input(Vec(eyeposition, one(T))))
+    positionvec     = const_lift(Vec{3,T}, positionvec)
 
-    view            = lift(lookat, positionvec, lookatvec1, up)
-    zoom            = foldl(+, 1f0, zoom)
-    pmatrix      	= lift(projection_switch, window_size, fov, nearclip, farclip, projection, zoom)
+    up              = const_lift(getupvec, pivot)
+    lookatvec1      = const_lift(getfield, pivot, :origin) # silly way of geting a field
 
-    projectionview  = lift(*, pmatrix, view)
+    view            = const_lift(lookat, positionvec, lookatvec1, up)
+    zoom            = foldp(+, 1f0, zoom)
+    pmatrix      	= const_lift(projection_switch, window_size, fov, nearclip, farclip, projection, zoom)
+
+    projectionview  = const_lift(*, pmatrix, view)
 
     PerspectiveCamera{T}(
         pivot,
