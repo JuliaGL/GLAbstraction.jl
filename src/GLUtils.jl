@@ -103,6 +103,39 @@ macro materialize!(dict_splat)
     esc(expr)
 end
 
+"""
+Takes a dict and inserts defaults, if not already available.
+The variables are made accessible in local scope, so things like this are possible:
+gen_defaults! dict begin
+    a = 55
+    c = a+5 # c == 60
+end
+"""
+macro gen_defaults!(dict, args)
+    args.head == :block || error("args need to be a block of form 
+    begin 
+        a = x
+        b = 10
+    end")
+    tuple_list = args.args
+    dictsym = gensym()
+    return_expression = Expr(:block)
+    push!(return_expression.args, :($dictsym = $dict)) # dict could also be an expression
+    for (i,elem) in enumerate(tuple_list)
+        elem.head == :line && continue
+        elem.head == :(=) || error("all nodes need to be of form a = b, where a needs to be a var and b any expression. Found: $elem")
+        key_name, value_expr = elem.args
+        key_sym = Expr(:quote, key_name)
+        push!(return_expression.args,  quote
+            $key_name = haskey($dictsym, $key_sym) ? $dictsym[$key_sym] : $value_expr # in case that evaluating value_expr is expensive, we use a branch instead of get(dict, key, default)
+            $dictsym[$key_sym] = $key_name
+        end)
+    end
+    push!(return_expression.args, :($dictsym)) #return dict
+    esc(return_expression)
+end
+
+
 value(any) = any # add this, to make it easier to work with a combination of signals and constants
 
 makesignal(s::Signal) = s
