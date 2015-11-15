@@ -274,7 +274,7 @@ end
 update_convert{T, T2, ND}(globj::GPUArray{T, ND}, value::Array{T2, ND}) = update!(globj, convert(Array{T, ND}, value))
 function gl_convert{T, T2, ND}(should_be::GLEnumGlobalArray{T, ND}, is::Signal{Array{T2, ND}})
     globject = gl_convert(should_be, is.value)
-    const_lift(update_convert, globject, is)
+    preserve(const_lift(update_convert, globject, is))
     globj
 end
 

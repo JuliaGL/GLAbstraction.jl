@@ -160,7 +160,7 @@ glEnable(GL_DEPTH_TEST)
 
 const_lift(window.inputs[:framebuffer_size]) do wh
     glViewport(0,0,wh...)
-end
+end |> preserve
 # Loop until the user closes the window
 while !GLFW.WindowShouldClose(window.nativewindow)
 
