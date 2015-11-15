@@ -249,17 +249,6 @@ function TemplateProgram(kw_args::Dict{Symbol, Any}, s::Shader, shaders::Shader.
 end
 
 
-# Gets used to access a
-function glsl_variable_access{T,D}(keystring, t::Texture{T, D})
-    t.texturetype == GL_TEXTURE_BUFFER && return "texelFetch($(keystring), index)."*"rgba"[1:length(T)]*";"
-    return "getindex($(keystring), index)."*"rgba"[1:length(T)]*";"
-end
-
-glsl_variable_access(keystring, ::Union{Real, GLBuffer, FixedArray, Colorant}) = keystring*";"
-
-glsl_variable_access(keystring, s::Signal) = glsl_variable_access(keystring, s.value)
-glsl_variable_access(keystring, t::Any)    = error("no glsl variable calculation available for : ", keystring, " of type ", typeof(t))
-
 
 function createview(x::Dict{Symbol, Any}, keys)
   view = Dict{ASCIIString, ASCIIString}()

@@ -94,8 +94,19 @@ end
 
 function toglsltype_string(t::GLBuffer)
     typ = cardinality(t) > 1 ? "vec$(cardinality(t))" : "float"
-    "$(get_glsl_in_qualifier_string()) $typ"
+    "in $typ"
 end
+# Gets used to access a
+function glsl_variable_access{T,D}(keystring, t::Texture{T, D})
+    t.texturetype == GL_TEXTURE_BUFFER && return "texelFetch($(keystring), index)."*"rgba"[1:length(T)]*";"
+    return "getindex($(keystring), index)."*"rgba"[1:length(T)]*";"
+end
+
+glsl_variable_access(keystring, ::Union{Real, GLBuffer, FixedArray, Colorant}) = keystring*";"
+
+glsl_variable_access(keystring, s::Signal) = glsl_variable_access(keystring, s.value)
+glsl_variable_access(keystring, t::Any)    = error("no glsl variable calculation available for : ", keystring, " of type ", typeof(t))
+
 
 UNIFORM_TYPES = FixedArray
 
@@ -111,10 +122,10 @@ is_bool_uniform_type{T}(::Type{T}) = eltype(T) <: Bool || is_integer_uniform_typ
 
 iscorrect{AnySym}(x::Signal, glenum::GLENUM{AnySym, GLenum}) = iscorrect(x.value, glenum)
 
-iscorrect(x::Real, ::GLENUM{:GL_BOOL, GLenum})          = is_bool_uniform_type(typeof(x))
-iscorrect(x::Real, ::GLENUM{:GL_UNSIGNED_INT, GLenum})  = is_unsigned_uniform_type(typeof(x))
-iscorrect(x::Real, ::GLENUM{:GL_INT, GLenum})           = is_integer_uniform_type(typeof(x))
-iscorrect(x::Real, ::GLENUM{:GL_FLOAT, GLenum})         = is_float_uniform_type(typeof(x))
+iscorrect(x::Real, ::GLENUM{:GL_BOOL, GLenum})                              = is_bool_uniform_type(typeof(x))
+iscorrect(x::Real, ::GLENUM{:GL_UNSIGNED_INT, GLenum})                      = is_unsigned_uniform_type(typeof(x))
+iscorrect(x::Real, ::GLENUM{:GL_INT, GLenum})                               = is_integer_uniform_type(typeof(x))
+iscorrect(x::Real, ::GLENUM{:GL_FLOAT, GLenum})                             = is_float_uniform_type(typeof(x))
 
 iscorrect{T <: UNIFORM_TYPES}(::T, ::GLENUM{:GL_BOOL, GLenum})              = is_bool_uniform_type(T) && length(T) == 1
 iscorrect{T <: UNIFORM_TYPES}(::T, ::GLENUM{:GL_BOOL_VEC2, GLenum})         = is_bool_uniform_type(T) && length(T) == 2
