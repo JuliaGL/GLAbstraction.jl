@@ -31,8 +31,8 @@ void main() {
 	outColor = texture(image, f_uv);
 }
 """
-# The Input (Reactive Signal Input) is needed, as the interface expects a signal of shader, which is why you can edit your shader and see the changes.
-program = Input(TemplateProgram(vert, frag)) #= {{GLSL_VERSION}} is a template, you could add your own with the kwarg view=Dict{ASCIIString, ASCIIString}(key->replacement) =#
+# The Signal (Reactive Signal Signal) is needed, as the interface expects a signal of shader, which is why you can edit your shader and see the changes.
+program = Signal(TemplateProgram(vert, frag)) #= {{GLSL_VERSION}} is a template, you could add your own with the kwarg view=Dict{ASCIIString, ASCIIString}(key->replacement) =#
 
 tex = Texture([RGBA{U8}(x,y,sin(x*pi), 1.0) for x=0:0.1:1., y=0:0.1:1.]) #automatically creates the correct texture
 data = merge(Dict(

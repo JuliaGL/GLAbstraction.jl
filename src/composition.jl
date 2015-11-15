@@ -9,8 +9,8 @@ type Context{Unit} <: Composable{Unit}
     boundingbox::Signal{AABB{Float32}}
     transformation::Signal{Mat{4,4, Float32}}
 end
-Context() = Context{DeviceUnit}(Composable[], Input(AABB{Float32}(Vec3f0(0), Vec3f0(0))), Input(eye(Mat{4,4, Float32})))
-Context(trans::Signal{Mat{4,4, Float32}}) = Context{DeviceUnit}(Composable[], Input(AABB{Float32}(Vec3f0(0), Vec3f0(0))), trans)
+Context() = Context{DeviceUnit}(Composable[], Signal(AABB{Float32}(Vec3f0(0), Vec3f0(0))), Signal(eye(Mat{4,4, Float32})))
+Context(trans::Signal{Mat{4,4, Float32}}) = Context{DeviceUnit}(Composable[], Signal(AABB{Float32}(Vec3f0(0), Vec3f0(0))), trans)
 function Context(a::Composable...; parent=Context())
     append!(parent, a)
     parent

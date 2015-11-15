@@ -89,7 +89,7 @@ end
 """
 Gives back a signal, which signals true everytime the file gets edited
 """
-function isupdated(file::File, updatewhile=Input(true), update_interval=1.0)
+function isupdated(file::File, updatewhile=Signal(true), update_interval=1.0)
     fn = filename(file)
     file_edited = foldp((false, mtime(fn)), fpswhen(updatewhile, 1.0/update_interval)) do v0, v1
         time_edited = mtime(fn)
@@ -99,7 +99,7 @@ function isupdated(file::File, updatewhile=Input(true), update_interval=1.0)
 end
 
 #reads from the file and updates the source whenever the file gets edited
-function const_lift_shader(shader_file::File, updatewhile=Input(true), update_interval=1.0)
+function const_lift_shader(shader_file::File, updatewhile=Signal(true), update_interval=1.0)
     const_lift(isupdated(shader_file, updatewhile, update_interval)) do _unused
         Shader(shader_file)
     end
@@ -213,7 +213,7 @@ function TemplateProgram(x::Union{Shader, File, Signal{Shader}}...; kw_args...)
 end
 
 function TemplateProgram(kw_args::Dict{Symbol, Any}, s::File, shaders::File...)
-    updatewhile     = get(kw_args, :updatewhile, Input(true))
+    updatewhile     = get(kw_args, :updatewhile, Signal(true))
     update_interval = get(kw_args, :update_interval, 1.0)
     shader_signals  = map(s->const_lift_shader(s, updatewhile, update_interval), [s,shaders...])
     TemplateProgram(kw_args, shader_signals...)

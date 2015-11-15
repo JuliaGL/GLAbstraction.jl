@@ -62,7 +62,7 @@ data = Dict{Symbol, Any}(
     :projectionview => cam.projectionview
 )
 program = TemplateProgram(vert, geom, frag)
-robj = std_renderobject(data, Input(program), Input(AABB(Vec3f0(0), Vec3f0(1))), GL_POINTS)
+robj = std_renderobject(data, Signal(program), Signal(AABB(Vec3f0(0), Vec3f0(1))), GL_POINTS)
 
 
 glClearColor(0,0,0,1)

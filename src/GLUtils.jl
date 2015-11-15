@@ -102,7 +102,7 @@ end
 value(any) = any # add this, to make it easier to work with a combination of signals and constants
 
 makesignal(s::Signal) = s
-makesignal(v)         = Input(v)
+makesignal(v)         = Signal(v)
 
 
 @inline const_lift(f::Union{DataType, Function}, inputs...) = map(f, map(makesignal, inputs)...)

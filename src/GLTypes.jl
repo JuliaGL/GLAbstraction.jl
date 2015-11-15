@@ -43,7 +43,7 @@ immutable FrameBuffer{T}
     id          ::GLuint
     attachments ::Vector{Any}
 
-    function FrameBuffer(dimensions::Input)
+    function FrameBuffer(dimensions::Signal)
         fb = glGenFramebuffers()
         glBindFramebuffer(GL_FRAMEBUFFER, fb)
     end
@@ -143,7 +143,7 @@ type RenderObject <: Composable{DeviceUnit}
     id                  ::GLushort
     boundingbox         ::Signal # workaround for having lazy boundingbox queries, while not using multiple dispatch for boundingbox function (No type hierarchy for RenderObjects)
 
-    function RenderObject(data::Dict{Symbol, Any}, program::Signal{GLProgram}, bbs=Input(AABB{Float32}(Vec3f0(0),Vec3f0(1))), main=nothing)
+    function RenderObject(data::Dict{Symbol, Any}, program::Signal{GLProgram}, bbs=Signal(AABB{Float32}(Vec3f0(0),Vec3f0(1))), main=nothing)
         global RENDER_OBJECT_ID_COUNTER
         RENDER_OBJECT_ID_COUNTER     += one(GLushort)
         program              = program.value

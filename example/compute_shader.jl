@@ -69,7 +69,7 @@ data = Dict(
     :roll    => roll,
     :destTex => tex,
 )
-const ro = RenderObject(data, Input(prg))
+const ro = RenderObject(data, Signal(prg))
 postrender!(ro, glDispatchCompute, div(512,16), div(512,16), 1) # 512^2 threads in blocks of 16^2
 
 cam = window.cameras[:orthographic_pixel]
@@ -98,7 +98,7 @@ end
     ), collect_for_gl(msh))
 
     textureshader = TemplateProgram(tex_frag, tex_vert, attributes=data)
-    texobj           = RenderObject(data, Input(textureshader))
+    texobj           = RenderObject(data, Signal(textureshader))
 
     prerender!(texobj, glDisable, GL_DEPTH_TEST, enabletransparency, glDisable, GL_CULL_FACE)
     postrender!(texobj, render, texobj.vertexarray)

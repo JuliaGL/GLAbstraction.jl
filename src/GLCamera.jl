@@ -28,10 +28,10 @@ type DummyCamera{T} <: Camera{T}
 end
 
 function DummyCamera(;
-        window_size    = Input(Rectangle(-1, -1, 1, 1)),
-        view           = Input(eye(Mat{4,4, Float32})),
-        nearclip       = Input(10000f0),
-        farclip        = Input(-10000f0),
+        window_size    = Signal(Rectangle(-1, -1, 1, 1)),
+        view           = Signal(eye(Mat{4,4, Float32})),
+        nearclip       = Signal(10000f0),
+        farclip        = Signal(-10000f0),
         projection     = const_lift(orthographicprojection, window_size, nearclip, farclip),
         projectionview = const_lift(*, projection, view)
     )
@@ -72,11 +72,11 @@ end
 Creates an orthographic camera with the pixel perfect plane in z == 0
 Signals needed:
 [
-:window_size                    => Input(Rectangle{Int}),
-:buttonspressed                    => Input(Int[]),
-:mousebuttonspressed            => Input(Int[]),
+:window_size                    => Signal(Rectangle{Int}),
+:buttonspressed                    => Signal(Int[]),
+:mousebuttonspressed            => Signal(Int[]),
 :mouseposition                    => mouseposition, -> Panning
-:scroll_y                        => Input(0) -> Zoomig
+:scroll_y                        => Signal(0) -> Zoomig
 ]
 =#
 function OrthographicPixelCamera(inputs::Dict{Symbol, Any})
@@ -86,8 +86,8 @@ function OrthographicPixelCamera(inputs::Dict{Symbol, Any})
     OrthographicCamera(
         inputs[:window_size],
         view,
-        Input(-10f0), # nearclip
-        Input(10f0) # farclip
+        Signal(-10f0), # nearclip
+        Signal(10f0) # farclip
     )
 
 end
@@ -100,17 +100,17 @@ is_leftclicked_without_keyboard(mb, kb) = in(0, mb) && isempty(kb)
 Creates an orthographic camera from a dict of signals
 Signals needed:
 [
-:window_size                    => Input(Vec{2, Int}),
-:buttonspressed                    => Input(Int[]),
-:mousebuttonspressed            => Input(Int[]),
+:window_size                    => Signal(Vec{2, Int}),
+:buttonspressed                    => Signal(Int[]),
+:mousebuttonspressed            => Signal(Int[]),
 :mouseposition                    => mouseposition, -> Panning
-:scroll_y                        => Input(0) -> Zoomig
+:scroll_y                        => Signal(0) -> Zoomig
 ]
 =#
 function OrthographicCamera(inputs::Dict{Symbol, Any})
     @materialize mouseposition, mousebuttonspressed, buttonspressed, window_size = inputs
 
-    zoom                 = foldp(times_n , 1.0f0, inputs[:scroll_y], Input(0.1f0)) # add up and multiply by 0.1f0
+    zoom                 = foldp(times_n , 1.0f0, inputs[:scroll_y], Signal(0.1f0)) # add up and multiply by 0.1f0
     #Should be rather in Image coordinates
     normedposition         = const_lift(normalize_positionf0, inputs[:mouseposition], inputs[:window_size])
     clickedwithoutkeyL     = const_lift(is_leftclicked_without_keyboard, mousebuttonspressed, buttonspressed)
@@ -120,7 +120,7 @@ function OrthographicCamera(inputs::Dict{Symbol, Any})
     mouse_diff             = filterwhen(clickedwithoutkeyL, (false, Vec2f0(0.0f0), Vec2f0(0.0f0)),  ## (Note 1)
     foldp(mousediff, (false, Vec2f0(0.0f0), Vec2f0(0.0f0)), ## (Note 2)
     clickedwithoutkeyL, normedposition))
-    translate             = const_lift(getindex, mouse_diff, Input(3))  # Extract the mouseposition from the diff tuple
+    translate             = const_lift(getindex, mouse_diff, Signal(3))  # Extract the mouseposition from the diff tuple
 
     OrthographicCamera(
     window_size,
@@ -146,8 +146,8 @@ function OrthographicCamera{T}(
     )
 
     projection = const_lift(orthographicprojection, windows_size, nearclip, farclip)
-    #projection = Input(eye(Mat4))
-    #view = Input(eye(Mat4))
+    #projection = Signal(eye(Mat4))
+    #view = Signal(eye(Mat4))
     projectionview = const_lift(*, projection, view)
 
     OrthographicCamera{T}(
@@ -213,12 +213,12 @@ mousepressed(mousebuttons::Vector{Int}, button::Int) = in(button, mousebuttons)
 thetalift(mdL, speed) = Vec3f0(0f0, -mdL[2]/speed, mdL[1]/speed)
 translationlift(scroll_y, mdM) = Vec3f0(scroll_y, mdM[1]/200f0, -mdM[2]/200f0)
 
-function default_camera_control(inputs, T = Float32; trans=Input(Vec3f0(0)), theta=Input(Vec3f0(0)), filtersignal=Input(true))
+function default_camera_control(inputs, T = Float32; trans=Signal(Vec3f0(0)), theta=Signal(Vec3f0(0)), filtersignal=Signal(true))
     @materialize mouseposition, mousebuttonspressed, scroll_y = inputs
 
     mouseposition       = const_lift(Vec{2, T}, mouseposition)
-    clickedkeyL         = const_lift(GLAbstraction.mousepressed, mousebuttonspressed, Input(0))
-    clickedkeyM         = const_lift(GLAbstraction.mousepressed, mousebuttonspressed, Input(2))
+    clickedkeyL         = const_lift(GLAbstraction.mousepressed, mousebuttonspressed, Signal(0))
+    clickedkeyM         = const_lift(GLAbstraction.mousepressed, mousebuttonspressed, Signal(2))
     mousedraggdiffL     = const_lift(last, foldp(GLAbstraction.mousediff, (false, Vec2f0(0.0f0), Vec2f0(0.0f0)), clickedkeyL, mouseposition));
     mousedraggdiffM     = const_lift(last, foldp(GLAbstraction.mousediff, (false, Vec2f0(0.0f0), Vec2f0(0.0f0)), clickedkeyM, mouseposition));
 
@@ -233,11 +233,11 @@ Args:
 
 inputs: Dict of signals, looking like this:
 [
-:window_size                    => Input(Vec{2, Int}),
-:buttonspressed                    => Input(Int[]),
-:mousebuttonspressed            => Input(Int[]),
+:window_size                    => Signal(Vec{2, Int}),
+:buttonspressed                    => Signal(Int[]),
+:mousebuttonspressed            => Signal(Int[]),
 :mouseposition                   => mouseposition, -> Panning + Rotation
-:scroll_y                        => Input(0) -> Zoomig
+:scroll_y                        => Signal(0) -> Zoomig
 ]
 eyeposition: Position of the camera
 lookatvec: Point the camera looks at
@@ -252,9 +252,9 @@ function PerspectiveCamera{T}(inputs::Dict{Symbol,Any}, eyeposition::Vec{3, T}, 
         theta,
         trans,
         zoom,
-        Input(41f0),
-        Input(1f0),
-        Input(100f0)
+        Signal(41f0),
+        Signal(1f0),
+        Signal(100f0)
     )
 end
 
@@ -329,9 +329,9 @@ function PerspectiveCamera{T <: Real}(
         fov             ::Signal{T},
         nearclip        ::Signal{T},
         farclip         ::Signal{T},
-        projection 	= Input(PERSPECTIVE),
-        reset   	= Input(false),
-        resetto 	= Input(Quaternions.Quaternion(T(1),T(0),T(0),T(0)))
+        projection 	= Signal(PERSPECTIVE),
+        reset   	= Signal(false),
+        resetto 	= Signal(Quaternions.Quaternion(T(1),T(0),T(0),T(0)))
     )
 
     origin          = lookatvec
@@ -345,7 +345,7 @@ function PerspectiveCamera{T <: Real}(
 
 
     modelmatrix     = const_lift(transformationmatrix, pivot)
-    positionvec     = const_lift(*, modelmatrix, Input(Vec(eyeposition, one(T))))
+    positionvec     = const_lift(*, modelmatrix, Signal(Vec(eyeposition, one(T))))
     positionvec     = const_lift(Vec{3,T}, positionvec)
 
     up              = const_lift(getupvec, pivot)
