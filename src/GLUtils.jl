@@ -70,7 +70,10 @@ end
 Style(x::Symbol) = Style{x}()
 Style() = Style{:Default}()
 mergedefault!{S}(style::Style{S}, styles, customdata) = merge!(copy(styles[S]), Dict{Symbol, Any}(customdata))
-
+macro style_str(string)
+    Style{symbol(string)}
+end
+export @style_str
 
 """
 splats keys from a dict into variables
@@ -112,8 +115,8 @@ gen_defaults! dict begin
 end
 """
 macro gen_defaults!(dict, args)
-    args.head == :block || error("args need to be a block of form 
-    begin 
+    args.head == :block || error("args need to be a block of form
+    begin
         a = x
         b = 10
     end")
@@ -134,6 +137,7 @@ macro gen_defaults!(dict, args)
     push!(return_expression.args, :($dictsym)) #return dict
     esc(return_expression)
 end
+export @gen_defaults!
 
 
 value(any) = any # add this, to make it easier to work with a combination of signals and constants
@@ -179,11 +183,11 @@ isnotempty(A) = !isempty(A)
 Base.length{T <: Number}(::Type{T}) = 1
 
 
-#Meshtype holding native OpenGL data. 
+#Meshtype holding native OpenGL data.
 immutable NativeMesh{MeshType <: HomogenousMesh}
     data::Dict{Symbol, Any}
 end
-
+export NativeMesh
 
 Base.call{T <: HomogenousMesh}(::Type{NativeMesh}, m::T) = NativeMesh{T}(m)
 function Base.call{T <: HomogenousMesh}(MT::Type{NativeMesh{T}}, m::T)

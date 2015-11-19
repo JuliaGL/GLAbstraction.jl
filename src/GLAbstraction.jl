@@ -43,12 +43,6 @@ import ModernGL.glScissor
 include("composition.jl")
 export Composable, Context, convert!, boundingbox
 
-include("gltypealias.jl")
-export Triangle
-export GLFace
-export GLTriangle
-export GLQuad
-
 
 include("GLUtils.jl")
 export @gputime # measures the time an OpenGL call takes on the GPU (usually OpenGL calls return immidiately)
