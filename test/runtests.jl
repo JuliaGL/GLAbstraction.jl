@@ -1,4 +1,4 @@
-using GLAbstraction, GeometryTypes, ModernGL, Compat, FileIO, GLFW, FixedSizeArrays, FixedPointNumbers, ColorTypes
+using GLAbstraction, GeometryTypes, ModernGL, Compat, FileIO, GLWindow, FixedSizeArrays, FixedPointNumbers, ColorTypes
 using Base.Test
 
 
@@ -10,18 +10,7 @@ include("macro_test.jl")
 
 if !is_ci() # only do test if not CI... this is for automated testing environments which fail for OpenGL stuff, but I'd like to test if at least including works
 
-# initilization,  with GLWindow this reduces to "createwindow("name", w,h)"
-GLFW.Init()
-GLFW.WindowHint(GLFW.SAMPLES, 4)
-
-GLFW.WindowHint(GLFW.CONTEXT_VERSION_MAJOR, 3)
-GLFW.WindowHint(GLFW.CONTEXT_VERSION_MINOR, 3)
-GLFW.WindowHint(GLFW.OPENGL_FORWARD_COMPAT, GL_TRUE)
-GLFW.WindowHint(GLFW.OPENGL_PROFILE, GLFW.OPENGL_CORE_PROFILE)
-
-window = GLFW.CreateWindow(512,512, "test")
-GLFW.MakeContextCurrent(window)
-GLFW.ShowWindow(window)
+window = createwindow("test", 500,500)
 
 include("accessors.jl")
 include("uniforms.jl")
@@ -51,14 +40,12 @@ const triangle = RenderObject(
 postrender!(triangle, render, triangle.vertexarray)
 
 glClearColor(0,0,0,1)
-while !GLFW.WindowShouldClose(window)
+while isopen(window)
   	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
 	render(triangle)
-	GLFW.SwapBuffers(window)
-	GLFW.PollEvents()
+	swapbuffers(window)
+	pollevents(window)
 	sleep(0.01)
 end
-
-GLFW.Terminate()
 
 end
