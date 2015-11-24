@@ -141,18 +141,39 @@ type RenderObject <: Composable{DeviceUnit}
     prerenderfunctions  ::Dict{Function, Tuple}
     postrenderfunctions ::Dict{Function, Tuple}
     id                  ::GLushort
-    boundingbox         ::Signal # workaround for having lazy boundingbox queries, while not using multiple dispatch for boundingbox function (No type hierarchy for RenderObjects)
+    boundingbox          # workaround for having lazy boundingbox queries, while not using multiple dispatch for boundingbox function (No type hierarchy for RenderObjects)
 
-    function RenderObject(data::Dict{Symbol, Any}, program::Signal{GLProgram}, bbs=Signal(AABB{Float32}(Vec3f0(0),Vec3f0(1))), main=nothing)
+    function RenderObject(data::Dict{Symbol, Any}, program, bbs=Signal(AABB{Float32}(Vec3f0(0),Vec3f0(1))), main=nothing)
         global RENDER_OBJECT_ID_COUNTER
-        RENDER_OBJECT_ID_COUNTER     += one(GLushort)
-        program              = program.value
-        buffers              = filter((key, value) -> isa(value, GLBuffer), data)
-        uniforms             = filter((key, value) -> !isa(value, GLBuffer), data)
-        data[:objectid]      = RENDER_OBJECT_ID_COUNTER # automatucally integrate object ID, will be discarded if shader doesn't use it
+        RENDER_OBJECT_ID_COUNTER += one(GLushort)
+        targets = get(data, :gl_convert_targets, Dict())
+        passthrough = Dict{Symbol, Any}() # we also save a few non opengl related values in data
+        for (k,v) in data # convert everything to OpenGL compatible types
+            k == :light && continue
+            if haskey(targets, k)
+                data[k] = gl_convert(targets[k], v) # glconvert is designed to just convert everything to a fitting opengl datatype, but sometimes exceptions are needed
+                # e.g. Texture{T,1} and GLBuffer{T} are both usable as an native conversion canditate for a Julia's Array{T, 1} type.
+                # but in some cases we want a Texture, sometimes a GLBuffer or TextureBuffer
+            else
+                if applicable(gl_convert, v) # if can't be converted to an OpenGL datatype,
+                    data[k] = gl_convert(v)
+                else # put it in passthrough
+                    delete!(data, k)
+                    passthrough[k] = v
+                end
+            end
+        end
+        meshs = filter((key, value) -> isa(value, NativeMesh), data)
+        if !isempty(meshs)
+            merge!(data, map(x->last(x).data, meshs)...)
+        end
+        buffers         = filter((key, value) -> isa(value, GLBuffer), data)
+        uniforms        = filter((key, value) -> !isa(value, GLBuffer), data)
+        data[:objectid] = RENDER_OBJECT_ID_COUNTER # automatucally integrate object ID, will be discarded if shader doesn't use it
         get!(data, :visible, true) # make sure, visibility is set
-
-        vertexarray = GLVertexArray(Dict{Symbol, GLBuffer}(buffers), program)
+        merge!(data, passthrough) # in the end, we insert back the non opengl data, to keep things simple
+        p = value(gl_convert(program, data)) # "compile" lazyshader
+        vertexarray = GLVertexArray(Dict{Symbol, GLBuffer}(buffers), p)
 
         return new(
             main,

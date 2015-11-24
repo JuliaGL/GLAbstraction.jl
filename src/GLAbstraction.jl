@@ -11,15 +11,17 @@ using ColorTypes
 using Compat
 import Mustache
 using FileIO
+import FileIO: load, save
+
+import Base: merge, resize!, unsafe_copy!, similar, length, getindex, setindex!, call
+import Reactive: value
+
 
 include("AbstractGPUArray.jl")
 
-import FileIO: load, save
 
-import Base: merge, resize!, unsafe_copy!, similar, length, getindex, setindex!, consume
-import Reactive: value
 
-#Methods which got overloaded by GLExtendedFunctions.jl:
+#Methods which get overloaded by GLExtendedFunctions.jl:
 import ModernGL.glShaderSource
 import ModernGL.glGetAttachedShaders
 import ModernGL.glGetActiveUniform
@@ -49,7 +51,7 @@ export @gputime # measures the time an OpenGL call takes on the GPU (usually Ope
 export @materialize #splats keywords from a dict into variables
 export @materialize!  #splats keywords from a dict into variables and deletes them from the dict
 export close_to_square
-export collect_for_gl
+export AND, OR, isnotempty
 
 include("GLTypes.jl")
 export GLProgram                # Shader/program object
@@ -80,6 +82,16 @@ export mergedefault!            # merges a style dict via a given style
 
 include("GLExtendedFunctions.jl")
 export glTexImage # Julian wrapper for glTexImage1D, glTexImage2D, glTexImage3D
+include("GLShader.jl")
+export Shader 				#Shader Type
+export readshader 			#reads a shader
+export glsl_variable_access # creates access string from julia variable for the use in glsl shaders
+export createview #creates a view from a templated shader
+export TemplateProgram # Creates a shader from a Mustache view and and a shader file, which uses mustache syntax to replace values.
+export @comp_str #string macro for the different shader types.
+export @frag_str # with them you can write frag""" ..... """, returning shader object
+export @vert_str
+export @geom_str
 
 include("GLUniforms.jl")
 export gluniform                # wrapper of all the OpenGL gluniform functions, which call the correct gluniform function via multiple dispatch. Example: gluniform(location, x::Matrix4x4) = gluniformMatrix4fv(location, x)
@@ -107,16 +119,7 @@ export render  #renders arbitrary objects
 export enabletransparency # can be pushed to an renderobject, enables transparency
 export renderinstanced # renders objects instanced
 
-include("GLShader.jl")
-export Shader 			#Shader Type
-export readshader 			#reads a shader
-export glsl_variable_access # creates access string from julia variable for the use in glsl shaders
-export createview #creates a view from a templated shader
-export TemplateProgram # Creates a shader from a Mustache view and and a shader file, which uses mustache syntax to replace values.
-export @comp_str #string macro for the different shader types.
-export @frag_str # with them you can write frag""" ..... """, returning shader object
-export @vert_str
-export @geom_str
+
 
 
 include("GLCamera.jl")

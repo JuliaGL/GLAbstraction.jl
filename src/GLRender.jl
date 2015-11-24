@@ -13,7 +13,9 @@ function render(renderobject::RenderObject, vertexarray=renderobject.vertexarray
         program = vertexarray.program
         glUseProgram(program.id)
         for (key,value) in program.uniformloc
-            haskey(renderobject.uniforms, key) && gluniform(value..., renderobject.uniforms[key])
+            if haskey(renderobject.uniforms, key)
+                gluniform(value..., renderobject.uniforms[key])
+            end
         end
         for elem in renderobject.postrenderfunctions
             elem[1](elem[2]...)
@@ -31,9 +33,7 @@ function render(vao::GLVertexArray, mode::GLenum=GL_TRIANGLES)
     glBindVertexArray(0)
 
 end
-
-
-function renderinstanced(vao::GLVertexArray, amount::Union{GPUArray, GPUVector}, primitive=GL_TRIANGLES)
+function renderinstanced(vao::GLVertexArray, amount, primitive=GL_TRIANGLES)
     glBindVertexArray(vao.id)
     glDrawElementsInstanced(primitive, vao.indexlength, GL_UNSIGNED_INT, C_NULL, length(amount))
     glBindVertexArray(0)

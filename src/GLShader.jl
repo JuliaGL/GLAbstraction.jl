@@ -122,6 +122,7 @@ let shader_cache = Dict{Tuple{GLenum, Vector{UInt8}}, GLuint}() # shader cache p
     #finalizer(shader_cache, dict->foreach(glDeleteShader, values(dict))) # delete all shaders when done
     empty_shader_cache!() = empty!(shader_cache)
     global empty_shader_cache!
+
     function compileshader(shader::Shader)
         get!(shader_cache, (shader.typ, shader.source)) do
             shaderid = createshader(shader.typ)
@@ -137,7 +138,7 @@ let shader_cache = Dict{Tuple{GLenum, Vector{UInt8}}, GLuint}() # shader cache p
     end
 end
 
-
+export empty_shadercache
 
 function uniformlocations(nametypedict::Dict{Symbol, GLenum}, program)
     isempty(nametypedict) && return Dict{Symbol,Tuple}()
@@ -190,10 +191,21 @@ function GLProgram(
 end
 
 
-
-
-
-
+abstract AbstractLazyShader
+immutable LazyShader
+    paths  ::Tuple
+    kw_args::Vector
+    function LazyShader(paths...; kw_args...)
+        paths = map(shader -> joinpath(shaderdir(), shader), paths)
+        new(paths, kw_args)
+    end
+end
+export AbstractLazyShader
+gl_convert(lazyshader::AbstractLazyShader, data) = TemplateProgram(
+    map(load, lazyshader.paths)...;
+    attributes = data,
+    lazyshader.kw_args...
+)
 
 
 # Takes a shader template and renders the template and returns shader source

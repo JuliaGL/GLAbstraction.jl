@@ -139,6 +139,11 @@ end
 TextureBuffer{T <: GLArrayEltypes}(buffer::Vector{T}) =
     TextureBuffer(GLBuffer(buffer, buffertype=GL_TEXTURE_BUFFER, usage=GL_DYNAMIC_DRAW))
 
+function TextureBuffer{T <: GLArrayEltypes}(s::Signal{Vector{T}})
+    tb = TextureBuffer(value(s))
+    Reactive.preserve(const_lift(update!, tb, s))
+    tb
+end
 
 #=
 Some special treatmend for types, with alpha in the First place
@@ -280,9 +285,9 @@ end
 # Resize Texture
 function gpu_resize!{T}(t::TextureBuffer{T}, newdims::NTuple{1, Int})
     resize!(t.buffer, newdims)
-    glBindTexture(t.texture.texturetype, t.id)
+    glBindTexture(t.texture.texturetype, t.texture.id)
     glTexBuffer(t.texture.texturetype, t.texture.internalformat, t.buffer.id) #update data in texture
-    t.size   = newdims
+    t.texture.size  = newdims
     glBindTexture(t.texture.texturetype, 0)
     t
 end

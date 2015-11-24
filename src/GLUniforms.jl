@@ -52,6 +52,7 @@ end
 gluniform(location::Integer, target::Integer, t::Texture)   = gluniform(GLint(location), GLint(target), t)
 gluniform(location::Integer, target::Integer, t::GPUVector) = gluniform(GLint(location), GLint(target), t.buffer)
 gluniform(location::Integer, target::Integer, t::Signal)    = gluniform(GLint(location), GLint(target), t.value)
+gluniform(location::Integer, target::Integer, t::TextureBuffer) = gluniform(GLint(location), GLint(target), t.texture)
 function gluniform(location::GLint, target::GLint, t::Texture)
     activeTarget = GL_TEXTURE0 + UInt32(target)
     glActiveTexture(activeTarget)
@@ -73,11 +74,10 @@ gluniform(location::GLint, x::Vector{GLuint})  = glUniform1uiv(location, length(
 
 
 function toglsltype_string{T, D}(t::Texture{T, D})
-    if isnull(t.buffer)
-        string("uniform ", opengl_prefix(eltype(T)),"sampler", D, "D")
-    else
-        string("uniform ", opengl_prefix(eltype(T)),"samplerBuffer")
-    end
+    string("uniform ", opengl_prefix(eltype(T)),"sampler", D, "D")
+end
+function toglsltype_string{T}(t::TextureBuffer{T})
+    string("uniform ", opengl_prefix(eltype(T)),"samplerBuffer")
 end
 toglsltype_string(t::Nothing)                   = "uniform Nothing"
 toglsltype_string(t::GLfloat)                   = "uniform float"
@@ -224,8 +224,7 @@ end
 
 
 
-const NATIVE_TYPES = Union{FixedArray, GLSL_COMPATIBLE_NUMBER_TYPES..., GLBuffer, Texture}
-
+const NATIVE_TYPES = Union{FixedArray, GLSL_COMPATIBLE_NUMBER_TYPES..., GLBuffer, GPUArray, Shader, GLProgram, NativeMesh}
 
 
 gl_promote{T <: Integer}(x::Type{T})       = Cint
@@ -251,16 +250,22 @@ gl_promote{T <: Color4}(x::Type{T})        = RGBA{gl_promote(eltype(T))}
 gl_promote{T <: BGRA}(x::Type{T})          = BGRA{gl_promote(eltype(T))}
 gl_promote{T <: BGR}(x::Type{T})           = BGR{gl_promote(eltype(T))}
 
+
+gl_promote{T <: FixedVector}(x::Type{T})   = similar(T, gl_promote(eltype(T)))
+
 gl_promote{T <: HomogenousMesh}(x::Type{T}) = NativeMesh{T}
 
 
 #native types need no convert
-gl_convert{T <: AbstractMesh}(x::Type{T}) = gl_convert(convert(GLNormalMesh, x))
-gl_convert{T <: HomogenousMesh}(x::Type{T}) = gl_promote(T)(x)
+gl_convert{T <: Colorant}(x::T) = gl_promote(T)(x)
+gl_convert{T <: AbstractMesh}(x::T) = gl_convert(convert(GLNormalMesh, x))
+gl_convert{T <: HomogenousMesh}(x::T) = gl_promote(T)(x)
 
-gl_convert(s::Tuple) = map(gl_convert, s)
+gl_convert(s::AABB) = s
+gl_convert(s::Void) = s
+
 gl_convert{T <: NATIVE_TYPES}(s::Signal{T}) = s
-gl_convert{T}(s::Signal{T}) = const_lift(convert, gl_promote(T), s)
+gl_convert{T}(s::Signal{T}) = const_lift(gl_convert, s)
 
 for N=1:4
     @eval gl_convert{T}(x::FixedVector{$N, T}) = map(gl_promote(T), x)
@@ -272,8 +277,14 @@ end
 gl_convert{T, N}(x::Array{T, N}; kw_args...) = Texture(map(gl_promote(T), x); kw_args...)
 gl_convert{T <: Face}(a::Vector{T}) = indexbuffer(s)
 
-gl_convert{T}(::Type{GLBuffer}, a::Vector{T}; kw_args...) = GLBuffer(map(gl_promote(T), x); kw_args...)
-gl_convert{T}(::Type{TextureBuffer}, a::Vector{T}; kw_args...) = TextureBuffer(map(gl_promote(T), x); kw_args...)
+gl_convert{T}(::Type{GLBuffer}, a::Vector{T}; kw_args...) = GLBuffer(map(gl_promote(T), a); kw_args...)
+gl_convert{T}(::Type{TextureBuffer}, a::Vector{T}; kw_args...) = TextureBuffer(map(gl_promote(T), a); kw_args...)
+
+function gl_convert{T <: Union{TextureBuffer, Texture, GLBuffer}, X}(::Type{T}, a::Signal{Vector{X}}; kw_args...)
+    TGL = gl_promote(X)
+    s = (X == TGL) ? a : const_lift(map, TGL, a)
+    T(s; kw_args...)
+end
 
 # native types don't need convert!
 gl_convert{T <: NATIVE_TYPES}(a::T) = a

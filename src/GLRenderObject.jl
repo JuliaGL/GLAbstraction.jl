@@ -1,6 +1,3 @@
-RenderObject{T}(data::Dict{Symbol, T}, program::GLProgram) = RenderObject(Dict{Symbol, Any}(data), Signal(program))
-
-
 function Base.show(io::IO, obj::RenderObject)
     println(io, "RenderObject with ID: ", obj.id)
 
@@ -26,7 +23,8 @@ Base.setindex!(obj::RenderObject, value, ::Val{:prerender}, x::Function)    = ob
 Base.setindex!(obj::RenderObject, value, ::Val{:postrender}, x::Function)   = obj.postrenderfunctions[x] = value
 
 
-function instanced_renderobject(data, program::Signal{GLProgram}, bb=Signal(AABB(Vec3f0(0), Vec3f0(1))), primitive::GLenum=GL_TRIANGLES, main=nothing)
+
+function instanced_renderobject(data, program, bb=Signal(AABB(Vec3f0(0), Vec3f0(1))), primitive::GLenum=GL_TRIANGLES, main=nothing)
     robj = RenderObject(data, program, bb, main)
     prerender!(robj,
         glEnable, GL_DEPTH_TEST,
@@ -40,7 +38,8 @@ function instanced_renderobject(data, program::Signal{GLProgram}, bb=Signal(AABB
 end
 
 
-function std_renderobject(data, shader::Signal{GLProgram}, bb=Signal(AABB(Vec3f0(0), Vec3f0(1))), primitive=GL_TRIANGLES, main=nothing)
+
+function std_renderobject(data, shader, bb=Signal(AABB(Vec3f0(0), Vec3f0(1))), primitive=GL_TRIANGLES, main=nothing)
     robj = RenderObject(data, shader, bb, main)
     prerender!(robj,
         glEnable, GL_DEPTH_TEST,
