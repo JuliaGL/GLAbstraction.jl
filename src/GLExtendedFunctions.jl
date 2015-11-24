@@ -160,8 +160,8 @@ function glGetTexLevelParameteriv(target::GLenum, level, name::GLenum)
   result[1]
 end
 
-glViewport(x::Rectangle) = glViewport(x.x, x.y, x.w, x.h)
-glScissor(x::Rectangle) = glScissor(x.x, x.y, x.w, x.h)
+glViewport(x::SimpleRectangle) = glViewport(x.x, x.y, x.w, x.h)
+glScissor(x::SimpleRectangle) = glScissor(x.x, x.y, x.w, x.h)
 
 
 function glGenRenderbuffers(format::GLenum, attachment::GLenum, dimensions)

@@ -85,7 +85,7 @@ function frustum{T}(left::T, right::T, bottom::T, top::T, znear::T, zfar::T)
     )
 end
 
-perspectiveprojection{T}(wh::Rectangle, fov::T, near::T, far::T) = perspectiveprojection(fov, T(wh.w/wh.h), near, far)
+perspectiveprojection{T}(wh::SimpleRectangle, fov::T, near::T, far::T) = perspectiveprojection(fov, T(wh.w/wh.h), near, far)
 function perspectiveprojection{T}(fovy::T, aspect::T, znear::T, zfar::T)
     (znear == zfar) && error("znear ($znear) must be different from tfar ($zfar)")
     h = T(tan(fovy / 360.0 * pi) * znear)
@@ -105,7 +105,7 @@ function lookat{T}(eyePos::Vec{3, T}, lookAt::Vec{3, T}, up::Vec{3, T})
         (T0,       T0,       T0,       T1)
     ) * translationmatrix(-eyePos)
 end
-orthographicprojection{T}(wh::Rectangle, near::T, far::T) =
+orthographicprojection{T}(wh::SimpleRectangle, near::T, far::T) =
     orthographicprojection(zero(T), T(wh.w), zero(T), T(wh.h), near, far)
 
 function orthographicprojection{T}(

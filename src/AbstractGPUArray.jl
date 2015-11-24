@@ -15,7 +15,7 @@ import Base: start
 import Base: next
 import Base: done
 
-import GeometryTypes.Rectangle
+import GeometryTypes.SimpleRectangle
 
 abstract GPUArray{T, NDim} <: AbstractArray{T, NDim}
 
@@ -83,8 +83,8 @@ function getindex{T, N}(A::GPUArray{T, N}, ranges::UnitRange...)
     gpu_getindex(A, ranges...)
 end
 
-getindex{T, N}(A::GPUArray{T, N}, rect::Rectangle)                      = A[rect.x+1:rect.x+rect.w, rect.y+1:rect.y+rect.h]
-setindex!{T, N}(A::GPUArray{T, N}, value::Array{T, N}, rect::Rectangle) = (A[rect.x+1:rect.x+rect.w, rect.y+1:rect.y+rect.h] = value)
+getindex{T, N}(A::GPUArray{T, N}, rect::SimpleRectangle)                      = A[rect.x+1:rect.x+rect.w, rect.y+1:rect.y+rect.h]
+setindex!{T, N}(A::GPUArray{T, N}, value::Array{T, N}, rect::SimpleRectangle) = (A[rect.x+1:rect.x+rect.w, rect.y+1:rect.y+rect.h] = value)
 
 
 type GPUVector{T}
