@@ -91,7 +91,7 @@ end
 
     w, h = size(tex)
 
-    msh = GLUVMesh2D(Rectangle{Float32}(0f0,0f0,w,h))
+    msh = GLUVMesh2D(SimpleRectangle{Float32}(0f0,0f0,w,h))
     data = merge(Dict(
         :image            => tex,
         :projectionview   => cam.projectionview,

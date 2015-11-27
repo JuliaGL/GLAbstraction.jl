@@ -37,7 +37,7 @@ program = Signal(TemplateProgram(vert, frag)) #= {{GLSL_VERSION}} is a template,
 tex = Texture([RGBA{U8}(x,y,sin(x*pi), 1.0) for x=0:0.1:1., y=0:0.1:1.]) #automatically creates the correct texture
 data = merge(Dict(
 	:image => tex
-), collect_for_gl(GLUVMesh2D(Rectangle{Float32}(-1,-1,2,2)))) # Transforms the rectangle into a 2D mesh with uv coordinates and then extracts the buffers for the shader
+), collect_for_gl(GLUVMesh2D(SimpleRectangle{Float32}(-1,-1,2,2)))) # Transforms the rectangle into a 2D mesh with uv coordinates and then extracts the buffers for the shader
 
 robj = std_renderobject(data, program) # creates a renderable object from the shader and the data. 
 

@@ -1,14 +1,14 @@
 abstract Camera{T}
 
 type OrthographicCamera{T} <: Camera{T}
-    window_size     ::Signal{Rectangle{Int}}
+    window_size     ::Signal{SimpleRectangle{Int}}
     view            ::Signal{Mat{4,4,T}}
     projection      ::Signal{Mat{4,4,T}}
     projectionview  ::Signal{Mat{4,4,T}}
 end
 type PerspectiveCamera{T} <: Camera{T}
     pivot           ::Signal{Pivot{T}}
-    window_size     ::Signal{Rectangle{Int}}
+    window_size     ::Signal{SimpleRectangle{Int}}
     nearclip        ::Signal{T}
     farclip         ::Signal{T}
     fov             ::Signal{T}
@@ -21,14 +21,14 @@ type PerspectiveCamera{T} <: Camera{T}
 end
 
 type DummyCamera{T} <: Camera{T}
-    window_size     ::Signal{Rectangle{Int}}
+    window_size     ::Signal{SimpleRectangle{Int}}
     view            ::Signal{Mat{4,4,T}}
     projection      ::Signal{Mat{4,4,T}}
     projectionview  ::Signal{Mat{4,4,T}}
 end
 
 function DummyCamera(;
-        window_size    = Signal(Rectangle(-1, -1, 1, 1)),
+        window_size    = Signal(SimpleRectangle(-1, -1, 1, 1)),
         view           = Signal(eye(Mat{4,4, Float32})),
         nearclip       = Signal(10000f0),
         farclip        = Signal(-10000f0),
@@ -72,7 +72,7 @@ end
 Creates an orthographic camera with the pixel perfect plane in z == 0
 Signals needed:
 [
-:window_size                    => Signal(Rectangle{Int}),
+:window_size                    => Signal(SimpleRectangle{Int}),
 :buttonspressed                    => Signal(Int[]),
 :mousebuttonspressed            => Signal(Int[]),
 :mouseposition                    => mouseposition, -> Panning
@@ -139,7 +139,7 @@ translatevec: Panning
 normedposition: Pivot for translations
 =#
 function OrthographicCamera{T}(
-    windows_size ::Signal{Rectangle{Int}},
+    windows_size ::Signal{SimpleRectangle{Int}},
     view         ::Signal{Mat{4,4,T}},
     nearclip     ::Signal{T},
     farclip      ::Signal{T}
@@ -171,7 +171,7 @@ normedposition: Pivot for translations
 
 =#
 function OrthographicCamera{T}(
-        windows_size     ::Signal{Rectangle{Int}},
+        windows_size     ::Signal{SimpleRectangle{Int}},
         zoom             ::Signal{T},
         translatevec     ::Signal{Vec{2, T}},
         normedposition   ::Signal{Vec{2, T}}
@@ -291,7 +291,7 @@ end
 @enum Projection PERSPECTIVE ORTHOGRAPHIC
 getupvec(p::Pivot) = p.rotation * p.zaxis
 
-function projection_switch(w::Rectangle, fov::Number, near::Number, far::Number, projection::Projection, zoom::Number)
+function projection_switch(w::SimpleRectangle, fov::Number, near::Number, far::Number, projection::Projection, zoom::Number)
     projection == PERSPECTIVE && return perspectiveprojection(w, fov, near, far)
     zoom   = Float32(zoom/2f0)
     aspect = Float32((w.w/w.h)*zoom)
@@ -320,7 +320,7 @@ farclip: Far clip plane
 
 =#
 function PerspectiveCamera{T <: Real}(
-        window_size     ::Signal{Rectangle{Int}},
+        window_size     ::Signal{SimpleRectangle{Int}},
         eyeposition     ::Vec{3, T},
         lookatvec       ::Union{Signal{Vec{3, T}}, Vec{3, T}},
         theta           ::Signal{Vec{3, T}},
