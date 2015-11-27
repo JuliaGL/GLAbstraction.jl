@@ -5,10 +5,14 @@ function render(list::AbstractVector)
     end
 end
 
+headtail(a::Tuple) = a[1], Base.tail(a)
+headtail{T}(a::Tuple{T}) = a[1], ()
+
 function render(renderobject::RenderObject, vertexarray=renderobject.vertexarray)
     if value(renderobject.uniforms[:visible])
         for elem in renderobject.prerenderfunctions
-            elem[1](elem[2]...)
+            f, args = headtail(elem)
+            f(args...)
         end
         program = vertexarray.program
         glUseProgram(program.id)
@@ -16,7 +20,8 @@ function render(renderobject::RenderObject, vertexarray=renderobject.vertexarray
             haskey(renderobject.uniforms, key) && gluniform(value..., renderobject.uniforms[key])
         end
         for elem in renderobject.postrenderfunctions
-            elem[1](elem[2]...)
+            f, args = headtail(elem)
+            f(args...)
         end
     end
 end
@@ -50,4 +55,3 @@ function enabletransparency()
     glDisablei(GL_BLEND, 1)
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
 end
-

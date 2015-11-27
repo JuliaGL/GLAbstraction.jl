@@ -5,9 +5,10 @@ type GLProgram
     names       ::Vector{Symbol}
     nametype    ::Dict{Symbol, GLenum}
     uniformloc  ::Dict{Symbol, Tuple}
+    transformfeedbacklocations::Vector{Symbol}
 
-    function GLProgram(id::GLuint, names::Vector{Symbol}, nametype::Dict{Symbol, GLenum}, uniformloc::Dict{Symbol, Tuple})
-        obj = new(id, names, nametype, uniformloc)
+    function GLProgram(id::GLuint, names::Vector{Symbol}, nametype::Dict{Symbol, GLenum}, uniformloc::Dict{Symbol, Tuple}, transformfeedbacklocations=Symbol[])
+        obj = new(id, names, nametype, uniformloc, transformfeedbacklocations)
         #finalizer(obj, free)
         obj
     end
@@ -113,9 +114,11 @@ type GLVertexArray
                 error("buffer $attribute has not the same length as the other buffers. Has: $(length(buffer)). Should have: $len")
             end
             glBindBuffer(buffer.buffertype, buffer.id)
-            attribLocation = get_attribute_location(program.id, attribute)
-            glVertexAttribPointer(attribLocation, cardinality(buffer), julia2glenum(eltype(buffer)), GL_FALSE, 0, C_NULL)
-            glEnableVertexAttribArray(attribLocation)
+            if !in(name, program.transformfeedbacklocations) # transformfeedback buffers must go into VAO, but not with attrib location
+                attribLocation = get_attribute_location(program.id, attribute)
+                glVertexAttribPointer(attribLocation, cardinality(buffer), julia2glenum(eltype(buffer)), GL_FALSE, 0, C_NULL)
+                glEnableVertexAttribArray(attribLocation)
+            end
         end
     end
     glBindVertexArray(0)
@@ -129,7 +132,6 @@ GLVertexArray(bufferDict::Dict{ASCIIString, GLBuffer}, program::GLProgram) = GLV
 free(x::GLVertexArray) = glDeleteVertexArrays(1, [x.id])
 
 
-
 ##################################################################################
 
 RENDER_OBJECT_ID_COUNTER = zero(GLushort)
@@ -138,8 +140,10 @@ type RenderObject <: Composable{DeviceUnit}
     main                ::Any # main object
     uniforms            ::Dict{Symbol, Any}
     vertexarray         ::GLVertexArray
-    prerenderfunctions  ::Dict{Function, Tuple}
-    postrenderfunctions ::Dict{Function, Tuple}
+    prerenderfunctions  ::Vector{Tuple}
+    postrenderfunctions ::Vector{Tuple}
+    prefun_lookup       ::Dict{Function, Int}
+    postfun_lookup      ::Dict{Function, Int}
     id                  ::GLushort
     boundingbox         ::Signal # workaround for having lazy boundingbox queries, while not using multiple dispatch for boundingbox function (No type hierarchy for RenderObjects)
 
@@ -158,8 +162,10 @@ type RenderObject <: Composable{DeviceUnit}
             main,
             data,
             vertexarray,
-            Dict{Function, Tuple}(),
-            Dict{Function, Tuple}(),
+            Tuple[],
+            Tuple[],
+            Dict{Function, Int}(),
+            Dict{Function, Int}(),
             RENDER_OBJECT_ID_COUNTER,
             bbs
         )

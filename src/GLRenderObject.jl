@@ -52,25 +52,27 @@ function std_renderobject(data, shader::Signal{GLProgram}, bb=Signal(AABB(Vec3f0
         render, robj.vertexarray, primitive)
     robj
 end
-pushfunction(fs...) = pushfunction!(Dict{Function, Tuple}(), fs...)
+pushfunction(fs...) = pushfunction!(Dict{Function, Int}(), Tuple[], fs...)
 
-function pushfunction!(target::Dict{Function, Tuple}, fs...)
+function pushfunction!(lookup::Dict{Function, Int}, ordered, fs...)
     func = fs[1]
     args = Any[]
     for i=2:length(fs)
         elem = fs[i]
         if isa(elem, Function)
-            target[func] = tuple(args...)
+            index = get!(lookup, func, length(ordered)+1)
+            insert!(ordered, index, tuple(func, args...))
             func = elem
             args = Any[]
         else
             push!(args, elem)
         end
     end
-    target[func] = tuple(args...)
+    index = get!(lookup, func, length(ordered)+1)
+    insert!(ordered, index, tuple(func, args...))
 end
-prerender!(x::RenderObject, fs...)   = pushfunction!(x.prerenderfunctions, fs...)
-postrender!(x::RenderObject, fs...)  = pushfunction!(x.postrenderfunctions, fs...)
+prerender!(x::RenderObject, fs...)   = pushfunction!(x.prefun_lookup, x.prerenderfunctions, fs...)
+postrender!(x::RenderObject, fs...)  = pushfunction!(x.postfun_lookup, x.postrenderfunctions, fs...)
 
 extract_renderable(context::Vector{RenderObject}) = context
 extract_renderable(context::RenderObject) = [context]

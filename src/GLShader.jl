@@ -95,7 +95,7 @@ function isupdated(file::File, updatewhile=Signal(true), update_interval=1.0)
         time_edited = mtime(fn)
         (!isapprox(0.0, v0[2] - time_edited), time_edited)
     end
-    Reactive.preserve(file_edited)
+    preserve(file_edited)
     return filter(identity, false, const_lift(first, file_edited)) # extract bool
 end
 
@@ -157,7 +157,8 @@ end
 # Actually compiles and links shader sources
 function GLProgram(
         shaders::Vector{Shader}, program=createprogram();
-        fragdatalocation=Tuple{Int, ASCIIString}[]
+        fragdatalocation = Tuple{Int, ASCIIString}[],
+        transformfeedbacklocations = Tuple{Symbol, GLenum}[]
     )
 
     # Remove old shaders
@@ -176,6 +177,11 @@ function GLProgram(
     for (location, name) in fragdatalocation
         glBindFragDataLocation(program, location, ascii(name))
     end
+    transformfeedbacklocnames = Symbol[]
+    for (name, attrib) in transformfeedbacklocations
+        glTransformFeedbackVaryings(program, 1, [ascii(string(name))], attrib)
+        push!(transformfeedbacklocnames, name)
+    end
 
     #link program
     glLinkProgram(program)
@@ -186,7 +192,7 @@ function GLProgram(
     nametypedict        = uniform_name_type(program)
     uniformlocationdict = uniformlocations(nametypedict, program)
 
-    GLProgram(program, map(name,shaders), nametypedict, uniformlocationdict)
+    GLProgram(program, map(name,shaders), nametypedict, uniformlocationdict, transformfeedbacklocnames)
 end
 
 
@@ -213,6 +219,7 @@ function TemplateProgram(x::Union{Shader, File, Signal{Shader}}...; kw_args...)
         :view               => Dict{ASCIIString, ASCIIString}(),
         :attributes         => Dict{Symbol, Any}(),
         :fragdatalocation   => Tuple{Int, ASCIIString}[],
+        :transformfeedbacklocations => Tuple{Symbol, GLenum}[],
         :program            => createprogram()
     ), Dict{Symbol, Any}(kw_args)), x...)
 end
@@ -234,7 +241,7 @@ function TemplateProgram(kw_args::Dict{Symbol, Any}, s::Signal{Shader}, shaders:
 end
 
 function TemplateProgram(kw_args::Dict{Symbol, Any}, s::Shader, shaders::Shader...)
-    @materialize program, view, attributes, fragdatalocation = kw_args
+    @materialize program, view, attributes, fragdatalocation, transformfeedbacklocations = kw_args
     if haskey(view, "in") || haskey(view, "out") || haskey(view, "GLSL_VERSION")
         println("warning: using internal keyword \"$(in/out/GLSL_VERSION)\" for shader template. The value will be overwritten")
     end
@@ -252,7 +259,7 @@ function TemplateProgram(kw_args::Dict{Symbol, Any}, s::Shader, shaders::Shader.
 
     # transform dict of templates into actual shader source
     code = Shader[Shader(shader, source=template2source(shader.source, attributes, view)) for shader in [s, shaders...]]
-    return GLProgram(code, program, fragdatalocation=fragdatalocation)
+    return GLProgram(code, program, fragdatalocation=fragdatalocation, transformfeedbacklocations=transformfeedbacklocations)
 end
 
 

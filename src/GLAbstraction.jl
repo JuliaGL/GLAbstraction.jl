@@ -12,7 +12,7 @@ using Compat
 import Mustache
 using FileIO
 
-include("AbstractGPUArray.jl")
+include(joinpath("AbstractGPUArray", "AbstractGPUArray.jl"))
 
 import FileIO: load, save
 
@@ -123,6 +123,9 @@ export @comp_str #string macro for the different shader types.
 export @frag_str # with them you can write frag""" ..... """, returning shader object
 export @vert_str
 export @geom_str
+
+
+include(joinpath("AbstractGPUArray", "map.jl"))
 
 
 include("GLCamera.jl")
