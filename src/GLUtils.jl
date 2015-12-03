@@ -133,7 +133,7 @@ macro gen_defaults!(dict, args)
     begin
         a = 55
         b = a * 2 # variables, like a, will get made visible in local scope
-        c::JuliaType = X # c needs to be of type JuliaType. Cc will be made available with it's original type and then converted to JuliaType when inserted into data
+        c::JuliaType = X # c needs to be of type JuliaType. c will be made available with it's original type and then converted to JuliaType when inserted into data
         d = x => GLType # OpenGL convert target. Get's only applied if x is convertible to GLType. Will only be converted when passed to RenderObject
     end")
     tuple_list = args.args

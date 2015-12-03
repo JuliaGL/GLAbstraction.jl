@@ -192,17 +192,16 @@ end
 
 
 abstract AbstractLazyShader
-immutable LazyShader
+immutable LazyShader <: AbstractLazyShader
     paths  ::Tuple
     kw_args::Vector
     function LazyShader(paths...; kw_args...)
-        paths = map(shader -> joinpath(shaderdir(), shader), paths)
         new(paths, kw_args)
     end
 end
 export AbstractLazyShader
 gl_convert(lazyshader::AbstractLazyShader, data) = TemplateProgram(
-    map(load, lazyshader.paths)...;
+    lazyshader.paths...;
     attributes = data,
     lazyshader.kw_args...
 )

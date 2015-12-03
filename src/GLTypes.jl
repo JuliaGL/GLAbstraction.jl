@@ -147,6 +147,7 @@ type RenderObject <: Composable{DeviceUnit}
         global RENDER_OBJECT_ID_COUNTER
         RENDER_OBJECT_ID_COUNTER += one(GLushort)
         targets = get(data, :gl_convert_targets, Dict())
+        println(targets)
         passthrough = Dict{Symbol, Any}() # we also save a few non opengl related values in data
         for (k,v) in data # convert everything to OpenGL compatible types
             k == :light && continue
@@ -169,11 +170,11 @@ type RenderObject <: Composable{DeviceUnit}
         end
         buffers         = filter((key, value) -> isa(value, GLBuffer), data)
         uniforms        = filter((key, value) -> !isa(value, GLBuffer), data)
-        data[:objectid] = RENDER_OBJECT_ID_COUNTER # automatucally integrate object ID, will be discarded if shader doesn't use it
         get!(data, :visible, true) # make sure, visibility is set
         merge!(data, passthrough) # in the end, we insert back the non opengl data, to keep things simple
-        p = value(gl_convert(program, data)) # "compile" lazyshader
+        p = value(gl_convert(value(program), data)) # "compile" lazyshader
         vertexarray = GLVertexArray(Dict{Symbol, GLBuffer}(buffers), p)
+        data[:objectid] = RENDER_OBJECT_ID_COUNTER # automatucally integrate object ID, will be discarded if shader doesn't use it
 
         return new(
             main,

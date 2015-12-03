@@ -4,9 +4,11 @@ const vert = vert"""
 in vec2 pos;
 
 out vec4 v_color;
+out vec3 g_position;
+
 uniform mat4 projectionview;
 void main() {
-    gl_Position = projectionview*vec4(pos, 0.0, 1.0);
+    g_position = vec3(pos, 0.0);
 }
 """
 
@@ -26,25 +28,25 @@ const geom = geom"""
 
 layout(points) in;
 layout(triangle_strip, max_vertices = 4) out;
-
+uniform mat4 projectionview;
+in vec3 g_position[];
 
 void main(void)
 {
   // get the four vertices passed to the shader:
-  vec4 p0 = gl_in[0].gl_Position;   // start of previous segment
+  vec3 p0 = g_position[0];   // start of previous segment
 
-  gl_Position = gl_in[0].gl_Position + vec4(-0.01, -0.01, 0, 0);
+  gl_Position = projectionview*vec4(p0 + vec3(-0.01, -0.01, 0), 1);
   EmitVertex();
 
-  gl_Position = gl_in[0].gl_Position + vec4(-0.01, 0.01, 0, 0);
+  gl_Position = projectionview*vec4(p0 + vec3(-0.01, 0.01, 0), 1);
   EmitVertex();
 
-  gl_Position = gl_in[0].gl_Position + vec4(0.01, -0.01, 0, 0);
+  gl_Position = projectionview*vec4(p0 + vec3(0.01, -0.01, 0), 1);
   EmitVertex();
 
-  gl_Position = gl_in[0].gl_Position + vec4(0.1, 0.01, 0, 0);
+  gl_Position = projectionview*vec4(p0 + vec3(0.1, 0.01, 0), 1);
   EmitVertex();
-
 
 
   EndPrimitive();
@@ -61,8 +63,8 @@ data = Dict{Symbol, Any}(
     :pos => GLBuffer(b),
     :projectionview => cam.projectionview
 )
-program = TemplateProgram(vert, geom, frag)
-robj = std_renderobject(data, Signal(program), Signal(AABB(Vec3f0(0), Vec3f0(1))), GL_POINTS)
+program = GLAbstraction.LazyShader(vert, geom, frag)
+robj = std_renderobject(data, program, Signal(AABB(Vec3f0(0), Vec3f0(1))), GL_POINTS)
 
 
 glClearColor(0,0,0,1)

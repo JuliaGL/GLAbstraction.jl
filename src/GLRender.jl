@@ -18,7 +18,8 @@ function render(renderobject::RenderObject, vertexarray=renderobject.vertexarray
             end
         end
         for elem in renderobject.postrenderfunctions
-            elem[1](elem[2]...)
+            f, args = elem
+            f(args...)
         end
     end
 end
@@ -31,11 +32,11 @@ function render(vao::GLVertexArray, mode::GLenum=GL_TRIANGLES)
         glDrawArrays(mode, 0, vao.length)
     end
     glBindVertexArray(0)
-
 end
-function renderinstanced(vao::GLVertexArray, amount, primitive=GL_TRIANGLES)
+renderinstanced(vao::GLVertexArray, a::AbstractArray, primitive=GL_TRIANGLES) = renderinstanced(vao, length(a), primitive)
+function renderinstanced(vao::GLVertexArray, amount::Integer, primitive=GL_TRIANGLES)
     glBindVertexArray(vao.id)
-    glDrawElementsInstanced(primitive, vao.indexlength, GL_UNSIGNED_INT, C_NULL, length(amount))
+    glDrawElementsInstanced(primitive, vao.indexlength, GL_UNSIGNED_INT, C_NULL, amount)
     glBindVertexArray(0)
 end
 #handle all uniform objects
@@ -50,4 +51,3 @@ function enabletransparency()
     glDisablei(GL_BLEND, 1)
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
 end
-

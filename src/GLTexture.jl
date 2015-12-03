@@ -252,6 +252,7 @@ function gpu_data{T, ND}(t::Texture{T, ND})
     result = Array(T, size(t))
     glBindTexture(t.texturetype, t.id)
     glGetTexImage(t.texturetype, 0, t.format, t.pixeltype, result)
+    glBindTexture(t.texturetype, 0)
     return result
 end
 
@@ -264,6 +265,7 @@ function resize_nocopy!{T, ND}(t::Texture{T, ND}, newdims::Tuple{Vararg{Int}})
     glBindTexture(t.texturetype, t.id)
     glTexImage(t.texturetype, 0, t.internalformat, newdims..., 0, t.format, t.pixeltype, C_NULL)
     t.size = newdims
+    glBindTexture(t.texturetype, 0)
     t
 end
 
