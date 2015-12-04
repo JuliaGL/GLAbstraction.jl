@@ -146,6 +146,7 @@ function uniformlocations(nametypedict::Dict{Symbol, GLenum}, program)
     return Dict{Symbol,Tuple}(map(nametypedict) do name_type
         name, typ = name_type
         loc = get_uniform_location(program, name)
+        str_name = string(name)
         if istexturesampler(typ)
             texturetarget += 1
             return (name, (loc, texturetarget))
@@ -199,7 +200,7 @@ immutable LazyShader <: AbstractLazyShader
         new(paths, kw_args)
     end
 end
-export AbstractLazyShader
+
 gl_convert(lazyshader::AbstractLazyShader, data) = TemplateProgram(
     lazyshader.paths...;
     attributes = data,

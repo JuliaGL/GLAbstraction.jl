@@ -3,7 +3,7 @@
 # here is my approach, to handle all of the uniforms with one function, namely gluniform
 # For uniforms, the Vector and Matrix types from ImmutableArrays should be used, as they map the relation almost 1:1
 
-GLSL_COMPATIBLE_NUMBER_TYPES = (GLdouble, GLfloat, GLint, GLuint)
+GLSL_COMPATIBLE_NUMBER_TYPES = (GLfloat, GLint, GLuint)
 
 opengl_prefix(T)  = error("Object $T is not a supported uniform element type")
 opengl_postfix(T) = error("Object $T is not a supported uniform element type")
@@ -71,6 +71,9 @@ gluniform(location::GLint, x::Vector{Float32}) = glUniform1fv(location,  length(
 gluniform(location::GLint, x::Vector{GLint})   = glUniform1iv(location,  length(x), pointer(x))
 gluniform(location::GLint, x::Vector{GLuint})  = glUniform1uiv(location, length(x), pointer(x))
 
+#Handle GLSL structs, which need to be addressed via single fields
+
+
 
 
 function toglsltype_string{T, D}(t::Texture{T, D})
@@ -92,7 +95,13 @@ function toglsltype_string(t::FixedMatrix)
     M,N = size(t)
     string(opengl_prefix(eltype(t)),"mat", M==N ? "$M" : "$(M)x$(N)")
 end
-
+function toglsltype_string{T}(x::T)
+    if isa_gl_struct(x)
+        "uniform $(T.name.name)"
+    else
+        error("can't splice $T into an OpenGL shader. Make sure all fields are of a concrete type and isbits(FieldType)-->true")
+    end
+end
 function toglsltype_string(t::GLBuffer)
     typ = cardinality(t) > 1 ? "vec$(cardinality(t))" : "float"
     "in $typ"
@@ -110,72 +119,6 @@ glsl_variable_access(keystring, t::Any)    = error("no glsl variable calculation
 
 
 UNIFORM_TYPES = FixedArray
-
-# This is needed to varify, that the correct uniform is uploaded to a shader
-# Should partly be integrated into the genuniformfunctions macro
-iscorrect(a, b) = false
-
-is_unsigned_uniform_type{T}(::Type{T}) = eltype(T) <: Unsigned
-is_integer_uniform_type{T}(::Type{T}) = eltype(T) <: Integer
-is_float_uniform_type{T}(::Type{T}) = eltype(T) <: AbstractFloat || eltype(T) <: FixedPoint
-is_bool_uniform_type{T}(::Type{T}) = eltype(T) <: Bool || is_integer_uniform_type(T)
-
-
-iscorrect{AnySym}(x::Signal, glenum::GLENUM{AnySym, GLenum}) = iscorrect(x.value, glenum)
-
-iscorrect(x::Real, ::GLENUM{:GL_BOOL, GLenum})                              = is_bool_uniform_type(typeof(x))
-iscorrect(x::Real, ::GLENUM{:GL_UNSIGNED_INT, GLenum})                      = is_unsigned_uniform_type(typeof(x))
-iscorrect(x::Real, ::GLENUM{:GL_INT, GLenum})                               = is_integer_uniform_type(typeof(x))
-iscorrect(x::Real, ::GLENUM{:GL_FLOAT, GLenum})                             = is_float_uniform_type(typeof(x))
-
-iscorrect{T <: UNIFORM_TYPES}(::T, ::GLENUM{:GL_BOOL, GLenum})              = is_bool_uniform_type(T) && length(T) == 1
-iscorrect{T <: UNIFORM_TYPES}(::T, ::GLENUM{:GL_BOOL_VEC2, GLenum})         = is_bool_uniform_type(T) && length(T) == 2
-iscorrect{T <: UNIFORM_TYPES}(::T, ::GLENUM{:GL_BOOL_VEC3, GLenum})         = is_bool_uniform_type(T) && length(T) == 3
-iscorrect{T <: UNIFORM_TYPES}(::T, ::GLENUM{:GL_BOOL_VEC4, GLenum})         = is_bool_uniform_type(T) && length(T) == 4
-
-
-iscorrect{T <: UNIFORM_TYPES}(::T, ::GLENUM{:GL_UNSIGNED_INT, GLenum})      = is_unsigned_uniform_type(T) && length(T) == 1
-iscorrect{T <: UNIFORM_TYPES}(::T, ::GLENUM{:GL_UNSIGNED_INT_VEC2, GLenum}) = is_unsigned_uniform_type(T) && length(T) == 2
-iscorrect{T <: UNIFORM_TYPES}(::T, ::GLENUM{:GL_UNSIGNED_INT_VEC3, GLenum}) = is_unsigned_uniform_type(T) && length(T) == 3
-iscorrect{T <: UNIFORM_TYPES}(::T, ::GLENUM{:GL_UNSIGNED_INT_VEC4, GLenum}) = is_unsigned_uniform_type(T) && length(T) == 4
-
-iscorrect{T <: UNIFORM_TYPES}(::T, ::GLENUM{:GL_INT, GLenum})               = is_integer_uniform_type(T) && length(T) == 1
-iscorrect{T <: UNIFORM_TYPES}(::T, ::GLENUM{:GL_INT_VEC2, GLenum})          = is_integer_uniform_type(T) && length(T) == 2
-iscorrect{T <: UNIFORM_TYPES}(::T, ::GLENUM{:GL_INT_VEC3, GLenum}) = is_integer_uniform_type(T) && length(T) == 3
-iscorrect{T <: UNIFORM_TYPES}(::T, ::GLENUM{:GL_INT_VEC4, GLenum}) = is_integer_uniform_type(T) && length(T) == 4
-
-iscorrect{T <: UNIFORM_TYPES}(::T, ::GLENUM{:GL_FLOAT, GLenum})      = is_float_uniform_type(T) && length(T) == 1
-iscorrect{T <: UNIFORM_TYPES}(::T, ::GLENUM{:GL_FLOAT_VEC2, GLenum}) = is_float_uniform_type(T) && length(T) == 2
-iscorrect{T <: UNIFORM_TYPES}(::T, ::GLENUM{:GL_FLOAT_VEC3, GLenum}) = is_float_uniform_type(T) && length(T) == 3
-iscorrect{T <: UNIFORM_TYPES}(::T, ::GLENUM{:GL_FLOAT_VEC4, GLenum}) = is_float_uniform_type(T) && length(T) == 4
-
-iscorrect{T <: UNIFORM_TYPES}(::T, ::GLENUM{:GL_FLOAT_MAT2, GLenum}) = is_float_uniform_type(T) && size(T) == (2,2)
-iscorrect{T <: UNIFORM_TYPES}(::T, ::GLENUM{:GL_FLOAT_MAT3, GLenum}) = is_float_uniform_type(T) && size(T) == (3,3)
-iscorrect{T <: UNIFORM_TYPES}(::T, ::GLENUM{:GL_FLOAT_MAT4, GLenum}) = is_float_uniform_type(T) && size(T) == (4,4)
-
-iscorrect{T <: UNIFORM_TYPES}(::T, ::GLENUM{:GL_FLOAT_MAT3x2, GLenum}) = is_float_uniform_type(T) && size(T) == (3,2)
-iscorrect{T <: UNIFORM_TYPES}(::T, ::GLENUM{:GL_FLOAT_MAT4x2, GLenum}) = is_float_uniform_type(T) && size(T) == (4,2)
-
-iscorrect{T <: UNIFORM_TYPES}(::T, ::GLENUM{:GL_FLOAT_MAT2x3, GLenum}) = is_float_uniform_type(T) && size(T) == (2,3)
-iscorrect{T <: UNIFORM_TYPES}(::T, ::GLENUM{:GL_FLOAT_MAT4x3, GLenum}) = is_float_uniform_type(T) && size(T) == (4,3)
-
-iscorrect{T <: UNIFORM_TYPES}(::T, ::GLENUM{:GL_FLOAT_MAT2x3, GLenum}) = is_float_uniform_type(T) && size(T) == (2,3)
-iscorrect{T <: UNIFORM_TYPES}(::T, ::GLENUM{:GL_FLOAT_MAT4x3, GLenum}) = is_float_uniform_type(T) && size(T) == (4,3)
-
-iscorrect{T <: UNIFORM_TYPES}(::T, ::GLENUM{:GL_FLOAT_MAT2x4, GLenum}) = is_float_uniform_type(T) && size(T) == (2,4)
-iscorrect{T <: UNIFORM_TYPES}(::T, ::GLENUM{:GL_FLOAT_MAT3x4, GLenum}) = is_float_uniform_type(T) && size(T) == (3,4)
-
-iscorrect{T}(::Texture{T, 1}, ::GLENUM{:GL_SAMPLER_1D, GLenum}) = is_float_uniform_type(T)
-iscorrect{T}(::Texture{T, 2}, ::GLENUM{:GL_SAMPLER_2D, GLenum}) = is_float_uniform_type(T)
-iscorrect{T}(::Texture{T, 3}, ::GLENUM{:GL_SAMPLER_3D, GLenum}) = is_float_uniform_type(T)
-
-iscorrect{T}(::Texture{T, 1}, ::GLENUM{:GL_UNSIGNED_INT_SAMPLER_1D, GLenum}) = is_unsigned_uniform_type(T)
-iscorrect{T}(::Texture{T, 2}, ::GLENUM{:GL_UNSIGNED_INT_SAMPLER_2D, GLenum}) = is_unsigned_uniform_type(T)
-iscorrect{T}(::Texture{T, 3}, ::GLENUM{:GL_UNSIGNED_INT_SAMPLER_3D, GLenum}) = is_unsigned_uniform_type(T)
-
-iscorrect{T}(::Texture{T, 1}, ::GLENUM{:GL_INT_SAMPLER_1D, GLenum}) = is_integer_uniform_type(T)
-iscorrect{T}(::Texture{T, 2}, ::GLENUM{:GL_INT_SAMPLER_2D, GLenum}) = is_integer_uniform_type(T)
-iscorrect{T}(::Texture{T, 3}, ::GLENUM{:GL_INT_SAMPLER_3D, GLenum}) = is_integer_uniform_type(T)
 
 
 
@@ -256,13 +199,29 @@ gl_promote{T <: FixedVector}(x::Type{T})   = similar(T, gl_promote(eltype(T)))
 gl_promote{T <: HomogenousMesh}(x::Type{T}) = NativeMesh{T}
 
 
-#native types need no convert
+gl_convert{T <: Number}(x::T) = gl_promote(T)(x)
 gl_convert{T <: Colorant}(x::T) = gl_promote(T)(x)
 gl_convert{T <: AbstractMesh}(x::T) = gl_convert(convert(GLNormalMesh, x))
 gl_convert{T <: HomogenousMesh}(x::T) = gl_promote(T)(x)
 
 gl_convert(s::AABB) = s
 gl_convert(s::Void) = s
+
+isa_gl_struct(x::NATIVE_TYPES) = false
+function isa_gl_struct{T}(x::T)
+    !isleaftype(T) && return false
+    fnames = fieldnames(x)
+    !isempty(fnames) && all(name -> isleaftype(fieldtype(T, name)) && isbits(x.(name)), fnames)
+end
+function gl_convert_struct{T}(x::T, uniform_name::Symbol)
+    if isa_gl_struct(x)
+        return Dict{Symbol, Any}(map(fieldnames(x)) do name
+            (symbol("$uniform_name.$name") => gl_convert(x.(name)))
+        end)
+    else
+        error("can't convert $x to a OpenGL type. Make sure all fields are of a concrete type and isbits(FieldType)-->true")
+    end
+end
 
 gl_convert{T <: NATIVE_TYPES}(s::Signal{T}) = s
 gl_convert{T}(s::Signal{T}) = const_lift(gl_convert, s)
@@ -277,6 +236,7 @@ end
 gl_convert{T, N}(x::Array{T, N}; kw_args...) = Texture(map(gl_promote(T), x); kw_args...)
 gl_convert{T <: Face}(a::Vector{T}) = indexbuffer(s)
 
+gl_convert{T <: NATIVE_TYPES}(::Type{T}, a::NATIVE_TYPES; kw_args...) = a
 gl_convert{T}(::Type{GLBuffer}, a::Vector{T}; kw_args...) = GLBuffer(map(gl_promote(T), a); kw_args...)
 gl_convert{T}(::Type{TextureBuffer}, a::Vector{T}; kw_args...) = TextureBuffer(map(gl_promote(T), a); kw_args...)
 

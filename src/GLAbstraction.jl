@@ -92,6 +92,7 @@ export @comp_str #string macro for the different shader types.
 export @frag_str # with them you can write frag""" ..... """, returning shader object
 export @vert_str
 export @geom_str
+export AbstractLazyShader, LazyShader
 
 include("GLUniforms.jl")
 export gluniform                # wrapper of all the OpenGL gluniform functions, which call the correct gluniform function via multiple dispatch. Example: gluniform(location, x::Matrix4x4) = gluniformMatrix4fv(location, x)

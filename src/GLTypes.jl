@@ -147,16 +147,18 @@ type RenderObject <: Composable{DeviceUnit}
         global RENDER_OBJECT_ID_COUNTER
         RENDER_OBJECT_ID_COUNTER += one(GLushort)
         targets = get(data, :gl_convert_targets, Dict())
-        println(targets)
         passthrough = Dict{Symbol, Any}() # we also save a few non opengl related values in data
         for (k,v) in data # convert everything to OpenGL compatible types
             k == :light && continue
             if haskey(targets, k)
-                data[k] = gl_convert(targets[k], v) # glconvert is designed to just convert everything to a fitting opengl datatype, but sometimes exceptions are needed
+                # glconvert is designed to just convert everything to a fitting opengl datatype, but sometimes exceptions are needed
                 # e.g. Texture{T,1} and GLBuffer{T} are both usable as an native conversion canditate for a Julia's Array{T, 1} type.
                 # but in some cases we want a Texture, sometimes a GLBuffer or TextureBuffer
+                data[k] = gl_convert(targets[k], v)
             else
-                if applicable(gl_convert, v) # if can't be converted to an OpenGL datatype,
+                if isa_gl_struct(v) # structs are treated differently, since they have to be composed into their fields
+                    merge!(data, gl_convert_struct(v, k))
+                elseif applicable(gl_convert, v) # if can't be converted to an OpenGL datatype,
                     data[k] = gl_convert(v)
                 else # put it in passthrough
                     delete!(data, k)

@@ -5,6 +5,7 @@ function render(list::AbstractVector)
     end
 end
 
+
 function render(renderobject::RenderObject, vertexarray=renderobject.vertexarray)
     if value(renderobject.uniforms[:visible])
         for elem in renderobject.prerenderfunctions
@@ -33,7 +34,7 @@ function render(vao::GLVertexArray, mode::GLenum=GL_TRIANGLES)
     end
     glBindVertexArray(0)
 end
-renderinstanced(vao::GLVertexArray, a::AbstractArray, primitive=GL_TRIANGLES) = renderinstanced(vao, length(a), primitive)
+renderinstanced(vao::GLVertexArray, a, primitive=GL_TRIANGLES) = renderinstanced(vao, length(a), primitive)
 function renderinstanced(vao::GLVertexArray, amount::Integer, primitive=GL_TRIANGLES)
     glBindVertexArray(vao.id)
     glDrawElementsInstanced(primitive, vao.indexlength, GL_UNSIGNED_INT, C_NULL, amount)
