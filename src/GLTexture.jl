@@ -91,7 +91,7 @@ function Texture{T <: GLArrayEltypes}(
         format::GLenum         = default_colorformat(T),
         parameters...
     )
-    texparams = TextureParameters(T, 3; parameters...)
+    texparams = TextureParameters(T, 2; parameters...)
     id = glGenTextures()
 
     glBindTexture(texturetype, id)
@@ -112,10 +112,10 @@ function Texture{T <: GLArrayEltypes}(
         glTexSubImage3D(GL_TEXTURE_2D_ARRAY, 0, 0, 0, layer-1, width, height, 1, format, numbertype, texel)
     end
 
-    texture = Texture{T, 3}(
+    texture = Texture{T, 2}(
         id, texturetype, numbertype,
         internalformat, format, texparams,
-        tuple(maxdims..., layers)
+        tuple(maxdims...)
     )
     set_parameters(texture)
     texture
@@ -443,6 +443,7 @@ end
 function set_parameters(t::Texture, parameters::Vector{Tuple{GLenum, GLenum}})
     glBindTexture(t.texturetype, t.id)
     for elem in parameters
+        println(GLENUM(t.texturetype).name, " ", GLENUM(elem[1]).name, " ", GLENUM(elem[2]).name)
         glTexParameteri(t.texturetype, elem...)
     end
     glBindTexture(t.texturetype, 0)

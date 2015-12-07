@@ -77,11 +77,11 @@ gluniform(location::GLint, x::Vector{GLuint})  = glUniform1uiv(location, length(
 
 
 function toglsltype_string{T, D}(t::Texture{T, D})
+    str = string("uniform ", opengl_prefix(eltype(T)), "sampler", D, "D")
     if t.texturetype == GL_TEXTURE_2D_ARRAY
-        string("uniform ", opengl_prefix(eltype(T)), "sampler", D-1, "DArray")
-    else
-        string("uniform ", opengl_prefix(eltype(T)), "sampler", D, "D")
+        str *= "Array"
     end
+    str
 end
 function toglsltype_string{T}(t::TextureBuffer{T})
     string("uniform ", opengl_prefix(eltype(T)),"samplerBuffer")
