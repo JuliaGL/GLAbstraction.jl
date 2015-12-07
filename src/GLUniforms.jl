@@ -10,7 +10,7 @@ opengl_postfix(T) = error("Object $T is not a supported uniform element type")
 
 
 
-opengl_prefix{T <: Union{FixedPoint, Float32}}(x::Type{T})  = ""
+opengl_prefix{T <: Union{FixedPoint, Float32, Float16}}(x::Type{T})  = ""
 opengl_prefix{T <: Float64}(x::Type{T})                     = "d"
 opengl_prefix(x::Type{Cint})                                = "i"
 opengl_prefix{T <: Union{Cuint, UInt8, UInt16}}(x::Type{T}) = "u"
@@ -77,7 +77,11 @@ gluniform(location::GLint, x::Vector{GLuint})  = glUniform1uiv(location, length(
 
 
 function toglsltype_string{T, D}(t::Texture{T, D})
-    string("uniform ", opengl_prefix(eltype(T)),"sampler", D, "D")
+    if t.texturetype == GL_TEXTURE_2D_ARRAY
+        string("uniform ", opengl_prefix(eltype(T)), "sampler", D-1, "DArray")
+    else
+        string("uniform ", opengl_prefix(eltype(T)), "sampler", D, "D")
+    end
 end
 function toglsltype_string{T}(t::TextureBuffer{T})
     string("uniform ", opengl_prefix(eltype(T)),"samplerBuffer")
@@ -204,6 +208,7 @@ gl_convert{T <: Colorant}(x::T) = gl_promote(T)(x)
 gl_convert{T <: AbstractMesh}(x::T) = gl_convert(convert(GLNormalMesh, x))
 gl_convert{T <: HomogenousMesh}(x::T) = gl_promote(T)(x)
 
+gl_convert{T<:Colorant}(s::Vector{Matrix{T}}) = Texture(s)
 gl_convert(s::AABB) = s
 gl_convert(s::Void) = s
 

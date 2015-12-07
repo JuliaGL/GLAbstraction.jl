@@ -95,8 +95,8 @@ function isupdated(file::File, updatewhile=Signal(true), update_interval=1.0)
         time_edited = mtime(fn)
         (!isapprox(0.0, v0[2] - time_edited), time_edited)
     end
-    Reactive.preserve(file_edited)
-    return filter(identity, false, const_lift(first, file_edited)) # extract bool
+    preserve(file_edited)
+    return preserve(filter(identity, false, const_lift(first, file_edited))) # extract bool
 end
 
 #reads from the file and updates the source whenever the file gets edited
@@ -105,11 +105,10 @@ function const_lift_shader(shader_file::File, updatewhile=Signal(true), update_i
         Shader(shader_file)
     end
     preserve(s)
-    s
 end
 
 #Implement File IO interface
-load(f::File{format"GLSLShader"}) = const_lift_shader(f)
+load(f::File{format"GLSLShader"}) = preserve(const_lift_shader(f))
 function save(f::File{format"GLSLShader"}, data::Shader)
     s = open(f, "w")
     write(s, data.source)

@@ -7,7 +7,7 @@ end
 
 
 function render(renderobject::RenderObject, vertexarray=renderobject.vertexarray)
-    if value(renderobject.uniforms[:visible])
+    if Bool(value(renderobject.uniforms[:visible]))
         for elem in renderobject.prerenderfunctions
             elem[1](elem[2]...)
         end

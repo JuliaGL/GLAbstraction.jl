@@ -58,9 +58,9 @@ function viewmatrix(v0, scroll_x, scroll_y, buttonset)
     scroll_x = Float32(scroll_x)
     if scroll_x == 0f0
         if in(341, buttonset) # left strg key
-            translatevec = Vec3f0(scroll_y*10f0, 0f0, 0f0)
+            translatevec = Vec3f0(scroll_y*20f0, 0f0, 0f0)
         else
-            translatevec = Vec3f0(0f0, scroll_y*10f0, 0f0)
+            translatevec = Vec3f0(0f0, scroll_y*20f0, 0f0)
         end
     else
         translatevec = Vec3f0(scroll_x*10f0, scroll_y*10f0, 0f0)

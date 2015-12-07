@@ -100,7 +100,7 @@ function Texture{T <: GLArrayEltypes}(
 
     layers  = length(data)
     dims    = map(size, data)
-    maxdims = foldp((0,0), dims) do v0, x
+    maxdims = foldl((0,0), dims) do v0, x
         a = max(v0[1], x[1])
         b = max(v0[2], x[2])
         (a,b)

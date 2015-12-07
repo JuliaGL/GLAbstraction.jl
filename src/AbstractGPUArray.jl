@@ -71,7 +71,9 @@ function setindex!{T, N}(A::GPUArray{T, N}, value::Array{T, N}, ranges::UnitRang
 end
 
 function update!{T, N}(A::GPUArray{T, N}, value::Array{T, N})
-    @assert length(A) == length(value) "update! needs arrays to have the same length. To update length: $(length(A)), updatevalue $(length(value))"
+    if isa(A, GLBuffer) && (length(A) != length(value)) 
+        resize!(A, length(value))
+    end
     dims = map(x->1:x, size(A))
     A[dims...] = value
     nothing
@@ -95,7 +97,9 @@ end
 GPUVector(x::GPUArray) = GPUVector{eltype(x)}(x, size(x), length(x))
 
 function update!{T}(A::GPUVector{T}, value::Vector{T})
-    @assert length(A) == length(value) "update! needs arrays to have the same length. To update length: $(length(A)), updatevalue $(length(value))"
+    if isa(A, GLBuffer) && (length(A) != length(value)) 
+        resize!(A, length(value))
+    end
     dims = map(x->1:x, size(A))
     A.buffer[dims...] = value
     nothing

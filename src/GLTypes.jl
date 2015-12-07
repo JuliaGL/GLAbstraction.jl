@@ -147,6 +147,7 @@ type RenderObject <: Composable{DeviceUnit}
         global RENDER_OBJECT_ID_COUNTER
         RENDER_OBJECT_ID_COUNTER += one(GLushort)
         targets = get(data, :gl_convert_targets, Dict())
+        delete!(data, :gl_convert_targets)
         passthrough = Dict{Symbol, Any}() # we also save a few non opengl related values in data
         for (k,v) in data # convert everything to OpenGL compatible types
             k == :light && continue
