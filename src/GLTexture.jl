@@ -443,7 +443,6 @@ end
 function set_parameters(t::Texture, parameters::Vector{Tuple{GLenum, GLenum}})
     glBindTexture(t.texturetype, t.id)
     for elem in parameters
-        println(GLENUM(t.texturetype).name, " ", GLENUM(elem[1]).name, " ", GLENUM(elem[2]).name)
         glTexParameteri(t.texturetype, elem...)
     end
     glBindTexture(t.texturetype, 0)

@@ -53,9 +53,11 @@ mapkeys(func::Union{Function, Base.Func}, collection::Dict) =
 Base.get{KT, VT}(a::Dict{KT, VT}, keys::Vector{KT}) = [a[key] for key in keys]
 
 function print_with_lines(text::AbstractString)
+    io = IOBuffer()
     for (i,line) in enumerate(split(text, "\n"))
-        @printf("%-4d: %s\n", i, line)
+        println(io, @sprintf("%-4d: %s", i, line))
     end
+    println(takebuf_string(io))
 end
 
 
