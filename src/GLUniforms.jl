@@ -76,29 +76,28 @@ gluniform(location::GLint, x::Vector{GLuint})  = glUniform1uiv(location, length(
 
 
 
-function toglsltype_string{T, D}(t::Texture{T, D})
-    str = string("uniform ", opengl_prefix(eltype(T)), "sampler", D, "D")
-    if t.texturetype == GL_TEXTURE_2D_ARRAY
-        str *= "Array"
-    end
+
+
+glsl_typename{T}(x::T)          = glsl_typename(T)
+glsl_typename(t::Type{Void})    = "Nothing"
+glsl_typename(t::Type{GLfloat}) = "float"
+glsl_typename(t::Type{GLuint})  = "uint"
+glsl_typename(t::Type{GLint})   = "int"
+glsl_typename(t::Type{GLint})   = "int"
+glsl_typename{T<:Union{FixedVector,Colorant}}(t::Type{T}) = string(opengl_prefix(eltype(t)), "vec", length(t))
+glsl_typename{T}(t::Type{TextureBuffer{T}}) = "$(opengl_prefix(eltype(T)))samplerBuffer"
+function glsl_typename{T, D}(t::Texture{T, D})
+    str = string(opengl_prefix(eltype(T)), "sampler", D, "D")
+    t.texturetype == GL_TEXTURE_2D_ARRAY && (str *= "Array")
     str
 end
-function toglsltype_string{T}(t::TextureBuffer{T})
-    string("uniform ", opengl_prefix(eltype(T)),"samplerBuffer")
-end
-toglsltype_string(t::Nothing)                   = "Nothing"
-toglsltype_string(t::GLfloat)                   = "uniform float"
-toglsltype_string(t::GLuint)                    = "uniform uint"
-toglsltype_string(t::GLint)                     = "uniform int"
-toglsltype_string(t::Signal)                    = toglsltype_string(t.value)
-toglsltype_string(t::StepRange)                 = toglsltype_string(Vec3(first(t), step(t), last(t)))
-
-toglsltype_string(t::FixedVector)               = "uniform " * string(opengl_prefix(eltype(t)), "vec", length(t))
-toglsltype_string(t::Colorant)                  = "uniform " * string(opengl_prefix(eltype(t)), "vec", length(t))
-function toglsltype_string(t::FixedMatrix)
+function glsl_typename{T<:FixedMatrix}(t::Type{T})
     M,N = size(t)
     string(opengl_prefix(eltype(t)),"mat", M==N ? "$M" : "$(M)x$(N)")
 end
+toglsltype_string(t::Signal) = toglsltype_string(t.value)
+toglsltype_string{T<:Union{Real, FixedArray, Texture, Colorant, TextureBuffer, Void}}(x::T) = "uniform $(glsl_typename(x))"
+
 function toglsltype_string{T}(x::T)
     if isa_gl_struct(x)
         "uniform $(T.name.name)"
@@ -106,10 +105,9 @@ function toglsltype_string{T}(x::T)
         error("can't splice $T into an OpenGL shader. Make sure all fields are of a concrete type and isbits(FieldType)-->true")
     end
 end
-function toglsltype_string(t::GLBuffer)
-    typ = cardinality(t) > 1 ? "vec$(cardinality(t))" : "float"
-    "in $typ"
-end
+toglsltype_string{T}(t::GLBuffer{T}) = "in $(glsl_typename(T))"
+
+
 # Gets used to access a
 function glsl_variable_access{T,D}(keystring, t::Texture{T, D})
     t.texturetype == GL_TEXTURE_BUFFER && return "texelFetch($(keystring), index)."*"rgba"[1:length(T)]*";"
@@ -213,6 +211,7 @@ gl_convert(s::AABB) = s
 gl_convert(s::Void) = s
 
 isa_gl_struct(x::NATIVE_TYPES) = false
+isa_gl_struct(x::Colorant) = false
 function isa_gl_struct{T}(x::T)
     !isleaftype(T) && return false
     fnames = fieldnames(x)
@@ -244,6 +243,8 @@ gl_convert{T <: Face}(a::Vector{T}) = indexbuffer(s)
 gl_convert{T <: NATIVE_TYPES}(::Type{T}, a::NATIVE_TYPES; kw_args...) = a
 gl_convert{T}(::Type{GLBuffer}, a::Vector{T}; kw_args...) = GLBuffer(map(gl_promote(T), a); kw_args...)
 gl_convert{T}(::Type{TextureBuffer}, a::Vector{T}; kw_args...) = TextureBuffer(map(gl_promote(T), a); kw_args...)
+
+gl_convert(f::Function, a) = f(a)
 
 function gl_convert{T <: Union{TextureBuffer, Texture, GLBuffer}, X}(::Type{T}, a::Signal{Vector{X}}; kw_args...)
     TGL = gl_promote(X)

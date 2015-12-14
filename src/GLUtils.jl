@@ -116,6 +116,8 @@ Needed to match the lazy gl_convert exceptions.
 """
 matches_target{Target, T}(::Type{Target}, x::T) = applicable(gl_convert, Target, x) || T <: Target  # it can be either converted to Target, or it's already the target
 matches_target{Target, T}(::Type{Target}, x::Signal{T}) = applicable(gl_convert, Target, x)  || T <: Target
+matches_target(::Function, x) = true
+matches_target(::Function, x::Void) = false
 export matches_target
 
 
@@ -142,7 +144,7 @@ macro gen_defaults!(dict, args)
     dictsym = gensym()
     return_expression = Expr(:block)
     push!(return_expression.args, :($dictsym = $dict)) # dict could also be an expression, so we need to asign it to a variable at the beginning
-    push!(return_expression.args, :(gl_convert_targets = get($dictsym, :gl_convert_targets, Dict{Symbol, Type}()))) # exceptions for glconvert.
+    push!(return_expression.args, :(gl_convert_targets = get($dictsym, :gl_convert_targets, Dict{Symbol, Any}()))) # exceptions for glconvert.
     # @gen_defaults can be used multiple times, so we need to reuse gl_convert_targets if already in here
     for (i,elem) in enumerate(tuple_list)
         elem.head == :line && continue

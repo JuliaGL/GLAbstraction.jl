@@ -26,8 +26,8 @@ const geom = geom"""
 
 {{GLSL_VERSION}}
 
-layout(points) in;
-layout(triangle_strip, max_vertices = 4) out;
+layout(lines_adjacency) in;
+layout(points, max_vertices = 4) out;
 uniform mat4 projectionview;
 in vec3 g_position[];
 
@@ -36,16 +36,16 @@ void main(void)
   // get the four vertices passed to the shader:
   vec3 p0 = g_position[0];   // start of previous segment
 
-  gl_Position = projectionview*vec4(p0 + vec3(-0.01, -0.01, 0), 1);
+  gl_Position = projectionview*vec4(g_position[0], 1);
   EmitVertex();
 
-  gl_Position = projectionview*vec4(p0 + vec3(-0.01, 0.01, 0), 1);
+  gl_Position = projectionview*vec4(g_position[1], 1);
   EmitVertex();
 
-  gl_Position = projectionview*vec4(p0 + vec3(0.01, -0.01, 0), 1);
+  gl_Position = projectionview*vec4(g_position[2], 1);
   EmitVertex();
 
-  gl_Position = projectionview*vec4(p0 + vec3(0.1, 0.01, 0), 1);
+  gl_Position = projectionview*vec4(g_position[3], 1);
   EmitVertex();
 
 
@@ -57,14 +57,15 @@ const window = createwindow("Geometry Shader", 512, 512)
 
 cam = PerspectiveCamera(window.inputs, Vec3f0(1), Vec3f0(0))
 
-const b = Point2f0[Point2f0(i/30, rand()) for i=1:64]
+const b = Point2f0[(0,0),(0.0, 0.3)]
 
 data = Dict{Symbol, Any}(
     :pos => GLBuffer(b),
+    :indexbuffer => indexbuffer(GLint[0,0,1,1]),
     :projectionview => cam.projectionview
 )
 program = GLAbstraction.LazyShader(vert, geom, frag)
-robj = std_renderobject(data, program, Signal(AABB(Vec3f0(0), Vec3f0(1))), GL_POINTS)
+robj = std_renderobject(data, program, Signal(AABB(Vec3f0(0), Vec3f0(1))), GL_LINE_STRIP_ADJACENCY)
 
 
 glClearColor(0,0,0,1)
