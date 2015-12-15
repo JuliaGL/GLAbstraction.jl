@@ -4,11 +4,10 @@
 # For uniforms, the Vector and Matrix types from ImmutableArrays should be used, as they map the relation almost 1:1
 
 GLSL_COMPATIBLE_NUMBER_TYPES = (GLfloat, GLint, GLuint)
+const NATIVE_TYPES = Union{FixedArray, GLSL_COMPATIBLE_NUMBER_TYPES..., GLBuffer, GPUArray, Shader, GLProgram, NativeMesh}
 
 opengl_prefix(T)  = error("Object $T is not a supported uniform element type")
 opengl_postfix(T) = error("Object $T is not a supported uniform element type")
-
-
 
 opengl_prefix{T <: Union{FixedPoint, Float32, Float16}}(x::Type{T})  = ""
 opengl_prefix{T <: Float64}(x::Type{T})                     = "d"
@@ -21,12 +20,12 @@ opengl_postfix(x::Type{Cint})    = "iv"
 opengl_postfix(x::Type{Cuint})   = "uiv"
 
 
-uniformfunc(typ::DataType, dims::Tuple{Int}) =
+function uniformfunc(typ::DataType, dims::Tuple{Int})
     symbol(string("glUniform", first(dims), opengl_postfix(typ)))
-
+end
 function uniformfunc(typ::DataType, dims::Tuple{Int, Int})
     M, N = dims
-    func = symbol(string("glUniformMatrix", M==N ? "$M":"$(M)x$(N)", opengl_postfix(typ)))
+    symbol(string("glUniformMatrix", M==N ? "$M":"$(M)x$(N)", opengl_postfix(typ)))
 end
 
 function gluniform{FSA <: Union{FixedArray, Colorant}}(location::Integer, x::FSA)
@@ -65,17 +64,10 @@ gluniform(location::Integer, x::Union{GLubyte, GLushort, GLuint}) 	 = glUniform1
 gluniform(location::Integer, x::Union{GLbyte, GLshort, GLint, Bool}) = glUniform1i(GLint(location),  x)
 gluniform(location::Integer, x::GLfloat)                             = glUniform1f(GLint(location),  x)
 
-
 #Uniform upload functions for julia arrays...
 gluniform(location::GLint, x::Vector{Float32}) = glUniform1fv(location,  length(x), pointer(x))
 gluniform(location::GLint, x::Vector{GLint})   = glUniform1iv(location,  length(x), pointer(x))
 gluniform(location::GLint, x::Vector{GLuint})  = glUniform1uiv(location, length(x), pointer(x))
-
-#Handle GLSL structs, which need to be addressed via single fields
-
-
-
-
 
 
 glsl_typename{T}(x::T)          = glsl_typename(T)
@@ -86,6 +78,7 @@ glsl_typename(t::Type{GLint})   = "int"
 glsl_typename(t::Type{GLint})   = "int"
 glsl_typename{T<:Union{FixedVector,Colorant}}(t::Type{T}) = string(opengl_prefix(eltype(t)), "vec", length(t))
 glsl_typename{T}(t::Type{TextureBuffer{T}}) = "$(opengl_prefix(eltype(T)))samplerBuffer"
+
 function glsl_typename{T, D}(t::Texture{T, D})
     str = string(opengl_prefix(eltype(T)), "sampler", D, "D")
     t.texturetype == GL_TEXTURE_2D_ARRAY && (str *= "Array")
@@ -97,7 +90,7 @@ function glsl_typename{T<:FixedMatrix}(t::Type{T})
 end
 toglsltype_string(t::Signal) = toglsltype_string(t.value)
 toglsltype_string{T<:Union{Real, FixedArray, Texture, Colorant, TextureBuffer, Void}}(x::T) = "uniform $(glsl_typename(x))"
-
+#Handle GLSL structs, which need to be addressed via single fields
 function toglsltype_string{T}(x::T)
     if isa_gl_struct(x)
         "uniform $(T.name.name)"
@@ -106,53 +99,26 @@ function toglsltype_string{T}(x::T)
     end
 end
 toglsltype_string{T}(t::GLBuffer{T}) = "in $(glsl_typename(T))"
-
-
 # Gets used to access a
 function glsl_variable_access{T,D}(keystring, t::Texture{T, D})
     t.texturetype == GL_TEXTURE_BUFFER && return "texelFetch($(keystring), index)."*"rgba"[1:length(T)]*";"
     return "getindex($(keystring), index)."*"rgba"[1:length(T)]*";"
 end
-
 glsl_variable_access(keystring, ::Union{Real, GLBuffer, FixedArray, Colorant}) = keystring*";"
-
 glsl_variable_access(keystring, s::Signal) = glsl_variable_access(keystring, s.value)
 glsl_variable_access(keystring, t::Any)    = error("no glsl variable calculation available for : ", keystring, " of type ", typeof(t))
 
-
-UNIFORM_TYPES = FixedArray
-
-
-
-
-function uniform_type(targetuniform::GLenum)
-    if haskey(UNIFORM_TYPE_ENUM_DICT, targetuniform)
-        return UNIFORM_TYPE_ENUM_DICT[targetuniform]
-    else
-        error("Unrecognized Uniform Enum. Enum found: ", GLENUM(targetuniform).name)
-    end
-end
-
 function uniform_name_type(program::GLuint)
     uniformLength = glGetProgramiv(program, GL_ACTIVE_UNIFORMS)
-    if uniformLength == 0
-        return Dict{Symbol, GLenum}()
-    else
-        nametypelist = ntuple(i -> glGetActiveUniform(program, i-1)[1:2], uniformLength) # take size and name
-        return Dict{Symbol, GLenum}(nametypelist)
-    end
+    Dict{Symbol, GLenum}(ntuple(uniformLength) do i # take size and name
+        name, typ = glGetActiveUniform(program, i-1)
+    end)
 end
 function attribute_name_type(program::GLuint)
     uniformLength = glGetProgramiv(program, GL_ACTIVE_ATTRIBUTES)
-    if uniformLength == 0
-        return ()
-    else
-        nametypelist = [begin
-        	name, typ = glGetActiveAttrib(program, i-1)
-        	name => typ
-        	end for i=0:uniformLength-1] # take size and name
-        return Dict{Symbol, GLenum}(nametypelist)
-    end
+    Dict{Symbol, GLenum}(ntuple(uniformLength) do i
+    	name, typ = glGetActiveAttrib(program, i-1)
+    end)
 end
 function istexturesampler(typ::GLenum)
     return (
@@ -166,10 +132,6 @@ function istexturesampler(typ::GLenum)
         typ == GL_INT_SAMPLER_1D_ARRAY || typ == GL_INT_SAMPLER_2D_ARRAY
     )
 end
-
-
-
-const NATIVE_TYPES = Union{FixedArray, GLSL_COMPATIBLE_NUMBER_TYPES..., GLBuffer, GPUArray, Shader, GLProgram, NativeMesh}
 
 
 gl_promote{T <: Integer}(x::Type{T})       = Cint
@@ -210,6 +172,7 @@ gl_convert{T<:Colorant}(s::Vector{Matrix{T}}) = Texture(s)
 gl_convert(s::AABB) = s
 gl_convert(s::Void) = s
 
+isa_gl_struct(x::Array) = false
 isa_gl_struct(x::NATIVE_TYPES) = false
 isa_gl_struct(x::Colorant) = false
 function isa_gl_struct{T}(x::T)
@@ -227,6 +190,10 @@ function gl_convert_struct{T}(x::T, uniform_name::Symbol)
     end
 end
 
+
+# native types don't need convert!
+gl_convert{T <: NATIVE_TYPES}(a::T) = a
+
 gl_convert{T <: NATIVE_TYPES}(s::Signal{T}) = s
 gl_convert{T}(s::Signal{T}) = const_lift(gl_convert, s)
 
@@ -237,12 +204,12 @@ for N=1:4, M=1:4
     @eval gl_convert{T}(x::Mat{$N, $M, T}) = map(gl_promote(T), x)
 end
 
-gl_convert{T, N}(x::Array{T, N}; kw_args...) = Texture(map(gl_promote(T), x); kw_args...)
 gl_convert{T <: Face}(a::Vector{T}) = indexbuffer(s)
 
 gl_convert{T <: NATIVE_TYPES}(::Type{T}, a::NATIVE_TYPES; kw_args...) = a
 gl_convert{T}(::Type{GLBuffer}, a::Vector{T}; kw_args...) = GLBuffer(map(gl_promote(T), a); kw_args...)
 gl_convert{T}(::Type{TextureBuffer}, a::Vector{T}; kw_args...) = TextureBuffer(map(gl_promote(T), a); kw_args...)
+gl_convert{T, N}(::Type{Texture}, a::ArrayOrSignal{T, N}; kw_args...) = Texture(a; kw_args...)
 
 gl_convert(f::Function, a) = f(a)
 
@@ -251,46 +218,3 @@ function gl_convert{T <: Union{TextureBuffer, Texture, GLBuffer}, X}(::Type{T}, 
     s = (X == TGL) ? a : const_lift(map, TGL, a)
     T(s; kw_args...)
 end
-
-# native types don't need convert!
-gl_convert{T <: NATIVE_TYPES}(a::T) = a
-
-
-abstract GLEnumArray{T, SZ}
-abstract GLEnumUniformArray{T, SZ}  <: GLEnumArray{T, SZ}
-abstract GLEnumMatrix{T, M, N}      <: GLEnumUniformArray{T, Tuple{M,N}}
-abstract GLEnumVector{T, M}         <: GLEnumUniformArray{T, Tuple{M}}
-
-
-abstract GLEnumGlobalArray{T, SZ}   <: GLEnumArray{T,   SZ}
-abstract GLEnumTexture{T, SZ}       <: GLEnumGlobalArray{T,   SZ}
-abstract GLEnumTextureBuffer{T, SZ} <: GLEnumTexture{T, SZ}
-
-abstract GLEnumBuffer{T, SZ}        <: GLEnumGlobalArray{T,   SZ}
-
-for numtype in [("BOOL", GLint), ("INT", GLint), ("UNSIGNED_INT", GLuint), ("FLOAT", GLfloat)], typ in ["MATRIX", "VEC", "SAMPLER", "SAMPLER_BUFFER"]
-
-
-end
-#=
-update_convert{T, T2, ND}(globj::GPUArray{T, ND}, value::Array{T2, ND}) = update!(globj, convert(Array{T, ND}, value))
-function gl_convert{T, T2, ND}(should_be::GLEnumGlobalArray{T, ND}, is::Signal{Array{T2, ND}})
-    globject = gl_convert(should_be, is.value)
-    preserve(const_lift(update_convert, globject, is))
-    globj
-end
-
-gl_convert{T, ND, SZ}(should_be::GLEnumUniformArray{T, SZ},     is::FixedArray{T, ND, SZ})  = is
-gl_convert{T, T2, ND, SZ}(should_be::GLEnumUniformArray{T, SZ}, is::FixedArray{T2, ND, SZ}) = convert_elems(T, is)
-
-
-gl_convert{T, T2, ND, SZ}(should_be::GLEnumTextureBuffer{T, ND}, is::Array{T2, ND}) =
-    texture_buffer(convert(Array{T, ND}, is))
-
-gl_convert{T, T2, ND, SZ}(should_be::GLEnumTexture{T, ND}, is::Array{T2, ND}) =
-    Texture(convert(Array{T, ND}, is))
-
-
-gl_convert{T, T2, ND, SZ}(should_be::GLEnumGlobalArray{T, ND}, is::GPUArray{T, ND}) = is
-
-=#

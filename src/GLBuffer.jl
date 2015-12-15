@@ -15,6 +15,10 @@ type GLBuffer{T} <: GPUArray{T, 1}
         obj
     end
 end
+bind(buffer::GLBuffer) = glBindBuffer(buffer.buffertype, buffer.id)
+#used to reset buffer target
+bind(buffer::GLBuffer, other_target) = glBindBuffer(buffer.buffertype, other_target)
+
 function similar{T}(x::GLBuffer{T}, buff_length::Int)
     GLBuffer{T}(Ptr{T}(C_NULL), buff_length, x.buffertype, x.usage)
 end
@@ -36,8 +40,9 @@ indexbuffer{T<:GLArrayEltypes}(buffer::Vector{T}; usage::GLenum = GL_STATIC_DRAW
 # GPUArray interface
 function gpu_data{T}(b::GLBuffer{T})
     data = Array(T, length(b))
-    glBindBuffer(b.buffertype, b.id)
+    bind(b)
     glGetBufferSubData(b.buffertype, 0, sizeof(data), data)
+    bind(b, 0)
     data
 end
 
@@ -45,10 +50,19 @@ end
 # Resize buffer
 function gpu_resize!{T}(buffer::GLBuffer{T}, newdims::NTuple{1, Int})
     #TODO make this safe!
-    newbuff     = similar(buffer, newdims...)
-    unsafe_copy!(buffer, 1, newbuff, 1, length(buffer))
-    buffer.id   = newbuff.id
-    buffer.size = newbuff.size
+    newlength = newdims[1]
+    bind(buffer)
+    old_data = gpu_data(buffer)
+    glBufferData(buffer.buffertype, newlength*sizeof(T), C_NULL, buffer.usage)
+    max_len = min(length(old_data), newlength) #might also shrink
+    buffer[1:max_len] = old_data[1:max_len]
+    bind(buffer, 0)
+    buffer.size = newdims
+    #probably faster, but changes the buffer ID
+    #newbuff     = similar(buffer, newdims...)
+    #unsafe_copy!(buffer, 1, newbuff, 1, length(buffer))
+    #buffer.id   = newbuff.id
+    #buffer.size = newbuff.size
     nothing
 end
 

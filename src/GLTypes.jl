@@ -1,4 +1,16 @@
 ############################################################################
+typealias TOrSignal{T} Union{Signal{T}, T}
+
+typealias ArrayOrSignal{T, N} TOrSignal{Array{T, N}}
+typealias VecOrSignal{T} 	ArrayOrSignal{T, 1}
+typealias MatOrSignal{T} 	ArrayOrSignal{T, 2}
+typealias VolumeOrSignal{T} ArrayOrSignal{T, 3}
+
+typealias ArrayTypes{T, N} Union{GPUArray{T, N}, ArrayOrSignal{T,N}}
+typealias VecTypes{T} 		ArrayTypes{T, 1}
+typealias MatTypes{T} 		ArrayTypes{T, 2}
+typealias VolumeTypes{T} 	ArrayTypes{T, 3}
+
 
 type GLProgram
     id          ::GLuint
@@ -88,44 +100,44 @@ include("GLTexture.jl")
 ########################################################################
 
 
-type GLVertexArray
+
+type GLVertexArray{T}
   program       ::GLProgram
   id            ::GLuint
   length        ::Int
-  indexlength   ::Int # is negative if not indexed
-
-  function GLVertexArray(bufferdict::Dict{Symbol, GLBuffer}, program::GLProgram)
+  indexes       ::T
+end
+function GLVertexArray(bufferdict::Dict, program::GLProgram)
     #get the size of the first array, to assert later, that all have the same size
-    indexSize = -1
+    indexes = -1
     len = -1
     id  = glGenVertexArrays()
     glBindVertexArray(id)
     for (name, buffer) in bufferdict
-        if buffer.buffertype == GL_ELEMENT_ARRAY_BUFFER
-            glBindBuffer(buffer.buffertype, buffer.id)
-            indexSize = length(buffer) * cardinality(buffer)
-        else
-            attribute = string(name)
-            if len == -1
-                len = length(buffer)
-            end
-            if len != length(buffer)
-                error("buffer $attribute has not the same length as the other buffers. Has: $(length(buffer)). Should have: $len")
-            end
-            glBindBuffer(buffer.buffertype, buffer.id)
-            attribLocation = get_attribute_location(program.id, attribute)
-            glVertexAttribPointer(attribLocation, cardinality(buffer), julia2glenum(eltype(buffer)), GL_FALSE, 0, C_NULL)
-            glEnableVertexAttribArray(attribLocation)
-        end
+      if isa(buffer, TOrSignal{Int}) || (isa(buffer, Vector) && eltype(buffer) <: Range{Int})
+          indexes = buffer
+      elseif buffer.buffertype == GL_ELEMENT_ARRAY_BUFFER
+          bind(buffer)
+          indexes = length(buffer) * cardinality(buffer)
+      else
+          attribute = string(name)
+          len == -1 && (len = length(buffer))
+          # TODO: use glVertexAttribDivisor to allow multiples of the longest buffer
+          len != length(buffer) && error(
+              "buffer $attribute has not the same length as the other buffers.
+              Has: $(length(buffer)). Should have: $len"
+          )
+          bind(buffer)
+          attribLocation = get_attribute_location(program.id, attribute)
+          glVertexAttribPointer(attribLocation, cardinality(buffer), julia2glenum(eltype(buffer)), GL_FALSE, 0, C_NULL)
+          glEnableVertexAttribArray(attribLocation)
+      end
     end
     glBindVertexArray(0)
-    obj = new(program, id, len, indexSize)
+    obj = GLVertexArray{typeof(indexes)}(program, id, len, indexes)
     finalizer(obj, free)
     obj
-    end
 end
-GLVertexArray(bufferDict::Dict{ASCIIString, GLBuffer}, program::GLProgram) = GLVertexArray(mapkeys(symbol, bufferdict), program)
-
 free(x::GLVertexArray) = glDeleteVertexArrays(1, [x.id])
 
 
@@ -150,7 +162,6 @@ type RenderObject <: Composable{DeviceUnit}
         delete!(data, :gl_convert_targets)
         passthrough = Dict{Symbol, Any}() # we also save a few non opengl related values in data
         for (k,v) in data # convert everything to OpenGL compatible types
-            k == :light && continue
             if haskey(targets, k)
                 # glconvert is designed to just convert everything to a fitting opengl datatype, but sometimes exceptions are needed
                 # e.g. Texture{T,1} and GLBuffer{T} are both usable as an native conversion canditate for a Julia's Array{T, 1} type.
@@ -171,12 +182,12 @@ type RenderObject <: Composable{DeviceUnit}
         if !isempty(meshs)
             merge!(data, map(x->last(x).data, meshs)...)
         end
-        buffers         = filter((key, value) -> isa(value, GLBuffer), data)
-        uniforms        = filter((key, value) -> !isa(value, GLBuffer), data)
+        buffers  = filter((key, value) -> isa(value, GLBuffer) || key == :indices, data)
+        uniforms = filter((key, value) -> !isa(value, GLBuffer) && key != :indices, data)
         get!(data, :visible, true) # make sure, visibility is set
         merge!(data, passthrough) # in the end, we insert back the non opengl data, to keep things simple
         p = value(gl_convert(value(program), data)) # "compile" lazyshader
-        vertexarray = GLVertexArray(Dict{Symbol, GLBuffer}(buffers), p)
+        vertexarray = GLVertexArray(Dict(buffers), p)
         data[:objectid] = RENDER_OBJECT_ID_COUNTER # automatucally integrate object ID, will be discarded if shader doesn't use it
 
         return new(

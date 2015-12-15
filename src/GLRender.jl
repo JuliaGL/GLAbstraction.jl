@@ -24,11 +24,17 @@ function render(renderobject::RenderObject, vertexarray=renderobject.vertexarray
         end
     end
 end
-
-function render(vao::GLVertexArray, mode::GLenum=GL_TRIANGLES)
+function render{T <: VecOrSignal{UnitRange{Int}}}(vao::GLVertexArray{T}, mode::GLenum=GL_TRIANGLES)
     glBindVertexArray(vao.id)
-    if vao.indexlength > 0
-        glDrawElements(mode, vao.indexlength, GL_UNSIGNED_INT, C_NULL)
+    for elem in value(vao.indexes)
+        glDrawArrays(mode, max(first(elem)-1, 0), min(length(elem)+1, vao.length))
+    end
+    glBindVertexArray(0)
+end
+function render{T<:TOrSignal{Int}}(vao::GLVertexArray{T}, mode::GLenum=GL_TRIANGLES)
+    glBindVertexArray(vao.id)
+    if value(vao.indexes) > 0
+        glDrawElements(mode, value(vao.indexes), GL_UNSIGNED_INT, C_NULL)
     else
         glDrawArrays(mode, 0, vao.length)
     end
@@ -37,7 +43,7 @@ end
 renderinstanced(vao::GLVertexArray, a, primitive=GL_TRIANGLES) = renderinstanced(vao, length(a), primitive)
 function renderinstanced(vao::GLVertexArray, amount::Integer, primitive=GL_TRIANGLES)
     glBindVertexArray(vao.id)
-    glDrawElementsInstanced(primitive, vao.indexlength, GL_UNSIGNED_INT, C_NULL, amount)
+    glDrawElementsInstanced(primitive, value(vao.indexes), GL_UNSIGNED_INT, C_NULL, amount)
     glBindVertexArray(0)
 end
 #handle all uniform objects
