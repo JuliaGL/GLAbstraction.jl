@@ -78,21 +78,17 @@ const GLArrayEltypes = Union{FixedVector, Real, Colorant}
 #Transfomr julia datatypes to opengl enum type
 julia2glenum{T <: FixedPoint}(x::Type{T})               = julia2glenum(FixedPointNumbers.rawtype(x))
 julia2glenum{T <: GLArrayEltypes}(x::Union{Type{T}, T}) = julia2glenum(eltype(x))
+julia2glenum(x::Type{GLubyte})  = GL_UNSIGNED_BYTE
+julia2glenum(x::Type{GLbyte})   = GL_BYTE
+julia2glenum(x::Type{GLuint})   = GL_UNSIGNED_INT
+julia2glenum(x::Type{GLushort}) = GL_UNSIGNED_SHORT
+julia2glenum(x::Type{GLshort})  = GL_SHORT
+julia2glenum(x::Type{GLint})    = GL_INT
+julia2glenum(x::Type{GLfloat})  = GL_FLOAT
+julia2glenum(x::Type{Float16})  = GL_HALF_FLOAT
+julia2glenum{T}(::Type{T}) =
+    error("Type: $T not supported as opengl number datatype")
 
-let TO_GL_TYPE = Dict(
-        GLubyte     => GL_UNSIGNED_BYTE,
-        GLbyte      => GL_BYTE,
-        GLuint      => GL_UNSIGNED_INT,
-        GLushort    => GL_UNSIGNED_SHORT,
-        GLshort     => GL_SHORT,
-        GLint       => GL_INT,
-        GLfloat     => GL_FLOAT,
-        Float16     => GL_HALF_FLOAT
-    )
-    julia2glenum{T <: Real}(::Type{T}) = get(TO_GL_TYPE, T) do
-        error("Type: $T not supported as pixel datatype")
-    end
-end
 
 include("GLBuffer.jl")
 include("GLTexture.jl")
@@ -104,7 +100,8 @@ include("GLTexture.jl")
 type GLVertexArray{T}
   program       ::GLProgram
   id            ::GLuint
-  length        ::Int
+  length        ::GLBuffer
+  buffers       ::Dict{ASCIIString, GLBuffer}
   indexes       ::T
 end
 function GLVertexArray(bufferdict::Dict, program::GLProgram)
@@ -112,29 +109,33 @@ function GLVertexArray(bufferdict::Dict, program::GLProgram)
     indexes = -1
     len = -1
     id  = glGenVertexArrays()
+    lenbuffer = 0
     glBindVertexArray(id)
+    buffers = Dict{ASCIIString, GLBuffer}()
     for (name, buffer) in bufferdict
-      if isa(buffer, TOrSignal{Int}) || (isa(buffer, Vector) && eltype(buffer) <: Range{Int})
-          indexes = buffer
-      elseif buffer.buffertype == GL_ELEMENT_ARRAY_BUFFER
-          bind(buffer)
-          indexes = length(buffer) * cardinality(buffer)
-      else
-          attribute = string(name)
-          len == -1 && (len = length(buffer))
-          # TODO: use glVertexAttribDivisor to allow multiples of the longest buffer
-          len != length(buffer) && error(
+        if isa(buffer, GLBuffer) && buffer.buffertype == GL_ELEMENT_ARRAY_BUFFER
+            bind(buffer)
+            indexes = buffer
+        elseif name == :indices
+            indexes = buffer
+        else
+            attribute = string(name)
+            len == -1 && (len = length(buffer))
+            # TODO: use glVertexAttribDivisor to allow multiples of the longest buffer
+            len != length(buffer) && error(
               "buffer $attribute has not the same length as the other buffers.
               Has: $(length(buffer)). Should have: $len"
-          )
-          bind(buffer)
-          attribLocation = get_attribute_location(program.id, attribute)
-          glVertexAttribPointer(attribLocation, cardinality(buffer), julia2glenum(eltype(buffer)), GL_FALSE, 0, C_NULL)
-          glEnableVertexAttribArray(attribLocation)
-      end
+            )
+            bind(buffer)
+            attribLocation = get_attribute_location(program.id, attribute)
+            glVertexAttribPointer(attribLocation, cardinality(buffer), julia2glenum(eltype(buffer)), GL_FALSE, 0, C_NULL)
+            glEnableVertexAttribArray(attribLocation)
+            buffers[attribute] = buffer
+            lenbuffer = buffer
+        end
     end
     glBindVertexArray(0)
-    obj = GLVertexArray{typeof(indexes)}(program, id, len, indexes)
+    obj = GLVertexArray{typeof(indexes)}(program, id, lenbuffer, buffers, indexes)
     finalizer(obj, free)
     obj
 end
@@ -168,6 +169,7 @@ type RenderObject <: Composable{DeviceUnit}
                 # but in some cases we want a Texture, sometimes a GLBuffer or TextureBuffer
                 data[k] = gl_convert(targets[k], v)
             else
+                k == :indices && continue
                 if isa_gl_struct(v) # structs are treated differently, since they have to be composed into their fields
                     merge!(data, gl_convert_struct(v, k))
                 elseif applicable(gl_convert, v) # if can't be converted to an OpenGL datatype,

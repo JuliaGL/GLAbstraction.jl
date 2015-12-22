@@ -27,23 +27,29 @@ end
 function render{T <: VecOrSignal{UnitRange{Int}}}(vao::GLVertexArray{T}, mode::GLenum=GL_TRIANGLES)
     glBindVertexArray(vao.id)
     for elem in value(vao.indexes)
-        glDrawArrays(mode, max(first(elem)-1, 0), min(length(elem)+1, vao.length))
+        glDrawArrays(mode, max(first(elem)-1, 0), length(elem)+1)
     end
+    glBindVertexArray(0)
+end
+function render{T<:Union{Integer, Face}}(vao::GLVertexArray{GLBuffer{T}}, mode::GLenum=GL_TRIANGLES)
+    glBindVertexArray(vao.id)
+    glDrawElements(mode, length(vao.indexes)*cardinality(vao.indexes), julia2glenum(T), C_NULL)
     glBindVertexArray(0)
 end
 function render{T<:TOrSignal{Int}}(vao::GLVertexArray{T}, mode::GLenum=GL_TRIANGLES)
     glBindVertexArray(vao.id)
-    if value(vao.indexes) > 0
-        glDrawElements(mode, value(vao.indexes), GL_UNSIGNED_INT, C_NULL)
-    else
-        glDrawArrays(mode, 0, vao.length)
-    end
+    glDrawArrays(mode, 0, value(vao.indexes))
     glBindVertexArray(0)
 end
 renderinstanced(vao::GLVertexArray, a, primitive=GL_TRIANGLES) = renderinstanced(vao, length(a), primitive)
-function renderinstanced(vao::GLVertexArray, amount::Integer, primitive=GL_TRIANGLES)
+function renderinstanced{T<:Union{Integer, Face}}(vao::GLVertexArray{GLBuffer{T}}, amount::Integer, primitive=GL_TRIANGLES)
     glBindVertexArray(vao.id)
-    glDrawElementsInstanced(primitive, value(vao.indexes), GL_UNSIGNED_INT, C_NULL, amount)
+    glDrawElementsInstanced(primitive, length(vao.indexes)*cardinality(vao.indexes), julia2glenum(T), C_NULL, amount)
+    glBindVertexArray(0)
+end
+function renderinstanced{T<:TOrSignal{Int}}(vao::GLVertexArray{T}, amount::Integer, primitive=GL_TRIANGLES)
+    glBindVertexArray(vao.id)
+    glDrawElementsInstanced(primitive, length(value(vao.indexes)), GL_UNSIGNED_INT, C_NULL, amount)
     glBindVertexArray(0)
 end
 #handle all uniform objects
