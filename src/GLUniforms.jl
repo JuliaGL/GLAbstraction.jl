@@ -205,16 +205,14 @@ for N=1:4, M=1:4
 end
 
 gl_convert{T <: Face}(a::Vector{T}) = indexbuffer(s)
-
 gl_convert{T <: NATIVE_TYPES}(::Type{T}, a::NATIVE_TYPES; kw_args...) = a
-gl_convert{T}(::Type{GLBuffer}, a::Vector{T}; kw_args...) = GLBuffer(map(gl_promote(T), a); kw_args...)
-gl_convert{T}(::Type{TextureBuffer}, a::Vector{T}; kw_args...) = TextureBuffer(map(gl_promote(T), a); kw_args...)
-gl_convert{T, N}(::Type{Texture}, a::ArrayOrSignal{T, N}; kw_args...) = Texture(a; kw_args...)
+gl_convert{T <: GPUArray, X, N}(::Type{T}, a::Array{X, N}; kw_args...) =
+    T(map(gl_promote(X), a); kw_args...)
 
-gl_convert(f::Function, a) = f(a)
-
-function gl_convert{T <: Union{TextureBuffer, Texture, GLBuffer}, X}(::Type{T}, a::Signal{Vector{X}}; kw_args...)
+function gl_convert{T <: GPUArray, X, N}(::Type{T}, a::Signal{Array{X, N}}; kw_args...)
     TGL = gl_promote(X)
     s = (X == TGL) ? a : const_lift(map, TGL, a)
     T(s; kw_args...)
 end
+
+gl_convert(f::Function, a) = f(a)
