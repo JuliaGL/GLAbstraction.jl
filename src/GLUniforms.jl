@@ -10,7 +10,7 @@ opengl_postfix(T) = error("Object $T is not a supported uniform element type")
 
 
 
-opengl_prefix{T <: Union{FixedPoint, Float32}}(x::Type{T})  = ""
+opengl_prefix{T <: Union{FixedPoint, Float32, Float16}}(x::Type{T})  = ""
 opengl_prefix{T <: Float64}(x::Type{T})                     = "d"
 opengl_prefix(x::Type{Cint})                                = "i"
 opengl_prefix{T <: Union{Cuint, UInt8, UInt16}}(x::Type{T}) = "u"
