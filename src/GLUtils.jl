@@ -154,12 +154,11 @@ macro gen_defaults!(dict, args)
             key_name, value_expr = elem.args
             if isa(key_name, Expr) && key_name.head == :(::) # we need to convert to a julia type
                 key_name, convert_target = key_name.args
-                convert_target = :($key_name = convert($convert_target, $key_name))
+                convert_target = :(convert($convert_target, $key_name))
+            else
+                convert_target = :($key_name)
             end
             key_sym = Expr(:quote, key_name)
-            if key_name == :prerender
-                continue
-            end
             if isa(value_expr, Expr) && value_expr.head == :(=>)  # we might need to insert a convert target
                 value_expr, target = value_expr.args
                 opengl_convert_target = quote
@@ -170,8 +169,7 @@ macro gen_defaults!(dict, args)
             end
             expr = quote
                 $key_name = haskey($dictsym, $key_sym) ? $dictsym[$key_sym] : $value_expr # in case that evaluating value_expr is expensive, we use a branch instead of get(dict, key, default)
-                $convert_target
-                $dictsym[$key_sym] = $key_name
+                $dictsym[$key_sym] = $convert_target
                 $opengl_convert_target
             end
             push!(return_expression.args, expr)
