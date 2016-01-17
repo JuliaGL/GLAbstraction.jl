@@ -145,6 +145,8 @@ type Pivot{T}
     scale       ::Vec{3, T}
 end
 
+GeometryTypes.origin(p::Pivot) = p.origin
+
 rotationmatrix4{T}(q::Quaternions.Quaternion{T}) = Mat{4,4,T}(q)
 
 function call{T}(::Type{Mat{4,4,T}}, q::Quaternions.Quaternion)

@@ -11,6 +11,7 @@ typealias VecTypes{T} 		ArrayTypes{T, 1}
 typealias MatTypes{T} 		ArrayTypes{T, 2}
 typealias VolumeTypes{T} 	ArrayTypes{T, 3}
 
+@enum Projection PERSPECTIVE ORTHOGRAPHIC
 
 type GLProgram
     id          ::GLuint
