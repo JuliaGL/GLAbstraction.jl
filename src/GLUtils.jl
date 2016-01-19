@@ -168,7 +168,11 @@ macro gen_defaults!(dict, args)
                 end
             end
             expr = quote
-                $key_name = haskey($dictsym, $key_sym) ? $dictsym[$key_sym] : $value_expr # in case that evaluating value_expr is expensive, we use a branch instead of get(dict, key, default)
+                $key_name = if haskey($dictsym, $key_sym)
+                    $dictsym[$key_sym]
+                else
+                    $value_expr # in case that evaluating value_expr is expensive, we use a branch instead of get(dict, key, default)
+                end
                 $dictsym[$key_sym] = $convert_target
                 $opengl_convert_target
             end

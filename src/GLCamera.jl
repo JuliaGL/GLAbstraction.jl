@@ -82,12 +82,11 @@ function OrthographicPixelCamera(inputs::Dict{Symbol, Any})
     #Should be rather in Image coordinates
     view = foldp(viewmatrix, eye(Mat{4,4, Float32}), inputs[:scroll], buttons_pressed)
     OrthographicCamera(
-        inputs[:window_size],
+        inputs[:window_area],
         view,
         Signal(-10f0), # nearclip
         Signal(10f0) # farclip
     )
-
 end
 
 
@@ -119,45 +118,165 @@ function OrthographicCamera{T}(
 end
 
 
-mousepressed(mousebuttons::IntSet, button::Int) = in(button, mousebuttons)
+pressed(keys, key) = key in keys
 
-thetalift(mdL, speed) = Vec3f0(0f0, -mdL[2]/speed, mdL[1]/speed)
-translationlift(xy, z) = Vec3f0(scroll_y, mdM[1]/200f0, -mdM[2]/200f0)
+mouse_dragg(v0, args) = mouse_dragg(v0..., args...)
+function mouse_dragg(
+        started::Bool, startpoint, diff,
+        ispressed::Bool, position, start_condition::Bool
+    )
+    if !started && ispressed && start_condition
+        return (true, position, position*0)
+    end
+    started && ispressed && return (true, startpoint, startpoint-position)
+    (false, startpoint*0, startpoint*0)
+end
+
+function dragged(mouseposition, key_pressed, start_condition=true)
+    v0 = (false, Vec2f0(0), Vec2f0(0))
+    args = const_lift(tuple, key_pressed, mouseposition, start_condition)
+    dragg_sig = foldp(mouse_dragg, v0, args)
+    is_dragg = map(first, dragg_sig)
+    dragg_diff = map(last, dragg_sig)
+    filterwhen(is_dragg, Vec2f0(0), dragg_diff)
+end
+
+#=
+function dragged(mouseposition, key_pressed, start_condition=true)
+    v0 = (false, Vec2f0(0), Vec2f0(0), value(start_condition))
+    args = const_lift(tuple, key_pressed, mouseposition, start_condition)
+    dragg_sig = foldp(mouse_dragg, v0, args)
+    println(dragg_sig)
+    is_dragg = map(first, dragg_sig)
+    dragg_diff = map(last, dragg_sig)
+    println(is_dragg)
+    println(dragg_diff)
+    filterwhen(is_dragg, Vec2f0(0), dragg_diff)
+end
+=#
+
+
+
+
+
+"""
+Transforms a mouse drag into a selection from drag start to drag end
+"""
+function drag2selectionrange(v0, selection)
+    mousediff, id_start, current_id = selection
+    if mousediff != Vec2f0(0) # Mouse Moved
+        if current_id[1] == id_start[1]
+            return min(id_start[2],current_id[2]):max(id_start[2],current_id[2])
+        end
+    else # if mouse did not move while dragging, make a single point selection
+        if current_id.id == id_start.id
+            return current_id.index:0 # this is the type stable way of indicating, that the selection is between currend_index
+        end
+    end
+    v0
+end
+
+
+"""
+Returns two signals, one boolean signal if clicked over `robj` and another
+one that consists of the object clicked on and another argument indicating that it's the first click
+"""
+function clicked(robj::RenderObject, button::MouseButton, window)
+    @materialize mouse_hover, mousebuttonspressed = window.inputs
+    clicked_on = const_lift(mouse_hover, mousebuttonspressed) do mh, mbp
+        mh.id == robj.id && in(button, mbp)
+    end
+    clicked_on_obj = keepwhen(clicked_on, false, clicked_on)
+    clicked_on_obj = const_lift((mh, x)->(x,robj,mh), mouse_hover, clicked_on)
+    clicked_on, clicked_on_obj
+end
+
+is_same_id(id, robj) = id[1] == robj.id
+"""
+Returns a boolean signal indicating if the mouse hovers over `robj`
+"""
+is_hovering(robj::RenderObject, window) =
+    droprepeats(const_lift(is_same_id, window.inputs[:mouse_hover], robj))
+
+function dragon_tmp(past, mh, mbp, mpos, robj, button, start_value)
+    diff, dragstart_index, was_clicked, dragstart_pos = past
+    over_obj = mh[1] == robj.id
+    is_clicked = mbp == Int[button]
+    if is_clicked && was_clicked # is draggin'
+        return (dragstart_pos-mpos, dragstart_index, true, dragstart_pos)
+    elseif over_obj && is_clicked && !was_clicked # drag started
+        return (Vec2f0(0), mh[2], true, mpos)
+    end
+    return start_value
+end
+
+"""
+Returns a signal with the difference from dragstart and current mouse position,
+and the index from the current ROBJ id.
+"""
+function dragged_on(robj::RenderObject, button::MouseButton, window)
+    @materialize mouse_hover, mousebuttonspressed, mouseposition = window.inputs
+    start_value = (Vec2f0(0), mouse_hover.value[2], false, Vec2f0(0))
+    tmp_signal = foldp(dragon_tmp,
+        start_value, mouse_hover,
+        mousebuttonspressed, mouseposition,
+        Signal(robj), Signal(button), Signal(start_value)
+    )
+    droprepeats(const_lift(getindex, tmp_signal, 1:2))
+end
+
+
+"""
+returns a signal which becomes true whenever there is a doublecklick
+"""
+function doubleclick(mouseclick::Signal{Vector{MouseButton}}, threshold::Real)
+    ddclick = foldp((time(), mouseclick.value, false), mouseclick) do v0, mclicked
+        t0, lastc, _ = v0
+        t1 = time()
+        if length(mclicked) == 1 && length(lastc) == 1 && lastc[1] == mclicked[1] && t1-t0 < threshold
+            return (t1, mclicked, true)
+        else
+            return (t1, mclicked, false)
+        end
+    end
+    dd = const_lift(last, ddclick)
+    return dd
+end
+
 
 function default_camera_control(
-        inputs;
-        trans = Signal(Vec3f0(0)), 
-        theta = Signal(Vec3f0(0)), 
-        keep  = Signal(true)
+        inputs, rotation_speed, translation_speed, keep=Signal(true)
     )
     @materialize mouseposition, mouse_buttons_pressed, scroll = inputs
 
     mouseposition = map(Vec2f0, mouseposition)
-    left_pressed  = map(pressed, mouse_buttons_pressed, MOUSE_LEFT)
-    right_pressed = map(pressed, mouse_buttons_pressed, MOUSE_RIGHT)
-    clickedkeyL   = dragged(mouseposition, left_pressed, keep)
-    clickedkeyM   = dragged(mouseposition, right_pressed, keep)
+    left_pressed  = const_lift(pressed, mouse_buttons_pressed, MOUSE_LEFT)
+    right_pressed = const_lift(pressed, mouse_buttons_pressed, MOUSE_RIGHT)
+    xytheta       = dragged(mouseposition, left_pressed, keep)
+    xytranslate   = dragged(mouseposition, right_pressed, keep)
 
-    zoom = filterwhen(keep, 0f0, 
-        const_lift(Float32, const_lift(/, map(last, scroll), 5f0))
+    ztranslate = filterwhen(keep, 0f0,
+        const_lift(/, map(last, scroll), 40f0)
     )
-    _theta = filterwhen(keep, Vec3f0(0), 
-        merge(const_lift(thetalift, clickedkeyL, 50f0), theta)
+    translate_theta(
+        xytranslate, ztranslate, xytheta,
+        rotation_speed, translation_speed
     )
-    _trans = filterwhen(keep, Vec3f0(0), 
-        merge(const_lift(translationlift, zoom, clickedkeyM), trans)
-    )
-    _theta, _trans, zoom
 end
 
 
-
-function translate_zoom_theta(
-        xytranslate, ztranslate, xytheta, 
+function thetalift(yz, speed)
+    Vec3f0(0f0, -yz[2], yz[1])./speed
+end
+function translationlift(up_left, zoom, speed)
+    Vec3f0(zoom, up_left[1], -up_left[2])./speed
+end
+function translate_theta(
+        xytranslate, ztranslate, xytheta,
         rotation_speed, translation_speed
     )
-    theta = map(thetalift, xtheta, rotation_speed)
-    trans = map(translationlift, xytranslate, ztranslate)
+    theta = map(thetalift, xytheta, rotation_speed)
+    trans = map(translationlift, xytranslate, ztranslate, translation_speed)
     theta, trans
 end
 
@@ -177,15 +296,13 @@ eyeposition: Position of the camera
 lookatvec: Point the camera looks at
 """
 function PerspectiveCamera{T}(inputs::Dict{Symbol,Any}, eyeposition::Vec{3, T}, lookatvec::Vec{3, T})
-    theta,trans,zoom = default_camera_control(inputs)
-
+    theta, trans = default_camera_control(inputs, Signal(50f0), Signal(200f0))
     cam = PerspectiveCamera(
         inputs[:window_area],
         eyeposition,
         lookatvec,
         theta,
         trans,
-        zoom,
         Signal(41f0),
         Signal(1f0),
         Signal(100f0)
@@ -225,13 +342,13 @@ end
 getupvec(p::Pivot) = p.rotation * p.zaxis
 
 function projection_switch{T<:Real}(
-        w::SimpleRectangle, 
+        wh::SimpleRectangle,
         fov::T, near::T, far::T, projection::Projection
     )
     aspect = T(wh.w/wh.h)
     h      = T(tan(fov / 360.0 * pi) * near)
     w      = T(h * aspect)
-    projection == PERSPECTIVE && return frustum(-w, w, -h, h, znear, zfar)
+    projection == PERSPECTIVE && return frustum(-w, w, -h, h, near, far)
     orthographicprojection(-w, w, -h, h, near, far) # can only be orthographic...
 end
 
@@ -261,19 +378,18 @@ function PerspectiveCamera{T <: Real}(
         lookatvec       ::Union{Signal{Vec{3, T}}, Vec{3, T}},
         theta           ::Signal{Vec{3, T}},
         trans           ::Signal{Vec{3, T}},
-        zoom            ::Signal{T},
         fov             ::Signal{T},
         nearclip        ::Signal{T},
         farclip         ::Signal{T},
+
+        up_vector   = Vec{3, T}(0,0,1),
         projection 	= Signal(PERSPECTIVE),
         reset   	= Signal(false),
         resetto 	= Signal(Quaternions.Quaternion(T(1),T(0),T(0),T(0)))
     )
 
-    origin          = lookatvec
-    vup             = Vec{3, T}(0,0,1)
     xaxis           = const_lift(-, eyeposition, lookatvec)
-    yaxis           = const_lift(cross, xaxis, vup)
+    yaxis           = const_lift(cross, xaxis, up_vector)
     zaxis           = const_lift(cross, yaxis, xaxis)
 
     pivot0          = Pivot(value(lookatvec), value(xaxis), value(yaxis), value(zaxis), Quaternions.Quaternion(T(1),T(0),T(0),T(0)), zero(Vec{3, T}), Vec{3, T}(1))

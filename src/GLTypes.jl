@@ -12,6 +12,7 @@ typealias MatTypes{T} 		ArrayTypes{T, 2}
 typealias VolumeTypes{T} 	ArrayTypes{T, 3}
 
 @enum Projection PERSPECTIVE ORTHOGRAPHIC
+@enum MouseButton MOUSE_LEFT MOUSE_MIDDLE MOUSE_RIGHT
 
 type GLProgram
     id          ::GLuint
