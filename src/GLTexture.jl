@@ -23,6 +23,8 @@ type TextureBuffer{T <: GLArrayEltypes} <: OpenglTexture{T, 1}
 end
 Base.size(t::TextureBuffer) = size(t.buffer)
 Base.length(t::TextureBuffer) = length(t.buffer)
+bind(t::Texture) = glBindTexture(t.texturetype, t.id)
+bind(t::Texture, id) = glBindTexture(t.texturetype, id)
 
 is_texturearray(t::Texture)  = t.texturetype == GL_TEXTURE_2D_ARRAY
 is_texturebuffer(t::Texture) = t.texturetype == GL_TEXTURE_BUFFER
@@ -58,6 +60,14 @@ function Texture{T, NDim}(
     )
     set_parameters(texture)
     texture
+end
+export resize_nocopy!
+function resize_nocopy!{T, ND}(t::Texture{T, ND}, newdims::NTuple{ND, Int})
+    bind(t)
+    glTexImage(t.texturetype, 0, t.internalformat, newdims..., 0, t.format, t.pixeltype, C_NULL)
+    t.size = newdims
+    bind(t, 0)
+    t
 end
 
 #=
@@ -260,14 +270,6 @@ gpu_data{T}(t::TextureBuffer{T}) = gpu_data(t.buffer)
 gpu_getindex{T}(t::TextureBuffer{T}, i::UnitRange{Int64}) = t.buffer[i]
 
 
-export resize_nocopy!
-function resize_nocopy!{T, ND}(t::Texture{T, ND}, newdims::Tuple{Vararg{Int}})
-    glBindTexture(t.texturetype, t.id)
-    glTexImage(t.texturetype, 0, t.internalformat, newdims..., 0, t.format, t.pixeltype, C_NULL)
-    t.size = newdims
-    glBindTexture(t.texturetype, 0)
-    t
-end
 
 similar{T, NDim}(t::Texture{T, NDim}, newdims::Int...) = similar(t, newdims)
 function similar{T}(t::TextureBuffer{T}, newdims::NTuple{1, Int})

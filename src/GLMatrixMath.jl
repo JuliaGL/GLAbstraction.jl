@@ -105,8 +105,9 @@ function lookat{T}(eyePos::Vec{3, T}, lookAt::Vec{3, T}, up::Vec{3, T})
         (T0,       T0,       T0,       T1)
     ) * translationmatrix(-eyePos)
 end
-orthographicprojection{T}(wh::SimpleRectangle, near::T, far::T) =
+function orthographicprojection{T}(wh::SimpleRectangle, near::T, far::T)
     orthographicprojection(zero(T), T(wh.w), zero(T), T(wh.h), near, far)
+end
 
 function orthographicprojection{T}(
         left  ::T, right::T,

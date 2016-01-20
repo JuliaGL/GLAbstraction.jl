@@ -52,16 +52,17 @@ end
 
 
 function viewmatrix(v0, scroll_xy, buttonset)
+    speed = 30f0
     translatevec = Vec3f0(0f0)
-    scroll_y, scroll_x = Vec2f0(scroll_xy)
+    scroll_x, scroll_y = Vec2f0(scroll_xy)*speed
     if scroll_x == 0f0
         if in(341, buttonset) # left strg key
-            translatevec = Vec3f0(scroll_y*20f0, 0f0, 0f0)
+            translatevec = Vec3f0(scroll_y, 0f0, 0f0)
         else
-            translatevec = Vec3f0(0f0, scroll_y*20f0, 0f0)
+            translatevec = Vec3f0(0f0, scroll_y, 0f0)
         end
     else
-        translatevec = Vec3f0(scroll_x*10f0, scroll_y*10f0, 0f0)
+        translatevec = Vec3f0(scroll_x, scroll_y, 0f0)
     end
     v0 * translationmatrix(translatevec)
 end
@@ -84,8 +85,8 @@ function OrthographicPixelCamera(inputs::Dict{Symbol, Any})
     OrthographicCamera(
         inputs[:window_area],
         view,
-        Signal(-10f0), # nearclip
-        Signal(10f0) # farclip
+        Signal(-100f0), # nearclip
+        Signal(100f0) # farclip
     )
 end
 
@@ -243,6 +244,8 @@ function doubleclick(mouseclick::Signal{Vector{MouseButton}}, threshold::Real)
     return dd
 end
 
+using GLFW
+
 
 function default_camera_control(
         inputs, rotation_speed, translation_speed, keep=Signal(true)
@@ -250,12 +253,12 @@ function default_camera_control(
     @materialize mouseposition, mouse_buttons_pressed, scroll = inputs
 
     mouseposition = map(Vec2f0, mouseposition)
-    left_pressed  = const_lift(pressed, mouse_buttons_pressed, MOUSE_LEFT)
-    right_pressed = const_lift(pressed, mouse_buttons_pressed, MOUSE_RIGHT)
+    left_pressed  = const_lift(pressed, mouse_buttons_pressed, GLFW.MOUSE_BUTTON_LEFT)
+    right_pressed = const_lift(pressed, mouse_buttons_pressed, GLFW.MOUSE_BUTTON_RIGHT)
+
     xytheta       = dragged(mouseposition, left_pressed, keep)
     xytranslate   = dragged(mouseposition, right_pressed, keep)
-
-    ztranslate = filterwhen(keep, 0f0,
+    ztranslate    = filterwhen(keep, 0f0,
         const_lift(/, map(last, scroll), 40f0)
     )
     translate_theta(
@@ -266,10 +269,14 @@ end
 
 
 function thetalift(yz, speed)
-    Vec3f0(0f0, -yz[2], yz[1])./speed
+    Vec3f0(0f0, -yz[2], yz[1]).*speed
 end
 function translationlift(up_left, zoom, speed)
-    Vec3f0(zoom, up_left[1], -up_left[2])./speed
+    Vec3f0(zoom, up_left[1], -up_left[2]).*speed
+end
+function diff_vector(v0, p1)
+    p0, diff = v0
+    p1, p0-p1
 end
 function translate_theta(
         xytranslate, ztranslate, xytheta,
@@ -277,7 +284,9 @@ function translate_theta(
     )
     theta = map(thetalift, xytheta, rotation_speed)
     trans = map(translationlift, xytranslate, ztranslate, translation_speed)
-    theta, trans
+    thetadiff = map(last, foldp(diff_vector, (value(theta), Vec3f0(0)), theta))
+    transdiff = map(last, foldp(diff_vector, (value(trans), Vec3f0(0)), trans))
+    thetadiff, transdiff
 end
 
 """
@@ -296,7 +305,7 @@ eyeposition: Position of the camera
 lookatvec: Point the camera looks at
 """
 function PerspectiveCamera{T}(inputs::Dict{Symbol,Any}, eyeposition::Vec{3, T}, lookatvec::Vec{3, T})
-    theta, trans = default_camera_control(inputs, Signal(50f0), Signal(200f0))
+    theta, trans = default_camera_control(inputs, Signal(0.001f0), Signal(0.001f0))
     cam = PerspectiveCamera(
         inputs[:window_area],
         eyeposition,
@@ -392,7 +401,10 @@ function PerspectiveCamera{T <: Real}(
     yaxis           = const_lift(cross, xaxis, up_vector)
     zaxis           = const_lift(cross, yaxis, xaxis)
 
-    pivot0          = Pivot(value(lookatvec), value(xaxis), value(yaxis), value(zaxis), Quaternions.Quaternion(T(1),T(0),T(0),T(0)), zero(Vec{3, T}), Vec{3, T}(1))
+    pivot0          = Pivot(
+        value(lookatvec), value(xaxis), value(yaxis), value(zaxis),
+        Quaternions.Quaternion(T(1),T(0),T(0),T(0)), zero(Vec{3, T}), Vec{3, T}(1)
+    )
     pivot           = foldp(update_pivot, pivot0, const_lift(tuple, theta, trans, reset, resetto))
 
     modelmatrix     = const_lift(transformationmatrix, pivot)
