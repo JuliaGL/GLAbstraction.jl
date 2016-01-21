@@ -14,19 +14,41 @@ typealias VolumeTypes{T} 	ArrayTypes{T, 3}
 @enum Projection PERSPECTIVE ORTHOGRAPHIC
 @enum MouseButton MOUSE_LEFT MOUSE_MIDDLE MOUSE_RIGHT
 
+
+immutable Shader
+    name::Symbol
+    source::Vector{UInt8}
+    typ::GLenum
+end
+name(s::Shader) = s.name
+function Base.show(io::IO, shader::Shader)
+    println(GLENUM(shader.typ).name, " shader: $(shader.name))")
+    println("source:")
+    print_with_lines(bytestring(shader.source))
+end
 type GLProgram
     id          ::GLuint
-    names       ::Vector{Symbol}
+    shader      ::Vector{Shader}
     nametype    ::Dict{Symbol, GLenum}
     uniformloc  ::Dict{Symbol, Tuple}
 
-    function GLProgram(id::GLuint, names::Vector{Symbol}, nametype::Dict{Symbol, GLenum}, uniformloc::Dict{Symbol, Tuple})
-        obj = new(id, names, nametype, uniformloc)
+    function GLProgram(id::GLuint, shader::Vector{Shader}, nametype::Dict{Symbol, GLenum}, uniformloc::Dict{Symbol, Tuple})
+        obj = new(id, shader, nametype, uniformloc)
         #finalizer(obj, free)
         obj
     end
 end
-
+function Base.show(io::IO, p::GLProgram)
+    println(io, "GLProgram: $(p.id)")
+    println(io, "Shaders:")
+    for shader in p.shader
+        println(io, shader)
+    end
+    println("uniforms:")
+    for (name, typ) in p.nametype
+        println("   ", name, "::", GLENUM(typ).name)
+    end
+end
 
 
 ############################################

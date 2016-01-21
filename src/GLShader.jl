@@ -1,9 +1,4 @@
-immutable Shader
-    name::Symbol
-    source::Vector{UInt8}
-    typ::GLenum
-end
-name(s::Shader) = s.name
+
 
 
 
@@ -187,7 +182,7 @@ function GLProgram(
     nametypedict        = uniform_name_type(program)
     uniformlocationdict = uniformlocations(nametypedict, program)
 
-    GLProgram(program, map(name,shaders), nametypedict, uniformlocationdict)
+    GLProgram(program, shaders, nametypedict, uniformlocationdict)
 end
 
 
