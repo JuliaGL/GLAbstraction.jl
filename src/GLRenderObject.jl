@@ -6,7 +6,7 @@ function Base.show(io::IO, obj::RenderObject)
         println(io, "   ", name, "\n      ", uniform)
     end
     println(io, "vertexarray length: ", obj.vertexarray.length)
-    println(io, "vertexarray indexlength: ", obj.vertexarray.indexlength)
+    println(io, "vertexarray indexlength: ", obj.vertexarray.indexes)
 end
 
 
