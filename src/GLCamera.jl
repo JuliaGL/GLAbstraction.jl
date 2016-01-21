@@ -127,10 +127,21 @@ function mouse_dragg(
         ispressed::Bool, position, start_condition::Bool
     )
     if !started && ispressed && start_condition
-        return (true, position, position*0)
+        return (true, position, Vec2f0(0))
     end
     started && ispressed && return (true, startpoint, startpoint-position)
-    (false, startpoint*0, startpoint*0)
+    (false, Vec2f0(0), Vec2f0(0))
+end
+mouse_dragg_diff(v0, args) = mouse_dragg_diff(v0..., args...)
+function mouse_dragg_diff(
+        started::Bool, position0, diff,
+        ispressed::Bool, position, start_condition::Bool
+    )
+    if !started && ispressed && start_condition
+        return (true, position, Vec2f0(0))
+    end
+    started && ispressed && return (true, position, position0-position)
+    (false, Vec2f0(0), Vec2f0(0))
 end
 
 function dragged(mouseposition, key_pressed, start_condition=true)
@@ -139,9 +150,16 @@ function dragged(mouseposition, key_pressed, start_condition=true)
     dragg_sig = foldp(mouse_dragg, v0, args)
     is_dragg = map(first, dragg_sig)
     dragg_diff = map(last, dragg_sig)
-    filterwhen(is_dragg, Vec2f0(0), dragg_diff)
+    dragg_diff
 end
-
+function dragged_diff(mouseposition, key_pressed, start_condition=true)
+    v0 = (false, Vec2f0(0), Vec2f0(0))
+    args = const_lift(tuple, key_pressed, mouseposition, start_condition)
+    dragg_sig = foldp(mouse_dragg_diff, v0, args)
+    is_dragg = map(first, dragg_sig)
+    dragg_diff = map(last, dragg_sig)
+    dragg_diff
+end
 #=
 function dragged(mouseposition, key_pressed, start_condition=true)
     v0 = (false, Vec2f0(0), Vec2f0(0), value(start_condition))
@@ -255,11 +273,11 @@ function default_camera_control(
     mouseposition = map(Vec2f0, mouseposition)
     left_pressed  = const_lift(pressed, mouse_buttons_pressed, GLFW.MOUSE_BUTTON_LEFT)
     right_pressed = const_lift(pressed, mouse_buttons_pressed, GLFW.MOUSE_BUTTON_RIGHT)
+    xytheta       = dragged_diff(mouseposition, left_pressed, keep)
+    xytranslate   = dragged_diff(mouseposition, right_pressed, keep)
 
-    xytheta       = dragged(mouseposition, left_pressed, keep)
-    xytranslate   = dragged(mouseposition, right_pressed, keep)
     ztranslate    = filterwhen(keep, 0f0,
-        const_lift(/, map(last, scroll), 40f0)
+        const_lift(*, map(last, scroll), 40f0)
     )
     translate_theta(
         xytranslate, ztranslate, xytheta,
@@ -269,10 +287,10 @@ end
 
 
 function thetalift(yz, speed)
-    Vec3f0(0f0, -yz[2], yz[1]).*speed
+    Vec3f0(0f0, yz[2], yz[1]).*speed
 end
 function translationlift(up_left, zoom, speed)
-    Vec3f0(zoom, up_left[1], -up_left[2]).*speed
+    Vec3f0(zoom, -up_left[1], up_left[2]).*speed
 end
 function diff_vector(v0, p1)
     p0, diff = v0
@@ -284,9 +302,7 @@ function translate_theta(
     )
     theta = map(thetalift, xytheta, rotation_speed)
     trans = map(translationlift, xytranslate, ztranslate, translation_speed)
-    thetadiff = map(last, foldp(diff_vector, (value(theta), Vec3f0(0)), theta))
-    transdiff = map(last, foldp(diff_vector, (value(trans), Vec3f0(0)), trans))
-    thetadiff, transdiff
+    theta, trans
 end
 
 """
@@ -305,7 +321,8 @@ eyeposition: Position of the camera
 lookatvec: Point the camera looks at
 """
 function PerspectiveCamera{T}(inputs::Dict{Symbol,Any}, eyeposition::Vec{3, T}, lookatvec::Vec{3, T})
-    theta, trans = default_camera_control(inputs, Signal(0.001f0), Signal(0.001f0))
+    theta, trans = default_camera_control(inputs, Signal(0.01f0), Signal(0.001f0))
+
     cam = PerspectiveCamera(
         inputs[:window_area],
         eyeposition,
