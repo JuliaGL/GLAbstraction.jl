@@ -262,7 +262,6 @@ function doubleclick(mouseclick::Signal{Vector{MouseButton}}, threshold::Real)
     return dd
 end
 
-using GLFW
 
 
 function default_camera_control(
@@ -284,7 +283,6 @@ function default_camera_control(
         rotation_speed, translation_speed
     )
 end
-
 
 function thetalift(yz, speed)
     Vec3f0(0f0, yz[2], yz[1]).*speed

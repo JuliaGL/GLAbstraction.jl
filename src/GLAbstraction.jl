@@ -12,6 +12,7 @@ using Compat
 import Mustache
 using FileIO
 import FileIO: load, save
+using GLFW
 
 import Base: merge, resize!, unsafe_copy!, similar, length, getindex, setindex!, call
 import Reactive: value
