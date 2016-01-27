@@ -163,9 +163,9 @@ function call{T}(::Type{Mat{4,4,T}}, q::Quaternions.Quaternion)
     )
 end
 function call{T}(::Type{Mat{3,3,T}}, q::Quaternions.Quaternion)
-    sx, sy, sz = 2q.s*q.v1,  2q.s*q.v2,   2q.s*q.v3
-    xx, xy, xz = 2q.v1^2,    2q.v1*q.v2,  2q.v1*q.v3
-    yy, yz, zz = 2q.v2^2,    2q.v2*q.v3,  2q.v3^2
+    sx, sy, sz = 2q.s*q.v1, 2q.s*q.v2,  2q.s*q.v3
+    xx, xy, xz = 2q.v1^2,   2q.v1*q.v2, 2q.v1*q.v3
+    yy, yz, zz = 2q.v2^2,   2q.v2*q.v3, 2q.v3^2
     T0, T1 = zero(T), one(T)
     Mat{3,3,T}(
         (T1-(yy+zz), xy+sz,      xz-sy     ),
@@ -173,12 +173,37 @@ function call{T}(::Type{Mat{3,3,T}}, q::Quaternions.Quaternion)
         (xz+sy,      yz-sx,      T1-(xx+yy))
     )
 end
-transformationmatrix(p::Pivot) = (
+function transformationmatrix(p::Pivot)
     translationmatrix(p.origin) * #go to origin
     rotationmatrix4(p.rotation) * #apply rotation
     translationmatrix(-p.origin)* # go back to origin
     translationmatrix(p.translation) #apply translation
-)
+end
+
+function transformationmatrix(translation, scale)
+    T = eltype(translation)
+    T0, T1 = zero(T), one(T)
+    Mat{4,4,T}(
+        (scale[1],T0,  T0,  T0),
+        (T0,  scale[2],T0,  T0),
+        (T0,  T0,  scale[3],T0),
+        (translation[1],translation[2],translation[3], T1)
+    )
+end
+
+function transformationmatrix(translation, scale, rotation::Quaternions.Quaternion)
+    T = eltype(translation)
+    trans_scale = transformationmatrix(translation, scale)
+    rotation    = Mat{4,4,T}(rotation)
+    trans_scale*rotation
+end
+function transformationmatrix{T}(
+        translation, scale, rotation::Vec{3,T}, up=Vec{3,T}(0,0,1)
+    )
+    q = rotation(rotation, up)
+    transformationmatrix(translation, scale, q)
+end
+
 #Calculate rotation between two vectors
 function rotation{T}(u::Vec{3, T}, v::Vec{3, T})
     # It is important that the inputs are of equal length when

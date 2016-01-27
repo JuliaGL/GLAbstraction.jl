@@ -248,21 +248,22 @@ end
 """
 returns a signal which becomes true whenever there is a doublecklick
 """
-function doubleclick(mouseclick::Signal{Vector{MouseButton}}, threshold::Real)
-    ddclick = foldp((time(), mouseclick.value, false), mouseclick) do v0, mclicked
+function doubleclick(mouseclick, threshold::Real)
+    ddclick = foldp((time(), value(mouseclick), false), mouseclick) do v0, mclicked
         t0, lastc, _ = v0
         t1 = time()
-        if length(mclicked) == 1 && length(lastc) == 1 && lastc[1] == mclicked[1] && t1-t0 < threshold
-            return (t1, mclicked, true)
-        else
-            return (t1, mclicked, false)
-        end
+        isclicked = (length(mclicked) == 1 &&
+            length(lastc) == 1 &&
+            first(lastc) == first(mclicked) &&
+            t1-t0 < threshold
+        )
+        return (t1, mclicked, isclicked)
     end
     dd = const_lift(last, ddclick)
     return dd
 end
 
-
+export doubleclick
 
 function default_camera_control(
         inputs, rotation_speed, translation_speed, keep=Signal(true)
@@ -276,7 +277,7 @@ function default_camera_control(
     xytranslate   = dragged_diff(mouseposition, right_pressed, keep)
 
     ztranslate    = filterwhen(keep, 0f0,
-        const_lift(*, map(last, scroll), 40f0)
+        const_lift(*, map(last, scroll), 150f0)
     )
     translate_theta(
         xytranslate, ztranslate, xytheta,
@@ -319,7 +320,7 @@ eyeposition: Position of the camera
 lookatvec: Point the camera looks at
 """
 function PerspectiveCamera{T}(inputs::Dict{Symbol,Any}, eyeposition::Vec{3, T}, lookatvec::Vec{3, T})
-    theta, trans = default_camera_control(inputs, Signal(0.01f0), Signal(0.001f0))
+    theta, trans = default_camera_control(inputs, Signal(0.01f0), Signal(0.005f0))
 
     cam = PerspectiveCamera(
         inputs[:window_area],
@@ -367,13 +368,16 @@ getupvec(p::Pivot) = p.rotation * p.zaxis
 
 function projection_switch{T<:Real}(
         wh::SimpleRectangle,
-        fov::T, near::T, far::T, projection::Projection
+        fov::T, near::T, far::T,
+        projection::Projection, zoom::T
     )
     aspect = T(wh.w/wh.h)
     h      = T(tan(fov / 360.0 * pi) * near)
     w      = T(h * aspect)
     projection == PERSPECTIVE && return frustum(-w, w, -h, h, near, far)
-    orthographicprojection(-w, w, -h, h, near, far) # can only be orthographic...
+    h      = T(tan(fov / 360.0 * pi) * near)*zoom
+    w      = T(h * aspect)
+    orthographicprojection(-w, w, -h, h, near, far)
 end
 
 """
@@ -428,9 +432,13 @@ function PerspectiveCamera{T <: Real}(
 
     up              = const_lift(getupvec, pivot)
     lookatvec1      = const_lift(origin, pivot)
+    zoomlen         = const_lift(norm, const_lift(-, lookatvec1, positionvec))
 
     view            = const_lift(lookat, positionvec, lookatvec1, up)
-    pmatrix      	= const_lift(projection_switch, window_size, fov, nearclip, farclip, projection)
+    pmatrix      	= const_lift(projection_switch,
+        window_size, fov, nearclip,
+        farclip, projection, zoomlen
+    )
 
     projectionview  = const_lift(*, pmatrix, view)
 
