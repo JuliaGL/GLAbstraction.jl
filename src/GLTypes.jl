@@ -101,7 +101,7 @@ const GLArrayEltypes = Union{FixedVector, Real, Colorant}
 
 #Transfomr julia datatypes to opengl enum type
 julia2glenum{T <: FixedPoint}(x::Type{T})               = julia2glenum(FixedPointNumbers.rawtype(x))
-julia2glenum{T <: GLArrayEltypes}(x::Union{Type{T}, T}) = julia2glenum(eltype(x))
+julia2glenum{T <: Union{FixedVector, Colorant}}(x::Union{Type{T}, T}) = julia2glenum(eltype(x))
 julia2glenum(x::Type{GLubyte})  = GL_UNSIGNED_BYTE
 julia2glenum(x::Type{GLbyte})   = GL_BYTE
 julia2glenum(x::Type{GLuint})   = GL_UNSIGNED_INT

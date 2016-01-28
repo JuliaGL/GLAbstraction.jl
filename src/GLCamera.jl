@@ -130,7 +130,7 @@ function mouse_dragg(
     if !started && ispressed && start_condition
         return (true, position, Vec2f0(0))
     end
-    started && ispressed && return (true, startpoint, startpoint-position)
+    started && ispressed && return (true, startpoint, position-startpoint)
     (false, Vec2f0(0), Vec2f0(0))
 end
 mouse_dragg_diff(v0, args) = mouse_dragg_diff(v0..., args...)
