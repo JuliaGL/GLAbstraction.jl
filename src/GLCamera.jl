@@ -278,7 +278,7 @@ function default_camera_control(
     xytranslate   = dragged_diff(mouseposition, right_pressed, keep)
 
     ztranslate    = filterwhen(keep, 0f0,
-        const_lift(*, map(last, scroll), 150f0)
+        const_lift(*, map(last, scroll), 120f0)
     )
     translate_theta(
         xytranslate, ztranslate, xytheta,
