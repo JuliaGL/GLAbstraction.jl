@@ -81,7 +81,7 @@ Dict(
 function OrthographicPixelCamera(inputs::Dict{Symbol, Any})
     @materialize mouseposition, buttons_pressed = inputs
     #Should be rather in Image coordinates
-    view = foldp(viewmatrix, eye(Mat{4,4, Float32}), inputs[:scroll], buttons_pressed)
+    view = foldp(viewmatrix, eye(Mat4f0), inputs[:scroll], buttons_pressed)
     OrthographicCamera(
         inputs[:window_area],
         view,
@@ -120,6 +120,7 @@ end
 
 
 pressed(keys, key) = key in keys
+singlepressed(keys, key) = length(keys) == 1 && first(keys) == key
 
 mouse_dragg(v0, args) = mouse_dragg(v0..., args...)
 function mouse_dragg(
@@ -209,8 +210,8 @@ function clicked(robj::RenderObject, button::MouseButton, window)
     clicked_on_obj = const_lift((mh, x)->(x,robj,mh), mouse_hover, clicked_on)
     clicked_on, clicked_on_obj
 end
-
-is_same_id(id, robj) = id[1] == robj.id
+export is_same_id
+is_same_id(id_index, robj) = id_index.id == robj.id
 """
 Returns a boolean signal indicating if the mouse hovers over `robj`
 """
