@@ -1,7 +1,6 @@
 using ModernGL, GLWindow, GLAbstraction, GLFW, ColorTypes, Reactive, GeometryTypes
 
-GLFW.Init()
-const window = createwindow("Example", 512, 512)
+const window = create_glcontext("Example")
 
 
 const vert = vert"""
@@ -31,26 +30,24 @@ void main() {
 	outColor = texture(image, f_uv);
 }
 """
-# The Signal (Reactive Signal Signal) is needed, as the interface expects a signal of shader, which is why you can edit your shader and see the changes.
-program = Signal(TemplateProgram(vert, frag)) #= {{GLSL_VERSION}} is a template, you could add your own with the kwarg view=Dict{ASCIIString, ASCIIString}(key->replacement) =#
+program = LazyShader(vert, frag) #= {{GLSL_VERSION}} is a template, you could add your own with the kwarg view=Dict{ASCIIString, ASCIIString}(key->replacement) =#
 
 tex = Texture([RGBA{U8}(x,y,sin(x*pi), 1.0) for x=0:0.1:1., y=0:0.1:1.]) #automatically creates the correct texture
 data = merge(Dict(
-	:image => tex
-), collect_for_gl(GLUVMesh2D(SimpleRectangle{Float32}(-1,-1,2,2)))) # Transforms the rectangle into a 2D mesh with uv coordinates and then extracts the buffers for the shader
+	:image => tex,
+    :primitive => GLUVMesh2D(SimpleRectangle{Float32}(-1,-1,2,2))
+)) # Transforms the rectangle into a 2D mesh with uv coordinates and then extracts the buffers for the shader
 
-robj = std_renderobject(data, program) # creates a renderable object from the shader and the data. 
+robj = std_renderobject(data, program) # creates a renderable object from the shader and the data.
 
 glClearColor(0, 0, 0, 1)
 
 
-while !GLFW.WindowShouldClose(window.nativewindow)
-
+while isopen(window)
   	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
 
-	render(robj)
-  	
-  	GLFW.SwapBuffers(window.nativewindow)
-  	GLFW.PollEvents()
+    render(robj)
+
+  	swapbuffers(window)
+  	pollevents()
 end
-GLFW.Terminate()
