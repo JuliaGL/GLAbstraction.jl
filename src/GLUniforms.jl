@@ -75,7 +75,6 @@ glsl_typename(t::Type{Void})    = "Nothing"
 glsl_typename(t::Type{GLfloat}) = "float"
 glsl_typename(t::Type{GLuint})  = "uint"
 glsl_typename(t::Type{GLint})   = "int"
-glsl_typename(t::Type{GLint})   = "int"
 glsl_typename{T<:Union{FixedVector,Colorant}}(t::Type{T}) = string(opengl_prefix(eltype(t)), "vec", length(t))
 glsl_typename{T}(t::Type{TextureBuffer{T}}) = "$(opengl_prefix(eltype(T)))samplerBuffer"
 
@@ -177,7 +176,10 @@ isa_gl_struct(x::NATIVE_TYPES) = false
 isa_gl_struct(x::Colorant) = false
 function isa_gl_struct{T}(x::T)
     !isleaftype(T) && return false
-    fnames = fieldnames(x)
+    if T <: Tuple
+        return false
+    end
+    fnames = fieldnames(T)
     !isempty(fnames) && all(name -> isleaftype(fieldtype(T, name)) && isbits(x.(name)), fnames)
 end
 function gl_convert_struct{T}(x::T, uniform_name::Symbol)
