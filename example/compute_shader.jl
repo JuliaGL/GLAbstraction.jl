@@ -1,9 +1,7 @@
 using GLWindow, GLAbstraction, ModernGL, Reactive, GLFW, GeometryTypes
 
-GLFW.Init()
+const window = create_glcontext("Compute Shader", 512, 512)
 
-const window = createwindow("Compute Shader", 512, 512)
-println("created stuff")
 # In order to write to a texture, we have to introduce it as image2D.
 # local_size_x/y/z layout variables define the work group size.
 # gl_GlobalInvocationID is a uvec3 variable giving the global ID of the thread,
@@ -85,19 +83,19 @@ function collect_for_gl{T <: HomogenousMesh}(m::T)
     result
 end
 
-    w, h = size(tex)
+w, h = size(tex)
 
-    msh = GLUVMesh2D(SimpleRectangle{Float32}(0f0,0f0,w,h))
-    data = merge(Dict(
-        :image            => tex,
-        :projectionview   => cam.projectionview,
-    ), collect_for_gl(msh))
+msh = GLUVMesh2D(SimpleRectangle{Float32}(0f0,0f0,w,h))
+data = merge(Dict(
+    :image            => tex,
+    :projectionview   => cam.projectionview,
+), collect_for_gl(msh))
 
-    textureshader = TemplateProgram(tex_frag, tex_vert, attributes=data)
-    texobj           = RenderObject(data, Signal(textureshader))
+textureshader = TemplateProgram(tex_frag, tex_vert, attributes=data)
+texobj           = RenderObject(data, Signal(textureshader))
 
-    prerender!(texobj, glDisable, GL_DEPTH_TEST, enabletransparency, glDisable, GL_CULL_FACE)
-    postrender!(texobj, render, texobj.vertexarray)
+prerender!(texobj, glDisable, GL_DEPTH_TEST, enabletransparency, glDisable, GL_CULL_FACE)
+postrender!(texobj, render, texobj.vertexarray)
 
 
 glClearColor(0,0,0,1)
@@ -112,4 +110,3 @@ while !GLFW.WindowShouldClose(window.nativewindow)
     GLFW.PollEvents()
     sleep(0.01)
 end
-GLFW.Terminate()

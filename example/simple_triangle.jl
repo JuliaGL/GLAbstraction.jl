@@ -1,7 +1,6 @@
 using ModernGL, GLWindow, GLAbstraction, GLFW, GeometryTypes
 
-GLFW.Init()
-const window = createwindow("Example", 512, 512)
+const window = GLWindow.create_glcontext("Example", resolution=(512, 512), debugging=true)
 
 
 const vsh = vert"""
@@ -35,9 +34,8 @@ glClearColor(0, 0, 0, 1)
 while isopen(window)
   	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
 
-	render(triangle)
+    render(triangle)
 
   	swapbuffers(window)
-  	pollevents(window)
+  	pollevents()
 end
-GLFW.Terminate()
