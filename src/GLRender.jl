@@ -78,7 +78,7 @@ end
 """
 Renders `amount` instances of an not indexed geoemtry geometry
 """
-function renderinstanced{T<:TOrSignal{Int}}(vao::GLVertexArray, amount::Integer, primitive=GL_TRIANGLES)
+function renderinstanced(vao::GLVertexArray, amount::Integer, primitive=GL_TRIANGLES)
     glBindVertexArray(vao.id)
     glDrawElementsInstanced(primitive, length(vao.length), GL_UNSIGNED_INT, C_NULL, amount)
     glBindVertexArray(0)
