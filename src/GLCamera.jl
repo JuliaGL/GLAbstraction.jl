@@ -17,8 +17,10 @@ type PerspectiveCamera{T} <: Camera{T}
     projection      ::Signal{Mat{4,4,T}}
     projectionview  ::Signal{Mat{4,4,T}}
     eyeposition     ::Signal{Vec{3, T}}
-    lookat          ::Signal{Vec{3, T}}
+    lookat          ::Signal{Vec{3, T}}    
     up              ::Signal{Vec{3, T}}
+    trans           ::Signal{Vec{3, T}}
+    theta           ::Signal{Vec{3, T}}
 end
 
 type DummyCamera{T} <: Camera{T}
@@ -161,19 +163,6 @@ function dragged_diff(mouseposition, key_pressed, start_condition=true)
     dragg_diff = map(last, dragg_sig)
     dragg_diff
 end
-#=
-function dragged(mouseposition, key_pressed, start_condition=true)
-    v0 = (false, Vec2f0(0), Vec2f0(0), value(start_condition))
-    args = const_lift(tuple, key_pressed, mouseposition, start_condition)
-    dragg_sig = foldp(mouse_dragg, v0, args)
-    println(dragg_sig)
-    is_dragg = map(first, dragg_sig)
-    dragg_diff = map(last, dragg_sig)
-    println(is_dragg)
-    println(dragg_diff)
-    filterwhen(is_dragg, Vec2f0(0), dragg_diff)
-end
-=#
 
 
 
@@ -218,32 +207,6 @@ Returns a boolean signal indicating if the mouse hovers over `robj`
 is_hovering(robj::RenderObject, window) =
     droprepeats(const_lift(is_same_id, window.inputs[:mouse_hover], robj))
 
-function dragon_tmp(past, mh, mbp, mpos, robj, button, start_value)
-    diff, dragstart_index, was_clicked, dragstart_pos = past
-    over_obj = mh[1] == robj.id
-    is_clicked = mbp == Int[button]
-    if is_clicked && was_clicked # is draggin'
-        return (dragstart_pos-mpos, dragstart_index, true, dragstart_pos)
-    elseif over_obj && is_clicked && !was_clicked # drag started
-        return (Vec2f0(0), mh[2], true, mpos)
-    end
-    return start_value
-end
-
-"""
-Returns a signal with the difference from dragstart and current mouse position,
-and the index from the current ROBJ id.
-"""
-function dragged_on(robj::RenderObject, button::MouseButton, window)
-    @materialize mouse_hover, mousebuttonspressed, mouseposition = window.inputs
-    start_value = (Vec2f0(0), mouse_hover.value[2], false, Vec2f0(0))
-    tmp_signal = foldp(dragon_tmp,
-        start_value, mouse_hover,
-        mousebuttonspressed, mouseposition,
-        Signal(robj), Signal(button), Signal(start_value)
-    )
-    droprepeats(const_lift(getindex, tmp_signal, 1:2))
-end
 
 
 """
@@ -321,8 +284,10 @@ eyeposition: Position of the camera
 lookatvec: Point the camera looks at
 """
 function PerspectiveCamera{T}(inputs::Dict{Symbol,Any}, eyeposition::Vec{3, T}, lookatvec::Vec{3, T})
-    theta, trans = default_camera_control(inputs, Signal(0.01f0), Signal(0.005f0))
-
+    _theta, _trans = default_camera_control(inputs, Signal(0.01f0), Signal(0.005f0))
+    theta, trans = Signal(Vec3f0(0)), Signal(Vec3f0(0))
+    preserve(map(x-> push!(theta, x), _theta))
+    preserve(map(x-> push!(trans, x), _trans))
     cam = PerspectiveCamera(
         inputs[:window_area],
         eyeposition,
@@ -353,7 +318,6 @@ function update_pivot(v0, v1)
 
     v1trans    = yaxis*translation[2] + zaxis*translation[3]
     accumtrans = v1trans + v0.translation
-
     Pivot(
         v0.origin + v1trans,
         v0.xaxis,
@@ -376,8 +340,7 @@ function projection_switch{T<:Real}(
     h      = T(tan(fov / 360.0 * pi) * near)
     w      = T(h * aspect)
     projection == PERSPECTIVE && return frustum(-w, w, -h, h, near, far)
-    h      = T(tan(fov / 360.0 * pi) * near)*zoom
-    w      = T(h * aspect)
+    h, w   = h*zoom, w*zoom
     orthographicprojection(-w, w, -h, h, near, far)
 end
 
@@ -402,21 +365,22 @@ nearclip: Near clip plane
 farclip: Far clip plane
 """
 function PerspectiveCamera{T <: Real}(
-        window_size     ::Signal{SimpleRectangle{Int}},
-        eyeposition     ::Vec{3, T},
-        lookatvec       ::Union{Signal{Vec{3, T}}, Vec{3, T}},
-        theta           ::Signal{Vec{3, T}},
-        trans           ::Signal{Vec{3, T}},
-        fov             ::Signal{T},
-        nearclip        ::Signal{T},
-        farclip         ::Signal{T},
+        window_size ::Signal{SimpleRectangle{Int}},
+        eyeposition ::Union{Signal{Vec{3, T}}, Vec{3, T}},
+        lookatvec   ::Union{Signal{Vec{3, T}}, Vec{3, T}},
+        theta       ::Signal{Vec{3, T}},
+        trans       ::Signal{Vec{3, T}},
+        fov         ::Signal{T},
+        nearclip    ::Signal{T},
+        farclip     ::Signal{T},
 
         up_vector   = Vec{3, T}(0,0,1),
         projection 	= Signal(PERSPECTIVE),
         reset   	= Signal(false),
         resetto 	= Signal(Quaternions.Quaternion(T(1),T(0),T(0),T(0)))
     )
-
+    eyeposition     = makesignal(eyeposition)
+    lookatvec       = makesignal(lookatvec)
     xaxis           = const_lift(-, eyeposition, lookatvec)
     yaxis           = const_lift(cross, xaxis, up_vector)
     zaxis           = const_lift(cross, yaxis, xaxis)
@@ -428,7 +392,7 @@ function PerspectiveCamera{T <: Real}(
     pivot           = foldp(update_pivot, pivot0, const_lift(tuple, theta, trans, reset, resetto))
 
     modelmatrix     = const_lift(transformationmatrix, pivot)
-    positionvec     = const_lift(*, modelmatrix, Vec(eyeposition, one(T)))
+    positionvec     = const_lift(*, modelmatrix, const_lift(Vec, eyeposition, one(T)))
     positionvec     = const_lift(Vec{3,T}, positionvec)
 
     up              = const_lift(getupvec, pivot)
@@ -454,6 +418,8 @@ function PerspectiveCamera{T <: Real}(
         projectionview,
         positionvec,
         lookatvec1,
-        up
+        up,
+        trans,
+        theta
     )
 end
