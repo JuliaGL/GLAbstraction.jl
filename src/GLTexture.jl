@@ -146,8 +146,10 @@ function TextureBuffer{T <: GLArrayEltypes}(buffer::GLBuffer{T})
     )
     TextureBuffer(tex, buffer)
 end
-TextureBuffer{T <: GLArrayEltypes}(buffer::Vector{T}) =
-    TextureBuffer(GLBuffer(buffer, buffertype=GL_TEXTURE_BUFFER, usage=GL_DYNAMIC_DRAW))
+function TextureBuffer{T <: GLArrayEltypes}(buffer::Vector{T})
+    buff = GLBuffer(buffer, buffertype=GL_TEXTURE_BUFFER, usage=GL_DYNAMIC_DRAW)
+    TextureBuffer(buff)
+end
 
 function TextureBuffer{T <: GLArrayEltypes}(s::Signal{Vector{T}})
     tb = TextureBuffer(value(s))

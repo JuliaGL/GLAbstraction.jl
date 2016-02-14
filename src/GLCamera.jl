@@ -9,7 +9,6 @@ end
 
 type PerspectiveCamera{T} <: Camera{T}
     window_size     ::Signal{SimpleRectangle{Int}}
-    pivot           ::Signal{Pivot{T}}
     nearclip        ::Signal{T}
     farclip         ::Signal{T}
     fov             ::Signal{T}
@@ -17,10 +16,11 @@ type PerspectiveCamera{T} <: Camera{T}
     projection      ::Signal{Mat{4,4,T}}
     projectionview  ::Signal{Mat{4,4,T}}
     eyeposition     ::Signal{Vec{3, T}}
-    lookat          ::Signal{Vec{3, T}}    
+    lookat          ::Signal{Vec{3, T}}
     up              ::Signal{Vec{3, T}}
     trans           ::Signal{Vec{3, T}}
     theta           ::Signal{Vec{3, T}}
+    projectiontype  ::Signal{Projection}
 end
 
 type DummyCamera{T} <: Camera{T}
@@ -53,22 +53,6 @@ function Base.collect(camera::Camera)
 end
 
 
-function viewmatrix(v0, scroll_xy, buttonset)
-    speed = 30f0
-    translatevec = Vec3f0(0f0)
-    scroll_x, scroll_y = Vec2f0(scroll_xy)*speed
-    if scroll_x == 0f0
-        if in(341, buttonset) # left strg key
-            translatevec = Vec3f0(scroll_y, 0f0, 0f0)
-        else
-            translatevec = Vec3f0(0f0, scroll_y, 0f0)
-        end
-    else
-        translatevec = Vec3f0(scroll_x, scroll_y, 0f0)
-    end
-    v0 * translationmatrix(translatevec)
-end
-
 """
 Creates an orthographic camera with the pixel perfect plane in z == 0
 Signals needed:
@@ -80,45 +64,59 @@ Dict(
     :scroll_y              => Signal(0) -> Zoomig
 )
 """
-function OrthographicPixelCamera(inputs::Dict{Symbol, Any})
-    @materialize mouseposition, buttons_pressed = inputs
-    #Should be rather in Image coordinates
-    view = foldp(viewmatrix, eye(Mat4f0), inputs[:scroll], buttons_pressed)
-    OrthographicCamera(
+function OrthographicPixelCamera(
+        inputs;
+        fov=41f0, near=1f0, up=Vec3f0(0,1,0),
+        translation_speed=Signal(1), theta=Signal(Vec3f0(0))
+    )
+    @materialize mouseposition, mouse_buttons_pressed, buttons_pressed, scroll = inputs
+    left_ctrl     = Set([GLFW.KEY_LEFT_CONTROL])
+    use_cam       = const_lift(==, buttons_pressed, left_ctrl)
+
+    mouseposition = droprepeats(map(Vec2f0, mouseposition))
+    left_pressed  = const_lift(pressed, mouse_buttons_pressed, GLFW.MOUSE_BUTTON_LEFT)
+    xytranslate   = dragged_diff(mouseposition, left_pressed, use_cam)
+
+    ztranslate    = filterwhen(use_cam, 0f0,
+        const_lift(*, map(last, scroll), 20f0)
+    )
+    trans = map(translationlift, xytranslate, ztranslate, translation_speed)
+    OrthographicPixelCamera(
+        theta, trans, Signal(up), Signal(fov), Signal(near),
         inputs[:window_area],
-        view,
-        Signal(-100f0), # nearclip
-        Signal(100f0) # farclip
+    )
+end
+function OrthographicPixelCamera(
+        theta, trans, up, fov_s, near_s, area_s
+    )
+    fov, near = value(fov_s), value(near_s)
+
+    # lets calculate how we need to adjust the camera, so that it mapps to
+    # the pixel of the window (area)
+    area = value(area_s)
+    h = Float32(tan(fov / 360.0 * pi) * near)
+    w_, h_ = area.w/2f0, area.h/2f0
+    zoom = min(h_,w_)/h
+    x, y = w_, h_
+    eyeposition = Signal(Vec3f0(x, y, zoom))
+    lookatvec   = Signal(Vec3f0(x, y, 0))
+    far         = Signal(zoom*2.0f0) # this should probably be not calculated
+    # since there is no scene independant, well working far clip
+
+    PerspectiveCamera(
+        theta,
+        trans,
+        lookatvec,
+        eyeposition,
+        up,
+        area_s,
+        fov_s, # Field of View
+        near_s,  # Min distance (clip distance)
+        far, # Max distance (clip distance)
+        Signal(GLAbstraction.ORTHOGRAPHIC) #
     )
 end
 
-
-"""
-Creates an orthographic camera from signals, controlling the camera
-Args:
-
-window_size: Size of the window
-zoom: Zoom
-translatevec: Panning
-normedposition: Pivot for translations
-"""
-function OrthographicCamera{T}(
-        windows_size ::Signal{SimpleRectangle{Int}},
-        view         ::Signal{Mat{4,4,T}},
-        nearclip     ::Signal{T},
-        farclip      ::Signal{T}
-    )
-
-    projection = const_lift(orthographicprojection, windows_size, nearclip, farclip)
-    projectionview = const_lift(*, projection, view)
-
-    OrthographicCamera{T}(
-        windows_size,
-        view,
-        projection,
-        projectionview
-    )
-end
 
 
 pressed(keys, key) = key in keys
@@ -234,7 +232,7 @@ function default_camera_control(
     )
     @materialize mouseposition, mouse_buttons_pressed, scroll = inputs
 
-    mouseposition = map(Vec2f0, mouseposition)
+    mouseposition = droprepeats(map(Vec2f0, mouseposition))
     left_pressed  = const_lift(pressed, mouse_buttons_pressed, GLFW.MOUSE_BUTTON_LEFT)
     right_pressed = const_lift(pressed, mouse_buttons_pressed, GLFW.MOUSE_BUTTON_RIGHT)
     xytheta       = dragged_diff(mouseposition, left_pressed, keep)
@@ -253,7 +251,7 @@ function thetalift(yz, speed)
     Vec3f0(0f0, yz[2], yz[1]).*speed
 end
 function translationlift(up_left, zoom, speed)
-    Vec3f0(zoom, -up_left[1], up_left[2]).*speed
+    Vec3f0(zoom, up_left[1], up_left[2]).*speed
 end
 function diff_vector(v0, p1)
     p0, diff = v0
@@ -283,53 +281,25 @@ inputs: Dict of signals, looking like this:
 eyeposition: Position of the camera
 lookatvec: Point the camera looks at
 """
-function PerspectiveCamera{T}(inputs::Dict{Symbol,Any}, eyeposition::Vec{3, T}, lookatvec::Vec{3, T})
-    _theta, _trans = default_camera_control(inputs, Signal(0.01f0), Signal(0.005f0))
-    theta, trans = Signal(Vec3f0(0)), Signal(Vec3f0(0))
-    preserve(map(x-> push!(theta, x), _theta))
-    preserve(map(x-> push!(trans, x), _trans))
-    cam = PerspectiveCamera(
-        inputs[:window_area],
-        eyeposition,
-        lookatvec,
+function PerspectiveCamera{T}(
+        inputs::Dict{Symbol,Any},
+        eyeposition::Vec{3, T}, lookatvec::Vec{3, T}
+    )
+    theta, trans = default_camera_control(inputs, Signal(0.1f0), Signal(0.01f0))
+
+    PerspectiveCamera(
         theta,
         trans,
-        Signal(41f0),
-        Signal(1f0),
-        Signal(100f0)
+        Signal(lookatvec),
+        Signal(eyeposition),
+        Signal(Vec3f0(0,0,1)),
+        inputs[:window_area],
+        Signal(41f0), # Field of View
+        Signal(1f0),  # Min distance (clip distance)
+        Signal(100f0) # Max distance (clip distance)
     )
 end
 
-
-
-function update_pivot(v0, v1)
-    theta, translation, reset, resetto = v1
-    xaxis = v0.rotation * v0.xaxis # rotate the axis
-    yaxis = v0.rotation * v0.yaxis
-    zaxis = v0.rotation * v0.zaxis
-    if reset
-        v1rot = resetto
-    else
-        xrot  = Quaternions.qrotation(xaxis, theta[1])
-        yrot  = Quaternions.qrotation(yaxis, theta[2])
-        zrot  = Quaternions.qrotation(Vec(0f0,0f0,1f0), theta[3])
-        v1rot = zrot*xrot*yrot*v0.rotation
-    end
-
-    v1trans    = yaxis*translation[2] + zaxis*translation[3]
-    accumtrans = v1trans + v0.translation
-    Pivot(
-        v0.origin + v1trans,
-        v0.xaxis,
-        v0.yaxis,
-        v0.zaxis,
-        v1rot,
-        accumtrans + v0.xaxis*translation[1],
-        v0.scale
-    )
-end
-
-getupvec(p::Pivot) = p.rotation * p.zaxis
 
 function projection_switch{T<:Real}(
         wh::SimpleRectangle,
@@ -344,82 +314,127 @@ function projection_switch{T<:Real}(
     orthographicprojection(-w, w, -h, h, near, far)
 end
 
+
+
+function translate_cam(
+        translate,
+        eyepos_s, lookat_s, up_s,
+    )
+    translate == Vec3f0(0) && return nothing # nothing to do
+
+    lookat, eyepos, up = map(value, (lookat_s, eyepos_s, up_s))
+    dir = normalize(eyepos - lookat)
+    right = normalize(cross(dir, up))
+    zoom_trans = dir*(translate[1])
+    side_trans = right*(-translate[2]) + normalize(up)*translate[3]
+    push!(eyepos_s, eyepos + side_trans + zoom_trans)
+    push!(lookat_s, lookat + side_trans)
+    nothing
+end
+
+function rotate_cam(
+        theta,
+        eyepos_s, lookat_s, up_s, right_s
+    )
+    theta == Vec3f0(0) && return nothing # nothing to do
+    # extract current values of the input signals
+    pivot, eyepos, up, right = map(value, (lookat_s, eyepos_s, up_s, right_s))
+    dir = eyepos - pivot
+    if all(x->isapprox(x, 0), cross(dir, up))  # dir and up are parallel
+        up = cross(dir, right)
+    end
+    axis = (normalize(dir), normalize(cross(dir, up)), up) # x,y,z axis of the camera space
+    # accumulate all rotations
+    xrotation = Quaternions.qrotation(axis[1], theta[1])
+    yrotation = Quaternions.qrotation(axis[2], theta[2])
+    zrotation = Quaternions.qrotation(Vec3f0(0,0,1), theta[3])
+    rotation  = xrotation*yrotation*zrotation
+
+    dir = rotation * dir
+    push!(eyepos_s, dir+pivot) # update rotated eye position
+    push!(right_s, rotation * right) # update up vector
+    nothing
+end
 """
 Creates a perspective camera from signals, controlling the camera
 Args:
 
-window_size: Size of the window
-zoom: Zoom
-eyeposition: Position of the camera
-lookatvec: Point the camera looks at
+`window_size`: Size of the window
 
-xtheta: xrotation angle
-ytheta: yrotation angle
-ztheta: zrotation angle
-
-xtrans: x translation
-ytrans: y translation
-ztrans: z translation
 fov: Field of View
 nearclip: Near clip plane
 farclip: Far clip plane
+`theta`: rotation around camera axis
+`trans`: translation in camera space (xyz are the camera axes)
+`lookatposition`: point the camera looks at
+`eyeposition`: the actual position of the camera (the lense, the \"eye\")
 """
-function PerspectiveCamera{T <: Real}(
-        window_size ::Signal{SimpleRectangle{Int}},
-        eyeposition ::Union{Signal{Vec{3, T}}, Vec{3, T}},
-        lookatvec   ::Union{Signal{Vec{3, T}}, Vec{3, T}},
-        theta       ::Signal{Vec{3, T}},
-        trans       ::Signal{Vec{3, T}},
-        fov         ::Signal{T},
-        nearclip    ::Signal{T},
-        farclip     ::Signal{T},
-
-        up_vector   = Vec{3, T}(0,0,1),
-        projection 	= Signal(PERSPECTIVE),
-        reset   	= Signal(false),
-        resetto 	= Signal(Quaternions.Quaternion(T(1),T(0),T(0),T(0)))
-    )
-    eyeposition     = makesignal(eyeposition)
-    lookatvec       = makesignal(lookatvec)
-    xaxis           = const_lift(-, eyeposition, lookatvec)
-    yaxis           = const_lift(cross, xaxis, up_vector)
-    zaxis           = const_lift(cross, yaxis, xaxis)
-
-    pivot0          = Pivot(
-        value(lookatvec), value(xaxis), value(yaxis), value(zaxis),
-        Quaternions.Quaternion(T(1),T(0),T(0),T(0)), zero(Vec{3, T}), Vec{3, T}(1)
-    )
-    pivot           = foldp(update_pivot, pivot0, const_lift(tuple, theta, trans, reset, resetto))
-
-    modelmatrix     = const_lift(transformationmatrix, pivot)
-    positionvec     = const_lift(*, modelmatrix, const_lift(Vec, eyeposition, one(T)))
-    positionvec     = const_lift(Vec{3,T}, positionvec)
-
-    up              = const_lift(getupvec, pivot)
-    lookatvec1      = const_lift(origin, pivot)
-    zoomlen         = const_lift(norm, const_lift(-, lookatvec1, positionvec))
-
-    view            = const_lift(lookat, positionvec, lookatvec1, up)
-    pmatrix      	= const_lift(projection_switch,
-        window_size, fov, nearclip,
-        farclip, projection, zoomlen
-    )
-
-    projectionview  = const_lift(*, pmatrix, view)
-
-    PerspectiveCamera{T}(
+function PerspectiveCamera{T<:Vec3}(
+        theta::Signal{T},
+        trans::Signal{T},
+        lookatposition::Signal{T},
+        eyeposition::Signal{T},
+        upvector::Signal{T},
         window_size,
-        pivot,
+        fov,
+        nearclip,
+        farclip,
+        projectiontype = Signal(PERSPECTIVE)
+    )
+    dir = normalize(value(eyeposition)-value(lookatposition))
+    right = normalize(cross(dir, value(upvector)))
+    # The up vector may be parallel to dir and can also be not orthogonal to dir
+    # we need to correct this!
+    # We first find an orthogonal vector to dir, starting with upvector
+    for up_candidate in (value(upvector), map(i->unit(Vec3f0, i), 3:-1:1)...)
+        # if any of these is orthogonal, we can use them as a new upvector
+        if dot(dir, up_candidate) == 0f0
+            right = normalize(cross(dir, up_candidate))
+            push!(upvector, normalize(cross(dir, right)))
+            break
+        end
+    end
+    right_s = Signal(right)
+    # create the vievmatrix with the help of the lookat function
+    viewmatrix = map(lookat, eyeposition, lookatposition, upvector)
+
+    zoomlen = map(norm, map(-, lookatposition, eyeposition))
+
+    projectionmatrix = map(projection_switch,
+        window_size, fov, nearclip,
+        farclip, projectiontype, zoomlen
+    )
+
+    preserve(map(
+       translate_cam, trans,
+       Signal(eyeposition), Signal(lookatposition), Signal(upvector)
+    ))
+
+    preserve(map(
+        rotate_cam, theta,
+        Signal(eyeposition), Signal(lookatposition),
+        Signal(upvector), Signal(right_s)
+    ))
+
+    preserve(eyeposition)
+    preserve(lookatposition)
+    preserve(upvector)
+
+    projectionview = map(*, projectionmatrix, viewmatrix)
+
+    PerspectiveCamera{eltype(T)}(
+        window_size,
         nearclip,
         farclip,
         fov,
-        view,
-        pmatrix,
+        viewmatrix,
+        projectionmatrix,
         projectionview,
-        positionvec,
-        lookatvec1,
-        up,
+        eyeposition,
+        lookatposition,
+        upvector,
         trans,
-        theta
+        theta,
+        projectiontype
     )
 end
