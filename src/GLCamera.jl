@@ -341,6 +341,7 @@ function rotate_cam(
     pivot, eyepos, up = map(value, (lookat_s, eyepos_s, up_s))
     dir = eyepos - pivot
     right = normalize(cross(dir, up)) # x,y,z axis of the camera space
+    up    = normalize(cross(right, dir))
     # accumulate all rotations
     yrotation = Quaternions.qrotation(right, theta[2])
     zrotation = Quaternions.qrotation(Vec3f0(0,0,1), theta[3])
@@ -348,7 +349,7 @@ function rotate_cam(
 
     dir = rotation * dir
     push!(eyepos_s, pivot+dir) # update rotated eye position
-    push!(up_s, rotation * up) # update up vector
+    push!(up_s, up) # update up vector
     nothing
 end
 """
