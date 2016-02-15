@@ -337,22 +337,19 @@ function rotate_cam(
         eyepos_s, lookat_s, up_s, right_s
     )
     theta == Vec3f0(0) && return nothing # nothing to do
+    println("loool?")
     # extract current values of the input signals
-    pivot, eyepos, up, right = map(value, (lookat_s, eyepos_s, up_s, right_s))
+    pivot, eyepos, up = map(value, (lookat_s, eyepos_s, up_s))
     dir = eyepos - pivot
-    if all(x->isapprox(x, 0), cross(dir, up))  # dir and up are parallel
-        up = cross(dir, right)
-    end
-    axis = (normalize(dir), normalize(cross(dir, up)), up) # x,y,z axis of the camera space
+    right = normalize(cross(dir, up)) # x,y,z axis of the camera space
     # accumulate all rotations
-    xrotation = Quaternions.qrotation(axis[1], theta[1])
-    yrotation = Quaternions.qrotation(axis[2], theta[2])
+    yrotation = Quaternions.qrotation(right, theta[2])
     zrotation = Quaternions.qrotation(Vec3f0(0,0,1), theta[3])
-    rotation  = xrotation*yrotation*zrotation
+    rotation  = yrotation*zrotation
 
     dir = rotation * dir
-    push!(eyepos_s, dir+pivot) # update rotated eye position
-    push!(right_s, rotation * right) # update up vector
+    push!(eyepos_s, pivot+dir) # update rotated eye position
+    push!(up_s, rotation * up) # update up vector
     nothing
 end
 """
@@ -390,7 +387,7 @@ function PerspectiveCamera{T<:Vec3}(
         # if any of these is orthogonal, we can use them as a new upvector
         if dot(dir, up_candidate) == 0f0
             right = normalize(cross(dir, up_candidate))
-            push!(upvector, normalize(cross(dir, right)))
+            push!(upvector, normalize(cross(right, dir)))
             break
         end
     end
