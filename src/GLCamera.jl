@@ -337,7 +337,6 @@ function rotate_cam(
         eyepos_s, lookat_s, up_s, right_s
     )
     theta == Vec3f0(0) && return nothing # nothing to do
-    println("loool?")
     # extract current values of the input signals
     pivot, eyepos, up = map(value, (lookat_s, eyepos_s, up_s))
     dir = eyepos - pivot
