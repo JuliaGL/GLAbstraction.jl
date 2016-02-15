@@ -337,19 +337,19 @@ function rotate_cam(
         eyepos_s, lookat_s, up_s, right_s
     )
     theta == Vec3f0(0) && return nothing # nothing to do
+    upvector = Vec3f0(0,0,1)
     # extract current values of the input signals
     pivot, eyepos, up = map(value, (lookat_s, eyepos_s, up_s))
     dir = eyepos - pivot
     right = normalize(cross(dir, up)) # x,y,z axis of the camera space
-    up    = normalize(cross(right, dir))
     # accumulate all rotations
-    yrotation = Quaternions.qrotation(right, theta[2])
-    zrotation = Quaternions.qrotation(Vec3f0(0,0,1), theta[3])
-    rotation  = yrotation*zrotation
+    rotation = Quaternions.qrotation(dir, theta[1])
+    rotation *= Quaternions.qrotation(right, theta[2])
+    rotation *= Quaternions.qrotation(upvector, theta[3]) # we want to always rotate around unchanged up axis
 
     dir = rotation * dir
     push!(eyepos_s, pivot+dir) # update rotated eye position
-    push!(up_s, up) # update up vector
+    push!(up_s, normalize(rotation*up)) # update upvector
     nothing
 end
 """
