@@ -22,9 +22,9 @@ immutable Shader
 end
 name(s::Shader) = s.name
 function Base.show(io::IO, shader::Shader)
-    println(GLENUM(shader.typ).name, " shader: $(shader.name))")
-    println("source:")
-    print_with_lines(bytestring(shader.source))
+    println(io, GLENUM(shader.typ).name, " shader: $(shader.name))")
+    println(io, "source:")
+    print_with_lines(io, bytestring(shader.source))
 end
 type GLProgram
     id          ::GLuint
@@ -44,9 +44,9 @@ function Base.show(io::IO, p::GLProgram)
     for shader in p.shader
         println(io, shader)
     end
-    println("uniforms:")
+    println(io, "uniforms:")
     for (name, typ) in p.nametype
-        println("   ", name, "::", GLENUM(typ).name)
+        println(io, "   ", name, "::", GLENUM(typ).name)
     end
 end
 
