@@ -36,7 +36,7 @@ eltype{T, NDim}(b::GPUArray{T, NDim})                   = T
 endof(A::GPUArray)                                      = length(A)
 ndims{T, NDim}(A::GPUArray{T, NDim})                    = NDim
 size(A::GPUArray)                                       = A.size
-size(A::GPUArray, i::Integer)                           = A.size[i]
+size(A::GPUArray, i::Integer)                           = i <= ndims(A) ? A.size[i] : 1
 
 function checkdimensions(value::Array, ranges::Union{Integer, UnitRange}...)
     array_size   = size(value)

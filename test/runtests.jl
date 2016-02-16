@@ -26,6 +26,8 @@ indexes = indexbuffer(GLuint[0,1,2])
 v = Vec2f0[Vec2f0(0.0, 0.5), Vec2f0(0.5, -0.5), Vec2f0(-0.5,-0.5)]
 
 verts = GLBuffer(v)
+@test size(verts, 1) == 3
+@test size(verts, 2) == 1
 # lets define some uniforms
 # uniforms are shader variables, which are supposed to stay the same for an entire draw call
 
