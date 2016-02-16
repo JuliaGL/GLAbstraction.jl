@@ -1,6 +1,6 @@
 using GLWindow, GLAbstraction, ModernGL, Reactive, GLFW, GeometryTypes
 
-const window = create_glcontext("Compute Shader", 512, 512)
+const window = create_glcontext("Compute Shader", resolution=(512, 512))
 
 # In order to write to a texture, we have to introduce it as image2D.
 # local_size_x/y/z layout variables define the work group size.
