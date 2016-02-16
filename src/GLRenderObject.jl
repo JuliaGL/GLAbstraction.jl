@@ -1,3 +1,5 @@
+RenderObject(data::Dict{Symbol}, program, bbs=Signal(AABB{Float32}(Vec3f0(0),Vec3f0(1))), main=nothing) = RenderObject(convert(Dict{Symbol,Any}, data), program, bbs, main)
+
 function Base.show(io::IO, obj::RenderObject)
     println(io, "RenderObject with ID: ", obj.id)
 
