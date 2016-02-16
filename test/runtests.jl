@@ -10,7 +10,7 @@ include("macro_test.jl")
 
 if !is_ci() # only do test if not CI... this is for automated testing environments which fail for OpenGL stuff, but I'd like to test if at least including works
 
-window = createwindow("test", 500,500)
+window = create_glcontext("test", resolution=(500,500))
 
 include("accessors.jl")
 include("uniforms.jl")
@@ -36,7 +36,7 @@ const triangle = RenderObject(
 		:vertex => verts,
 		:name_doesnt_matter_for_indexes => indexes
 	),
-	TemplateProgram(load("test.vert"), load("test.frag"))
+	LazyShader(load("test.vert"), load("test.frag"))
 )
 
 postrender!(triangle, render, triangle.vertexarray)
@@ -46,7 +46,7 @@ while isopen(window)
   	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
 	render(triangle)
 	swapbuffers(window)
-	pollevents(window)
+	pollevents()
 	sleep(0.01)
 end
 
