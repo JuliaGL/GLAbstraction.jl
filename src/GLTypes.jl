@@ -164,7 +164,13 @@ function GLVertexArray(bufferdict::Dict, program::GLProgram)
     obj
 end
 free(x::GLVertexArray) = glDeleteVertexArrays(1, [x.id])
-
+function Base.show(io::IO, vao::GLVertexArray)
+    show(io, vao.program)
+    println(io, "GLVertexArray $(vao.id):")
+    print(  io, "GLVertexArray $(vao.id) buffers: ")
+    writemime(io, MIME("text/plain"), vao.buffers)
+    println(io, "\nGLVertexArray $(vao.id) indexes: ", vao.indexes)
+end
 
 
 ##################################################################################
@@ -227,8 +233,6 @@ type RenderObject <: Composable{DeviceUnit}
         )
     end
 end
-
-
 
 include("GLRenderObject.jl")
 
