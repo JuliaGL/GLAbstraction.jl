@@ -1,7 +1,7 @@
 using GLAbstraction, GLWindow, GLFW, FixedSizeArrays, FixedPointNumbers
 using Base.Test
 GLFW.Init()
-createwindow("test", 20,20)
+create_glcontext("test", resolution=(20,20))
 
 immutable SpriteStyle{T} <: FixedVector{2, T}
 	#color_id::T # lookup attribute_id for attribute texture
@@ -61,3 +61,4 @@ function test()
 end
 
 test()
+

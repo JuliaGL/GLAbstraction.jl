@@ -23,6 +23,7 @@ function translationmatrix{T}(t::Vec{3, T})
 end
 
 rotate{T}(angle::T, axis::Vec{3, T}) = rotationmatrix4(Quaternions.qrotation(convert(Array, axis), angle))
+rotate{T}(::Type{T}, angle::Number, axis::Vec{3}) = rotate(T(angle), convert(Vec{3, T}, axis))
 
 function rotationmatrix_x{T}(angle::T)
     T0, T1 = zero(T), one(T)
@@ -86,12 +87,14 @@ function frustum{T}(left::T, right::T, bottom::T, top::T, znear::T, zfar::T)
 end
 
 perspectiveprojection{T}(wh::SimpleRectangle, fov::T, near::T, far::T) = perspectiveprojection(fov, T(wh.w/wh.h), near, far)
+perspectiveprojection{T}(::Type{T}, wh::SimpleRectangle, fov::Number, near::Number, far::Number) = perspectiveprojection(T(fov), T(wh.w/wh.h), T(near), T(far))
 function perspectiveprojection{T}(fovy::T, aspect::T, znear::T, zfar::T)
     (znear == zfar) && error("znear ($znear) must be different from tfar ($zfar)")
     h = T(tan(fovy / 360.0 * pi) * znear)
     w = T(h * aspect)
     return frustum(-w, w, -h, h, znear, zfar)
 end
+perspectiveprojection{T}(::Type{T}, fovy::Number, aspect::Number, znear::Number, zfar::Number) = perspectiveprojection(T(fovy), T(aspect), T(znear), T(zfar))
 
 function lookat{T}(eyePos::Vec{3, T}, lookAt::Vec{3, T}, up::Vec{3, T})
     zaxis  = normalize(eyePos-lookAt)
@@ -105,9 +108,11 @@ function lookat{T}(eyePos::Vec{3, T}, lookAt::Vec{3, T}, up::Vec{3, T})
         (T0,       T0,       T0,       T1)
     ) * translationmatrix(-eyePos)
 end
+lookat{T}(::Type{T}, eyePos::Vec{3}, lookAt::Vec{3}, up::Vec{3}) = lookat(Vec{3,T}(eyePos), Vec{3,T}(lookAt), Vec{3,T}(up))
 function orthographicprojection{T}(wh::SimpleRectangle, near::T, far::T)
     orthographicprojection(zero(T), T(wh.w), zero(T), T(wh.h), near, far)
 end
+orthographicprojection{T}(::Type{T}, wh::SimpleRectangle, near::Number, far::Number) = orthographicprojection(wh, T(near), T(far))
 
 function orthographicprojection{T}(
         left  ::T, right::T,
@@ -123,7 +128,15 @@ function orthographicprojection{T}(
         (-(right+left)/(right-left), -(top+bottom)/(top-bottom), -(zfar+znear)/(zfar-znear), T1)
     )
 end
-
+function orthographicprojection{T}(::Type{T},
+        left  ::Number, right::Number,
+        bottom::Number, top  ::Number,
+        znear ::Number, zfar ::Number
+    )
+    orthographicprojection(T(left),   T(right),
+                           T(bottom), T(top),
+                           T(znear),  T(zfar))
+end
 
 import Base: (*)
 function (*){T}(q::Quaternions.Quaternion{T}, v::Vec{3, T})
