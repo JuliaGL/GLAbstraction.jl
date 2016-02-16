@@ -2,6 +2,8 @@
 A simple library, which makes the use of OpenGL a little bit more convinient and Julian.
 If you have any questions, please open an issue. I'm working lazily on the documentation, so if no one asks, there won't be any documentation ;)
 
+Note there are some [tutorials](tutorials/README.md).
+
 ### Features
 * Some linear algebrae, to do all kinds of transformations.
 * Aliases for ImmutableArrays, which are more GLSL alike (e.g. Vector3{Float32} -> Vec3, Matrix4x4{Float32} -> Mat4)
