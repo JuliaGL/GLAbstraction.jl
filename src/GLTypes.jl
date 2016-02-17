@@ -98,8 +98,9 @@ end
 
 
 const GLArrayEltypes = Union{FixedVector, Real, Colorant}
-
-#Transfomr julia datatypes to opengl enum type
+"""
+Transform julia datatypes to opengl enum type
+"""
 julia2glenum{T <: FixedPoint}(x::Type{T})               = julia2glenum(FixedPointNumbers.rawtype(x))
 julia2glenum{T <: Union{FixedVector, Colorant}}(x::Union{Type{T}, T}) = julia2glenum(eltype(x))
 julia2glenum(x::Type{GLubyte})  = GL_UNSIGNED_BYTE
@@ -110,9 +111,9 @@ julia2glenum(x::Type{GLshort})  = GL_SHORT
 julia2glenum(x::Type{GLint})    = GL_INT
 julia2glenum(x::Type{GLfloat})  = GL_FLOAT
 julia2glenum(x::Type{Float16})  = GL_HALF_FLOAT
-julia2glenum{T}(::Type{T}) =
+function julia2glenum{T}(::Type{T})
     error("Type: $T not supported as opengl number datatype")
-
+end
 
 include("GLBuffer.jl")
 include("GLTexture.jl")
@@ -120,7 +121,12 @@ include("GLTexture.jl")
 ########################################################################
 
 
-
+"""
+Represents an OpenGL vertex array type.
+Can be created from a dict of buffers and an opengl Program.
+Keys with the name `indices` will get special treatment and will be used as
+the indexbuffer.
+"""
 type GLVertexArray{T}
   program       ::GLProgram
   id            ::GLuint

@@ -11,7 +11,7 @@ type GLBuffer{T} <: GPUArray{T, 1}
         glBindBuffer(buffertype, 0)
 
         obj = new(id, (buff_length,), buffertype, usage)
-        #finalizer(obj, free)
+        finalizer(obj, free)
         obj
     end
 end

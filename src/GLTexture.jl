@@ -14,6 +14,27 @@ type Texture{T <: GLArrayEltypes, NDIM} <: OpenglTexture{T, NDIM}
     format          ::GLenum
     parameters      ::TextureParameters{NDIM}
     size            ::NTuple{NDIM, Int}
+    function Texture(
+            id              ::GLuint,
+            texturetype     ::GLenum,
+            pixeltype       ::GLenum,
+            internalformat  ::GLenum,
+            format          ::GLenum,
+            parameters      ::TextureParameters{NDIM},
+            size            ::NTuple{NDIM, Int}
+        )
+        tex = new(
+            id,
+            texturetype,
+            pixeltype,
+            internalformat,
+            format,
+            parameters,
+            size
+        )
+        finalizer(tex, free)
+        tex
+    end
 end
 
 # for bufferSampler, aka Texture Buffer
