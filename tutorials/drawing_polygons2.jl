@@ -1,13 +1,9 @@
+# Another "low-level" example, this one incorporating "Uniforms"
 import GLFW
-using ModernGL, GeometryTypes
-# We're going to use only one feature of GLAbstraction---a slightly
-# more "julian" version of glShaderSource. There are many other places
-# where it offers simplifications, but in this tutorial we're being
-# deliberately low-level.
-using GLAbstraction
+using ModernGL, GeometryTypes, GLAbstraction
 
 # Create the window
-window = GLFW.CreateWindow(800, 600, "Drawing polygons 1")
+window = GLFW.CreateWindow(800, 600, "Drawing polygons 2")
 GLFW.MakeContextCurrent(window)
 # Retain keypress events
 GLFW.SetInputMode(window, GLFW.STICKY_KEYS, GL_TRUE)
@@ -50,11 +46,13 @@ void main()
 fragment_source = """
 # version 150
 
+uniform vec3 triangleColor;
+
 out vec4 outColor;
 
 void main()
 {
-    outColor = vec4(1.0, 1.0, 1.0, 1.0);
+    outColor = vec4(triangleColor, 1.0);
 }
 """
 
@@ -99,8 +97,13 @@ glVertexAttribPointer(pos_attribute, length(eltype(vertices)),
                       GL_FLOAT, GL_FALSE, 0, C_NULL)
 glEnableVertexAttribArray(pos_attribute)
 
+# Prepare to set uniforms
+uni_color = glGetUniformLocation(shader_program, "triangleColor")
+
 # Draw while waiting for a close event
 while !GLFW.WindowShouldClose(window)
+    r = (sin(4*time()) + 1)/2
+    glUniform3f(uni_color, Float32(r), 0.0f0, 0.0f0)
     glDrawArrays(GL_TRIANGLES, 0, length(vertices))
     GLFW.SwapBuffers(window)
     GLFW.PollEvents()

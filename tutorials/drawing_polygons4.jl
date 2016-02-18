@@ -1,13 +1,9 @@
+# Another "low-level" example, this one incorporating per-vertex color and element arrays
 import GLFW
-using ModernGL, GeometryTypes
-# We're going to use only one feature of GLAbstraction---a slightly
-# more "julian" version of glShaderSource. There are many other places
-# where it offers simplifications, but in this tutorial we're being
-# deliberately low-level.
-using GLAbstraction
+using ModernGL, GeometryTypes, GLAbstraction
 
 # Create the window
-window = GLFW.CreateWindow(800, 600, "Drawing polygons 1")
+window = GLFW.CreateWindow(800, 600, "Drawing polygons 4")
 GLFW.MakeContextCurrent(window)
 # Retain keypress events
 GLFW.SetInputMode(window, GLFW.STICKY_KEYS, GL_TRUE)
@@ -15,20 +11,31 @@ GLFW.SetInputMode(window, GLFW.STICKY_KEYS, GL_TRUE)
 # Create the Vertex Array Object (VAO) and make it current
 # Note that while the tutorial describes this after the attributes (below),
 # we need to make vao current before calling glVertexAttribPointer.
-# You should also do this before creating any element arrays (see
-# drawing_polygons4.jl)
+# You should also do this before creating any element arrays.
 vao = Ref(GLuint(0))
 glGenVertexArrays(1, vao)
 glBindVertexArray(vao[])
 
-# The vertices of our triangle
-vertices = Point2f0[(0, 0.5), (0.5, -0.5), (-0.5, -0.5)] # note Float32
+# The vertices of our rectangle, with color
+vertices = Point{5,Float32}[(-0.5,  0.5, 1, 0, 0),    # top-left
+                            ( 0.5,  0.5, 0, 1, 0),    # top-right
+                            ( 0.5, -0.5, 0, 0, 1),    # bottom-right
+                            (-0.5, -0.5, 1, 1, 1)]    # bottom-left
+
+elements = Vec{3,GLuint}[(0,1,2),          # the first triangle
+                         (2,3,0)]          # the second triangle
 
 # Create the Vertex Buffer Object (VBO)
 vbo = Ref(GLuint(0))   # initial value is irrelevant, just allocate space
 glGenBuffers(1, vbo)
 glBindBuffer(GL_ARRAY_BUFFER, vbo[])
 glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW)
+
+# Create the Element Buffer Object (EBO)
+ebo = Ref(GLuint(0))
+glGenBuffers(1, ebo)
+glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ebo[])
+glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(elements), elements, GL_STATIC_DRAW)
 
 # The shaders. Here we do everything manually, but life will get
 # easier with GLAbstraction. See drawing_polygons5.jl for such an
@@ -39,9 +46,13 @@ vertex_source = """
 #version 150
 
 in vec2 position;
+in vec3 color;
+
+out vec3 Color;
 
 void main()
 {
+    Color = color;
     gl_Position = vec4(position, 0.0, 1.0);
 }
 """
@@ -50,11 +61,13 @@ void main()
 fragment_source = """
 # version 150
 
+in vec3 Color;
+
 out vec4 outColor;
 
 void main()
 {
-    outColor = vec4(1.0, 1.0, 1.0, 1.0);
+    outColor = vec4(Color, 1.0);
 }
 """
 
@@ -95,13 +108,18 @@ glUseProgram(shader_program)
 
 # Link vertex data to attributes
 pos_attribute = glGetAttribLocation(shader_program, "position")
-glVertexAttribPointer(pos_attribute, length(eltype(vertices)),
-                      GL_FLOAT, GL_FALSE, 0, C_NULL)
 glEnableVertexAttribArray(pos_attribute)
+glVertexAttribPointer(pos_attribute, 2,
+                      GL_FLOAT, GL_FALSE, 5*sizeof(Float32), C_NULL)
+
+col_attribute = glGetAttribLocation(shader_program, "color")
+glEnableVertexAttribArray(col_attribute)
+glVertexAttribPointer(col_attribute, 3,
+                      GL_FLOAT, GL_FALSE, 5*sizeof(Float32), Ptr{Void}(2*sizeof(Float32)))
 
 # Draw while waiting for a close event
 while !GLFW.WindowShouldClose(window)
-    glDrawArrays(GL_TRIANGLES, 0, length(vertices))
+    glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, C_NULL)
     GLFW.SwapBuffers(window)
     GLFW.PollEvents()
     if GLFW.GetKey(window, GLFW.KEY_ESCAPE) == GLFW.PRESS

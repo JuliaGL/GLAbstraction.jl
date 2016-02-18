@@ -1,13 +1,9 @@
+# Another "low-level" example, this one incorporating per-vertex color
 import GLFW
-using ModernGL, GeometryTypes
-# We're going to use only one feature of GLAbstraction---a slightly
-# more "julian" version of glShaderSource. There are many other places
-# where it offers simplifications, but in this tutorial we're being
-# deliberately low-level.
-using GLAbstraction
+using ModernGL, GeometryTypes, GLAbstraction
 
 # Create the window
-window = GLFW.CreateWindow(800, 600, "Drawing polygons 1")
+window = GLFW.CreateWindow(800, 600, "Drawing polygons 3")
 GLFW.MakeContextCurrent(window)
 # Retain keypress events
 GLFW.SetInputMode(window, GLFW.STICKY_KEYS, GL_TRUE)
@@ -21,8 +17,10 @@ vao = Ref(GLuint(0))
 glGenVertexArrays(1, vao)
 glBindVertexArray(vao[])
 
-# The vertices of our triangle
-vertices = Point2f0[(0, 0.5), (0.5, -0.5), (-0.5, -0.5)] # note Float32
+# The vertices of our triangle, with color
+vertices = Point{5,Float32}[(   0,  0.5, 1, 0, 0),   # red vertex
+                            ( 0.5, -0.5, 0, 1, 0),   # green vertex
+                            (-0.5, -0.5, 0, 0, 1)]   # blue vertex
 
 # Create the Vertex Buffer Object (VBO)
 vbo = Ref(GLuint(0))   # initial value is irrelevant, just allocate space
@@ -39,9 +37,13 @@ vertex_source = """
 #version 150
 
 in vec2 position;
+in vec3 color;
+
+out vec3 Color;
 
 void main()
 {
+    Color = color;
     gl_Position = vec4(position, 0.0, 1.0);
 }
 """
@@ -50,11 +52,13 @@ void main()
 fragment_source = """
 # version 150
 
+in vec3 Color;
+
 out vec4 outColor;
 
 void main()
 {
-    outColor = vec4(1.0, 1.0, 1.0, 1.0);
+    outColor = vec4(Color, 1.0);
 }
 """
 
@@ -95,9 +99,14 @@ glUseProgram(shader_program)
 
 # Link vertex data to attributes
 pos_attribute = glGetAttribLocation(shader_program, "position")
-glVertexAttribPointer(pos_attribute, length(eltype(vertices)),
-                      GL_FLOAT, GL_FALSE, 0, C_NULL)
 glEnableVertexAttribArray(pos_attribute)
+glVertexAttribPointer(pos_attribute, 2,
+                      GL_FLOAT, GL_FALSE, 5*sizeof(Float32), C_NULL)
+
+col_attribute = glGetAttribLocation(shader_program, "color")
+glEnableVertexAttribArray(col_attribute)
+glVertexAttribPointer(col_attribute, 3,
+                      GL_FLOAT, GL_FALSE, 5*sizeof(Float32), Ptr{Void}(2*sizeof(Float32)))
 
 # Draw while waiting for a close event
 while !GLFW.WindowShouldClose(window)
