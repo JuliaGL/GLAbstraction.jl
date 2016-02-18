@@ -1,18 +1,14 @@
-# Here, we illustrate a more "julian" implementation that leverages
-# some of the advantages of GLAbstraction
-# Note: if you re-run this in the same session, call
-#    GLAbstraction.empty_shader_cache!()
-# first
 import GLFW
-using ModernGL, GeometryTypes, GLAbstraction
+using ModernGL, GeometryTypes, GLAbstraction, Images
+
+# Load our texture. See "downloads.jl" to get the images.
+img = load("images/kitten.png")
 
 # Create the window
-window = GLFW.CreateWindow(800, 600, "Drawing polygons 5")
+window = GLFW.CreateWindow(800, 800, "Textures 3")
 GLFW.MakeContextCurrent(window)
-# Retain keypress events
 GLFW.SetInputMode(window, GLFW.STICKY_KEYS, GL_TRUE)
 
-# A slightly-simplified VAO generator call
 vao = glGenVertexArrays()
 glBindVertexArray(vao)
 
@@ -22,11 +18,11 @@ vertex_positions = Point{2,Float32}[(-0.5,  0.5),     # top-left
                                     ( 0.5, -0.5),     # bottom-right
                                     (-0.5, -0.5)]     # bottom-left
 
-# The colors assigned to each vertex
-vertex_colors = Vec3f0[(1, 0, 0),                     # top-left
-                       (0, 1, 0),                     # top-right
-                       (0, 0, 1),                     # bottom-right
-                       (1, 1, 1)]                     # bottom-left
+# The texture coordinates of each vertex
+vertex_texcoords = Vec2f0[(0, 0),
+                          (1, 0),
+                          (1, 1),
+                          (0, 1)]
 
 # Specify how vertices are arranged into faces
 # Face{N,T,O} type specifies a face with N vertices, with index type
@@ -42,13 +38,13 @@ vertex_shader = vert"""
 #version 150
 
 in vec2 position;
-in vec3 color;
+in vec2 texcoord;
 
-out vec3 Color;
+out vec2 Texcoord;
 
 void main()
 {
-    Color = color;
+    Texcoord = texcoord;
     gl_Position = vec4(position, 0.0, 1.0);
 }
 """
@@ -57,27 +53,47 @@ void main()
 fragment_shader = frag"""
 # version 150
 
-in vec3 Color;
+in vec2 Texcoord;
 
 out vec4 outColor;
 
+uniform sampler2D tex;
+uniform float yperiod;
+uniform float phase;
+uniform float amplitude;
+
 void main()
 {
-    outColor = vec4(Color, 1.0);
+    if (Texcoord.y > 0.5)
+        outColor = texture(tex, vec2(Texcoord.x+amplitude*sin(Texcoord.y/yperiod + phase), Texcoord.y));
+    else
+        outColor = texture(tex, Texcoord);
 }
 """
 
 # Link everything together, using the corresponding shader variable as
 # the Dict key
 bufferdict = Dict(:position=>GLBuffer(vertex_positions),
-                  :color=>GLBuffer(vertex_colors),
+                  :texcoord=>GLBuffer(vertex_texcoords),
+                  :tex=>Texture(data(img), x_repeat=:repeat),
                   :indexes=>indexbuffer(elements)) # special for element buffers
 
 ro = std_renderobject(bufferdict,
                       LazyShader(vertex_shader, fragment_shader))
 
+prog = ro.vertexarray.program
+yperiod_loc = glGetUniformLocation(prog.id, "yperiod")
+phase_loc = glGetUniformLocation(prog.id, "phase")
+amplitude_loc = glGetUniformLocation(prog.id, "amplitude")
+
 # Draw until we receive a close event
 while !GLFW.WindowShouldClose(window)
+    amp = mod(time(), 2)/5
+    phase = 2pi*mod(time(), 1)
+    glUniform1f(amplitude_loc, Float32(amp))
+    glUniform1f(phase_loc, Float32(phase))
+    glUniform1f(yperiod_loc, Float32(0.02))
+
     render(ro)
     GLFW.SwapBuffers(window)
     GLFW.PollEvents()
