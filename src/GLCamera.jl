@@ -299,6 +299,22 @@ function PerspectiveCamera{T}(
         Signal(100f0) # Max distance (clip distance)
     )
 end
+function PerspectiveCamera{T}(
+        area,
+        eyeposition::Signal{Vec{3, T}}, lookatvec::Signal{Vec{3, T}}, upvector
+    )
+    PerspectiveCamera(
+        Signal(Vec3f0(0)),
+        Signal(Vec3f0(0)),
+        lookatvec,
+        eyeposition,
+        upvector,
+        area,
+        Signal(41f0), # Field of View
+        Signal(1f0),  # Min distance (clip distance)
+        Signal(100f0) # Max distance (clip distance)
+    )
+end
 
 
 function projection_switch{T<:Real}(
