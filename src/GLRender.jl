@@ -50,7 +50,7 @@ Renders a vertex array which supplies an indexbuffer
 """
 function render{T<:Union{Integer, Face}}(vao::GLVertexArray{GLBuffer{T}}, mode::GLenum=GL_TRIANGLES)
     glBindVertexArray(vao.id)
-    glDrawElements(mode, length(vao.indexes)*cardinality(vao.indexes), julia2glenum(T), C_NULL)
+    glDrawElements(mode, length(vao.indices)*cardinality(vao.indices), julia2glenum(T), C_NULL)
     glBindVertexArray(0)
 end
 """
@@ -58,7 +58,7 @@ Renders a normal vertex array only containing the usual buffers buffers.
 """
 function render(vao::GLVertexArray, mode::GLenum=GL_TRIANGLES)
     glBindVertexArray(vao.id)
-    glDrawArrays(mode, 0, length(vao.length))
+    glDrawArrays(mode, 0, length(vao))
     glBindVertexArray(0)
 end
 
@@ -72,7 +72,7 @@ Renders `amount` instances of an indexed geometry
 """
 function renderinstanced{T<:Union{Integer, Face}}(vao::GLVertexArray{GLBuffer{T}}, amount::Integer, primitive=GL_TRIANGLES)
     glBindVertexArray(vao.id)
-    glDrawElementsInstanced(primitive, length(vao.indexes)*cardinality(vao.indexes), julia2glenum(T), C_NULL, amount)
+    glDrawElementsInstanced(primitive, length(vao.indices)*cardinality(vao.indices), julia2glenum(T), C_NULL, amount)
     glBindVertexArray(0)
 end
 """
@@ -80,7 +80,7 @@ Renders `amount` instances of an not indexed geoemtry geometry
 """
 function renderinstanced(vao::GLVertexArray, amount::Integer, primitive=GL_TRIANGLES)
     glBindVertexArray(vao.id)
-    glDrawElementsInstanced(primitive, length(vao.length), GL_UNSIGNED_INT, C_NULL, amount)
+    glDrawElementsInstanced(primitive, length(vao), GL_UNSIGNED_INT, C_NULL, amount)
     glBindVertexArray(0)
 end
 #handle all uniform objects

@@ -130,17 +130,23 @@ the indexbuffer.
 type GLVertexArray{T}
   program       ::GLProgram
   id            ::GLuint
-  length        ::GLBuffer
+  bufferlength  ::Int
   buffers       ::Dict{ASCIIString, GLBuffer}
-  indexes       ::T
+  indices       ::T
 end
+"""
+returns the length of the vertex array.
+This is amount of primitives stored in the vertex array, needed for `glDrawArrays`
+"""
+length(vao::GLVertexArray) = vao.bufferlength
+
 function GLVertexArray(bufferdict::Dict, program::GLProgram)
     #get the size of the first array, to assert later, that all have the same size
     indexes = -1
     len = -1
     id  = glGenVertexArrays()
-    lenbuffer = 0
     glBindVertexArray(id)
+    lenbuffer = 0
     buffers = Dict{ASCIIString, GLBuffer}()
     for (name, buffer) in bufferdict
         if isa(buffer, GLBuffer) && buffer.buffertype == GL_ELEMENT_ARRAY_BUFFER
@@ -165,11 +171,10 @@ function GLVertexArray(bufferdict::Dict, program::GLProgram)
         end
     end
     glBindVertexArray(0)
-    obj = GLVertexArray{typeof(indexes)}(program, id, lenbuffer, buffers, indexes)
+    obj = GLVertexArray{typeof(indexes)}(program, id, len, buffers, indexes)
     finalizer(obj, free)
     obj
 end
-free(x::GLVertexArray) = glDeleteVertexArrays(1, [x.id])
 function Base.show(io::IO, vao::GLVertexArray)
     show(io, vao.program)
     println(io, "GLVertexArray $(vao.id):")
@@ -216,6 +221,7 @@ function RenderObject(data::Dict{Symbol, Any}, program, bbs=Signal(AABB{Float32}
             end
         end
     end
+    # handle meshes seperately, since they need expansion
     meshs = filter((key, value) -> isa(value, NativeMesh), data)
     if !isempty(meshs)
         merge!(data, map(x->last(x).data, meshs)...)
@@ -246,7 +252,49 @@ include("GLRenderObject.jl")
 
 ####################################################################################
 # freeing
-free(x::GLProgram)      = try glDeleteProgram(x.id) end # context might not be active anymore, so it errors and doesn' need to be freed anymore
-free(x::GLBuffer)       = try glDeleteBuffers(x.id) end
-free(x::Texture)        = try glDeleteTextures(x.id) end
-free(x::GLVertexArray)  = try glDeleteVertexArrays(x.id) end
+function free(x::GLProgram)
+    id = [x.id]
+    try
+    glDeleteProgram(1, id)
+    catch e
+        free_handle_error(e)
+    end
+end
+function free(x::GLBuffer)
+    id = [x.id]
+    try
+        glDeleteBuffers(1, id)
+    catch e
+        free_handle_error(e)
+    end
+end
+function free(x::Texture)
+    id = [x.id]
+    try
+        glDeleteTextures(x.id)
+    catch e
+        free_handle_error(e)
+    end
+end
+function free(x::GLVertexArray)
+    id = [x.id]
+    try
+        glDeleteVertexArrays(1, id)
+    catch e
+        free_handle_error(e)
+    end
+end
+function free(x::GLVertexArray)
+    id = [x.id]
+    try
+        glDeleteVertexArrays(1, id)
+    catch e
+        free_handle_error(e)
+    end
+end
+function free_handle_error(e::ContextNotAvailable)
+    #ignore, since freeing is not needed if context is not available
+end
+function free_handle_error(e)
+    rethrow(e)
+end
