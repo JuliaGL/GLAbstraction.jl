@@ -91,30 +91,26 @@ function resize_nocopy!{T, ND}(t::Texture{T, ND}, newdims::NTuple{ND, Int})
     t
 end
 
-#=
+"""
 Constructor for empty initialization with NULL pointer instead of an array with data.
 You just need to pass the wanted color/vector type and the dimensions.
 To which values the texture gets initialized is driver dependent
-=#
+"""
 Texture{T <: GLArrayEltypes, N}(::Type{T}, dims::NTuple{N, Int}; kw_args...) =
     Texture(convert(Ptr{T}, C_NULL), dims; kw_args...)
 
-#=
+"""
 Constructor for a normal array, with color or Abstract Arrays as elements.
 So Array{Real, 2} == Texture2D with 1D Colorant dimension
 Array{Vec1/2/3/4, 2} == Texture2D with 1/2/3/4D Colorant dimension
 Colors from Colors.jl should mostly work as well
-=#
+"""
 Texture{T <: GLArrayEltypes, NDim}(image::Array{T, NDim}; kw_args...) =
     Texture(pointer(image), size(image); kw_args...)
 
-#=
+"""
 Constructor for Array Texture
-=#
-Texture{T <: GLArrayEltypes}(data::Vector{Matrix{T}}; kw_args...) =
-    Texture(data; texturetype=GL_TEXTURE_2D_ARRAY, kw_args...)
-
-
+"""
 function Texture{T <: GLArrayEltypes}(
         data::Vector{Array{T, 2}};
         internalformat::GLenum = default_internalcolorformat(T),
@@ -448,8 +444,6 @@ end
 TextureParameters{T, NDim}(t::Texture{T, NDim}; kw_args...) = TextureParameters(T, NDim; kw_args...)
 
 
-
-set_parameters{T, NDim}(t::Texture{T, NDim}; kw_args...) = set_parameters(t, TextureParameters(t; kw_args...))
 
 function set_parameters{T, N}(t::Texture{T, N}, params::TextureParameters=t.parameters)
     result    = Array(Tuple{GLenum, GLenum}, N+2)

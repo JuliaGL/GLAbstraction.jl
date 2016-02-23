@@ -1,10 +1,7 @@
 
-
-
-
 function Shader(f::File{format"GLSLShader"})
     st = stream(open(f))
-    s = Shader(symbol(f.filename), readbytes(st), shadertype(f))
+    s = Shader(symbol(f.filename), read(st), shadertype(f))
     close(st)
     s
 end

@@ -276,14 +276,7 @@ function free(x::Texture)
         free_handle_error(e)
     end
 end
-function free(x::GLVertexArray)
-    id = [x.id]
-    try
-        glDeleteVertexArrays(1, id)
-    catch e
-        free_handle_error(e)
-    end
-end
+
 function free(x::GLVertexArray)
     id = [x.id]
     try

@@ -150,7 +150,8 @@ function dragged(mouseposition, key_pressed, start_condition=true)
     args = const_lift(tuple, key_pressed, mouseposition, start_condition)
     dragg_sig = foldp(mouse_dragg, v0, args)
     is_dragg = map(first, dragg_sig)
-    dragg_diff = map(last, dragg_sig)
+    dragg = map(last, dragg_sig)
+    dragg_diff = filterwhen(is_dragg, value(dragg), dragg)
     dragg_diff
 end
 function dragged_diff(mouseposition, key_pressed, start_condition=true)
