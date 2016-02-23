@@ -1,3 +1,7 @@
+using GLAbstraction, GLWindow, GLFW, FixedSizeArrays, FixedPointNumbers
+using Base.Test
+GLFW.Init()
+create_glcontext("test", resolution=(20,20))
 
 immutable SpriteStyle{T} <: FixedVector{2, T}
 	#color_id::T # lookup attribute_id for attribute texture
@@ -5,15 +9,12 @@ immutable SpriteStyle{T} <: FixedVector{2, T}
 	_::NTuple{2, T}
 end
 
-
-
-
 typealias GLSpriteStyle SpriteStyle{UInt16}
 
 const TEST_1D = Any[]
 const TEST_2D = Any[]
 
-a = texture_buffer(fill(GLSpriteStyle(0,1), 77))
+a = TextureBuffer(fill(GLSpriteStyle(0,1), 77))
 
 for i=1:length(a)
 	r = i:i
@@ -39,7 +40,7 @@ push!(TEST_2D, Point{4, Int8}[rand(Point{4, Int8}) for i=1:N,j=1:N])
 
 test_data = Dict(
 	TEST_1D 	=> map(Texture, TEST_1D),
-	TEST_1D 	=> map(texture_buffer, TEST_1D),
+	TEST_1D 	=> map(TextureBuffer, TEST_1D),
 	TEST_1D 	=> map(GLBuffer, TEST_1D),
 	TEST_2D		=> map(Texture, TEST_2D)
 )

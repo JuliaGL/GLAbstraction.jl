@@ -1,15 +1,7 @@
-immutable Shader
-    name::Symbol
-    source::Vector{UInt8}
-    typ::GLenum
-end
-name(s::Shader) = s.name
-
-
 
 function Shader(f::File{format"GLSLShader"})
     st = stream(open(f))
-    s = Shader(symbol(f.filename), readbytes(st), shadertype(f))
+    s = Shader(symbol(f.filename), read(st), shadertype(f))
     close(st)
     s
 end
@@ -95,8 +87,8 @@ function isupdated(file::File, updatewhile=Signal(true), update_interval=1.0)
         time_edited = mtime(fn)
         (!isapprox(0.0, v0[2] - time_edited), time_edited)
     end
-    Reactive.preserve(file_edited)
-    return filter(identity, false, const_lift(first, file_edited)) # extract bool
+    preserve(file_edited)
+    return preserve(filter(identity, false, const_lift(first, file_edited))) # extract bool
 end
 
 #reads from the file and updates the source whenever the file gets edited
@@ -105,11 +97,10 @@ function const_lift_shader(shader_file::File, updatewhile=Signal(true), update_i
         Shader(shader_file)
     end
     preserve(s)
-    s
 end
 
 #Implement File IO interface
-load(f::File{format"GLSLShader"}) = const_lift_shader(f)
+load(f::File{format"GLSLShader"}) = preserve(const_lift_shader(f))
 function save(f::File{format"GLSLShader"}, data::Shader)
     s = open(f, "w")
     write(s, data.source)
@@ -122,6 +113,7 @@ let shader_cache = Dict{Tuple{GLenum, Vector{UInt8}}, GLuint}() # shader cache p
     #finalizer(shader_cache, dict->foreach(glDeleteShader, values(dict))) # delete all shaders when done
     empty_shader_cache!() = empty!(shader_cache)
     global empty_shader_cache!
+
     function compileshader(shader::Shader)
         get!(shader_cache, (shader.typ, shader.source)) do
             shaderid = createshader(shader.typ)
@@ -137,7 +129,7 @@ let shader_cache = Dict{Tuple{GLenum, Vector{UInt8}}, GLuint}() # shader cache p
     end
 end
 
-
+export empty_shadercache
 
 function uniformlocations(nametypedict::Dict{Symbol, GLenum}, program)
     isempty(nametypedict) && return Dict{Symbol,Tuple}()
@@ -145,6 +137,7 @@ function uniformlocations(nametypedict::Dict{Symbol, GLenum}, program)
     return Dict{Symbol,Tuple}(map(nametypedict) do name_type
         name, typ = name_type
         loc = get_uniform_location(program, name)
+        str_name = string(name)
         if istexturesampler(typ)
             texturetarget += 1
             return (name, (loc, texturetarget))
@@ -186,14 +179,24 @@ function GLProgram(
     nametypedict        = uniform_name_type(program)
     uniformlocationdict = uniformlocations(nametypedict, program)
 
-    GLProgram(program, map(name,shaders), nametypedict, uniformlocationdict)
+    GLProgram(program, shaders, nametypedict, uniformlocationdict)
 end
 
 
+abstract AbstractLazyShader
+immutable LazyShader <: AbstractLazyShader
+    paths  ::Tuple
+    kw_args::Vector
+    function LazyShader(paths...; kw_args...)
+        new(paths, kw_args)
+    end
+end
 
-
-
-
+gl_convert(lazyshader::AbstractLazyShader, data) = TemplateProgram(
+    lazyshader.paths...;
+    attributes = data,
+    lazyshader.kw_args...
+)
 
 
 # Takes a shader template and renders the template and returns shader source

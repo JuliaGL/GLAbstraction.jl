@@ -43,7 +43,7 @@ end
 
 get_uniform_location(program::GLuint, name::Symbol) = get_uniform_location(program, string(name))
 function get_uniform_location(program::GLuint, name::ASCIIString)
-    const location::GLint = glGetUniformLocation(program, name)
+    const location = glGetUniformLocation(program, name)::GLint
     if location == -1
         error(
             """Named uniform (:$(name)) is not an active attribute in the specified program object or
@@ -81,7 +81,7 @@ function glGetActiveAttrib(programID::GLuint, index::Integer)
     const name           = Array(GLchar, maxcharsize)
 
     glGetActiveAttrib(programID, index, maxcharsize, actualLength, attributeSize, typ, name)
-    
+
     actualLength[1] <= 0 && error("No active uniform at given index. Index: ", index)
 
     uname = bytestring(pointer(name), actualLength[1])
@@ -174,8 +174,7 @@ function glGenRenderbuffers(format::GLenum, attachment::GLenum, dimensions)
 end
 
 
-function glTexImage(ttype::GLenum, level::Integer, internalFormat::GLenum, w::Integer, h::Integer, d::Integer, border::Integer, format::GLenum, datatype::GLenum, data)  
-
+function glTexImage(ttype::GLenum, level::Integer, internalFormat::GLenum, w::Integer, h::Integer, d::Integer, border::Integer, format::GLenum, datatype::GLenum, data)
     glTexImage3D(GL_PROXY_TEXTURE_3D, level, internalFormat, w, h, d, border, format, datatype, C_NULL)
     for l in  0:level
         result = glGetTexLevelParameteriv(GL_PROXY_TEXTURE_3D, l, GL_TEXTURE_WIDTH)
@@ -230,5 +229,3 @@ function glTexImage(ttype::GLenum, level::Integer, internalFormat::GLenum, w::In
     end
     glTexImage1D(ttype, level, internalFormat, w, border, format, datatype, data)
 end
-
-

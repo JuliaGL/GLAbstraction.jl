@@ -4,7 +4,9 @@ immutable TextureParameters{NDim}
     repeat   ::NTuple{NDim, Symbol}
 end
 
-type Texture{T <: GLArrayEltypes, NDIM} <: GPUArray{T, NDIM}
+abstract OpenglTexture{T, NDIM} <: GPUArray{T, NDIM}
+
+type Texture{T <: GLArrayEltypes, NDIM} <: OpenglTexture{T, NDIM}
     id              ::GLuint
     texturetype     ::GLenum
     pixeltype       ::GLenum
@@ -12,8 +14,38 @@ type Texture{T <: GLArrayEltypes, NDIM} <: GPUArray{T, NDIM}
     format          ::GLenum
     parameters      ::TextureParameters{NDIM}
     size            ::NTuple{NDIM, Int}
-    buffer          ::Nullable{GLBuffer{T}} # Textures can be optionally created from a buffer, in which case we need a reference to the buffer
+    function Texture(
+            id              ::GLuint,
+            texturetype     ::GLenum,
+            pixeltype       ::GLenum,
+            internalformat  ::GLenum,
+            format          ::GLenum,
+            parameters      ::TextureParameters{NDIM},
+            size            ::NTuple{NDIM, Int}
+        )
+        tex = new(
+            id,
+            texturetype,
+            pixeltype,
+            internalformat,
+            format,
+            parameters,
+            size
+        )
+        finalizer(tex, free)
+        tex
+    end
 end
+
+# for bufferSampler, aka Texture Buffer
+type TextureBuffer{T <: GLArrayEltypes} <: OpenglTexture{T, 1}
+    texture ::Texture{T, 1}
+    buffer  ::GLBuffer{T}
+end
+Base.size(t::TextureBuffer) = size(t.buffer)
+Base.length(t::TextureBuffer) = length(t.buffer)
+bind(t::Texture) = glBindTexture(t.texturetype, t.id)
+bind(t::Texture, id) = glBindTexture(t.texturetype, id)
 
 is_texturearray(t::Texture)  = t.texturetype == GL_TEXTURE_2D_ARRAY
 is_texturebuffer(t::Texture) = t.texturetype == GL_TEXTURE_BUFFER
@@ -45,36 +77,40 @@ function Texture{T, NDim}(
     texture = Texture{T, NDim}(
         id, texturetype, numbertype, internalformat, format,
         texparams,
-        dims, Nullable{GLBuffer{T}}()
+        dims
     )
     set_parameters(texture)
     texture
 end
+export resize_nocopy!
+function resize_nocopy!{T, ND}(t::Texture{T, ND}, newdims::NTuple{ND, Int})
+    bind(t)
+    glTexImage(t.texturetype, 0, t.internalformat, newdims..., 0, t.format, t.pixeltype, C_NULL)
+    t.size = newdims
+    bind(t, 0)
+    t
+end
 
-#=
+"""
 Constructor for empty initialization with NULL pointer instead of an array with data.
 You just need to pass the wanted color/vector type and the dimensions.
 To which values the texture gets initialized is driver dependent
-=#
+"""
 Texture{T <: GLArrayEltypes, N}(::Type{T}, dims::NTuple{N, Int}; kw_args...) =
     Texture(convert(Ptr{T}, C_NULL), dims; kw_args...)
 
-#=
+"""
 Constructor for a normal array, with color or Abstract Arrays as elements.
 So Array{Real, 2} == Texture2D with 1D Colorant dimension
 Array{Vec1/2/3/4, 2} == Texture2D with 1/2/3/4D Colorant dimension
 Colors from Colors.jl should mostly work as well
-=#
+"""
 Texture{T <: GLArrayEltypes, NDim}(image::Array{T, NDim}; kw_args...) =
     Texture(pointer(image), size(image); kw_args...)
 
-#=
+"""
 Constructor for Array Texture
-=#
-Texture{T <: GLArrayEltypes}(data::Vector{Matrix{T}}; kw_args...) =
-    Texture(data; texturetype=GL_TEXTURE_2D_ARRAY, kw_args...)
-
-
+"""
 function Texture{T <: GLArrayEltypes}(
         data::Vector{Array{T, 2}};
         internalformat::GLenum = default_internalcolorformat(T),
@@ -82,7 +118,7 @@ function Texture{T <: GLArrayEltypes}(
         format::GLenum         = default_colorformat(T),
         parameters...
     )
-    texparams = TextureParameters(T, 3; parameters...)
+    texparams = TextureParameters(T, 2; parameters...)
     id = glGenTextures()
 
     glBindTexture(texturetype, id)
@@ -91,7 +127,7 @@ function Texture{T <: GLArrayEltypes}(
 
     layers  = length(data)
     dims    = map(size, data)
-    maxdims = foldp((0,0), dims) do v0, x
+    maxdims = foldl((0,0), dims) do v0, x
         a = max(v0[1], x[1])
         b = max(v0[2], x[2])
         (a,b)
@@ -103,10 +139,10 @@ function Texture{T <: GLArrayEltypes}(
         glTexSubImage3D(GL_TEXTURE_2D_ARRAY, 0, 0, 0, layer-1, width, height, 1, format, numbertype, texel)
     end
 
-    texture = Texture{T, 3}(
+    texture = Texture{T, 2}(
         id, texturetype, numbertype,
         internalformat, format, texparams,
-        tuple(maxdims..., layers), Nullable{GLBuffer{T}}()
+        tuple(maxdims...)
     )
     set_parameters(texture)
     texture
@@ -114,21 +150,29 @@ end
 
 
 
-function Texture{T <: GLArrayEltypes}(buffer::GLBuffer{T})
+function TextureBuffer{T <: GLArrayEltypes}(buffer::GLBuffer{T})
     texture_type = GL_TEXTURE_BUFFER
     id = glGenTextures()
     glBindTexture(texture_type, id)
     internalformat = default_internalcolorformat(T)
     glTexBuffer(texture_type, internalformat, buffer.id)
-    Texture{T, 1}(
+    tex = Texture{T, 1}(
         id, texture_type, julia2glenum(T), internalformat,
         default_colorformat(T), TextureParameters(T, 1),
-        size(buffer), Nullable(buffer),
+        size(buffer)
     )
+    TextureBuffer(tex, buffer)
 end
-texture_buffer{T <: GLArrayEltypes}(buffer::Vector{T}) =
-    Texture(GLBuffer(buffer, buffertype=GL_TEXTURE_BUFFER, usage=GL_DYNAMIC_DRAW))
+function TextureBuffer{T <: GLArrayEltypes}(buffer::Vector{T})
+    buff = GLBuffer(buffer, buffertype=GL_TEXTURE_BUFFER, usage=GL_DYNAMIC_DRAW)
+    TextureBuffer(buff)
+end
 
+function TextureBuffer{T <: GLArrayEltypes}(s::Signal{Vector{T}})
+    tb = TextureBuffer(value(s))
+    Reactive.preserve(const_lift(update!, tb, s))
+    tb
+end
 
 #=
 Some special treatmend for types, with alpha in the First place
@@ -170,47 +214,42 @@ end
 
 
 # GPUArray interface:
-function Base.unsafe_copy!{T}(a::Vector{T}, readoffset::Int, b::Texture{T, 1}, writeoffset::Int, len::Int)
-    isnull(b.buffer) && error("copy! is only implemented for texture buffers for now")
-    buffer = get(b.buffer)
-    copy!(a, readoffset, buffer, writeoffset, len)
-    glBindTexture(b.texturetype, b.id)
-    glTexBuffer(b.texturetype, b.internalformat, buffer.id) # update texture
+function Base.unsafe_copy!{T}(a::Vector{T}, readoffset::Int, b::TextureBuffer{T}, writeoffset::Int, len::Int)
+    copy!(a, readoffset, b.buffer, writeoffset, len)
+    glBindTexture(b.texture.texturetype, b.texture.id)
+    glTexBuffer(b.texture.texturetype, b.texture.internalformat, b.buffer.id) # update texture
 end
 
-function Base.unsafe_copy!{T}(a::Texture{T, 1}, readoffset::Int, b::Vector{T}, writeoffset::Int, len::Int)
-    isnull(a.buffer) && error("copy! is only implemented for texture buffers for now")
-    buffer = get(a.buffer)
-    copy!(buffer, readoffset, b, writeoffset, len)
-    glBindTexture(a.texturetype, a.id)
-    glTexBuffer(a.texturetype, a.internalformat, buffer.id) # update texture
+function Base.unsafe_copy!{T}(a::TextureBuffer{T}, readoffset::Int, b::Vector{T}, writeoffset::Int, len::Int)
+    copy!(a.buffer, readoffset, b, writeoffset, len)
+    glBindTexture(a.texture.texturetype, a.texture.id)
+    glTexBuffer(a.texture.texturetype, a.texture.internalformat, a.buffer.id) # update texture
 end
-function Base.unsafe_copy!{T}(a::Texture{T, 1}, readoffset::Int, b::Texture{T,1}, writeoffset::Int, len::Int)
-    (isnull(a.buffer) || isnull(b.buffer)) && error("copy! is only implemented for texture buffers for now")
-    abuffer, bbuffer = get(a.buffer), get(b.buffer)
-    unsafe_copy!(abuffer, readoffset, bbuffer, writeoffset, len)
+function Base.unsafe_copy!{T}(a::TextureBuffer{T}, readoffset::Int, b::TextureBuffer{T}, writeoffset::Int, len::Int)
+    unsafe_copy!(a.buffer, readoffset, b.buffer, writeoffset, len)
 
-    glBindTexture(a.texturetype, a.id)
-    glTexBuffer(a.texturetype, a.internalformat, abuffer.id) # update texture
+    glBindTexture(a.texture.texturetype, a.texture.id)
+    glTexBuffer(a.texture.texturetype, a.texture.internalformat, a.buffer.id) # update texture
 
-    glBindTexture(b.texturetype, b.id)
-    glTexBuffer(b.texturetype, b.internalformat, bbuffer.id) # update texture
+    glBindTexture(b.texture.texturetype, btexture..id)
+    glTexBuffer(b.texture.texturetype, b.texture.internalformat, b.buffer.id) # update texture
+    glBindTexture(t.texture.texturetype, 0)
+end
+function gpu_setindex!{T, I <: Integer}(t::TextureBuffer{T}, newvalue::Vector{T}, indexes::UnitRange{I})
+    glBindTexture(t.texture.texturetype, t.texture.id)
+    t.buffer[indexes] = newvalue # set buffer indexes
+    glTexBuffer(t.texture.texturetype, t.texture.internalformat, t.buffer.id) # update texture
+    glBindTexture(t.texture.texturetype, 0)
 end
 function gpu_setindex!{T, I <: Integer}(t::Texture{T, 1}, newvalue::Array{T, 1}, indexes::UnitRange{I})
-    if isnull(t.buffer)
-        glBindTexture(t.texturetype, t.id)
-        texsubimage(t, newvalue, indexes)
-    else
-        b = get(t.buffer)
-        glBindTexture(t.texturetype, t.id)
-        b[indexes] = newvalue # set buffer indexes
-        glTexBuffer(t.texturetype, t.internalformat, b.id) # update texture
-    end
+    glBindTexture(t.texturetype, t.id)
+    texsubimage(t, newvalue, indexes)
+    glBindTexture(t.texturetype, 0)
 end
-
 function gpu_setindex!{T, N}(t::Texture{T, N}, newvalue::Array{T, N}, indexes::Union{UnitRange,Integer}...)
     glBindTexture(t.texturetype, t.id)
     texsubimage(t, newvalue, indexes...)
+    glBindTexture(t.texturetype, 0)
 end
 
 
@@ -239,66 +278,52 @@ end
 =#
 # Implementing the GPUArray interface
 function gpu_data{T, ND}(t::Texture{T, ND})
-    if isnull(t.buffer)
-        result = Array(T, size(t))
-        glBindTexture(t.texturetype, t.id)
-        glGetTexImage(t.texturetype, 0, t.format, t.pixeltype, result)
-        return result
-    end
-    return gpu_data(get(t.buffer))
+    result = Array(T, size(t))
+    glBindTexture(t.texturetype, t.id)
+    glGetTexImage(t.texturetype, 0, t.format, t.pixeltype, result)
+    glBindTexture(t.texturetype, 0)
+    return result
 end
 
-function gpu_getindex{T}(t::GLAbstraction.Texture{T,1}, i::UnitRange{Int64})
-    isnull(t.buffer) && error("getindex operation only defined for texture buffers")
-    return get(t.buffer)[i]
-end
-function gpu_getindex{T}(t::GLAbstraction.Texture{T,1}, i::UnitRange{Int64}, j::UnitRange{Int64})
-    isnull(t.buffer) && error("getindex operation only defined for texture buffers")
-    return get(t.buffer)[i]
-end
-export resize_nocopy!
-function resize_nocopy!{T, ND}(t::Texture{T, ND}, newdims::Tuple{Vararg{Int}})
-    glBindTexture(t.texturetype, t.id)
-    glTexImage(t.texturetype, 0, t.internalformat, newdims..., 0, t.format, t.pixeltype, C_NULL)
-    t.size = newdims
-    t
-end
+gpu_data{T}(t::TextureBuffer{T}) = gpu_data(t.buffer)
+gpu_getindex{T}(t::TextureBuffer{T}, i::UnitRange{Int64}) = t.buffer[i]
+
+
 
 similar{T, NDim}(t::Texture{T, NDim}, newdims::Int...) = similar(t, newdims)
+function similar{T}(t::TextureBuffer{T}, newdims::NTuple{1, Int})
+    buff = similar(t.buffer, newdims...)
+    return TextureBuffer(buff)
+end
 function similar{T, NDim}(t::Texture{T, NDim}, newdims::NTuple{NDim, Int})
-    if isnull(t.buffer)
-        return Texture(
-            Ptr{T}(C_NULL),
-            newdims, t.texturetype,
-            t.pixeltype,
-            t.internalformat,
-            t.format,
-            t.parameters
-        )
-    else
-        buff = similar(get(t.buffer), newdims...)
-        return Texture(buff)
-    end
+    Texture(
+        Ptr{T}(C_NULL),
+        newdims, t.texturetype,
+        t.pixeltype,
+        t.internalformat,
+        t.format,
+        t.parameters
+    )
+end
+# Resize Texture
+function gpu_resize!{T}(t::TextureBuffer{T}, newdims::NTuple{1, Int})
+    resize!(t.buffer, newdims)
+    glBindTexture(t.texture.texturetype, t.texture.id)
+    glTexBuffer(t.texture.texturetype, t.texture.internalformat, t.buffer.id) #update data in texture
+    t.texture.size  = newdims
+    glBindTexture(t.texture.texturetype, 0)
+    t
 end
 # Resize Texture
 function gpu_resize!{T, ND}(t::Texture{T, ND}, newdims::NTuple{ND, Int})
-    if isnull(t.buffer)
-        # dangerous code right here...Better write a few tests for this
-        newtex   = similar(t, newdims)
-        old_size = size(t)
-        gpu_setindex!(newtex, t)
-        t.size   = newdims
-        free(t)
-        t.id     = newtex.id
-        return t
-    end
-    # MUST. HANDLE. BUFFERTEXTURE. DIFFERENTLY ... Did I mention that this is ugly?
-    buffer = get(t.buffer)
-    resize!(buffer, newdims)
-    glBindTexture(t.texturetype, t.id)
-    glTexBuffer(t.texturetype, t.internalformat, buffer.id) #update data in texture
+    # dangerous code right here...Better write a few tests for this
+    newtex   = similar(t, newdims)
+    old_size = size(t)
+    gpu_setindex!(newtex, t)
     t.size   = newdims
-    t
+    free(t)
+    t.id     = newtex.id
+    return t
 end
 
 texsubimage{T}(t::Texture{T, 1}, newvalue::Array{T, 1}, xrange::UnitRange, level=0) = glTexSubImage1D(
@@ -318,25 +343,17 @@ texsubimage{T}(t::Texture{T, 3}, newvalue::Array{T, 3}, xrange::UnitRange, yrang
 )
 
 
-function Base.start{T}(t::Texture{T, 1})
-    isnull(t.buffer) && error("start operation only defined for texture buffers")
-    start(get(t.buffer))
-end
-function Base.next{T}(t::Texture{T, 1}, state::Tuple{Ptr{T}, Int})
-    isnull(t.buffer) && error("next operation only defined for texture buffers")
-    next(get(t.buffer), state)
-end
-function Base.done{T}(t::Texture{T, 1}, state::Tuple{Ptr{T}, Int})
-    isnull(t.buffer) && error("done operation only defined for texture buffers")
-    isdone = done(get(t.buffer), state)
+Base.start{T}(t::TextureBuffer{T}) = start(t.buffer)
+Base.next{T}(t::TextureBuffer{T}, state::Tuple{Ptr{T}, Int}) = next(t.buffer, state)
+function Base.done{T}(t::TextureBuffer{T}, state::Tuple{Ptr{T}, Int})
+    isdone = done(t.buffer, state)
     if isdone
         glBindTexture(t.texturetype, t.id)
-        glTexBuffer(t.texturetype, t.internalformat, get(t.buffer).id)
+        glTexBuffer(t.texturetype, t.internalformat, t.buffer.id)
+        glBindTexture(t.texturetype, 0)
     end
     isdone
 end
-
-
 
 
 function default_colorformat(colordim::Integer, isinteger::Bool, colororder::AbstractString)
@@ -427,8 +444,6 @@ end
 TextureParameters{T, NDim}(t::Texture{T, NDim}; kw_args...) = TextureParameters(T, NDim; kw_args...)
 
 
-
-set_parameters{T, NDim}(t::Texture{T, NDim}; kw_args...) = set_parameters(t, TextureParameters(t; kw_args...))
 
 function set_parameters{T, N}(t::Texture{T, N}, params::TextureParameters=t.parameters)
     result    = Array(Tuple{GLenum, GLenum}, N+2)

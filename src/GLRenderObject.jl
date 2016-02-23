@@ -1,5 +1,4 @@
-RenderObject{T}(data::Dict{Symbol, T}, program::GLProgram) = RenderObject(Dict{Symbol, Any}(data), Signal(program))
-
+RenderObject(data::Dict{Symbol}, program, bbs=Signal(AABB{Float32}(Vec3f0(0),Vec3f0(1))), main=nothing) = RenderObject(convert(Dict{Symbol,Any}, data), program, bbs, main)
 
 function Base.show(io::IO, obj::RenderObject)
     println(io, "RenderObject with ID: ", obj.id)
@@ -9,7 +8,7 @@ function Base.show(io::IO, obj::RenderObject)
         println(io, "   ", name, "\n      ", uniform)
     end
     println(io, "vertexarray length: ", obj.vertexarray.length)
-    println(io, "vertexarray indexlength: ", obj.vertexarray.indexlength)
+    println(io, "vertexarray indexlength: ", obj.vertexarray.indexes)
 end
 
 
@@ -17,16 +16,17 @@ end
 Base.getindex(obj::RenderObject, symbol::Symbol)         = obj.uniforms[symbol]
 Base.setindex!(obj::RenderObject, value, symbol::Symbol) = obj.uniforms[symbol] = value
 
-Base.getindex(obj::RenderObject, symbol::Symbol, x::Function)       = getindex(obj, Val{symbol}(), x)
-Base.getindex(obj::RenderObject, ::Val{:prerender}, x::Function)    = obj.prerenderfunctions[x]
-Base.getindex(obj::RenderObject, ::Val{:postrender}, x::Function)   = obj.postrenderfunctions[x]
+Base.getindex(obj::RenderObject, symbol::Symbol, x::Function)     = getindex(obj, Val{symbol}(), x)
+Base.getindex(obj::RenderObject, ::Val{:prerender}, x::Function)  = obj.prerenderfunctions[x]
+Base.getindex(obj::RenderObject, ::Val{:postrender}, x::Function) = obj.postrenderfunctions[x]
 
-Base.setindex!(obj::RenderObject, value, symbol::Symbol, x::Function)       = setindex!(obj, value, Val{symbol}(), x)
-Base.setindex!(obj::RenderObject, value, ::Val{:prerender}, x::Function)    = obj.prerenderfunctions[x] = value
-Base.setindex!(obj::RenderObject, value, ::Val{:postrender}, x::Function)   = obj.postrenderfunctions[x] = value
+Base.setindex!(obj::RenderObject, value, symbol::Symbol, x::Function)     = setindex!(obj, value, Val{symbol}(), x)
+Base.setindex!(obj::RenderObject, value, ::Val{:prerender}, x::Function)  = obj.prerenderfunctions[x] = value
+Base.setindex!(obj::RenderObject, value, ::Val{:postrender}, x::Function) = obj.postrenderfunctions[x] = value
 
 
-function instanced_renderobject(data, program::Signal{GLProgram}, bb=Signal(AABB(Vec3f0(0), Vec3f0(1))), primitive::GLenum=GL_TRIANGLES, main=nothing)
+
+function instanced_renderobject(data, program, bb=Signal(AABB(Vec3f0(0), Vec3f0(1))), primitive::GLenum=GL_TRIANGLES, main=nothing)
     robj = RenderObject(data, program, bb, main)
     prerender!(robj,
         glEnable, GL_DEPTH_TEST,
@@ -40,7 +40,8 @@ function instanced_renderobject(data, program::Signal{GLProgram}, bb=Signal(AABB
 end
 
 
-function std_renderobject(data, shader::Signal{GLProgram}, bb=Signal(AABB(Vec3f0(0), Vec3f0(1))), primitive=GL_TRIANGLES, main=nothing)
+
+function std_renderobject(data, shader, bb=Signal(AABB(Vec3f0(0), Vec3f0(1))), primitive=GL_TRIANGLES, main=nothing)
     robj = RenderObject(data, shader, bb, main)
     prerender!(robj,
         glEnable, GL_DEPTH_TEST,

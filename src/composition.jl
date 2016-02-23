@@ -35,7 +35,7 @@ function Base.append!{unit <: Unit, N}(context::Context{unit}, x::Union{Vector{C
 end
 function Base.push!{unit <: Unit}(context::Context{unit}, x::Composable)
     x = convert!(unit, x)
-    context.boundingbox = const_lift(union, boundingbox(context), boundingbox(x))
+    context.boundingbox = const_lift(identity, boundingbox(x))
     transformation(x, transformation(context))
     push!(context.children, x)
     context
