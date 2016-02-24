@@ -7,8 +7,8 @@ function Base.show(io::IO, obj::RenderObject)
     for (name, uniform) in obj.uniforms
         println(io, "   ", name, "\n      ", uniform)
     end
-    println(io, "vertexarray length: ", obj.vertexarray.length)
-    println(io, "vertexarray indexlength: ", obj.vertexarray.indexes)
+    println(io, "vertexarray length: ", length(obj.vertexarray))
+    println(io, "vertexarray indexlength: ", obj.vertexarray.indices)
 end
 
 
@@ -85,3 +85,29 @@ function extract_renderable(context::Context)
 end
 transformation(c::RenderObject) = c[:model]
 transformation(c::RenderObject, model) = (c[:model] = const_lift(*, model, c[:model]))
+
+
+"""
+Copy function for a context. We only need to copy the children
+"""
+function Base.copy{T}(c::GLAbstraction.Context{T})
+    new_children = [copy(child) for child in c.children]
+    Context{T}(new_children, c.boundingbox, c.transformation)
+end
+
+
+"""
+Copy function for a RenderObject. We only copy the uniform dict
+"""
+function Base.copy(robj::GLAbstraction.RenderObject)
+    uniforms = Dict{Symbol, Any}([k=>v for (k,v) in robj.uniforms])
+    robj = RenderObject(
+        robj.main,
+        uniforms,
+        robj.vertexarray,
+        robj.prerenderfunctions,
+        robj.postrenderfunctions,
+        robj.boundingbox,
+    )
+    Context(robj)
+end

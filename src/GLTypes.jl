@@ -180,7 +180,7 @@ function Base.show(io::IO, vao::GLVertexArray)
     println(io, "GLVertexArray $(vao.id):")
     print(  io, "GLVertexArray $(vao.id) buffers: ")
     writemime(io, MIME("text/plain"), vao.buffers)
-    println(io, "\nGLVertexArray $(vao.id) indexes: ", vao.indexes)
+    println(io, "\nGLVertexArray $(vao.id) indices: ", vao.indices)
 end
 
 
@@ -196,10 +196,22 @@ type RenderObject <: Composable{DeviceUnit}
     postrenderfunctions ::Dict{Function, Tuple}
     id                  ::GLushort
     boundingbox          # workaround for having lazy boundingbox queries, while not using multiple dispatch for boundingbox function (No type hierarchy for RenderObjects)
+    function RenderObject(
+            main, uniforms::Dict{Symbol, Any}, vertexarray::GLVertexArray, 
+            prerenderfunctions::Dict{Function, Tuple}, postrenderfunctions::Dict{Function, Tuple}, 
+            boundingbox
+        )
+        global RENDER_OBJECT_ID_COUNTER
+        RENDER_OBJECT_ID_COUNTER += one(GLushort)
+        new(
+            main, uniforms, vertexarray, 
+            prerenderfunctions, postrenderfunctions,
+            RENDER_OBJECT_ID_COUNTER, boundingbox
+        )
+    end
+
 end
 function RenderObject(data::Dict{Symbol, Any}, program, bbs=Signal(AABB{Float32}(Vec3f0(0),Vec3f0(1))), main=nothing)
-    global RENDER_OBJECT_ID_COUNTER
-    RENDER_OBJECT_ID_COUNTER += one(GLushort)
     targets = get(data, :gl_convert_targets, Dict())
     delete!(data, :gl_convert_targets)
     passthrough = Dict{Symbol, Any}() # we also save a few non opengl related values in data
@@ -232,17 +244,17 @@ function RenderObject(data::Dict{Symbol, Any}, program, bbs=Signal(AABB{Float32}
     merge!(data, passthrough) # in the end, we insert back the non opengl data, to keep things simple
     p = value(gl_convert(value(program), data)) # "compile" lazyshader
     vertexarray = GLVertexArray(Dict(buffers), p)
-    data[:objectid] = RENDER_OBJECT_ID_COUNTER # automatucally integrate object ID, will be discarded if shader doesn't use it
-
-    return RenderObject(
+    robj = RenderObject(
         main,
         data,
         vertexarray,
         Dict{Function, Tuple}(),
         Dict{Function, Tuple}(),
-        RENDER_OBJECT_ID_COUNTER,
         bbs
     )
+    # automatucally integrate object ID, will be discarded if shader doesn't use it
+    robj[:objectid] = robj.id
+    robj
 end
 
 include("GLRenderObject.jl")

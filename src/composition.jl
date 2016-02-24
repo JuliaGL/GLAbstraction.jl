@@ -7,7 +7,7 @@ immutable DeviceUnit <: Unit end
 type Context{Unit} <: Composable{Unit}
     children::Vector{Composable}
     boundingbox::Signal{AABB{Float32}}
-    transformation::Signal{Mat{4,4, Float32}}
+    transformation::Signal{Mat4f0}
 end
 Context() = Context{DeviceUnit}(Composable[], Signal(AABB{Float32}(Vec3f0(0), Vec3f0(0))), Signal(eye(Mat{4,4, Float32})))
 Context(trans::Signal{Mat{4,4, Float32}}) = Context{DeviceUnit}(Composable[], Signal(AABB{Float32}(Vec3f0(0), Vec3f0(0))), trans)
