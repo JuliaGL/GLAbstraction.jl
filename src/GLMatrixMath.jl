@@ -86,8 +86,13 @@ function frustum{T}(left::T, right::T, bottom::T, top::T, znear::T, zfar::T)
     )
 end
 
-perspectiveprojection{T}(wh::SimpleRectangle, fov::T, near::T, far::T) = perspectiveprojection(fov, T(wh.w/wh.h), near, far)
-perspectiveprojection{T}(::Type{T}, wh::SimpleRectangle, fov::Number, near::Number, far::Number) = perspectiveprojection(T(fov), T(wh.w/wh.h), T(near), T(far))
+"""
+`proj = perspectiveprojection([T], fovy, aspect, znear, zfar)` defines
+a projection matrix with a given angular field-of-view `fovy` along
+the y-axis (measured in degrees), the specified `aspect` ratio, and
+near and far clipping planes `znear`, `zfar`. Optionally specify the
+element type `T` of the matrix.
+"""
 function perspectiveprojection{T}(fovy::T, aspect::T, znear::T, zfar::T)
     (znear == zfar) && error("znear ($znear) must be different from tfar ($zfar)")
     h = T(tan(fovy / 360.0 * pi) * znear)
@@ -95,6 +100,13 @@ function perspectiveprojection{T}(fovy::T, aspect::T, znear::T, zfar::T)
     return frustum(-w, w, -h, h, znear, zfar)
 end
 perspectiveprojection{T}(::Type{T}, fovy::Number, aspect::Number, znear::Number, zfar::Number) = perspectiveprojection(T(fovy), T(aspect), T(znear), T(zfar))
+"""
+`proj = perspectiveprojection([T], rect, fov, near, far)` defines the
+projection ratio in terms of the rectangular view size `rect` rather
+than the aspect ratio.
+"""
+perspectiveprojection{T}(wh::SimpleRectangle, fov::T, near::T, far::T) = perspectiveprojection(fov, T(wh.w/wh.h), near, far)
+perspectiveprojection{T}(::Type{T}, wh::SimpleRectangle, fov::Number, near::Number, far::Number) = perspectiveprojection(T(fov), T(wh.w/wh.h), T(near), T(far))
 
 function lookat{T}(eyePos::Vec{3, T}, lookAt::Vec{3, T}, up::Vec{3, T})
     zaxis  = normalize(eyePos-lookAt)
