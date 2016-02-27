@@ -2,8 +2,8 @@ import GLFW
 using ModernGL, GeometryTypes, GLAbstraction, Images
 
 # Load our textures. See "downloads.jl" to get the images.
-kitten = load(Pkg.dir("GLAbstraction", "tutorials", "kitten.png"))
-puppy  = load(Pkg.dir("GLAbstraction", "tutorials", "puppy.png"))
+kitten = load(Pkg.dir("GLAbstraction", "tutorials", "images", "kitten.png"))
+puppy  = load(Pkg.dir("GLAbstraction", "tutorials", "images", "puppy.png"))
 
 # Create the window
 # Specify minimum versions
