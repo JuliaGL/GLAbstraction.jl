@@ -235,6 +235,10 @@ function TemplateProgram(kw_args::Dict{Symbol, Any}, s::Signal{Shader}, shaders:
     Reactive.preserve(program_signal)
     program_signal
 end
+function TemplateProgram(kw_args::Dict{Symbol, Any}, shaders::Union{Shader,Signal{Shader}}...)
+    newshaders = map(s->isa(s, Shader) ? Signal(s) : s, shaders)
+    TemplateProgram(kw_args, newshaders...)
+end
 
 function TemplateProgram(kw_args::Dict{Symbol, Any}, s::Shader, shaders::Shader...)
     @materialize program, view, attributes, fragdatalocation = kw_args
