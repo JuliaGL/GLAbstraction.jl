@@ -452,3 +452,44 @@ function PerspectiveCamera{T<:Vec3}(
         projectiontype
     )
 end
+
+
+function center_cam(camera::PerspectiveCamera, renderlist)
+    isempty(renderlist) && return nothing # nothing to do here
+    # reset camera
+    push!(camera.up, Vec3f0(0,0,1))
+    push!(camera.eyeposition, Vec3f0(3))
+    push!(camera.lookat, Vec3f0(0))
+
+    robj1 = first(renderlist)
+    bb = value(robj1[:model])*signal_boundingbox(robj1)
+    for elem in renderlist[2:end]
+        bb = union(value(elem[:model])*signal_boundingbox(elem), bb)
+    end
+    width        = widths(bb)
+    half_width   = width/2f0
+    lower_corner = minimum(bb)
+    middle       = maximum(bb) - half_width
+    if value(camera.projectiontype) == ORTHOGRAPHIC
+        area, fov, near, far = map(value,
+            (camera.window_size, camera.fov, camera.nearclip, camera.farclip)
+        )
+        h = Float32(tan(fov / 360.0 * pi) * near)
+        w_, h_, _ = half_width
+
+        zoom = min(h_,w_)/h
+        push!(camera.up, Vec3f0(0,1,0))
+        x,y,_ = middle
+        push!(camera.eyeposition, Vec3f0(x, y, zoom*2))
+        push!(camera.lookat, Vec3f0(x, y, 0))
+        push!(camera.farclip, zoom*2f0)
+
+    else
+        zoom = norm(half_width)
+        push!(camera.lookat, middle)
+        neweyepos = middle + (zoom*Vec3f0(1.2))
+        push!(camera.eyeposition, neweyepos)
+        push!(camera.up, Vec3f0(0,0,1))
+        push!(camera.farclip, zoom*50f0)
+    end
+end
