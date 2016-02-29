@@ -453,8 +453,22 @@ function PerspectiveCamera{T<:Vec3}(
     )
 end
 
+"""
+get's the boundingbox of a render object.
+needs value, because boundingbox will always return a boundingbox signal
+"""
+signal_boundingbox(robj) = value(boundingbox(robj))
 
-function center_cam(camera::PerspectiveCamera, renderlist)
+function center_cam(camera, renderlist)
+    error("centering only implemented for a PerspectiveCamera. Found: $camera")
+    #isn't really needed yet
+end
+
+
+"""
+Centers the camera on a list of render objects
+"""
+function center!(camera::PerspectiveCamera, renderlist::Vector)
     isempty(renderlist) && return nothing # nothing to do here
     # reset camera
     push!(camera.up, Vec3f0(0,0,1))
@@ -474,13 +488,19 @@ function center_cam(camera::PerspectiveCamera, renderlist)
         area, fov, near, far = map(value,
             (camera.window_size, camera.fov, camera.nearclip, camera.farclip)
         )
+        aspect = Float32(area.w/area.h)
         h = Float32(tan(fov / 360.0 * pi) * near)
+        w      = h * aspect
         w_, h_, _ = half_width
-
-        zoom = min(h_,w_)/h
+        if h_ > w_
+            zoom = h_/h
+        else
+            zoom = w_/w
+        end
+        zoom = max(h_,w_)/h
         push!(camera.up, Vec3f0(0,1,0))
         x,y,_ = middle
-        push!(camera.eyeposition, Vec3f0(x, y, zoom*2))
+        push!(camera.eyeposition, Vec3f0(x, y, zoom*1.2))
         push!(camera.lookat, Vec3f0(x, y, 0))
         push!(camera.farclip, zoom*2f0)
 
@@ -492,4 +512,12 @@ function center_cam(camera::PerspectiveCamera, renderlist)
         push!(camera.up, Vec3f0(0,0,1))
         push!(camera.farclip, zoom*50f0)
     end
+end
+
+
+"""
+Centers the camera(=:perspective) on all render objects in `window`
+"""
+function center!(window::Screen, camera=:perspective)
+    center!(window.cameras[camera], window.renderlist)
 end
