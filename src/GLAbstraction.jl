@@ -132,6 +132,7 @@ export OrthographicPixelCamera # orthographic camera with pixels as a unit
 export DummyCamera
 export Projection, PERSPECTIVE, ORTHOGRAPHIC
 export default_camera_control
+export center!
 
 include("GLInfo.jl")
 export getUniformsInfo

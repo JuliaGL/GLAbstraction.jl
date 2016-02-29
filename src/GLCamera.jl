@@ -33,8 +33,8 @@ end
 function DummyCamera(;
         window_size    = Signal(SimpleRectangle(-1, -1, 1, 1)),
         view           = Signal(eye(Mat{4,4, Float32})),
-        nearclip       = Signal(10000f0),
-        farclip        = Signal(-10000f0),
+        nearclip       = Signal(-10_000f0),
+        farclip        = Signal(10_000f0),
         projection     = const_lift(orthographicprojection, window_size, nearclip, farclip),
         projectionview = const_lift(*, projection, view)
     )
@@ -451,4 +451,67 @@ function PerspectiveCamera{T<:Vec3}(
         theta,
         projectiontype
     )
+end
+
+"""
+get's the boundingbox of a render object.
+needs value, because boundingbox will always return a boundingbox signal
+"""
+signal_boundingbox(robj) = value(boundingbox(robj))
+
+
+"""
+Centers the camera on a list of render objects
+"""
+function center!(camera::PerspectiveCamera, renderlist::Vector)
+    isempty(renderlist) && return nothing # nothing to do here
+    # reset camera
+    push!(camera.up, Vec3f0(0,0,1))
+    push!(camera.eyeposition, Vec3f0(3))
+    push!(camera.lookat, Vec3f0(0))
+
+    robj1 = first(renderlist)
+    bb = value(robj1[:model])*signal_boundingbox(robj1)
+    for elem in renderlist[2:end]
+        bb = union(value(elem[:model])*signal_boundingbox(elem), bb)
+    end
+    width        = widths(bb)
+    half_width   = width/2f0
+    lower_corner = minimum(bb)
+    middle       = maximum(bb) - half_width
+    if value(camera.projectiontype) == ORTHOGRAPHIC
+        area, fov, near, far = map(value,
+            (camera.window_size, camera.fov, camera.nearclip, camera.farclip)
+        )
+        aspect = Float32(area.w/area.h)
+        h = Float32(tan(fov / 360.0 * pi) * near)
+        w      = h * aspect
+        w_, h_, _ = half_width
+        if h_ > w_
+            zoom = h_/h
+        else
+            zoom = w_/w
+        end
+        zoom = max(h_,w_)/h
+        push!(camera.up, Vec3f0(0,1,0))
+        x,y,_ = middle
+        push!(camera.eyeposition, Vec3f0(x, y, zoom*1.2f0))
+        push!(camera.lookat, Vec3f0(x, y, 0))
+        push!(camera.farclip, zoom*20f0)
+
+    else
+        push!(camera.lookat, middle)
+        neweyepos = middle + (width*1.2f0)
+        push!(camera.eyeposition, neweyepos)
+        push!(camera.up, Vec3f0(0,0,1))
+        push!(camera.farclip, norm(width)*20f0)
+    end
+end
+
+
+"""
+Centers the camera(=:perspective) on all render objects in `window`
+"""
+function center!(window, camera=:perspective)
+    center!(window.cameras[camera], window.renderlist)
 end
