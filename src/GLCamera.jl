@@ -33,8 +33,8 @@ end
 function DummyCamera(;
         window_size    = Signal(SimpleRectangle(-1, -1, 1, 1)),
         view           = Signal(eye(Mat{4,4, Float32})),
-        nearclip       = Signal(10000f0),
-        farclip        = Signal(-10000f0),
+        nearclip       = Signal(-10_000f0),
+        farclip        = Signal(10_000f0),
         projection     = const_lift(orthographicprojection, window_size, nearclip, farclip),
         projectionview = const_lift(*, projection, view)
     )
@@ -459,11 +459,6 @@ needs value, because boundingbox will always return a boundingbox signal
 """
 signal_boundingbox(robj) = value(boundingbox(robj))
 
-function center!(camera, renderlist)
-    error("centering only implemented for a PerspectiveCamera. Found: $camera")
-    #isn't really needed yet
-end
-
 
 """
 Centers the camera on a list of render objects
@@ -500,17 +495,16 @@ function center!(camera::PerspectiveCamera, renderlist::Vector)
         zoom = max(h_,w_)/h
         push!(camera.up, Vec3f0(0,1,0))
         x,y,_ = middle
-        push!(camera.eyeposition, Vec3f0(x, y, zoom*1.2))
+        push!(camera.eyeposition, Vec3f0(x, y, zoom*1.2f0))
         push!(camera.lookat, Vec3f0(x, y, 0))
-        push!(camera.farclip, zoom*2f0)
+        push!(camera.farclip, zoom*20f0)
 
     else
-        zoom = norm(half_width)
         push!(camera.lookat, middle)
-        neweyepos = middle + (zoom*Vec3f0(1.2))
+        neweyepos = middle + (width*1.2f0)
         push!(camera.eyeposition, neweyepos)
         push!(camera.up, Vec3f0(0,0,1))
-        push!(camera.farclip, zoom*50f0)
+        push!(camera.farclip, norm(width)*20f0)
     end
 end
 
