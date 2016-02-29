@@ -518,6 +518,6 @@ end
 """
 Centers the camera(=:perspective) on all render objects in `window`
 """
-function center!(window::Screen, camera=:perspective)
+function center!(window, camera=:perspective)
     center!(window.cameras[camera], window.renderlist)
 end
