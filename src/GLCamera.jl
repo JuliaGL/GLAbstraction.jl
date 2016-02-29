@@ -459,7 +459,7 @@ needs value, because boundingbox will always return a boundingbox signal
 """
 signal_boundingbox(robj) = value(boundingbox(robj))
 
-function center_cam(camera, renderlist)
+function center!(camera, renderlist)
     error("centering only implemented for a PerspectiveCamera. Found: $camera")
     #isn't really needed yet
 end
