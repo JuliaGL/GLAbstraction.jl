@@ -108,6 +108,14 @@ than the aspect ratio.
 perspectiveprojection{T}(wh::SimpleRectangle, fov::T, near::T, far::T) = perspectiveprojection(fov, T(wh.w/wh.h), near, far)
 perspectiveprojection{T}(::Type{T}, wh::SimpleRectangle, fov::Number, near::Number, far::Number) = perspectiveprojection(T(fov), T(wh.w/wh.h), T(near), T(far))
 
+"""
+`view = lookat(eyeposition, lookat, up)` creates a view matrix with
+the eye located at `eyeposition` and looking at position `lookat`,
+with the top of the window corresponding to the direction `up`. Only
+the component of `up` that is perpendicular to the vector pointing
+from `eyeposition` to `lookat` will be used.  All inputs must be
+supplied as 3-vectors.
+"""
 function lookat{T}(eyePos::Vec{3, T}, lookAt::Vec{3, T}, up::Vec{3, T})
     zaxis  = normalize(eyePos-lookAt)
     xaxis  = normalize(cross(up,    zaxis))
