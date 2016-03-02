@@ -6,6 +6,29 @@ using ModernGL, GeometryTypes
 # deliberately low-level.
 using GLAbstraction
 
+# A more comprehensive setting of GLFW window hints. Setting all
+# window hints reduces platform variance.
+# In future files, we'll make use of GLWindow to handle this automatically.
+window_hint = [
+    (GLFW.SAMPLES,      4),
+    (GLFW.DEPTH_BITS,   0),
+
+    (GLFW.ALPHA_BITS,   8),
+    (GLFW.RED_BITS,     8),
+    (GLFW.GREEN_BITS,   8),
+    (GLFW.BLUE_BITS,    8),
+    (GLFW.STENCIL_BITS, 0),
+    (GLFW.AUX_BUFFERS,  0),
+    (GLFW.CONTEXT_VERSION_MAJOR, 3),# minimum OpenGL v. 3
+    (GLFW.CONTEXT_VERSION_MINOR, 0),# minimum OpenGL v. 3.0
+    (GLFW.OPENGL_PROFILE, GLFW.OPENGL_ANY_PROFILE),
+    (GLFW.OPENGL_FORWARD_COMPAT, GL_TRUE),
+]
+
+for (key, value) in window_hint
+    GLFW.WindowHint(key, value)
+end
+
 # Create the window
 window = GLFW.CreateWindow(800, 600, "Drawing polygons 1")
 GLFW.MakeContextCurrent(window)

@@ -1,13 +1,7 @@
-# Here, we illustrate a more "julian" implementation that leverages
-# some of the advantages of GLAbstraction
-import GLFW
-using ModernGL, GeometryTypes, GLAbstraction
+using ModernGL, GeometryTypes, GLAbstraction, GLWindow
 
-# Create the window
-window = GLFW.CreateWindow(800, 600, "Drawing polygons 5")
-GLFW.MakeContextCurrent(window)
-# Retain keypress events
-GLFW.SetInputMode(window, GLFW.STICKY_KEYS, GL_TRUE)
+# Create the window. This sets all the hints and makes the context current.
+window = create_glcontext("Drawing polygons exercise 2", resolution=(800,600))
 
 # A slightly-simplified VAO generator call
 vao = glGenVertexArrays()

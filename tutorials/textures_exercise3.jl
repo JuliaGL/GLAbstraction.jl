@@ -1,13 +1,10 @@
-import GLFW
-using ModernGL, GeometryTypes, GLAbstraction, Images
+using ModernGL, GeometryTypes, GLAbstraction, GLWindow, Images
 
 # Load our texture. See "downloads.jl" to get the images.
 img = load("images/kitten.png")
 
-# Create the window
-window = GLFW.CreateWindow(800, 800, "Textures 3")
-GLFW.MakeContextCurrent(window)
-GLFW.SetInputMode(window, GLFW.STICKY_KEYS, GL_TRUE)
+# Create the window. This sets all the hints and makes the context current.
+window = create_glcontext("Textures exercise 3", resolution=(800,600))
 
 vao = glGenVertexArrays()
 glBindVertexArray(vao)

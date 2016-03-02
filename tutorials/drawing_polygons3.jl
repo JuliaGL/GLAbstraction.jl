@@ -1,12 +1,8 @@
 # Another "low-level" example, this one incorporating per-vertex color
-import GLFW
-using ModernGL, GeometryTypes, GLAbstraction
+using ModernGL, GeometryTypes, GLAbstraction, GLWindow
 
-# Create the window
-window = GLFW.CreateWindow(800, 600, "Drawing polygons 3")
-GLFW.MakeContextCurrent(window)
-# Retain keypress events
-GLFW.SetInputMode(window, GLFW.STICKY_KEYS, GL_TRUE)
+# Create the window. This sets all the hints and makes the context current.
+window = create_glcontext("Drawing polygons 3", resolution=(800,600))
 
 # Create the Vertex Array Object (VAO) and make it current
 # Note that while the tutorial describes this after the attributes (below),
