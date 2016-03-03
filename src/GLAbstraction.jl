@@ -107,7 +107,7 @@ export scalematrix #returns scale matrix
 export lookat # creates the lookat matrix
 export perspectiveprojection
 export orthographicprojection
-export translationmatrix, translatematrix_y, translatematrix_z # translates in x, y, z direction
+export translationmatrix, translationmatrix_x, translationmatrix_y, translationmatrix_z # translates in x, y, z direction
 export rotationmatrix_x, rotationmatrix_y, rotationmatrix_z # returns rotation matrix which rotates around x, y, z axis
 export rotation, rotate #rotation matrix for rotation between 2 vectors.
 export qrotation    # quaternion rotation
