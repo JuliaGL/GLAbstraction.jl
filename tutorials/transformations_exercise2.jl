@@ -79,7 +79,7 @@ while !GLFW.WindowShouldClose(window)
     Reactive.run_till_now()
     flipinc *= (1-flipdecay)
     flipangle += flipinc
-    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
+    glClear(GL_COLOR_BUFFER_BIT)
     render(ro)
     GLFW.SwapBuffers(window)
     GLFW.PollEvents()
