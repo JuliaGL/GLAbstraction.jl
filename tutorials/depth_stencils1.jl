@@ -4,8 +4,12 @@ using ModernGL, GeometryTypes, GLAbstraction, GLWindow, Images, FileIO
 kitten = load(Pkg.dir("GLAbstraction", "tutorials", "images", "kitten.png"))
 puppy  = load(Pkg.dir("GLAbstraction", "tutorials", "images", "puppy.png"))
 
-# Create the window. This sets all the hints and makes the context current.
-window = create_glcontext("Depth and stencils 1", resolution=(600,600))
+# create_glcontext creates a "bare" window with no depth or stencil
+# buffer. So we set window hints to override this.
+windowhints = [(GLFW.DEPTH_BITS, 32), (GLFW.STENCIL_BITS, 8)]
+window = create_glcontext("Depth and stencils 1",
+                          resolution=(600,600),
+                          windowhints=windowhints)
 
 vao = glGenVertexArrays()
 glBindVertexArray(vao)
