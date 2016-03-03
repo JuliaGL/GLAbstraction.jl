@@ -29,13 +29,15 @@ Base.setindex!(obj::RenderObject, value, ::Val{:postrender}, x::Function) = obj.
 function instanced_renderobject(data, program, bb=Signal(AABB(Vec3f0(0), Vec3f0(1))), primitive::GLenum=GL_TRIANGLES, main=nothing)
     robj = RenderObject(data, program, bb, main)
     prerender!(robj,
-        glEnable, GL_DEPTH_TEST,
-        glDepthMask, GL_TRUE,
-        glDepthFunc, GL_LEQUAL,
-        glDisable, GL_CULL_FACE,
-        enabletransparency)
+               glEnable, GL_DEPTH_TEST,
+               glDepthMask, GL_TRUE,
+               glDepthFunc, GL_LEQUAL,
+               glDisable, GL_STENCIL_TEST,
+               glStencilMask, 0xff,
+               glDisable, GL_CULL_FACE,
+               enabletransparency)
     postrender!(robj,
-        renderinstanced, robj.vertexarray, value(main), primitive)
+                renderinstanced, robj.vertexarray, value(main), primitive)
     robj
 end
 
@@ -44,13 +46,15 @@ end
 function std_renderobject(data, shader, bb=Signal(AABB(Vec3f0(0), Vec3f0(1))), primitive=GL_TRIANGLES, main=nothing)
     robj = RenderObject(data, shader, bb, main)
     prerender!(robj,
-        glEnable, GL_DEPTH_TEST,
-        glDepthMask, GL_TRUE,
-        glDepthFunc, GL_LEQUAL,
-        glDisable, GL_CULL_FACE,
-        enabletransparency)
+               glEnable, GL_DEPTH_TEST,
+               glDepthMask, GL_TRUE,
+               glDepthFunc, GL_LEQUAL,
+               glDisable, GL_STENCIL_TEST,
+               glStencilMask, 0xff,
+               glDisable, GL_CULL_FACE,
+               enabletransparency)
     postrender!(robj,
-        render, robj.vertexarray, primitive)
+                render, robj.vertexarray, primitive)
     robj
 end
 pushfunction(fs...) = pushfunction!(Dict{Function, Tuple}(), fs...)

@@ -16,8 +16,8 @@ a lot of objects.
 """
 function render(renderobject::RenderObject, vertexarray=renderobject.vertexarray)
     if Bool(value(renderobject.uniforms[:visible]))
-        for elem in renderobject.prerenderfunctions
-            elem[1](elem[2]...)
+        for (f,args) in renderobject.prerenderfunctions
+            f(args...)
         end
         program = vertexarray.program
         glUseProgram(program.id)
@@ -26,8 +26,7 @@ function render(renderobject::RenderObject, vertexarray=renderobject.vertexarray
                 gluniform(value..., renderobject.uniforms[key])
             end
         end
-        for elem in renderobject.postrenderfunctions
-            f, args = elem
+        for (f,args) in renderobject.postrenderfunctions
             f(args...)
         end
     end
