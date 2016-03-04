@@ -47,7 +47,7 @@ void main()
     gl_Position = proj * view * model * vec4(position, 0.0, 1.0);
 }
 """
-fragment_shader = load("shaders/puppykitten.frag")
+fragment_shader = load(joinpath(dirname(@__FILE__), "shaders", "puppykitten.frag"))
 
 # Define the transformation
 model = Signal(rotate(0f0, Vec((0,0,1f0))))

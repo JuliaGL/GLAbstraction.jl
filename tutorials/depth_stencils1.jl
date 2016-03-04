@@ -126,7 +126,7 @@ void main()
     gl_Position = proj * view * model * vec4(position, 1.0);
 }
 """
-fragment_shader = load("shaders/puppykitten_color.frag")
+fragment_shader = load(joinpath(dirname(@__FILE__), "shaders", "puppykitten_color.frag"))
 
 model = eye(Mat{4,4,Float32})
 view = lookat(Vec3((1.2f0, 1.2f0, 1.2f0)), Vec3((0f0, 0f0, 0f0)), Vec3((0f0, 0f0, 1f0)))

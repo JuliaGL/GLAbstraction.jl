@@ -47,7 +47,7 @@ void main()
     gl_Position = trans*vec4(position, 0.0, 1.0);
 }
 """
-fragment_shader = load("shaders/puppykitten.frag")
+fragment_shader = load(joinpath(dirname(@__FILE__), "shaders", "puppykitten.frag"))
 
 # Define the rotation matrix (could also use rotationmatrix_z)
 # By wrapping it in a Signal, we can easily update it.

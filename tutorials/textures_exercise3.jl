@@ -1,7 +1,7 @@
 using ModernGL, GeometryTypes, GLAbstraction, GLWindow, Images
 
 # Load our texture. See "downloads.jl" to get the images.
-img = load("images/kitten.png")
+img = load(Pkg.dir("GLAbstraction", "tutorials", "images", "kitten.png"))
 
 # Create the window. This sets all the hints and makes the context current.
 window = create_glcontext("Textures exercise 3", resolution=(800,600))
@@ -85,6 +85,7 @@ amplitude_loc = glGetUniformLocation(prog.id, "amplitude")
 
 # Draw until we receive a close event
 while !GLFW.WindowShouldClose(window)
+    glClear(GL_COLOR_BUFFER_BIT)
     amp = mod(time(), 2)/5
     phase = 2pi*mod(time(), 1)
     glUniform1f(amplitude_loc, Float32(amp))
