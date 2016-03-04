@@ -1,38 +1,11 @@
-import GLFW
-using ModernGL, GeometryTypes, GLAbstraction, Images
+using ModernGL, GeometryTypes, GLAbstraction, GLWindow, Images
 
 # Load our textures. See "downloads.jl" to get the images.
 kitten = load(Pkg.dir("GLAbstraction", "tutorials", "images", "kitten.png"))
 puppy  = load(Pkg.dir("GLAbstraction", "tutorials", "images", "puppy.png"))
 
-# Create the window
-# Specify minimum versions
-# It's always good to set all window hints, since it reduces platform variances!
-window_hint = [
-    (GLFW.SAMPLES,      4),
-    (GLFW.DEPTH_BITS,   0),
-
-    (GLFW.ALPHA_BITS,   8),
-    (GLFW.RED_BITS,     8),
-    (GLFW.GREEN_BITS,   8),
-    (GLFW.BLUE_BITS,    8),
-    (GLFW.STENCIL_BITS, 0),
-    (GLFW.AUX_BUFFERS,  0),
-    (GLFW.CONTEXT_VERSION_MAJOR, 3),# minimum OpenGL v. 3
-    (GLFW.CONTEXT_VERSION_MINOR, 0),# minimum OpenGL v. 3.2
-    (GLFW.OPENGL_PROFILE, GLFW.OPENGL_ANY_PROFILE),
-    (GLFW.OPENGL_FORWARD_COMPAT, GL_TRUE),
-
-]
-
-for (key, value) in window_hint
-    GLFW.WindowHint(key, value)
-end
-
-window = GLFW.CreateWindow(800, 800, "Textures 2")
-GLFW.MakeContextCurrent(window)
-GLFW.ShowWindow(window)
-GLFW.SetInputMode(window, GLFW.STICKY_KEYS, GL_TRUE)
+# Create the window. This sets all the hints and makes the context current.
+window = create_glcontext("Textures exercise 1", resolution=(800,600))
 
 # The positions of the vertices in our rectangle
 vertex_positions = Point{2,Float32}[(-0.5,  0.5),     # top-left

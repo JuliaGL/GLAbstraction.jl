@@ -18,5 +18,31 @@ The earliest files are deliberately low-level, using just
 [GLFW](https://github.com/JuliaGL/GLFW.jl) and
 [ModernGL](https://github.com/JuliaGL/ModernGL.jl)---they are
 essentially direct, minimal translations of the C++ code. Starting
-with `drawing_polygons5.jl`, more of the "julian" conveniences
-available in GLAbstraction are introduced.
+with `drawing_polygons2.jl`, we illustrate the use of
+[GLWindow](https://github.com/JuliaGL/GLWindow.jl) for simplifying
+window/context creation.  Starting with `drawing_polygons5.jl`, more
+of the "julian" conveniences available in GLAbstraction are
+introduced. With `transformations1.jl`, we start making limited use of
+[Reactive.jl](https://github.com/JuliaLang/Reactive.jl) for
+animations.
+
+Some of the files require external resources; it's recommended that
+you first `include("downloads.jl")` to download all the relevant
+files.
+
+The sequence of tutorials is:
+
+- [`context_creation.jl`](context_creation.jl)
+- [`drawing_polygons1.jl`](drawing_polygons1.jl)
+- [`drawing_polygons2.jl`](drawing_polygons2.jl)
+- [`drawing_polygons3.jl`](drawing_polygons3.jl)
+- [`drawing_polygons4.jl`](drawing_polygons4.jl)
+- [`drawing_polygons5.jl`](drawing_polygons5.jl)
+- exercise files for drawing polygons
+- [`textures1.jl`](textures1.jl)
+- [`textures2.jl`](textures2.jl)
+- exercise files for textures
+- [`transformations1.jl`](transformations1.jl)
+- [`transformations2.jl`](transformations2.jl)
+- exercise files for transformations
+- [`depth_stencils1.jl`](depth_stencils1.jl)

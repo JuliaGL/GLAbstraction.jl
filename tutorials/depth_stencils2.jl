@@ -4,10 +4,8 @@ using ModernGL, GeometryTypes, GLAbstraction, GLWindow, Images, FileIO
 kitten = load(Pkg.dir("GLAbstraction", "tutorials", "images", "kitten.png"))
 puppy  = load(Pkg.dir("GLAbstraction", "tutorials", "images", "puppy.png"))
 
-# create_glcontext creates a "bare" window with no depth or stencil
-# buffer. So we set window hints to override this.
 windowhints = [(GLFW.DEPTH_BITS, 32), (GLFW.STENCIL_BITS, 8)]
-window = create_glcontext("Depth and stencils 1",
+window = create_glcontext("Depth and stencils 2",
                           resolution=(600,600),
                           windowhints=windowhints)
 
@@ -17,6 +15,7 @@ glBindVertexArray(vao)
 # The cube. This could be more efficiently represented using indexes,
 # but the tutorial doesn't do it that way.
 vertex_positions = Vec3f0[
+    # The cube
     (-0.5f0, -0.5f0, -0.5f0),
     ( 0.5f0, -0.5f0, -0.5f0),
     ( 0.5f0,  0.5f0, -0.5f0),
@@ -57,10 +56,20 @@ vertex_positions = Vec3f0[
     ( 0.5f0,  0.5f0,  0.5f0),
     ( 0.5f0,  0.5f0,  0.5f0),
     (-0.5f0,  0.5f0,  0.5f0),
-    (-0.5f0,  0.5f0, -0.5f0),
+    (-0.5f0,  0.5f0, -0.5f0)]
+
+floor_positions = Vec3f0[
+    # The floor
+    (-1.0f0, -1.0f0, -0.5f0),
+    ( 1.0f0, -1.0f0, -0.5f0),
+    ( 1.0f0,  1.0f0, -0.5f0),
+    ( 1.0f0,  1.0f0, -0.5f0),
+    (-1.0f0,  1.0f0, -0.5f0),
+    (-1.0f0, -1.0f0, -0.5f0)
 ]
 
 vertex_texcoords = Vec2f0[
+                          # The cube
                           (0.0f0, 0.0f0),
                           (1.0f0, 0.0f0),
                           (1.0f0, 1.0f0),
@@ -103,7 +112,17 @@ vertex_texcoords = Vec2f0[
                           (0.0f0, 0.0f0),
                           (0.0f0, 1.0f0)]
 
+floor_texcoords = Vec2f0[
+                          # The floor
+                          (0.0f0, 0.0f0),
+                          (1.0f0, 0.0f0),
+                          (1.0f0, 1.0f0),
+                          (1.0f0, 1.0f0),
+                          (0.0f0, 1.0f0),
+                          (0.0f0, 0.0f0)]
+
 vertex_colors = fill(Vec3f0(1,1,1), 36)
+floor_colors = fill(Vec3f0(0,0,0),6)
 
 vertex_shader = vert"""
 #version 150
@@ -115,42 +134,93 @@ in vec2 texcoord;
 out vec3 Color;
 out vec2 Texcoord;
 
+uniform vec3 overrideColor;
 uniform mat4 model;
 uniform mat4 view;
 uniform mat4 proj;
 
 void main()
 {
-    Color = color;
+    Color = overrideColor * color;
     Texcoord = texcoord;
     gl_Position = proj * view * model * vec4(position, 1.0);
 }
 """
 fragment_shader = load(joinpath(dirname(@__FILE__), "shaders", "puppykitten_color.frag"))
 
-model = eye(Mat{4,4,Float32})
-view = lookat(Vec3((1.2f0, 1.2f0, 1.2f0)), Vec3((0f0, 0f0, 0f0)), Vec3((0f0, 0f0, 1f0)))
-proj = perspectiveprojection(Float32, 45, 800/600, 1, 10)
+model1 = eye(Mat{4,4,Float32})
+model2 = translationmatrix_z(-1f0) * scalematrix(Vec3f0(1,1,-1))
+view = lookat(Vec3f0((2.5, 2.5, 2)), Vec3f0((0, 0, 0)), Vec3f0((0, 0, 1)))
+proj = perspectiveprojection(Float32, 45, 600/600, 1, 10)
 
-# Link everything together, using the corresponding shader variable as
-# the Dict key
-bufferdict = Dict(:position=>GLBuffer(vertex_positions),
-                  :texcoord=>GLBuffer(vertex_texcoords),
-                  :color=>GLBuffer(vertex_colors),
-                  :texKitten=>Texture(data(kitten)),
-                  :texPuppy=>Texture(data(puppy)),
-                  :model=>model,
-                  :view=>view,
-                  :proj=>proj)
+## Now render the distinct objects. Rather than always using std_renderobject,
+## here we control the settings manually.
+# The cube
+bufferdict_cube = Dict(:position=>GLBuffer(vertex_positions),
+                       :texcoord=>GLBuffer(vertex_texcoords),
+                       :color=>GLBuffer(vertex_colors),
+                       :texKitten=>Texture(data(kitten)),
+                       :texPuppy=>Texture(data(puppy)),
+                       :overrideColor=>Vec3f0((1,1,1)),
+                       :model=>model1,
+                       :view=>view,
+                       :proj=>proj)
 
-ro = std_renderobject(bufferdict,
-                      LazyShader(vertex_shader, fragment_shader))
+ro_cube = std_renderobject(bufferdict_cube,
+                           LazyShader(vertex_shader, fragment_shader))
+prerender!(ro_cube,
+    glDisable, GL_STENCIL_TEST
+)
+# The floor. This is drawn without writing to the depth buffer, but we
+# write stencil values.
+bufferdict_floor = Dict(:position=>GLBuffer(floor_positions),
+                        :texcoord=>GLBuffer(floor_texcoords),
+                        :color=>GLBuffer(floor_colors),
+                        :texKitten=>Texture(data(kitten)), # with different shaders, wouldn't need these here
+                        :texPuppy=>Texture(data(puppy)),
+                        :overrideColor=>Vec3f0((1,1,1)),
+                        :model=>model1,
+                        :view=>view,
+                        :proj=>proj)
 
-# Do the rendering: note that GLAbstraction automatically sets GL_DEPTH_TEST
-glClearColor(0,0,0,1)
+ro_floor = RenderObject(bufferdict_floor,
+                        LazyShader(vertex_shader, fragment_shader))
+prerender!(ro_floor,
+           glDepthMask, GL_FALSE,                  # don't write to depth buffer
+           glEnable, GL_STENCIL_TEST,              # use stencils
+           glStencilMask, 0xff,                    # do write to stencil buffer
+           glStencilFunc, GL_ALWAYS, 1, 0xff,      # all pass
+           glStencilOp, GL_KEEP, GL_KEEP, GL_REPLACE,  # replace stencil value
+           glClear, GL_STENCIL_BUFFER_BIT)         # start with empty buffer
+postrender!(ro_floor,
+            render, ro_floor.vertexarray, GL_TRIANGLES)
+
+# The cube reflection
+bufferdict_refl = Dict(:position=>GLBuffer(vertex_positions),
+                       :texcoord=>GLBuffer(vertex_texcoords),
+                       :color=>GLBuffer(vertex_colors),
+                       :texKitten=>Texture(data(kitten)),
+                       :texPuppy=>Texture(data(puppy)),
+                       :overrideColor=>Vec3f0((0.3,0.3,0.3)),
+                       :model=>model2,
+                       :view=>view,
+                       :proj=>proj)
+
+ro_refl = RenderObject(bufferdict_refl,
+                       LazyShader(vertex_shader, fragment_shader))
+prerender!(ro_refl,
+           glStencilFunc, GL_EQUAL, 1, 0xff,
+           glStencilMask, 0x00)
+postrender!(ro_refl,
+            render, ro_refl.vertexarray, GL_TRIANGLES)
+
+glClearColor(1,1,1,1) # make the background white, so we can see the floor
+glClearStencil(0)     # clear the stencil buffer with 0
+
 while !GLFW.WindowShouldClose(window)
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
-    render(ro)
+    render([ro_cube, ro_floor, ro_refl])
+
     GLFW.SwapBuffers(window)
     GLFW.PollEvents()
     if GLFW.GetKey(window, GLFW.KEY_ESCAPE) == GLFW.PRESS

@@ -1,14 +1,12 @@
 import GLFW
-using ModernGL, GeometryTypes, GLAbstraction, Images, FileIO, Reactive
+using ModernGL, GeometryTypes, GLAbstraction, GLWindow, Images, FileIO, Reactive
 
 # Load our textures. See "downloads.jl" to get the images.
-kitten = load("images/kitten.png")
-puppy  = load("images/puppy.png")
+kitten = load(Pkg.dir("GLAbstraction", "tutorials", "images", "kitten.png"))
+puppy  = load(Pkg.dir("GLAbstraction", "tutorials", "images", "puppy.png"))
 
-# Create the window
-window = GLFW.CreateWindow(800, 800, "Transformations 2")
-GLFW.MakeContextCurrent(window)
-GLFW.SetInputMode(window, GLFW.STICKY_KEYS, GL_TRUE)
+# Create the window. This sets all the hints and makes the context current.
+window = create_glcontext("Transformations exercise 1", resolution=(600,600))
 
 vao = glGenVertexArrays()
 glBindVertexArray(vao)
@@ -50,7 +48,7 @@ void main()
     gl_Position = proj * view * model * vec4(position, 0.0, 1.0);
 }
 """
-fragment_shader = load("shaders/puppykitten.frag")
+fragment_shader = load(joinpath(dirname(@__FILE__), "shaders", "puppykitten.frag"))
 
 # Define the transformation
 model = Signal(rotate(0f0, Vec((0,0,1f0))))
@@ -76,7 +74,7 @@ glClearColor(0,0,0,1)
 while !GLFW.WindowShouldClose(window)
     push!(model, scalematrix((0.75+0.25*sin(5*time()))*Vec3((1,1,1))) * rotationmatrix_z(time()*deg2rad(180)))
     Reactive.run_till_now()
-    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
+    glClear(GL_COLOR_BUFFER_BIT)
     render(ro)
     GLFW.SwapBuffers(window)
     GLFW.PollEvents()

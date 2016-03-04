@@ -1,12 +1,9 @@
 # Another "low-level" example, this one incorporating "Uniforms"
-import GLFW
-using ModernGL, GeometryTypes, GLAbstraction
+# Here we also introduce the use of GLWindow to simplify context creation.
+using ModernGL, GeometryTypes, GLAbstraction, GLWindow
 
-# Create the window
-window = GLFW.CreateWindow(800, 600, "Drawing polygons 2")
-GLFW.MakeContextCurrent(window)
-# Retain keypress events
-GLFW.SetInputMode(window, GLFW.STICKY_KEYS, GL_TRUE)
+# Create the window. This sets all the hints and makes the context current.
+window = create_glcontext("Drawing polygons 2", resolution=(800,600))
 
 # Create the Vertex Array Object (VAO) and make it current
 # Note that while the tutorial describes this after the attributes (below),
