@@ -146,7 +146,7 @@ void main()
     gl_Position = proj * view * model * vec4(position, 1.0);
 }
 """
-fragment_shader = load("shaders/puppykitten_color.frag")
+fragment_shader = load(joinpath(dirname(@__FILE__), "shaders", "puppykitten_color.frag"))
 
 model1 = eye(Mat{4,4,Float32})
 model2 = translationmatrix_z(-1f0) * scalematrix(Vec3f0(1,1,-1))
@@ -168,7 +168,9 @@ bufferdict_cube = Dict(:position=>GLBuffer(vertex_positions),
 
 ro_cube = std_renderobject(bufferdict_cube,
                            LazyShader(vertex_shader, fragment_shader))
-
+prerender!(ro_cube,
+    glDisable, GL_STENCIL_TEST
+)
 # The floor. This is drawn without writing to the depth buffer, but we
 # write stencil values.
 bufferdict_floor = Dict(:position=>GLBuffer(floor_positions),
@@ -217,7 +219,6 @@ glClearStencil(0)     # clear the stencil buffer with 0
 
 while !GLFW.WindowShouldClose(window)
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
-    glDisable(GL_STENCIL_TEST)
     render([ro_cube, ro_floor, ro_refl])
 
     GLFW.SwapBuffers(window)
