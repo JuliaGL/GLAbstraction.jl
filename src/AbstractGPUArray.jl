@@ -71,7 +71,7 @@ function setindex!{T, N}(A::GPUArray{T, N}, value::Array{T, N}, ranges::UnitRang
 end
 
 function update!{T, N}(A::GPUArray{T, N}, value::Array{T, N})
-    if isa(A, GLBuffer) && (length(A) != length(value)) 
+    if isa(A, GLBuffer) && (length(A) != length(value))
         resize!(A, length(value))
     end
     dims = map(x->1:x, size(A))
@@ -89,7 +89,7 @@ getindex{T, N}(A::GPUArray{T, N}, rect::SimpleRectangle)                      = 
 setindex!{T, N}(A::GPUArray{T, N}, value::Array{T, N}, rect::SimpleRectangle) = (A[rect.x+1:rect.x+rect.w, rect.y+1:rect.y+rect.h] = value)
 
 
-type GPUVector{T}
+type GPUVector{T} <: GPUArray{T, 1}
     buffer
     size
     real_length
@@ -97,7 +97,7 @@ end
 GPUVector(x::GPUArray) = GPUVector{eltype(x)}(x, size(x), length(x))
 
 function update!{T}(A::GPUVector{T}, value::Vector{T})
-    if isa(A, GLBuffer) && (length(A) != length(value)) 
+    if isa(A, GLBuffer) && (length(A) != length(value))
         resize!(A, length(value))
     end
     dims = map(x->1:x, size(A))
@@ -119,8 +119,10 @@ done(b::GPUVector, state)       = done(b.buffer, state)
 
 gpu_data(A::GPUVector)          = A.buffer[1:length(A)]
 
-getindex(v::GPUVector, index)           = v.buffer[index]
-setindex!(v::GPUVector, value, index)   = v.buffer[index] = value
+getindex(v::GPUVector, index::Int)       = v.buffer[index]
+getindex(v::GPUVector, index::UnitRange) = v.buffer[index]
+setindex!{T}(v::GPUVector{T}, value::T, index::Int)    = v.buffer[index] = value
+setindex!{T}(v::GPUVector{T}, value::T, index::UnitRange)    = v.buffer[index] = value
 
 
 function grow_dimensions(real_length::Int, _size::Int, additonal_size::Int, growfactor::Real=1.5)

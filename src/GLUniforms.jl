@@ -98,13 +98,13 @@ function toglsltype_string{T}(x::T)
         error("can't splice $T into an OpenGL shader. Make sure all fields are of a concrete type and isbits(FieldType)-->true")
     end
 end
-toglsltype_string{T}(t::GLBuffer{T}) = "in $(glsl_typename(T))"
+toglsltype_string{T}(t::Union{GLBuffer{T}, GPUVector{T}}) = "in $(glsl_typename(T))"
 # Gets used to access a
 function glsl_variable_access{T,D}(keystring, t::Texture{T, D})
     t.texturetype == GL_TEXTURE_BUFFER && return "texelFetch($(keystring), index)."*"rgba"[1:length(T)]*";"
     return "getindex($(keystring), index)."*"rgba"[1:length(T)]*";"
 end
-glsl_variable_access(keystring, ::Union{Real, GLBuffer, FixedArray, Colorant}) = keystring*";"
+glsl_variable_access(keystring, ::Union{Real, GLBuffer, GPUVector, FixedArray, Colorant}) = keystring*";"
 glsl_variable_access(keystring, s::Signal) = glsl_variable_access(keystring, s.value)
 glsl_variable_access(keystring, t::Any)    = error("no glsl variable calculation available for : ", keystring, " of type ", typeof(t))
 
