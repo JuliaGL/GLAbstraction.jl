@@ -138,7 +138,7 @@ end
 returns the length of the vertex array.
 This is amount of primitives stored in the vertex array, needed for `glDrawArrays`
 """
-length(vao::GLVertexArray) = vao.bufferlength
+length(vao::GLVertexArray) = length(first(vao.buffers)[2]) # all buffers have same length, so first should do!
 
 function GLVertexArray(bufferdict::Dict, program::GLProgram)
     #get the size of the first array, to assert later, that all have the same size
@@ -197,14 +197,14 @@ type RenderObject <: Composable{DeviceUnit}
     id                  ::GLushort
     boundingbox          # workaround for having lazy boundingbox queries, while not using multiple dispatch for boundingbox function (No type hierarchy for RenderObjects)
     function RenderObject(
-            main, uniforms::Dict{Symbol, Any}, vertexarray::GLVertexArray, 
-            prerenderfunctions::Dict{Function, Tuple}, postrenderfunctions::Dict{Function, Tuple}, 
+            main, uniforms::Dict{Symbol, Any}, vertexarray::GLVertexArray,
+            prerenderfunctions::Dict{Function, Tuple}, postrenderfunctions::Dict{Function, Tuple},
             boundingbox
         )
         global RENDER_OBJECT_ID_COUNTER
         RENDER_OBJECT_ID_COUNTER += one(GLushort)
         new(
-            main, uniforms, vertexarray, 
+            main, uniforms, vertexarray,
             prerenderfunctions, postrenderfunctions,
             RENDER_OBJECT_ID_COUNTER, boundingbox
         )
