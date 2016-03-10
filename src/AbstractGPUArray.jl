@@ -71,8 +71,12 @@ function setindex!{T, N}(A::GPUArray{T, N}, value::Array{T, N}, ranges::UnitRang
 end
 
 function update!{T, N}(A::GPUArray{T, N}, value::Array{T, N})
-    if isa(A, GLBuffer) && (length(A) != length(value)) 
-        resize!(A, length(value))
+    if length(A) != length(value)
+        if isa(A, GLBuffer)
+            resize!(A, length(value))
+        else
+            error("Dynamic resizing not implemented for $(typeof(A))")
+        end
     end
     dims = map(x->1:x, size(A))
     A[dims...] = value
@@ -97,7 +101,7 @@ end
 GPUVector(x::GPUArray) = GPUVector{eltype(x)}(x, size(x), length(x))
 
 function update!{T}(A::GPUVector{T}, value::Vector{T})
-    if isa(A, GLBuffer) && (length(A) != length(value)) 
+    if isa(A, GLBuffer) && (length(A) != length(value))
         resize!(A, length(value))
     end
     dims = map(x->1:x, size(A))
