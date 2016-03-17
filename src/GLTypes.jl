@@ -138,7 +138,7 @@ end
 returns the length of the vertex array.
 This is amount of primitives stored in the vertex array, needed for `glDrawArrays`
 """
-length(vao::GLVertexArray) = vao.bufferlength
+length(vao::GLVertexArray) = length(first(vao.buffers)[2]) # all buffers have same length, so first should do!
 
 function GLVertexArray(bufferdict::Dict, program::GLProgram)
     #get the size of the first array, to assert later, that all have the same size
