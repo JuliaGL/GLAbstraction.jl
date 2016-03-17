@@ -25,57 +25,48 @@ Base.setindex!(obj::RenderObject, value, ::Val{:prerender}, x::Function)  = obj.
 Base.setindex!(obj::RenderObject, value, ::Val{:postrender}, x::Function) = obj.postrenderfunctions[x] = value
 
 
+immutable StandardPrerender
+end
+
+function call(::StandardPrerender)
+    glEnable(GL_DEPTH_TEST)
+    glDepthMask(GL_TRUE)
+    glDepthFunc(GL_LEQUAL)
+    glDisable(GL_STENCIL_TEST)
+    glStencilMask(0xff)
+    glDisable(GL_CULL_FACE)
+    enabletransparency()
+end
+immutable StandardPostrender
+    vao::VertexArray
+    primitive::GLenum
+end
+function call(sp::StandardPostrender)
+    render(sp.vao, sp.primitive)
+end
+immutable StandardPostrenderInstanced{T}
+    main::T
+    vao::VertexArray
+    primitive::GLenum
+end
+function call(sp::StandardPostrenderInstanced)
+    renderinstanced(sp.vao, value(sp.main), sp.primitive)
+end
 
 function instanced_renderobject(data, program, bb=Signal(AABB(Vec3f0(0), Vec3f0(1))), primitive::GLenum=GL_TRIANGLES, main=nothing)
     robj = RenderObject(data, program, bb, main)
-    prerender!(robj,
-               glEnable, GL_DEPTH_TEST,
-               glDepthMask, GL_TRUE,
-               glDepthFunc, GL_LEQUAL,
-               glDisable, GL_STENCIL_TEST,
-               glStencilMask, 0xff,
-               glDisable, GL_CULL_FACE,
-               enabletransparency)
-    postrender!(robj,
-                renderinstanced, robj.vertexarray, value(main), primitive)
+    robj.prerenderfunction = StandardPrerender()
+    robj.postrenderfunction = StandardPostrender(bj.vertexarray, main, primitive)
     robj
 end
-
-
 
 function std_renderobject(data, shader, bb=Signal(AABB(Vec3f0(0), Vec3f0(1))), primitive=GL_TRIANGLES, main=nothing)
     robj = RenderObject(data, shader, bb, main)
-    prerender!(robj,
-               glEnable, GL_DEPTH_TEST,
-               glDepthMask, GL_TRUE,
-               glDepthFunc, GL_LEQUAL,
-               glDisable, GL_STENCIL_TEST,
-               glStencilMask, 0xff,
-               glDisable, GL_CULL_FACE,
-               enabletransparency)
-    postrender!(robj,
-                render, robj.vertexarray, primitive)
+    robj.prerenderfunction = StandardPrerender()
+    robj.postrenderfunction = StandardPostrender(bj.vertexarray, primitive)
     robj
 end
-pushfunction(fs...) = pushfunction!(Dict{Function, Tuple}(), fs...)
 
-function pushfunction!(target::Dict{Function, Tuple}, fs...)
-    func = fs[1]
-    args = Any[]
-    for i=2:length(fs)
-        elem = fs[i]
-        if isa(elem, Function)
-            target[func] = tuple(args...)
-            func = elem
-            args = Any[]
-        else
-            push!(args, elem)
-        end
-    end
-    target[func] = tuple(args...)
-end
-prerender!(x::RenderObject, fs...)   = pushfunction!(x.prerenderfunctions, fs...)
-postrender!(x::RenderObject, fs...)  = pushfunction!(x.postrenderfunctions, fs...)
 
 extract_renderable(context::Vector{RenderObject}) = context
 extract_renderable(context::RenderObject) = [context]

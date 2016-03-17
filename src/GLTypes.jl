@@ -192,13 +192,13 @@ type RenderObject <: Composable{DeviceUnit}
     main                ::Any # main object
     uniforms            ::Dict{Symbol, Any}
     vertexarray         ::GLVertexArray
-    prerenderfunctions  ::Dict{Function, Tuple}
-    postrenderfunctions ::Dict{Function, Tuple}
+    prerenderfunction   ::Function
+    postrenderfunction  ::Function
     id                  ::GLushort
     boundingbox          # workaround for having lazy boundingbox queries, while not using multiple dispatch for boundingbox function (No type hierarchy for RenderObjects)
     function RenderObject(
             main, uniforms::Dict{Symbol, Any}, vertexarray::GLVertexArray,
-            prerenderfunctions::Dict{Function, Tuple}, postrenderfunctions::Dict{Function, Tuple},
+            prerenderfunctions, postrenderfunctions,
             boundingbox
         )
         global RENDER_OBJECT_ID_COUNTER
