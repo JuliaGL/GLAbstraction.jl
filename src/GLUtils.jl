@@ -247,8 +247,10 @@ function Base.call{T <: HomogenousMesh}(MT::Type{NativeMesh{T}}, m::T)
     result[:vertices]   = GLBuffer(vertices)
     result[:faces]      = indexbuffer(faces)
     for (field, val) in attribs
-        if field in [:texturecoordinates, :normals, :attribute_id]
-            result[field] = GLBuffer(val)
+        if field in (:texturecoordinates, :normals, :attribute_id, :color)
+            if isa(val, Vector)
+                result[field] = GLBuffer(val)
+            end
         else
             result[field] = Texture(val)
         end
