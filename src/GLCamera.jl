@@ -66,7 +66,7 @@ Dict(
 """
 function OrthographicPixelCamera(
         inputs;
-        fov=41f0, near=1f0, up=Vec3f0(0,1,0),
+        fov=41f0, near=0.01f0, up=Vec3f0(0,1,0),
         translation_speed=Signal(1), theta=Signal(Vec3f0(0))
     )
     @materialize mouseposition, mouse_buttons_pressed, buttons_pressed, scroll = inputs
@@ -78,7 +78,7 @@ function OrthographicPixelCamera(
     xytranslate   = dragged_diff(mouseposition, left_pressed, use_cam)
 
     ztranslate    = filterwhen(use_cam, 0f0,
-        const_lift(*, map(last, scroll), 20f0)
+        const_lift(*, map(last, scroll), 5000f0)
     )
     trans = map(translationlift, xytranslate, ztranslate, translation_speed)
     OrthographicPixelCamera(
@@ -100,7 +100,7 @@ function OrthographicPixelCamera(
     x, y = w_, h_
     eyeposition = Signal(Vec3f0(x, y, zoom))
     lookatvec   = Signal(Vec3f0(x, y, 0))
-    far         = Signal(zoom*2.0f0) # this should probably be not calculated
+    far         = Signal(zoom*5.0f0) # this should probably be not calculated
     # since there is no scene independant, well working far clip
 
     PerspectiveCamera(
@@ -113,7 +113,7 @@ function OrthographicPixelCamera(
         fov_s, # Field of View
         near_s,  # Min distance (clip distance)
         far, # Max distance (clip distance)
-        Signal(GLAbstraction.ORTHOGRAPHIC) #
+        Signal(GLAbstraction.ORTHOGRAPHIC)
     )
 end
 
@@ -296,7 +296,7 @@ function PerspectiveCamera{T}(
         Signal(Vec3f0(0,0,1)),
         inputs[:window_area],
         Signal(41f0), # Field of View
-        Signal(1f0),  # Min distance (clip distance)
+        Signal(0.01f0),  # Min distance (clip distance)
         Signal(100f0) # Max distance (clip distance)
     )
 end
