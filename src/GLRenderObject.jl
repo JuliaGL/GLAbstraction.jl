@@ -25,6 +25,9 @@ Base.setindex!(obj::RenderObject, value, ::Val{:prerender}, x::Function)  = obj.
 Base.setindex!(obj::RenderObject, value, ::Val{:postrender}, x::Function) = obj.postrenderfunctions[x] = value
 
 
+"""
+Represents standard sets of function applied before rendering
+"""
 immutable StandardPrerender
 end
 
