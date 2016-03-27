@@ -59,7 +59,7 @@ end
 function instanced_renderobject(data, program, bb=Signal(AABB(Vec3f0(0), Vec3f0(1))), primitive::GLenum=GL_TRIANGLES, main=nothing)
     robj = RenderObject(data, program, bb, main)
     robj.prerenderfunction = StandardPrerender()
-    robj.postrenderfunction = StandardPostrender(bj.vertexarray, main, primitive)
+    robj.postrenderfunction = StandardPostrenderInstanced(main, bj.vertexarray, primitive)
     robj
 end
 
@@ -108,4 +108,16 @@ function Base.copy(robj::GLAbstraction.RenderObject)
         robj.boundingbox,
     )
     Context(robj)
+end
+
+"""
+If you have an array of OptimizedPrograms, you only need to put PreRender in front.
+"""
+type OptimizedProgram{PreRender}
+    program::GLProgram
+    uniforms::FixedDict
+    vertexarray::GLVertexArray
+    gl_parameters::PreRender
+    renderfunc::Callable
+    visible::Boolean
 end

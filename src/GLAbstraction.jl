@@ -17,9 +17,10 @@ using GLFW
 import Base: merge, resize!, unsafe_copy!, similar, length, getindex, setindex!, call
 import Reactive: value
 
+# Fixed Dictionary types. Might end up in a package!
+include("fixed_dict.jl")
 
 include("AbstractGPUArray.jl")
-
 
 
 #Methods which get overloaded by GLExtendedFunctions.jl:

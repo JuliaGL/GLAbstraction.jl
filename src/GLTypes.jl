@@ -188,12 +188,12 @@ end
 
 RENDER_OBJECT_ID_COUNTER = zero(GLushort)
 
-type RenderObject <: Composable{DeviceUnit}
+type RenderObject{Pre} <: Composable{DeviceUnit}
     main                ::Any # main object
     uniforms            ::Dict{Symbol, Any}
     vertexarray         ::GLVertexArray
-    prerenderfunction   ::Function
-    postrenderfunction  ::Function
+    prerenderfunction   ::Pre
+    postrenderfunction
     id                  ::GLushort
     boundingbox          # workaround for having lazy boundingbox queries, while not using multiple dispatch for boundingbox function (No type hierarchy for RenderObjects)
     function RenderObject(
