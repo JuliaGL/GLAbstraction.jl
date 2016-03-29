@@ -1,22 +1,27 @@
-
-
+function render(list::Tuple)
+    for elem in list
+        render(elem)
+    end
+end
 """
-Render a list of Renderables
+Render a specialised list of Renderables, we can do some optimizations here
 """
-function render(list::AbstractVector{RenderObject{Pre}})
+function render{Pre}(list::Vector{RenderObject{Pre}})
     first(list).prerenderfunction()
     vertexarray = first(list).vertexarray
     program = vertexarray.program
-    glUseProgram(program)
-    for elem in list
-        renderobject.visible || continue # skip invisible
+    glUseProgram(program.id)
+    glBindVertexArray(vertexarray.id)
+    for renderobject in list
+        yield()
+        Bool(value(renderobject.uniforms[:visible])) || continue # skip invisible
         # make sure we only bind new programs and vertexarray when it is actually
         # different from the previous one
-        if elem.vertexarray != vertexarray
-            vertexarray = elem.vertexarray
+        if renderobject.vertexarray != vertexarray
+            vertexarray = renderobject.vertexarray
             if vertexarray.program != program
-                program = elem.vertexarray.program
-                glUseProgram(program)
+                program = renderobject.vertexarray.program
+                glUseProgram(program.id)
             end
             glBindVertexArray(vertexarray.id)
         end
@@ -51,7 +56,9 @@ function render(renderobject::RenderObject, vertexarray=renderobject.vertexarray
                 gluniform(value..., renderobject.uniforms[key])
             end
         end
+        glBindVertexArray(vertexarray.id)
         renderobject.postrenderfunction()
+        glBindVertexArray(0)
     end
 end
 

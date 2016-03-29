@@ -41,7 +41,7 @@ function call(::StandardPrerender)
     enabletransparency()
 end
 immutable StandardPostrender
-    vao::VertexArray
+    vao::GLVertexArray
     primitive::GLenum
 end
 function call(sp::StandardPostrender)
@@ -49,26 +49,36 @@ function call(sp::StandardPostrender)
 end
 immutable StandardPostrenderInstanced{T}
     main::T
-    vao::VertexArray
+    vao::GLVertexArray
     primitive::GLenum
 end
 function call(sp::StandardPostrenderInstanced)
     renderinstanced(sp.vao, value(sp.main), sp.primitive)
 end
 
+immutable EmptyPrerender
+end
+function call(sp::EmptyPrerender)
+end
+export EmptyPrerender
+export prerendertype
+
 function instanced_renderobject(data, program, bb=Signal(AABB(Vec3f0(0), Vec3f0(1))), primitive::GLenum=GL_TRIANGLES, main=nothing)
-    robj = RenderObject(data, program, bb, main)
-    robj.prerenderfunction = StandardPrerender()
-    robj.postrenderfunction = StandardPostrenderInstanced(main, bj.vertexarray, primitive)
+    pre = StandardPrerender()
+    robj = RenderObject(data, program, pre, nothing, bb, main)
+    robj.postrenderfunction = StandardPostrenderInstanced(main, robj.vertexarray, primitive)
     robj
 end
 
-function std_renderobject(data, shader, bb=Signal(AABB(Vec3f0(0), Vec3f0(1))), primitive=GL_TRIANGLES, main=nothing)
-    robj = RenderObject(data, shader, bb, main)
-    robj.prerenderfunction = StandardPrerender()
-    robj.postrenderfunction = StandardPostrender(bj.vertexarray, primitive)
+function std_renderobject(data, program, bb=Signal(AABB(Vec3f0(0), Vec3f0(1))), primitive=GL_TRIANGLES, main=nothing)
+    pre = StandardPrerender()
+    robj = RenderObject(data, program, pre, nothing, bb, main)
+    robj.postrenderfunction = StandardPostrender(robj.vertexarray, primitive)
     robj
 end
+
+prerendertype{Pre}(::Type{RenderObject{Pre}}) = Pre
+prerendertype{Pre}(::RenderObject{Pre}) = Pre
 
 
 extract_renderable(context::Vector{RenderObject}) = context
@@ -97,27 +107,27 @@ end
 """
 Copy function for a RenderObject. We only copy the uniform dict
 """
-function Base.copy(robj::GLAbstraction.RenderObject)
+function Base.copy{Pre}(robj::RenderObject{Pre})
     uniforms = Dict{Symbol, Any}([k=>v for (k,v) in robj.uniforms])
-    robj = RenderObject(
+    robj = RenderObject{Pre}(
         robj.main,
         uniforms,
         robj.vertexarray,
-        robj.prerenderfunctions,
-        robj.postrenderfunctions,
+        robj.prerenderfunction,
+        robj.postrenderfunction,
         robj.boundingbox,
     )
     Context(robj)
 end
 
-"""
-If you have an array of OptimizedPrograms, you only need to put PreRender in front.
-"""
-type OptimizedProgram{PreRender}
-    program::GLProgram
-    uniforms::FixedDict
-    vertexarray::GLVertexArray
-    gl_parameters::PreRender
-    renderfunc::Callable
-    visible::Boolean
-end
+# """
+# If you have an array of OptimizedPrograms, you only need to put PreRender in front.
+# """
+# type OptimizedProgram{PreRender}
+#     program::GLProgram
+#     uniforms::FixedDict
+#     vertexarray::GLVertexArray
+#     gl_parameters::PreRender
+#     renderfunc::Callable
+#     visible::Boolean
+# end
