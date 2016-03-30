@@ -7,6 +7,7 @@ end
 Render a specialised list of Renderables, we can do some optimizations here
 """
 function render{Pre}(list::Vector{RenderObject{Pre}})
+    isempty(list) && return nothing
     first(list).prerenderfunction()
     vertexarray = first(list).vertexarray
     program = vertexarray.program
@@ -37,6 +38,7 @@ function render{Pre}(list::Vector{RenderObject{Pre}})
     # Otherwise, every glBind(::GLBuffer) operation will be recorded into the state
     # of the currenttly bound vertexarray
     glBindVertexArray(0)
+     return nothing
 end
 
 """
@@ -60,6 +62,7 @@ function render(renderobject::RenderObject, vertexarray=renderobject.vertexarray
         renderobject.postrenderfunction()
         glBindVertexArray(0)
     end
+     return nothing
 end
 
 """
@@ -70,6 +73,7 @@ function render{T <: VecOrSignal{UnitRange{Int}}}(vao::GLVertexArray{T}, mode::G
     for elem in value(vao.indexes)
         glDrawArrays(mode, max(first(elem)-1, 0), length(elem)+1)
     end
+     return nothing
 end
 
 """
@@ -77,12 +81,14 @@ Renders a vertex array which supplies an indexbuffer
 """
 function render{T<:Union{Integer, Face}}(vao::GLVertexArray{GLBuffer{T}}, mode::GLenum=GL_TRIANGLES)
     glDrawElements(mode, length(vao.indices)*cardinality(vao.indices), julia2glenum(T), C_NULL)
+    return nothing
 end
 """
 Renders a normal vertex array only containing the usual buffers buffers.
 """
 function render(vao::GLVertexArray, mode::GLenum=GL_TRIANGLES)
     glDrawArrays(mode, 0, length(vao))
+    return nothing
 end
 
 """
@@ -95,12 +101,14 @@ Renders `amount` instances of an indexed geometry
 """
 function renderinstanced{T<:Union{Integer, Face}}(vao::GLVertexArray{GLBuffer{T}}, amount::Integer, primitive=GL_TRIANGLES)
     glDrawElementsInstanced(primitive, length(vao.indices)*cardinality(vao.indices), julia2glenum(T), C_NULL, amount)
+    return nothing
 end
 """
 Renders `amount` instances of an not indexed geoemtry geometry
 """
 function renderinstanced(vao::GLVertexArray, amount::Integer, primitive=GL_TRIANGLES)
     glDrawElementsInstanced(primitive, length(vao), GL_UNSIGNED_INT, C_NULL, amount)
+    return nothing
 end
 #handle all uniform objects
 
