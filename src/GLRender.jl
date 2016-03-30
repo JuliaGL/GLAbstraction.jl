@@ -1,10 +1,18 @@
 function render(list::Tuple)
+    #=
+    this yield...
+    Not sure if this is even safe to do it here, but it turned out to make
+    animations a lot smoother. We need to get a grip on these yields at some
+    point, right now it's pretty unpredictable how the flow of the different
+    tasks and callbacks actually translates to drawcalls
+    =#
+    yield()
     for elem in list
         render(elem)
     end
 end
 """
-Render a specialised list of Renderables, we can do some optimizations here
+When rendering a specialised list of Renderables, we can do some optimizations here
 """
 function render{Pre}(list::Vector{RenderObject{Pre}})
     isempty(list) && return nothing
@@ -14,7 +22,6 @@ function render{Pre}(list::Vector{RenderObject{Pre}})
     glUseProgram(program.id)
     glBindVertexArray(vertexarray.id)
     for renderobject in list
-        yield()
         Bool(value(renderobject.uniforms[:visible])) || continue # skip invisible
         # make sure we only bind new programs and vertexarray when it is actually
         # different from the previous one
@@ -38,7 +45,7 @@ function render{Pre}(list::Vector{RenderObject{Pre}})
     # Otherwise, every glBind(::GLBuffer) operation will be recorded into the state
     # of the currenttly bound vertexarray
     glBindVertexArray(0)
-     return nothing
+    return nothing
 end
 
 """
@@ -49,6 +56,8 @@ So rewriting this function could get us a lot of performance for scenes with
 a lot of objects.
 """
 function render(renderobject::RenderObject, vertexarray=renderobject.vertexarray)
+    # same as the yield on line 9
+    yield()
     if Bool(value(renderobject.uniforms[:visible]))
         renderobject.prerenderfunction()
         program = vertexarray.program
