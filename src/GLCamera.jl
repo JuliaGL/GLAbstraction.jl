@@ -350,24 +350,27 @@ function translate_cam(
 end
 
 function rotate_cam(
-        theta,
-        eyepos_s, lookat_s, up_s, right_s
+        v0, theta,
     )
-    theta == Vec3f0(0) && return nothing # nothing to do
+    theta == Vec3f0(0) && return v0 # nothing to do
     upvector = Vec3f0(0,0,1)
     # extract current values of the input signals
-    pivot, eyepos, up = map(value, (lookat_s, eyepos_s, up_s))
-    dir = eyepos - pivot
-    right = normalize(cross(dir, up)) # x,y,z axis of the camera space
+    eyepos, lookatv, up, right = v0
+    dir = eyepos - lookatv
+    @assert isapprox(dot(a, b), 0) "$dot(a, b)"
+    @assert isapprox(dot(a, c), 0) "$dot(dir, right)"
+    @assert isapprox(dot(c, b), 0) "$dot(dir, right)"
+
     # accumulate all rotations
-    rotation = Quaternions.qrotation(dir, theta[1])
-    rotation *= Quaternions.qrotation(right, theta[2])
+    # theta usually looks like: Vec3f0(0f0, mouse.y, mouse.x)
+    rotation = Quaternions.qrotation(right, -theta[2])
     rotation *= Quaternions.qrotation(upvector, theta[3]) # we want to always rotate around unchanged up axis
 
-    dir = rotation * dir
-    push!(eyepos_s, pivot+dir) # update rotated eye position
-    push!(up_s, normalize(rotation*up)) # update upvector
-    nothing
+    rotated_dir = rotation*dir
+    rotated_up = rotation*up
+    rotated_right = rotation*right
+
+    lookatv+rotated_dir, lookatv, normalize(rotated_up), normalize(rotated_right)
 end
 """
 Creates a perspective camera from signals, controlling the camera
@@ -395,22 +398,14 @@ function PerspectiveCamera{T<:Vec3}(
         farclip,
         projectiontype = Signal(PERSPECTIVE)
     )
-    dir = normalize(value(eyeposition)-value(lookatposition))
-    right = normalize(cross(dir, value(upvector)))
+    eyepos_v, lookat_v, up_v = map(value, (eyeposition, lookatposition, upvector))
+    dir = normalize(eyepos_v-lookat_v)
     # The up vector may be parallel to dir and can also be not orthogonal to dir
     # we need to correct this!
-    # We first find an orthogonal vector to dir, starting with upvector
-    for up_candidate in (value(upvector), map(i->unit(Vec3f0, i), 3:-1:1)...)
-        # if any of these is orthogonal, we can use them as a new upvector
-        if dot(dir, up_candidate) == 0f0
-            right = normalize(cross(dir, up_candidate))
-            push!(upvector, normalize(cross(right, dir)))
-            break
-        end
-    end
-    right_s = Signal(right)
+    right_v = normalize(cross(up_v, dir))
+    up_v  = normalize(cross(dir, right_v))
+   
     # create the vievmatrix with the help of the lookat function
-    viewmatrix = map(lookat, eyeposition, lookatposition, upvector)
 
     zoomlen = map(norm, map(-, lookatposition, eyeposition))
 
@@ -419,21 +414,18 @@ function PerspectiveCamera{T<:Vec3}(
         farclip, projectiontype, zoomlen
     )
 
-    preserve(map(
-       translate_cam, trans,
-       Signal(eyeposition), Signal(lookatposition), Signal(upvector)
-    ))
+    # preserve(map(
+    #    translate_cam, trans,
+    #    Signal(eyeposition), Signal(lookatposition), Signal(upvector)
+    # ))
 
-    preserve(map(
-        rotate_cam, theta,
-        Signal(eyeposition), Signal(lookatposition),
-        Signal(upvector), Signal(right_s)
-    ))
-
-    preserve(eyeposition)
-    preserve(lookatposition)
-    preserve(upvector)
-
+    elu = foldp(
+        rotate_cam,
+        (eyepos_v, lookat_v, up_v, right_v),
+        theta,
+    )
+    viewmatrix = map(tup -> lookat(tup[1:3]...), elu)
+    eyepos_s, lookat_s, up_s = map(first, elu), map(getindex, elu, Signal(2)), map(last, elu)
     projectionview = map(*, projectionmatrix, viewmatrix)
 
     PerspectiveCamera{eltype(T)}(
@@ -444,9 +436,7 @@ function PerspectiveCamera{T<:Vec3}(
         viewmatrix,
         projectionmatrix,
         projectionview,
-        eyeposition,
-        lookatposition,
-        upvector,
+        eyepos_s, lookat_s, up_s,
         trans,
         theta,
         projectiontype
