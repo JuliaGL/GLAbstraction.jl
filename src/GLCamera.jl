@@ -248,8 +248,8 @@ function default_camera_control(
     )
 end
 
-function thetalift(yz, speed)
-    Vec3f0(0f0, yz[2], yz[1]).*speed
+function thetalift(xy, speed)
+    Vec3f0(xy[1], -xy[2], 0f0).*speed
 end
 function translationlift(up_left, zoom, speed)
     Vec3f0(zoom, up_left[1], up_left[2]).*speed
@@ -349,28 +349,25 @@ function translate_cam(
     nothing
 end
 
-function rotate_cam(
-        v0, theta,
+function rotate_cam{T}(
+        theta::Vec{3, T}, 
+        cam_right::Vec{3,T}, cam_up::Vec{3,T}, cam_dir::Vec{3, T}
     )
-    theta == Vec3f0(0) && return v0 # nothing to do
-    upvector = Vec3f0(0,0,1)
-    # extract current values of the input signals
-    eyepos, lookatv, up, right = v0
-    dir = eyepos - lookatv
-    @assert isapprox(dot(a, b), 0) "$dot(a, b)"
-    @assert isapprox(dot(a, c), 0) "$dot(dir, right)"
-    @assert isapprox(dot(c, b), 0) "$dot(dir, right)"
-
-    # accumulate all rotations
-    # theta usually looks like: Vec3f0(0f0, mouse.y, mouse.x)
-    rotation = Quaternions.qrotation(right, -theta[2])
-    rotation *= Quaternions.qrotation(upvector, theta[3]) # we want to always rotate around unchanged up axis
-
-    rotated_dir = rotation*dir
-    rotated_up = rotation*up
-    rotated_right = rotation*right
-
-    lookatv+rotated_dir, lookatv, normalize(rotated_up), normalize(rotated_right)
+    const Q = Quaternions
+    rotation = one(Q.Quaternion{T})
+    # first up rotation, since that sets our rotation axis
+    if theta[1] != 0
+        rotation *= Q.qrotation(cam_up, theta[1])
+    end
+    # then right rotation
+    if theta[2] != 0
+        rotation *= Q.qrotation(cam_right, theta[2])
+    end
+    # last rotation around camera axis
+    if theta[3] != 0
+        rotation *= Q.qrotation(cam_dir, theta[3])
+    end
+    rotation
 end
 """
 Creates a perspective camera from signals, controlling the camera
@@ -387,7 +384,7 @@ farclip: Far clip plane
 `eyeposition`: the actual position of the camera (the lense, the \"eye\")
 """
 function PerspectiveCamera{T<:Vec3}(
-        theta::Signal{T},
+        theta,
         trans::Signal{T},
         lookatposition::Signal{T},
         eyeposition::Signal{T},
@@ -418,14 +415,25 @@ function PerspectiveCamera{T<:Vec3}(
     #    translate_cam, trans,
     #    Signal(eyeposition), Signal(lookatposition), Signal(upvector)
     # ))
+    theta_summed = foldp(+, Vec3f0(0), theta)
+    # if any of these get changed, rotation must be resetted and axis updated
+    right_axis, up_axis, dir_axis = map(Signal, (right_v, Vec3f0(0,0,1), dir))
+    preserve(map(lookatposition, eyeposition, upvector) do e,l,u
+        push!(theta_summed, Vec3f0(0))
+        right_axis, up_axis, dir_axis
+    end)
+    rotation = map(theta_summed) do theta
+        rotate_cam(theta, right_v, Vec3f0(0,0,1), dir)
+    end
+    preserve(map(rotation) do rot
+        e, l, u = map(value, (right_axis, up_axis, dir_axis))
+        r_eyepos = l + rot*(eyepos_v - l)
+        r_up = normalize(rot*u)
+        push!(eyeposition, r_eyepos)
+        push!(upvector, r_up)
+    end)
 
-    elu = foldp(
-        rotate_cam,
-        (eyepos_v, lookat_v, up_v, right_v),
-        theta,
-    )
-    viewmatrix = map(tup -> lookat(tup[1:3]...), elu)
-    eyepos_s, lookat_s, up_s = map(first, elu), map(getindex, elu, Signal(2)), map(last, elu)
+    viewmatrix = map(lookat, eyeposition, lookatposition, upvector)
     projectionview = map(*, projectionmatrix, viewmatrix)
 
     PerspectiveCamera{eltype(T)}(
@@ -436,7 +444,7 @@ function PerspectiveCamera{T<:Vec3}(
         viewmatrix,
         projectionmatrix,
         projectionview,
-        eyepos_s, lookat_s, up_s,
+        eyeposition, lookatposition, upvector,
         trans,
         theta,
         projectiontype
