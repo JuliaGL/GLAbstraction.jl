@@ -2,6 +2,7 @@ VERSION >= v"0.4.0-dev+6521" && __precompile__(true)
 module GLAbstraction
 
 import Quaternions
+const Q = Quaternions # save some writing!
 using FixedSizeArrays
 using GeometryTypes
 using ModernGL

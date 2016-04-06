@@ -1,4 +1,5 @@
 abstract Camera{T}
+const Q = Quaternions # save some writing!
 
 type OrthographicCamera{T} <: Camera{T}
     window_size     ::Signal{SimpleRectangle{Int}}
@@ -350,12 +351,11 @@ function translate_cam(
 end
 
 function rotate_cam{T}(
-        theta::Vec{3, T}, 
+        theta::Vec{3, T},
         cam_right::Vec{3,T}, cam_up::Vec{3,T}, cam_dir::Vec{3, T}
     )
-    const Q = Quaternions
     rotation = one(Q.Quaternion{T})
-    # first up rotation, since that sets our rotation axis
+    # first the rotation around up axis, since the other rotation should be relative to that rotation
     if theta[1] != 0
         rotation *= Q.qrotation(cam_up, theta[1])
     end
@@ -395,44 +395,50 @@ function PerspectiveCamera{T<:Vec3}(
         farclip,
         projectiontype = Signal(PERSPECTIVE)
     )
-    eyepos_v, lookat_v, up_v = map(value, (eyeposition, lookatposition, upvector))
-    dir = normalize(eyepos_v-lookat_v)
-    # The up vector may be parallel to dir and can also be not orthogonal to dir
-    # we need to correct this!
-    right_v = normalize(cross(up_v, dir))
-    up_v  = normalize(cross(dir, right_v))
-   
-    # create the vievmatrix with the help of the lookat function
-
-    zoomlen = map(norm, map(-, lookatposition, eyeposition))
-
-    projectionmatrix = map(projection_switch,
-        window_size, fov, nearclip,
-        farclip, projectiontype, zoomlen
-    )
+    # we have three ways to manipulate the camera: rotation, lookat/eyeposition and translation
+    positions = (eyeposition, lookatposition, upvector)
+    theta_summed = foldp(+, Vec3f0(0), theta)
+    positions_from_transrot = map(x->Signal(value(x)), positions)
+    rotation_axis = foldp(
+            map(value, positions), positions...,
+        ) do v0, eyepos_v, lookat_v, up_v
+        # have the axis changed?
+        v1 = (eyepos_v, lookat_v, up_v)
+        if v0 != v1
+            # reset summed rotation, since we rotate around a new axis now
+            push!(theta_summed,  Vec3f0(0))
+            return v1 # pass through new positions!
+        end
+        # false alert, nothing actually has changed!
+        v0
+    end
 
     # preserve(map(
     #    translate_cam, trans,
     #    Signal(eyeposition), Signal(lookatposition), Signal(upvector)
     # ))
-    theta_summed = foldp(+, Vec3f0(0), theta)
-    # if any of these get changed, rotation must be resetted and axis updated
-    right_axis, up_axis, dir_axis = map(Signal, (right_v, Vec3f0(0,0,1), dir))
-    preserve(map(lookatposition, eyeposition, upvector) do e,l,u
-        push!(theta_summed, Vec3f0(0))
-        right_axis, up_axis, dir_axis
-    end)
-    rotation = map(theta_summed) do theta
-        rotate_cam(theta, right_v, Vec3f0(0,0,1), dir)
-    end
-    preserve(map(rotation) do rot
-        e, l, u = map(value, (right_axis, up_axis, dir_axis))
-        r_eyepos = l + rot*(eyepos_v - l)
-        r_up = normalize(rot*u)
-        push!(eyeposition, r_eyepos)
-        push!(upvector, r_up)
-    end)
 
+    positions_from_transrot = map(theta_summed) do theta_v
+        theta_v == Vec3f0(0) && return nothing #nothing to do!
+        eyepos_v, lookat_v, up_v = value(rotation_axis)
+
+        dir = normalize(eyepos_v-lookat_v)
+        right_v = normalize(cross(up_v, dir))
+        up_v  = normalize(cross(dir, right_v))
+
+        rotation = rotate_cam(theta_v, right_v, Vec3f0(0,0,1), dir)
+        r_eyepos = lookat_v + rotation*(eyepos_v - lookat_v)
+        r_up = normalize(rotation*up_v)
+        r_eyepos, lookat_v, r_up
+    end
+
+    zoomlen = map(norm, map(-, lookatposition, eyeposition))
+    projectionmatrix = map(projection_switch,
+        window_size, fov, nearclip,
+        farclip, projectiontype, zoomlen
+    )
+
+    # create the vievmatrix with the help of the lookat function
     viewmatrix = map(lookat, eyeposition, lookatposition, upvector)
     projectionview = map(*, projectionmatrix, viewmatrix)
 
