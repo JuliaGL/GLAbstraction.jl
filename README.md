@@ -59,3 +59,7 @@ while isopen(window)
 end
 
 ```
+
+# Credits
+
+Thanks for all the great [contributions](https://github.com/JuliaGL/GLAbstraction.jl/graphs/contributors)
