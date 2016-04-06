@@ -1,17 +1,18 @@
 # GLAbstraction
-A simple library, which makes the use of OpenGL a little bit more convinient and Julian.
-If you have any questions, please open an issue. I'm working lazily on the documentation, so if no one asks, there won't be any documentation ;)
+A simple library, which makes the use of OpenGL a little bit more convenient and Julian.
+If you have any questions, please open an issue.
 
-Note there are some [tutorials](tutorials/README.md).
+There are some [tutorials](tutorials/README.md) and [examples](https://github.com/JuliaGL/GLAbstraction.jl/tree/master/example).
 
 ### Features
+
 * Some linear algebrae, to do all kinds of transformations.
-* Aliases for ImmutableArrays, which are more GLSL alike (e.g. Vector3{Float32} -> Vec3, Matrix4x4{Float32} -> Mat4)
-* All the different glUniform functions are wrapped and the right function is determined via multiple dispatch (just works for ImmutableArrays and Real numbers)
-* Buffers and Texture objects are wrapped, with best support for arrays of ImmutableArrays. 
+* All the different glUniform functions are wrapped and the right function is determined via multiple dispatch (works for [FixedSizeArrays](https://github.com/SimonDanisch/FixedSizeArrays.jl), [Colors](https://github.com/JuliaGraphics/Colors.jl) and Real numbers)
+* `Buffers` and `Texture` objects are wrapped, with best support for arrays of FixedSizeArrays, Colors and Reals.
+* An Array interface for `Buffers` and `Textures`, offering functions like `push!`, `getindex`, `setindex!`, etc for GPU arrays, just like you're used to from Julia Arrays.
 * Shader loading is simplified and offers templated shaders and interactive editing of shaders and type/error checks.
-* Offers the type `RenderOject`, which helps you preparing the OpenGL state to render data with a shader. 
-* Event handling with [React](https://github.com/shashi/React.jl)
+* Offers the type `RenderOject`, which helps you preparing the OpenGL state to render data with a shader.
+* Event handling with [Reactive](https://github.com/JuliaLang/Reactive.jl)
 * Two camera types (PerspectiveCamera and OrthogonalCamera), which can be instantiated with a list of React signals from GLWindow. You can also supply your own signals.
 * Some wrappers for often used functions, with embedded error handling and more Julian syntax
 
@@ -19,12 +20,42 @@ Note there are some [tutorials](tutorials/README.md).
 
 
 ### Example:
-```julia
 
+```julia
+using ModernGL, GLWindow, GLAbstraction, GLFW, GeometryTypes
+
+window = GLWindow.create_glcontext("Example", resolution=(512, 512), debugging=true)
+
+
+const vsh = vert"""
+{{GLSL_VERSION}}
+in vec2 position;
+void main(){
+	gl_Position = vec4(position, 0, 1.0);
+}
+"""
+const fsh = frag"""
+{{GLSL_VERSION}}
+out vec4 outColor;
+void main() {
+	outColor = vec4(1.0, 1.0, 1.0, 1.0);
+}
+"""
+
+const triangle = std_renderobject(
+	Dict{Symbol, Any}(
+        :position => GLBuffer(Point2f0[(0.0, 0.5), (0.5, -0.5), (-0.5,-0.5)]),
+    ),
+	LazyShader(vsh, fsh)
+)
+
+glClearColor(0, 0, 0, 1)
+
+while isopen(window)
+  	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
+    render(triangle)
+  	swapbuffers(window)
+  	pollevents()
+end
 
 ```
-
-
-
-#Status
-There is still quite a bit missing.
