@@ -12,7 +12,7 @@ function render(list::Tuple)
     end
 end
 """
-When rendering a specialised list of Renderables, we can do some optimizations here
+When rendering a specialised list of Renderables, we can do some optimizations
 """
 function render{Pre}(list::Vector{RenderObject{Pre}})
     isempty(list) && return nothing
@@ -43,7 +43,7 @@ function render{Pre}(list::Vector{RenderObject{Pre}})
     # we need to assume, that we're done here, which is why
     # we need to bind VertexArray to 0.
     # Otherwise, every glBind(::GLBuffer) operation will be recorded into the state
-    # of the currenttly bound vertexarray
+    # of the currently bound vertexarray
     glBindVertexArray(0)
     return nothing
 end
