@@ -397,30 +397,15 @@ function PerspectiveCamera{T<:Vec3}(
     )
     # we have three ways to manipulate the camera: rotation, lookat/eyeposition and translation
     positions = (eyeposition, lookatposition, upvector)
-    theta_summed = foldp(+, Vec3f0(0), theta)
-    positions_from_transrot = map(x->Signal(value(x)), positions)
-    rotation_axis = foldp(
-            map(value, positions), positions...,
-        ) do v0, eyepos_v, lookat_v, up_v
-        # have the axis changed?
-        v1 = (eyepos_v, lookat_v, up_v)
-        if v0 != v1
-            # reset summed rotation, since we rotate around a new axis now
-            push!(theta_summed,  Vec3f0(0))
-            return v1 # pass through new positions!
-        end
-        # false alert, nothing actually has changed!
-        v0
-    end
 
-    # preserve(map(
-    #    translate_cam, trans,
-    #    Signal(eyeposition), Signal(lookatposition), Signal(upvector)
-    # ))
+    preserve(map(
+       translate_cam, trans,
+       Signal(eyeposition), Signal(lookatposition), Signal(upvector)
+    ))
 
-    positions_from_transrot = map(theta_summed) do theta_v
+    preserve(map(theta) do theta_v
         theta_v == Vec3f0(0) && return nothing #nothing to do!
-        eyepos_v, lookat_v, up_v = value(rotation_axis)
+        eyepos_v, lookat_v, up_v = map(value, positions)
 
         dir = normalize(eyepos_v-lookat_v)
         right_v = normalize(cross(up_v, dir))
@@ -429,8 +414,9 @@ function PerspectiveCamera{T<:Vec3}(
         rotation = rotate_cam(theta_v, right_v, Vec3f0(0,0,1), dir)
         r_eyepos = lookat_v + rotation*(eyepos_v - lookat_v)
         r_up = normalize(rotation*up_v)
-        r_eyepos, lookat_v, r_up
-    end
+        push!(eyeposition, r_eyepos)
+        push!(upvector, r_up)
+    end)
 
     zoomlen = map(norm, map(-, lookatposition, eyeposition))
     projectionmatrix = map(projection_switch,
