@@ -25,57 +25,61 @@ Base.setindex!(obj::RenderObject, value, ::Val{:prerender}, x::Function)  = obj.
 Base.setindex!(obj::RenderObject, value, ::Val{:postrender}, x::Function) = obj.postrenderfunctions[x] = value
 
 
+"""
+Represents standard sets of function applied before rendering
+"""
+immutable StandardPrerender
+end
+
+function call(::StandardPrerender)
+    glEnable(GL_DEPTH_TEST)
+    glDepthMask(GL_TRUE)
+    glDepthFunc(GL_LEQUAL)
+    glDisable(GL_STENCIL_TEST)
+    glStencilMask(0xff)
+    glDisable(GL_CULL_FACE)
+    enabletransparency()
+end
+immutable StandardPostrender
+    vao::GLVertexArray
+    primitive::GLenum
+end
+function call(sp::StandardPostrender)
+    render(sp.vao, sp.primitive)
+end
+immutable StandardPostrenderInstanced{T}
+    main::T
+    vao::GLVertexArray
+    primitive::GLenum
+end
+function call(sp::StandardPostrenderInstanced)
+    renderinstanced(sp.vao, value(sp.main), sp.primitive)
+end
+
+immutable EmptyPrerender
+end
+function call(sp::EmptyPrerender)
+end
+export EmptyPrerender
+export prerendertype
 
 function instanced_renderobject(data, program, bb=Signal(AABB(Vec3f0(0), Vec3f0(1))), primitive::GLenum=GL_TRIANGLES, main=nothing)
-    robj = RenderObject(data, program, bb, main)
-    prerender!(robj,
-               glEnable, GL_DEPTH_TEST,
-               glDepthMask, GL_TRUE,
-               glDepthFunc, GL_LEQUAL,
-               glDisable, GL_STENCIL_TEST,
-               glStencilMask, 0xff,
-               glDisable, GL_CULL_FACE,
-               enabletransparency)
-    postrender!(robj,
-                renderinstanced, robj.vertexarray, value(main), primitive)
+    pre = StandardPrerender()
+    robj = RenderObject(data, program, pre, nothing, bb, main)
+    robj.postrenderfunction = StandardPostrenderInstanced(main, robj.vertexarray, primitive)
     robj
 end
 
-
-
-function std_renderobject(data, shader, bb=Signal(AABB(Vec3f0(0), Vec3f0(1))), primitive=GL_TRIANGLES, main=nothing)
-    robj = RenderObject(data, shader, bb, main)
-    prerender!(robj,
-               glEnable, GL_DEPTH_TEST,
-               glDepthMask, GL_TRUE,
-               glDepthFunc, GL_LEQUAL,
-               glDisable, GL_STENCIL_TEST,
-               glStencilMask, 0xff,
-               glDisable, GL_CULL_FACE,
-               enabletransparency)
-    postrender!(robj,
-                render, robj.vertexarray, primitive)
+function std_renderobject(data, program, bb=Signal(AABB(Vec3f0(0), Vec3f0(1))), primitive=GL_TRIANGLES, main=nothing)
+    pre = StandardPrerender()
+    robj = RenderObject(data, program, pre, nothing, bb, main)
+    robj.postrenderfunction = StandardPostrender(robj.vertexarray, primitive)
     robj
 end
-pushfunction(fs...) = pushfunction!(Dict{Function, Tuple}(), fs...)
 
-function pushfunction!(target::Dict{Function, Tuple}, fs...)
-    func = fs[1]
-    args = Any[]
-    for i=2:length(fs)
-        elem = fs[i]
-        if isa(elem, Function)
-            target[func] = tuple(args...)
-            func = elem
-            args = Any[]
-        else
-            push!(args, elem)
-        end
-    end
-    target[func] = tuple(args...)
-end
-prerender!(x::RenderObject, fs...)   = pushfunction!(x.prerenderfunctions, fs...)
-postrender!(x::RenderObject, fs...)  = pushfunction!(x.postrenderfunctions, fs...)
+prerendertype{Pre}(::Type{RenderObject{Pre}}) = Pre
+prerendertype{Pre}(::RenderObject{Pre}) = Pre
+
 
 extract_renderable(context::Vector{RenderObject}) = context
 extract_renderable(context::RenderObject) = [context]
@@ -103,15 +107,27 @@ end
 """
 Copy function for a RenderObject. We only copy the uniform dict
 """
-function Base.copy(robj::GLAbstraction.RenderObject)
+function Base.copy{Pre}(robj::RenderObject{Pre})
     uniforms = Dict{Symbol, Any}([k=>v for (k,v) in robj.uniforms])
-    robj = RenderObject(
+    robj = RenderObject{Pre}(
         robj.main,
         uniforms,
         robj.vertexarray,
-        robj.prerenderfunctions,
-        robj.postrenderfunctions,
+        robj.prerenderfunction,
+        robj.postrenderfunction,
         robj.boundingbox,
     )
     Context(robj)
 end
+
+# """
+# If you have an array of OptimizedPrograms, you only need to put PreRender in front.
+# """
+# type OptimizedProgram{PreRender}
+#     program::GLProgram
+#     uniforms::FixedDict
+#     vertexarray::GLVertexArray
+#     gl_parameters::PreRender
+#     renderfunc::Callable
+#     visible::Boolean
+# end
