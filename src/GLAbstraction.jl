@@ -2,6 +2,7 @@ VERSION >= v"0.4.0-dev+6521" && __precompile__(true)
 module GLAbstraction
 
 import Quaternions
+const Q = Quaternions # save some writing!
 using FixedSizeArrays
 using GeometryTypes
 using ModernGL
@@ -17,9 +18,7 @@ using GLFW
 import Base: merge, resize!, unsafe_copy!, similar, length, getindex, setindex!, call
 import Reactive: value
 
-
 include("AbstractGPUArray.jl")
-
 
 
 #Methods which get overloaded by GLExtendedFunctions.jl:

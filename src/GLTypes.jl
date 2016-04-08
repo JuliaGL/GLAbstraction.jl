@@ -188,17 +188,17 @@ end
 
 RENDER_OBJECT_ID_COUNTER = zero(GLushort)
 
-type RenderObject <: Composable{DeviceUnit}
-    main                ::Any # main object
+type RenderObject{Pre} <: Composable{DeviceUnit}
+    main                 # main object
     uniforms            ::Dict{Symbol, Any}
     vertexarray         ::GLVertexArray
-    prerenderfunctions  ::Dict{Function, Tuple}
-    postrenderfunctions ::Dict{Function, Tuple}
+    prerenderfunction   ::Pre
+    postrenderfunction
     id                  ::GLushort
     boundingbox          # workaround for having lazy boundingbox queries, while not using multiple dispatch for boundingbox function (No type hierarchy for RenderObjects)
     function RenderObject(
             main, uniforms::Dict{Symbol, Any}, vertexarray::GLVertexArray,
-            prerenderfunctions::Dict{Function, Tuple}, postrenderfunctions::Dict{Function, Tuple},
+            prerenderfunctions, postrenderfunctions,
             boundingbox
         )
         global RENDER_OBJECT_ID_COUNTER
@@ -211,7 +211,12 @@ type RenderObject <: Composable{DeviceUnit}
     end
 
 end
-function RenderObject(data::Dict{Symbol, Any}, program, bbs=Signal(AABB{Float32}(Vec3f0(0),Vec3f0(1))), main=nothing)
+function RenderObject{Pre}(
+        data::Dict{Symbol, Any}, program,
+        pre::Pre, post,
+        bbs=Signal(AABB{Float32}(Vec3f0(0),Vec3f0(1))),
+        main=nothing
+    )
     targets = get(data, :gl_convert_targets, Dict())
     delete!(data, :gl_convert_targets)
     passthrough = Dict{Symbol, Any}() # we also save a few non opengl related values in data
@@ -244,12 +249,12 @@ function RenderObject(data::Dict{Symbol, Any}, program, bbs=Signal(AABB{Float32}
     merge!(data, passthrough) # in the end, we insert back the non opengl data, to keep things simple
     p = value(gl_convert(value(program), data)) # "compile" lazyshader
     vertexarray = GLVertexArray(Dict(buffers), p)
-    robj = RenderObject(
+    robj = RenderObject{Pre}(
         main,
         data,
         vertexarray,
-        Dict{Function, Tuple}(),
-        Dict{Function, Tuple}(),
+        pre,
+        post,
         bbs
     )
     # automatucally integrate object ID, will be discarded if shader doesn't use it

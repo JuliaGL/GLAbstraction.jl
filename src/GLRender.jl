@@ -1,10 +1,51 @@
-"""
-Render a list of Renderables
-"""
-function render(list::AbstractVector)
+function render(list::Tuple)
+    #=
+    this yield...
+    Not sure if this is even safe to do it here, but it turned out to make
+    animations a lot smoother. We need to get a grip on these yields at some
+    point, right now it's pretty unpredictable how the flow of the different
+    tasks and callbacks actually translates to drawcalls
+    =#
+    yield()
     for elem in list
         render(elem)
     end
+end
+"""
+When rendering a specialised list of Renderables, we can do some optimizations
+"""
+function render{Pre}(list::Vector{RenderObject{Pre}})
+    isempty(list) && return nothing
+    first(list).prerenderfunction()
+    vertexarray = first(list).vertexarray
+    program = vertexarray.program
+    glUseProgram(program.id)
+    glBindVertexArray(vertexarray.id)
+    for renderobject in list
+        Bool(value(renderobject.uniforms[:visible])) || continue # skip invisible
+        # make sure we only bind new programs and vertexarray when it is actually
+        # different from the previous one
+        if renderobject.vertexarray != vertexarray
+            vertexarray = renderobject.vertexarray
+            if vertexarray.program != program
+                program = renderobject.vertexarray.program
+                glUseProgram(program.id)
+            end
+            glBindVertexArray(vertexarray.id)
+        end
+        for (key,value) in program.uniformloc
+            if haskey(renderobject.uniforms, key)
+                gluniform(value..., renderobject.uniforms[key])
+            end
+        end
+        renderobject.postrenderfunction()
+    end
+    # we need to assume, that we're done here, which is why
+    # we need to bind VertexArray to 0.
+    # Otherwise, every glBind(::GLBuffer) operation will be recorded into the state
+    # of the currently bound vertexarray
+    glBindVertexArray(0)
+    return nothing
 end
 
 """
@@ -15,10 +56,10 @@ So rewriting this function could get us a lot of performance for scenes with
 a lot of objects.
 """
 function render(renderobject::RenderObject, vertexarray=renderobject.vertexarray)
+    # same as the yield on line 9
+    yield()
     if Bool(value(renderobject.uniforms[:visible]))
-        for (f,args) in renderobject.prerenderfunctions
-            f(args...)
-        end
+        renderobject.prerenderfunction()
         program = vertexarray.program
         glUseProgram(program.id)
         for (key,value) in program.uniformloc
@@ -26,10 +67,11 @@ function render(renderobject::RenderObject, vertexarray=renderobject.vertexarray
                 gluniform(value..., renderobject.uniforms[key])
             end
         end
-        for (f,args) in renderobject.postrenderfunctions
-            f(args...)
-        end
+        glBindVertexArray(vertexarray.id)
+        renderobject.postrenderfunction()
+        glBindVertexArray(0)
     end
+     return nothing
 end
 
 """
@@ -37,28 +79,25 @@ Renders a vertexarray, which consists of the usual buffers plus a vector of
 unitranges which defines the segments of the buffers to be rendered
 """
 function render{T <: VecOrSignal{UnitRange{Int}}}(vao::GLVertexArray{T}, mode::GLenum=GL_TRIANGLES)
-    glBindVertexArray(vao.id)
     for elem in value(vao.indexes)
         glDrawArrays(mode, max(first(elem)-1, 0), length(elem)+1)
     end
-    glBindVertexArray(0)
+     return nothing
 end
 
 """
 Renders a vertex array which supplies an indexbuffer
 """
 function render{T<:Union{Integer, Face}}(vao::GLVertexArray{GLBuffer{T}}, mode::GLenum=GL_TRIANGLES)
-    glBindVertexArray(vao.id)
     glDrawElements(mode, length(vao.indices)*cardinality(vao.indices), julia2glenum(T), C_NULL)
-    glBindVertexArray(0)
+    return nothing
 end
 """
 Renders a normal vertex array only containing the usual buffers buffers.
 """
 function render(vao::GLVertexArray, mode::GLenum=GL_TRIANGLES)
-    glBindVertexArray(vao.id)
     glDrawArrays(mode, 0, length(vao))
-    glBindVertexArray(0)
+    return nothing
 end
 
 """
@@ -70,17 +109,15 @@ renderinstanced(vao::GLVertexArray, a, primitive=GL_TRIANGLES) = renderinstanced
 Renders `amount` instances of an indexed geometry
 """
 function renderinstanced{T<:Union{Integer, Face}}(vao::GLVertexArray{GLBuffer{T}}, amount::Integer, primitive=GL_TRIANGLES)
-    glBindVertexArray(vao.id)
     glDrawElementsInstanced(primitive, length(vao.indices)*cardinality(vao.indices), julia2glenum(T), C_NULL, amount)
-    glBindVertexArray(0)
+    return nothing
 end
 """
 Renders `amount` instances of an not indexed geoemtry geometry
 """
 function renderinstanced(vao::GLVertexArray, amount::Integer, primitive=GL_TRIANGLES)
-    glBindVertexArray(vao.id)
     glDrawElementsInstanced(primitive, length(vao), GL_UNSIGNED_INT, C_NULL, amount)
-    glBindVertexArray(0)
+    return nothing
 end
 #handle all uniform objects
 
