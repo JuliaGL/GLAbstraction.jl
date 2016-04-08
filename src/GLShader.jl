@@ -134,15 +134,15 @@ export empty_shadercache
 function uniformlocations(nametypedict::Dict{Symbol, GLenum}, program)
     isempty(nametypedict) && return Dict{Symbol,Tuple}()
     texturetarget = -1 # start -1, as texture samplers start at 0
-    return Dict{Symbol,Tuple}(map(nametypedict) do name_type
+    return Dict{Symbol, Tuple}(map(nametypedict) do name_type
         name, typ = name_type
         loc = get_uniform_location(program, name)
         str_name = string(name)
         if istexturesampler(typ)
             texturetarget += 1
-            return (name, (loc, texturetarget))
+            return name => (loc, texturetarget)
         else
-            return (name, (loc,))
+            return name => (loc,)
         end
     end)
 end

@@ -236,7 +236,7 @@ function RenderObject(data::Dict{Symbol, Any}, program, bbs=Signal(AABB{Float32}
     # handle meshes seperately, since they need expansion
     meshs = filter((key, value) -> isa(value, NativeMesh), data)
     if !isempty(meshs)
-        merge!(data, map(x->last(x).data, meshs)...)
+        merge!(data, [v.data for (k,v) in meshs]...)
     end
     buffers  = filter((key, value) -> isa(value, GLBuffer) || key == :indices, data)
     uniforms = filter((key, value) -> !isa(value, GLBuffer) && key != :indices, data)
