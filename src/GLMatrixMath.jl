@@ -14,7 +14,7 @@ translationmatrix_z{T}(z::T) = translationmatrix(Vec{3, T}(0, 0, z))
 
 function translationmatrix{T}(t::Vec{3, T})
     T0, T1 = zero(T), one(T)
-    Mat(
+    Mat{4,4,T}(
         (T1,  T0,  T0,  T0),
         (T0,  T1,  T0,  T0),
         (T0,  T0,  T1,  T0),
