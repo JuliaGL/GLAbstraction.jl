@@ -498,6 +498,8 @@ function center!(camera::PerspectiveCamera, renderlist::Vector)
     end
 end
 
+function renderlist() end
+export renderlist
 
 """
 Centers the camera(=:perspective) on all render objects in `window`
