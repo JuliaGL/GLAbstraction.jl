@@ -93,6 +93,7 @@ function extract_renderable(context::Context)
 end
 transformation(c::RenderObject) = c[:model]
 transformation(c::RenderObject, model) = (c[:model] = const_lift(*, model, c[:model]))
+transform!(c::RenderObject, model) = (c[:model] = const_lift(*, model, c[:model]))
 
 
 """

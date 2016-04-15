@@ -1,24 +1,25 @@
 
 abstract Unit
 abstract Composable{unit}
-typealias BoundingBox Union{TOrSignal{HyperRectangle}}
-typealias Transformation Union{TOrSignal{Mat}}
 
 immutable DeviceUnit <: Unit end
 
-type Composition{Unit, B<:BoundingBox, T<:Transformation} <: Composable{Unit}
+type Context{Unit} <: Composable{Unit}
     children
-    context::B
+    boundingbox
+    transformation
 end
-function translationmatrix(b::BoundingBox)
+
+function translationmatrix(b)
     const_lift(b) do b
         m = minimum(b)
         w = widths(b)
         T = eltype(w)
         # make code work also for N == 2
-        m3 = ndims(m) > 2 ? zero(T) : m[3]
-        w3 = ndims(w) > 2 ? one(T) : w[3]
-        Mat{4,4,T}(
+        w3 = ndims(w) > 2 ?  w[3] : one(T)
+        m3 = ndims(m) > 2 ? m[3] : zero(T)
+
+        Mat4f0( # always return float32 matrix
             (w[1], 0   , 0 , 0),
             (0   , w[2], 0 , 0),
             (0   , 0   , w3, 0),
@@ -27,15 +28,22 @@ function translationmatrix(b::BoundingBox)
     end
 end
 
-function layout(b::BoundingBox, x)
-    translationmatrix(b)*x
+layout(b, composable...) =  layout(b, composable)
+function layout(b, composables::Union{Tuple, Vector})
+    trans = translationmatrix(b)
+    map(composables) do composable
+        transform!(composable, trans)
+        composable
+    end
 end
 
-layout(HyperRectangle(0,0,50,500), layout([
-    "hello gurl",
-    slider(1:10),
-    RGBA{Float32}(0,0,0,1)
-], gap=Vec3f0(0)))
+export layout
+
+# layout(HyperRectangle(0,0,50,500), layout([
+#     "hello",
+#     slider(1:10),
+#     RGBA{Float32}(0,0,0,1)
+# ], gap=Vec3f0(0)))
 
 
 
@@ -48,11 +56,19 @@ end
 boundingbox(c::Composable) = c.boundingbox
 transformation(c::Composable) = c.transformation
 
+function transform!(c::Composable, model)
+    c.transformation = const_lift(*, model, transformation(c))
+    for elem in c.children
+        transform!(elem, c.transformation)
+    end
+    c
+end
 function transformation(c::Composable, model)
     c.transformation = const_lift(*, model, c.transformation)
     for elem in c.children
         transformation(elem, c.transformation)
     end
+    c
 end
 
 convert!{unit <: Unit}(::Type{unit}, x::Composable) = x # We don't do units just yet
