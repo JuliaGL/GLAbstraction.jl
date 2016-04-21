@@ -39,12 +39,12 @@ function render{Pre}(list::Vector{RenderObject{Pre}})
             end
         end
         renderobject.postrenderfunction()
+        glBindVertexArray(0)
     end
     # we need to assume, that we're done here, which is why
     # we need to bind VertexArray to 0.
     # Otherwise, every glBind(::GLBuffer) operation will be recorded into the state
     # of the currently bound vertexarray
-    glBindVertexArray(0)
     return nothing
 end
 
