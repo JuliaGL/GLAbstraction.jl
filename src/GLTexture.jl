@@ -43,6 +43,7 @@ type TextureBuffer{T <: GLArrayEltypes} <: OpenglTexture{T, 1}
     buffer  ::GLBuffer{T}
 end
 Base.size(t::TextureBuffer) = size(t.buffer)
+Base.size(t::TextureBuffer, i::Integer) = size(t.buffer, i)
 Base.length(t::TextureBuffer) = length(t.buffer)
 bind(t::Texture) = glBindTexture(t.texturetype, t.id)
 bind(t::Texture, id) = glBindTexture(t.texturetype, id)
