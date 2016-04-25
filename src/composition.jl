@@ -28,8 +28,9 @@ function translationmatrix(b)
     end
 end
 
-layout(b, composable...) =  layout(b, composable)
-function layout(b, composables::Union{Tuple, Vector})
+layout!(b, c) =  layout!(b, (c,))[1]
+layout!(b, c, composable...) = layout!(b, (c,composable...))
+function layout!(b, composables::Union{Tuple, Vector})
     trans = translationmatrix(b)
     map(composables) do composable
         transform!(composable, trans)
@@ -37,7 +38,7 @@ function layout(b, composables::Union{Tuple, Vector})
     end
 end
 
-export layout
+export layout!
 
 # layout(HyperRectangle(0,0,50,500), layout([
 #     "hello",
