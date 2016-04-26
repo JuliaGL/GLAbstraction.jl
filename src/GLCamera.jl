@@ -68,11 +68,11 @@ Dict(
 function OrthographicPixelCamera(
         inputs;
         fov=41f0, near=0.01f0, up=Vec3f0(0,1,0),
-        translation_speed=Signal(1), theta=Signal(Vec3f0(0))
+        translation_speed=Signal(1), theta=Signal(Vec3f0(0)), keep=Signal(true)
     )
     @materialize mouseposition, mouse_buttons_pressed, buttons_pressed, scroll = inputs
     left_ctrl     = Set([GLFW.KEY_LEFT_CONTROL])
-    use_cam       = const_lift(==, buttons_pressed, left_ctrl)
+    use_cam       = map(AND, const_lift(==, buttons_pressed, left_ctrl), keep)
 
     mouseposition = droprepeats(map(Vec2f0, mouseposition))
     left_pressed  = const_lift(pressed, mouse_buttons_pressed, GLFW.MOUSE_BUTTON_LEFT)
@@ -285,9 +285,11 @@ lookatvec: Point the camera looks at
 """
 function PerspectiveCamera{T}(
         inputs::Dict{Symbol,Any},
-        eyeposition::Vec{3, T}, lookatvec::Vec{3, T}
+        eyeposition::Vec{3, T}, lookatvec::Vec{3, T}; keep=Signal(true)
     )
-    theta, trans = default_camera_control(inputs, Signal(0.1f0), Signal(0.01f0))
+    theta, trans = default_camera_control(
+        inputs, Signal(0.1f0), Signal(0.01f0), keep
+    )
 
     PerspectiveCamera(
         theta,

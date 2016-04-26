@@ -63,15 +63,21 @@ end
 export EmptyPrerender
 export prerendertype
 
-function instanced_renderobject(data, program, bb=Signal(AABB(Vec3f0(0), Vec3f0(1))), primitive::GLenum=GL_TRIANGLES, main=nothing)
-    pre = StandardPrerender()
+function instanced_renderobject(
+        data, program, bb=Signal(AABB(Vec3f0(0), Vec3f0(1))),
+        primitive::GLenum=GL_TRIANGLES, main=nothing;
+        pre = StandardPrerender()
+    )
     robj = RenderObject(data, program, pre, nothing, bb, main)
     robj.postrenderfunction = StandardPostrenderInstanced(main, robj.vertexarray, primitive)
     robj
 end
 
-function std_renderobject(data, program, bb=Signal(AABB(Vec3f0(0), Vec3f0(1))), primitive=GL_TRIANGLES, main=nothing)
-    pre = StandardPrerender()
+function std_renderobject(
+        data, program, bb=Signal(AABB(Vec3f0(0), Vec3f0(1))),
+        primitive=GL_TRIANGLES, main=nothing;
+        pre = StandardPrerender()
+    )
     robj = RenderObject(data, program, pre, nothing, bb, main)
     robj.postrenderfunction = StandardPostrender(robj.vertexarray, primitive)
     robj
