@@ -61,8 +61,8 @@ function gluniform(location::GLint, target::GLint, t::Texture)
 end
 gluniform(location::Integer, x::Enum) 	 						     = gluniform(GLint(location), GLint(x))
 gluniform(location::Integer, x::Signal)                              = gluniform(GLint(location), value(x))
-gluniform(location::Integer, x::Union{GLubyte, GLushort, GLuint}) 	 = glUniform1ui(GLint(location), x)
-gluniform(location::Integer, x::Union{GLbyte, GLshort, GLint, Bool}) = glUniform1i(GLint(location),  x)
+gluniform(location::Integer, x::Union{GLubyte, GLushort, GLuint}) 	 = glUniform1ui(GLint(location), GLuint(x))
+gluniform(location::Integer, x::Union{GLbyte, GLshort, GLint, Bool}) = glUniform1i(GLint(location),  GLint(x))
 gluniform(location::Integer, x::GLfloat)                             = glUniform1f(GLint(location),  x)
 
 #Uniform upload functions for julia arrays...
