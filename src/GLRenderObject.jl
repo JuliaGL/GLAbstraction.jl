@@ -63,10 +63,19 @@ end
 export EmptyPrerender
 export prerendertype
 
+##############################################################################################
+#  Generic render functions
+#####
+function enabletransparency()
+    glEnablei(GL_BLEND, 0)
+    glDisablei(GL_BLEND, 1)
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
+end
+
 function instanced_renderobject(
         data, program, bb=Signal(AABB(Vec3f0(0), Vec3f0(1))),
         primitive::GLenum=GL_TRIANGLES, main=nothing;
-        pre = StandardPrerender()
+        pre = EmptyPrerender()
     )
     robj = RenderObject(data, program, pre, nothing, bb, main)
     robj.postrenderfunction = StandardPostrenderInstanced(main, robj.vertexarray, primitive)
@@ -76,7 +85,7 @@ end
 function std_renderobject(
         data, program, bb=Signal(AABB(Vec3f0(0), Vec3f0(1))),
         primitive=GL_TRIANGLES, main=nothing;
-        pre = StandardPrerender()
+        pre = EmptyPrerender()
     )
     robj = RenderObject(data, program, pre, nothing, bb, main)
     robj.postrenderfunction = StandardPostrender(robj.vertexarray, primitive)

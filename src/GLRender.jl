@@ -14,7 +14,7 @@ end
 """
 When rendering a specialised list of Renderables, we can do some optimizations
 """
-function render{Pre}(list::Vector{RenderObject{Pre}})
+function render(list::Vector)
     isempty(list) && return nothing
     first(list).prerenderfunction()
     vertexarray = first(list).vertexarray
@@ -120,14 +120,3 @@ function renderinstanced(vao::GLVertexArray, amount::Integer, primitive=GL_TRIAN
     return nothing
 end
 #handle all uniform objects
-
-
-
-##############################################################################################
-#  Generic render functions
-#####
-function enabletransparency()
-    glEnablei(GL_BLEND, 0)
-    glDisablei(GL_BLEND, 1)
-    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
-end
