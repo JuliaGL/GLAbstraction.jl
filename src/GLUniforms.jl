@@ -22,11 +22,11 @@ opengl_postfix(x::Type{Cuint})   = "uiv"
 
 
 function uniformfunc(typ::DataType, dims::Tuple{Int})
-    symbol(string("glUniform", first(dims), opengl_postfix(typ)))
+    Symbol(string("glUniform", first(dims), opengl_postfix(typ)))
 end
 function uniformfunc(typ::DataType, dims::Tuple{Int, Int})
     M, N = dims
-    symbol(string("glUniformMatrix", M==N ? "$M":"$(M)x$(N)", opengl_postfix(typ)))
+    Symbol(string("glUniformMatrix", M==N ? "$M":"$(M)x$(N)", opengl_postfix(typ)))
 end
 
 function gluniform{FSA <: Union{FixedArray, Colorant}}(location::Integer, x::FSA)
@@ -181,12 +181,12 @@ function isa_gl_struct{T}(x::T)
         return false
     end
     fnames = fieldnames(T)
-    !isempty(fnames) && all(name -> isleaftype(fieldtype(T, name)) && isbits(x.(name)), fnames)
+    !isempty(fnames) && all(name -> isleaftype(fieldtype(T, name)) && isbits(getfield(x, name)), fnames)
 end
 function gl_convert_struct{T}(x::T, uniform_name::Symbol)
     if isa_gl_struct(x)
         return Dict{Symbol, Any}(map(fieldnames(x)) do name
-            (symbol("$uniform_name.$name") => gl_convert(x.(name)))
+            (Symbol("$uniform_name.$name") => gl_convert(getfield(x, name)))
         end)
     else
         error("can't convert $x to a OpenGL type. Make sure all fields are of a concrete type and isbits(FieldType)-->true")

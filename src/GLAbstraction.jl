@@ -18,6 +18,9 @@ using GLFW
 import Base: merge, resize!, unsafe_copy!, similar, length, getindex, setindex!, call
 import Reactive: value
 
+using Compat
+
+
 include("AbstractGPUArray.jl")
 
 

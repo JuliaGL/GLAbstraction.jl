@@ -30,7 +30,7 @@ void main() {
 	outColor = texture(image, f_uv);
 }
 """
-program = LazyShader(vert, frag) #= {{GLSL_VERSION}} is a template, you could add your own with the kwarg view=Dict{ASCIIString, ASCIIString}(key->replacement) =#
+program = LazyShader(vert, frag) #= {{GLSL_VERSION}} is a template, you could add your own with the kwarg view=Dict{Compat.UTF8String, Compat.UTF8String}(key->replacement) =#
 
 tex = Texture([RGBA{U8}(x,y,sin(x*pi), 1.0) for x=0:0.1:1., y=0:0.1:1.]) #automatically creates the correct texture
 data = merge(Dict(

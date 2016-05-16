@@ -356,8 +356,16 @@ function Base.done{T}(t::TextureBuffer{T}, state::Tuple{Ptr{T}, Int})
     isdone
 end
 
+default_colorformat{T}(::Type{GrayA{T}}) = GL_LUMINANCE_ALPHA
+@generated function default_colorformat{T}(::Type{T})
+    sym = default_colorformat_sym(T)
+    if !isdefined(ModernGL, sym)
+        error("$T doesn't have a propper mapping to an OpenGL format")
+    end
+    :($sym)
+end
 
-function default_colorformat(colordim::Integer, isinteger::Bool, colororder::AbstractString)
+function default_colorformat_sym(colordim::Integer, isinteger::Bool, colororder::AbstractString)
     colordim > 4 && error("no colors with dimension > 4 allowed. Dimension given: ", colordim)
     sym = "GL_"
     # Handle that colordim == 1 => RED instead of R
@@ -365,22 +373,22 @@ function default_colorformat(colordim::Integer, isinteger::Bool, colororder::Abs
     # Handle gray value
     integer = isinteger ? "_INTEGER" : ""
     sym *= color * integer
-    return eval(symbol(sym))
-end
-default_colorformat{T <: Real}(::Type{T})           = default_colorformat(1, T <: Integer, "RED")
-default_colorformat{T <: AbstractArray}(::Type{T})  = default_colorformat(length(T), eltype(T) <: Integer, "RGBA")
-default_colorformat{T <: FixedVector}(::Type{T})    = default_colorformat(length(T), eltype(T) <: Integer, "RGBA")
-default_colorformat{T}(::Type{GrayA{T}})            = GL_LUMINANCE_ALPHA
-default_colorformat{T <: Colorant}(::Type{T})       = default_colorformat(length(T), eltype(T) <: Integer, string(T.name.name))
-
-
-function default_internalcolorformat{T}(::Type{GrayA{T}})
-    s=sizeof(T)*8
-    eval(symbol("GL_LUMINANCE$(s)_ALPHA$(s)"))
+    return Symbol(sym)
 end
 
+default_colorformat_sym{T <: Real}(::Type{T})           = default_colorformat_sym(1, T <: Integer, "RED")
+default_colorformat_sym{T <: AbstractArray}(::Type{T})  = default_colorformat_sym(length(T), eltype(T) <: Integer, "RGBA")
+default_colorformat_sym{T <: FixedVector}(::Type{T})    = default_colorformat_sym(length(T), eltype(T) <: Integer, "RGBA")
+default_colorformat_sym{T <: Colorant}(::Type{T})       = default_colorformat_sym(length(T), eltype(T) <: Integer, string(T.name.name))
 
 @generated function default_internalcolorformat{T}(::Type{T})
+    sym = default_internalcolorformat_sym(T)
+    if !isdefined(ModernGL, sym)
+        error("$T doesn't have a propper mapping to an OpenGL format")
+    end
+    :($sym)
+end
+function default_internalcolorformat_sym{T}(::Type{T})
     cdim = colordim(T)
     if cdim > 4 || cdim < 1
         error("$(cdim)-dimensional colors not supported")
@@ -399,9 +407,16 @@ end
     elseif eltyp <: Unsigned
         sym *= "UI"
     end
-    s = symbol(sym)
-    :($(s))
+    Symbol(sym)
 end
+
+function default_internalcolorformat_sym{T}(::Type{GrayA{T}})
+    s=sizeof(T)*8
+    Symbol(string("GL_LUMINANCE", s, "_ALPHA", s))
+end
+
+
+
 
 #Supported texture modes/dimensions
 function default_texturetype(ndim::Integer)
@@ -448,7 +463,7 @@ TextureParameters{T, NDim}(t::Texture{T, NDim}; kw_args...) = TextureParameters(
 
 function set_parameters{T, N}(t::Texture{T, N}, params::TextureParameters=t.parameters)
     result    = Array(Tuple{GLenum, GLenum}, N+2)
-    data      = [name => map_texture_paramers(params.(name)) for name in fieldnames(params)]
+    data      = [name => map_texture_paramers(getfield(params, name)) for name in fieldnames(params)]
     result[1] = (GL_TEXTURE_MIN_FILTER,        data[:minfilter])
     result[2] = (GL_TEXTURE_MAG_FILTER,        data[:magfilter])
     result[3] = (GL_TEXTURE_WRAP_S,            data[:repeat][1])
