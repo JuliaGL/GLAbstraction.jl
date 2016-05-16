@@ -131,7 +131,7 @@ type GLVertexArray{T}
   program       ::GLProgram
   id            ::GLuint
   bufferlength  ::Int
-  buffers       ::Dict{String, GLBuffer}
+  buffers       ::Dict{Compat.UTF8String, GLBuffer}
   indices       ::T
 end
 """
@@ -147,7 +147,7 @@ function GLVertexArray(bufferdict::Dict, program::GLProgram)
     id  = glGenVertexArrays()
     glBindVertexArray(id)
     lenbuffer = 0
-    buffers = Dict{String, GLBuffer}()
+    buffers = Dict{Compat.UTF8String, GLBuffer}()
     for (name, buffer) in bufferdict
         if isa(buffer, GLBuffer) && buffer.buffertype == GL_ELEMENT_ARRAY_BUFFER
             bind(buffer)

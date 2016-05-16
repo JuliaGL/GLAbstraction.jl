@@ -117,7 +117,6 @@ let shader_cache = Dict{Tuple{GLenum, Vector{UInt8}}, GLuint}() # shader cache p
     function compileshader(shader::Shader)
         get!(shader_cache, (shader.typ, shader.source)) do
             shaderid = createshader(shader.typ)
-            @assert isascii(bytestring(shader.source))
             glShaderSource(shaderid, shader.source)
             glCompileShader(shaderid)
             if !iscompiled(shaderid)
@@ -150,7 +149,7 @@ end
 # Actually compiles and links shader sources
 function GLProgram(
         shaders::Vector{Shader}, program=createprogram();
-        fragdatalocation=Tuple{Int, String}[]
+        fragdatalocation=Tuple{Int, Compat.UTF8String}[]
     )
 
     # Remove old shaders
@@ -200,8 +199,8 @@ gl_convert(lazyshader::AbstractLazyShader, data) = TemplateProgram(
 
 
 # Takes a shader template and renders the template and returns shader source
-template2source(source::Array{UInt8, 1}, attributes::Dict{Symbol, Any}, view::Dict{String, String}) = template2source(bytestring(source), attributes, view)
-function template2source(source::AbstractString, attributes::Dict{Symbol, Any}, view::Dict{String, String})
+template2source(source::Array{UInt8, 1}, attributes::Dict{Symbol, Any}, view) = template2source(bytestring(source), attributes, view)
+function template2source(source::AbstractString, attributes::Dict{Symbol, Any}, view)
     code_template    = Mustache.parse(source)
     specialized_view = merge(createview(attributes, mustachekeys(code_template)), view)
     code_source      = replace(replace(Mustache.render(code_template, specialized_view), "&#x2F;", "/"), "&gt;", ">")
@@ -213,9 +212,9 @@ end
 
 function TemplateProgram(x::Union{Shader, File, Signal{Shader}}...; kw_args...)
     TemplateProgram(merge(Dict(
-        :view               => Dict{String, String}(),
+        :view               => Dict{Compat.UTF8String, Compat.UTF8String}(),
         :attributes         => Dict{Symbol, Any}(),
-        :fragdatalocation   => Tuple{Int, String}[],
+        :fragdatalocation   => Tuple{Int, Compat.UTF8String}[],
         :program            => createprogram()
     ), Dict{Symbol, Any}(kw_args)), x...)
 end
@@ -251,7 +250,7 @@ function TemplateProgram(kw_args::Dict{Symbol, Any}, s::Shader, shaders::Shader.
         #for now we just append the extensions
         extension *= "\n" * view["GLSL_EXTENSIONS"]
     end
-    internaldata = @compat Dict(
+    internaldata = Dict{Compat.UTF8String, Compat.UTF8String}(
         "GLSL_VERSION"    => glsl_version_string(),
         "GLSL_EXTENSIONS" => extension
     )
@@ -265,7 +264,7 @@ end
 
 
 function createview(x::Dict{Symbol, Any}, keys)
-  view = Dict{String, String}()
+  view = Dict{Compat.UTF8String, Compat.UTF8String}()
   for (key, val) in x
     if !isa(val, AbstractString)
         keystring = string(key)
