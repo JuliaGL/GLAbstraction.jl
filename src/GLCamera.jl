@@ -47,7 +47,7 @@ function Base.collect(camera::Camera)
     names     = fieldnames(camera)
     for name in (:view, :projection, :projectionview, :eyeposition)
         if name in names
-            collected[name] = camera.(name)
+            collected[name] = getfield(camera, name)
         end
     end
     return collected

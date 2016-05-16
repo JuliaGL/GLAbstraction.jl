@@ -13,7 +13,7 @@ function glShaderSource(shaderID::GLuint, shadercode::Vector{UInt8})
     len              = Ref{GLint}(length(shadercode))
     glShaderSource(shaderID, 1, shader_code_ptrs, len)
 end
-glShaderSource(shaderID::GLuint, shadercode::ASCIIString) = glShaderSource(shaderID, shadercode.data)
+glShaderSource(shaderID::GLuint, shadercode::String) = glShaderSource(shaderID, shadercode.data)
 function glGetAttachedShaders(program::GLuint)
     shader_count   = glGetProgramiv(program, GL_ATTACHED_SHADERS)
     length_written = GLsizei[0]
@@ -25,7 +25,7 @@ end
 
 
 get_attribute_location(program::GLuint, name::Symbol) = get_attribute_location(program, string(name))
-function get_attribute_location(program::GLuint, name::ASCIIString)
+function get_attribute_location(program::GLuint, name::String)
     const location::GLint = glGetAttribLocation(program, name)
     if location == -1
         error(
@@ -43,7 +43,7 @@ function get_attribute_location(program::GLuint, name::ASCIIString)
 end
 
 get_uniform_location(program::GLuint, name::Symbol) = get_uniform_location(program, string(name))
-function get_uniform_location(program::GLuint, name::ASCIIString)
+function get_uniform_location(program::GLuint, name::String)
     const location = glGetUniformLocation(program, name)::GLint
     if location == -1
         error(
@@ -71,7 +71,7 @@ function glGetActiveUniform(programID::GLuint, index::Integer)
     actualLength[1] <= 0 &&  error("No active uniform at given index. Index: ", index)
 
     uname = bytestring(pointer(name), actualLength[1])
-    uname = symbol(replace(uname, r"\[\d*\]", "")) # replace array brackets. This is not really a good solution.
+    uname = Symbol(replace(uname, r"\[\d*\]", "")) # replace array brackets. This is not really a good solution.
     (uname, typ[1], uniformSize[1])
 end
 function glGetActiveAttrib(programID::GLuint, index::Integer)
@@ -86,7 +86,7 @@ function glGetActiveAttrib(programID::GLuint, index::Integer)
     actualLength[1] <= 0 && error("No active uniform at given index. Index: ", index)
 
     uname = bytestring(pointer(name), actualLength[1])
-    uname = symbol(replace(uname, r"\[\d*\]", "")) # replace array brackets. This is not really a good solution.
+    uname = Symbol(replace(uname, r"\[\d*\]", "")) # replace array brackets. This is not really a good solution.
     (uname, typ[1], attributeSize[1])
 end
 function glGetProgramiv(programID::GLuint, variable::GLenum)

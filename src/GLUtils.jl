@@ -31,25 +31,13 @@ end
 getindex{T<:AbstractArray}(A::IterOrScalar{T}, i::Integer) = A.val[i]
 getindex(A::IterOrScalar, i::Integer) = A.val
 
-foreach(func::Union{Function, DataType}, args...) = foreach(func, map(IterOrScalar, args)...)
-
-# Applies a function over multiple args
-# staged, so it can specialize on the arguments being scalar or iterable
-@generated function foreach(func::Function, args::IterOrScalar...)
-    args_access = [:(args[$i][i]) for i=1:length(args)]
-    quote
-        len = minlenght(args)
-        for i=1:len
-            func($(args_access...))
-        end
-    end
-end
-
 #Some mapping functions for dictionaries
-mapvalues(func::Union{Function, Base.Func}, collection::Dict) =
+function mapvalues(func, collection::Dict)
     [key => func(value) for (key, value) in collection]
-mapkeys(func::Union{Function, Base.Func}, collection::Dict) =
+end
+function mapkeys(func, collection::Dict)
     [func(key) => value for (key, value) in collection]
+end
 Base.get{KT, VT}(a::Dict{KT, VT}, keys::Vector{KT}) = [a[key] for key in keys]
 
 function print_with_lines(out::IO, text::AbstractString)
@@ -74,7 +62,7 @@ Style(x::Symbol) = Style{x}()
 Style() = Style{:Default}()
 mergedefault!{S}(style::Style{S}, styles, customdata) = merge!(copy(styles[S]), Dict{Symbol, Any}(customdata))
 macro style_str(string)
-    Style{symbol(string)}
+    Style{Symbol(string)}
 end
 export @style_str
 
