@@ -23,7 +23,7 @@ function glGetAttachedShaders(program::GLuint)
     shaders[1:first(length_written)]
 end
 
-get_uniform_location(program::GLuint, name) = get_uniform_location(program, ascii(name))
+get_attribute_location(program::GLuint, name) = get_uniform_location(program, ascii(name))
 get_attribute_location(program::GLuint, name::Symbol) = get_attribute_location(program, string(name))
 function get_attribute_location(program::GLuint, name::Compat.ASCIIString)
     const location::GLint = glGetAttribLocation(program, name)
