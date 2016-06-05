@@ -70,7 +70,7 @@ function glGetActiveUniform(programID::GLuint, index::Integer)
 
     actualLength[1] <= 0 &&  error("No active uniform at given index. Index: ", index)
 
-    uname = bytestring(pointer(name), actualLength[1])
+    uname = Compat.String(pointer(name), actualLength[1])
     uname = Symbol(replace(uname, r"\[\d*\]", "")) # replace array brackets. This is not really a good solution.
     (uname, typ[1], uniformSize[1])
 end
@@ -85,7 +85,7 @@ function glGetActiveAttrib(programID::GLuint, index::Integer)
 
     actualLength[1] <= 0 && error("No active uniform at given index. Index: ", index)
 
-    uname = bytestring(pointer(name), actualLength[1])
+    uname = Compat.String(pointer(name), actualLength[1])
     uname = Symbol(replace(uname, r"\[\d*\]", "")) # replace array brackets. This is not really a good solution.
     (uname, typ[1], attributeSize[1])
 end
