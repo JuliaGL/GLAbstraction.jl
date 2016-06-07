@@ -44,7 +44,7 @@ function getinfolog(obj::GLuint)
         sizei = GLsizei[0]
         get_log(obj, maxlength, sizei, buffer)
         length = first(sizei)
-        return bytestring(pointer(buffer), length)
+        return Compat.String(pointer(buffer), length)
     else
         return "success"
     end
@@ -120,7 +120,7 @@ let shader_cache = Dict{Tuple{GLenum, Vector{UInt8}}, GLuint}() # shader cache p
             glShaderSource(shaderid, shader.source)
             glCompileShader(shaderid)
             if !iscompiled(shaderid)
-                print_with_lines(bytestring(shader.source))
+                print_with_lines(Compat.String(shader.source))
                 warn("shader $(shader.name) didn't compile. \n$(getinfolog(shaderid))")
             end
             shaderid
@@ -199,7 +199,7 @@ gl_convert(lazyshader::AbstractLazyShader, data) = TemplateProgram(
 
 
 # Takes a shader template and renders the template and returns shader source
-template2source(source::Array{UInt8, 1}, attributes::Dict{Symbol, Any}, view) = template2source(bytestring(source), attributes, view)
+template2source(source::Array{UInt8, 1}, attributes::Dict{Symbol, Any}, view) = template2source(Compat.String(source), attributes, view)
 function template2source(source::AbstractString, attributes::Dict{Symbol, Any}, view)
     code_template    = Mustache.parse(source)
     specialized_view = merge(createview(attributes, mustachekeys(code_template)), view)
@@ -244,7 +244,7 @@ function TemplateProgram(kw_args::Dict{Symbol, Any}, s::Shader, shaders::Shader.
     if haskey(view, "in") || haskey(view, "out") || haskey(view, "GLSL_VERSION")
         println("warning: using internal keyword \"$(in/out/GLSL_VERSION)\" for shader template. The value will be overwritten")
     end
-    extension = @osx? "" : "#extension GL_ARB_draw_instanced : enable"
+    extension = is_apple() ? "" : "#extension GL_ARB_draw_instanced : enable"
     if haskey(view, "GLSL_EXTENSIONS")
         #to do: check custom extension...
         #for now we just append the extensions
@@ -279,7 +279,7 @@ end
 mustachekeys(mustache::Mustache.MustacheTokens) = map(x->x[2], filter(x-> x[1] == "name", mustache.tokens))
 
 function glsl_version_string()
-    glsl = split(bytestring(glGetString(GL_SHADING_LANGUAGE_VERSION)), ['.', ' '])
+    glsl = split(Compat.String(glGetString(GL_SHADING_LANGUAGE_VERSION)), ['.', ' '])
     if length(glsl) >= 2
         glsl = VersionNumber(parse(Int, glsl[1]), parse(Int, glsl[2]))
         glsl.major == 1 && glsl.minor <= 2 && error("OpenGL shading Language version too low. Try updating graphic driver!")
