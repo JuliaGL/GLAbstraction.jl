@@ -116,7 +116,10 @@ end
 function Base.done{T}(buffer::GLBuffer{T}, ptr::Tuple{Ptr{T}, Int})
     ptr, i = state
     isdone = length(buffer) < i
-    isdone && glUnmapBuffer(buffer.buffertype)
+    if isdone
+        glUnmapBuffer(buffer.buffertype)
+        glBindBuffer(buffer.buffertype, 0)
+    end
     isdone
 end
 
@@ -129,7 +132,7 @@ function Base.unsafe_copy!{T}(buffer::GLBuffer{T}, readoffset::Int, writeoffset:
         unsafe_store!(ptr, unsafe_load(ptr, i+readoffset-1), i+writeoffset-1)
     end
     glUnmapBuffer(buffer.buffertype)
-    bind(buffer,0)
+    bind(buffer, 0)
     return nothing
 end
 function Base.unsafe_copy!{T}(a::Vector{T}, readoffset::Int, b::GLBuffer{T}, writeoffset::Int, len::Int)
