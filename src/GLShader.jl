@@ -100,7 +100,9 @@ function const_lift_shader(shader_file::File, updatewhile=Signal(true), update_i
 end
 
 #Implement File IO interface
-load(f::File{format"GLSLShader"}) = preserve(const_lift_shader(f))
+function load(f::File{format"GLSLShader"}; updatewhile=Signal(false), update_interval=1.0)
+    preserve(const_lift_shader(f, updatewhile, update_interval))
+end
 function save(f::File{format"GLSLShader"}, data::Shader)
     s = open(f, "w")
     write(s, data.source)
@@ -112,8 +114,16 @@ compileshader(file::File{format"GLSLShader"}, program::GLuint) = compileshader(l
 let shader_cache = Dict{Tuple{GLenum, Vector{UInt8}}, GLuint}() # shader cache prevents that a shader is compiled more than one time
     #finalizer(shader_cache, dict->foreach(glDeleteShader, values(dict))) # delete all shaders when done
     empty_shader_cache!() = empty!(shader_cache)
-    global empty_shader_cache!
-
+    global empty_shader_cache!, deleteshader!
+    function deleteshader!(id::GLuint)
+        for (key, s_id) in shader_cache
+            if s_id == id
+                delete!(shader_cache, key)
+                glDeleteShader(s_id)
+                break
+            end
+        end
+    end
     function compileshader(shader::Shader)
         get!(shader_cache, (shader.typ, shader.source)) do
             shaderid = createshader(shader.typ)
@@ -155,8 +165,8 @@ function GLProgram(
     # Remove old shaders
     glUseProgram(0)
     shader_ids = glGetAttachedShaders(program)
-    foreach(glDetachShader, program, shader_ids)
-
+    foreach(glDetachShader, repeated(program), shader_ids)
+    #foreach(deleteshader!, shader_ids)
     #attach new ones
     shader_ids = map(shaders) do shader
         shaderid = compileshader(shader)
