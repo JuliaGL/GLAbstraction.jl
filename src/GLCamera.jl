@@ -500,15 +500,14 @@ function center!(camera::PerspectiveCamera, renderlist::Vector)
         push!(camera.farclip, norm(width)*20f0)
     end
 end
-
+function robj_from_camera() end
 function renderlist() end
-export renderlist
+export renderlist, robj_from_camera
 
 """
 Centers the camera(=:perspective) on all render objects in `window`
 """
 function center!(window, camera=:perspective)
-    rlist = get(window.camera2robj, camera, Int[])
-    rl = renderlist(window)[rlist]
+    rl = robj_from_camera(window, camera)
     center!(window.cameras[camera], rl)
 end

@@ -156,7 +156,7 @@ macro gen_defaults!(dict, args)
 
                 value_expr, target = value_expr.args
                 undecided = []
-                if isa(target, Expr) 
+                if isa(target, Expr)
                     undecided = target.args
                 else
                     push!(undecided, target)
