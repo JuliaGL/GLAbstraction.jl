@@ -61,7 +61,6 @@ function set_packing_alignment(a) # at some point we should specialize to array/
     glPixelStorei(GL_UNPACK_SKIP_ROWS, 0)
 end
 
-
 function Texture{T, NDim}(
         data::Ptr{T}, dims::NTuple{NDim, Int};
         internalformat::GLenum = default_internalcolorformat(T),
@@ -70,6 +69,16 @@ function Texture{T, NDim}(
         parameters... # rest should be texture parameters
     )
     texparams = TextureParameters(T, NDim; parameters...)
+    Texture(data, dims, internalformat, texturetype, format, texparams)
+end
+
+function Texture{T, NDim}(
+        data::Ptr{T}, dims::NTuple{NDim, Int},
+        internalformat::GLenum,
+        texturetype   ::GLenum,
+        format        ::GLenum,
+        texparams::TextureParameters
+    )
     id = glGenTextures()
     glBindTexture(texturetype, id)
     set_packing_alignment(data)
@@ -291,7 +300,8 @@ gpu_getindex{T}(t::TextureBuffer{T}, i::UnitRange{Int64}) = t.buffer[i]
 
 
 
-similar{T, NDim}(t::Texture{T, NDim}, newdims::Int...) = similar(t, newdims)
+similar(t::Texture) = similar(t, size(t))
+similar(t::Texture, newdims::Int...) = similar(t, newdims)
 function similar{T}(t::TextureBuffer{T}, newdims::NTuple{1, Int})
     buff = similar(t.buffer, newdims...)
     return TextureBuffer(buff)
@@ -299,9 +309,8 @@ end
 function similar{T, NDim}(t::Texture{T, NDim}, newdims::NTuple{NDim, Int})
     Texture(
         Ptr{T}(C_NULL),
-        newdims, t.texturetype,
-        t.pixeltype,
-        t.internalformat,
+        newdims, t.internalformat,
+        t.texturetype,
         t.format,
         t.parameters
     )
