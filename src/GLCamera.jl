@@ -125,14 +125,14 @@ singlepressed(keys, key) = length(keys) == 1 && first(keys) == key
 
 mouse_dragg(v0, args) = mouse_dragg(v0..., args...)
 function mouse_dragg(
-        started::Bool, startpoint, diff,
+        started::Bool, waspressed::Bool, startpoint, diff,
         ispressed::Bool, position, start_condition::Bool
     )
-    if !started && ispressed && start_condition
-        return (true, position, Vec2f0(0))
+    if !started && !waspressed && ispressed && start_condition
+        return (true, true, position, Vec2f0(0))
     end
-    started && ispressed && return (true, startpoint, position-startpoint)
-    (false, Vec2f0(0), Vec2f0(0))
+    started && ispressed && return (true, ispressed, startpoint, position-startpoint)
+    (false, ispressed, Vec2f0(0), Vec2f0(0))
 end
 mouse_dragg_diff(v0, args) = mouse_dragg_diff(v0..., args...)
 function mouse_dragg_diff(
@@ -147,7 +147,7 @@ function mouse_dragg_diff(
 end
 
 function dragged(mouseposition, key_pressed, start_condition=true)
-    v0 = (false, Vec2f0(0), Vec2f0(0))
+    v0 = (false, false, Vec2f0(0), Vec2f0(0))
     args = const_lift(tuple, key_pressed, mouseposition, start_condition)
     dragg_sig = foldp(mouse_dragg, v0, args)
     is_dragg = map(first, dragg_sig)
@@ -201,11 +201,13 @@ function clicked(robj::RenderObject, button::MouseButton, window)
 end
 export is_same_id
 is_same_id(id_index, robj) = id_index.id == robj.id
+is_same_id(id_index, ids::Tuple) = id_index.id in ids
 """
 Returns a boolean signal indicating if the mouse hovers over `robj`
 """
-is_hovering(robj::RenderObject, window) =
+function is_hovering(robj::RenderObject, window)
     droprepeats(const_lift(is_same_id, window.inputs[:mouse_hover], robj))
+end
 
 
 
@@ -490,7 +492,6 @@ function center!(camera::PerspectiveCamera, renderlist::Vector)
         push!(camera.eyeposition, Vec3f0(x, y, zoom*1.2f0))
         push!(camera.lookat, Vec3f0(x, y, 0))
         push!(camera.farclip, zoom*20f0)
-
     else
         push!(camera.lookat, middle)
         neweyepos = middle + (width*1.2f0)
@@ -507,5 +508,7 @@ export renderlist
 Centers the camera(=:perspective) on all render objects in `window`
 """
 function center!(window, camera=:perspective)
-    center!(window.cameras[camera], renderlist(window))
+    rlist = get(window.camera2robj, camera, Int[])
+    rl = renderlist(window)[rlist]
+    center!(window.cameras[camera], rl)
 end
