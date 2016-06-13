@@ -302,6 +302,17 @@ function free(x::GLVertexArray)
         free_handle_error(e)
     end
 end
+function free(x::Shader)
+    id = [x.id]
+    try
+        glDeleteShader(x.id)
+    catch e
+        free_handle_error(e)
+    end
+end
+
+
+
 function free_handle_error(e::ContextNotAvailable)
     #ignore, since freeing is not needed if context is not available
 end
