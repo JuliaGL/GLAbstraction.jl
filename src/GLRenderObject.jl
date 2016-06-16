@@ -31,7 +31,7 @@ Represents standard sets of function applied before rendering
 immutable StandardPrerender
 end
 
-function call(::StandardPrerender)
+@compat function (::StandardPrerender)()
     glEnable(GL_DEPTH_TEST)
     glDepthMask(GL_TRUE)
     glDepthFunc(GL_LEQUAL)
@@ -44,7 +44,7 @@ immutable StandardPostrender
     vao::GLVertexArray
     primitive::GLenum
 end
-function call(sp::StandardPostrender)
+@compat function (sp::StandardPostrender)()
     render(sp.vao, sp.primitive)
 end
 immutable StandardPostrenderInstanced{T}
@@ -52,13 +52,13 @@ immutable StandardPostrenderInstanced{T}
     vao::GLVertexArray
     primitive::GLenum
 end
-function call(sp::StandardPostrenderInstanced)
+@compat function (sp::StandardPostrenderInstanced)()
     renderinstanced(sp.vao, value(sp.main), sp.primitive)
 end
 
 immutable EmptyPrerender
 end
-function call(sp::EmptyPrerender)
+@compat function (sp::EmptyPrerender)()
 end
 export EmptyPrerender
 export prerendertype

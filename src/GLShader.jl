@@ -289,7 +289,7 @@ end
 mustachekeys(mustache::Mustache.MustacheTokens) = map(x->x[2], filter(x-> x[1] == "name", mustache.tokens))
 
 function glsl_version_string()
-    glsl = split(Compat.String(glGetString(GL_SHADING_LANGUAGE_VERSION)), ['.', ' '])
+    glsl = split(unsafe_string(glGetString(GL_SHADING_LANGUAGE_VERSION)), ['.', ' '])
     if length(glsl) >= 2
         glsl = VersionNumber(parse(Int, glsl[1]), parse(Int, glsl[2]))
         glsl.major == 1 && glsl.minor <= 2 && error("OpenGL shading Language version too low. Try updating graphic driver!")
