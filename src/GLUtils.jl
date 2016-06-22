@@ -251,8 +251,8 @@ function Base.call{T <: HomogenousMesh}(MT::Type{NativeMesh{T}}, m::T)
     result = Dict{Symbol, Any}()
     attribs = attributes(m)
     @materialize! vertices, faces = attribs
-    result[:vertices]   = GLBuffer(vertices)
-    result[:faces]      = indexbuffer(faces)
+    result[:vertices] = GLBuffer(vertices)
+    result[:faces]    = indexbuffer(faces)
     for (field, val) in attribs
         if field in (:texturecoordinates, :normals, :attribute_id, :color)
             if isa(val, Vector)

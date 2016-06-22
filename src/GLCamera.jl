@@ -243,7 +243,7 @@ function default_camera_control(
     xytranslate   = dragged_diff(mouseposition, right_pressed, keep)
 
     ztranslate    = filterwhen(keep, 0f0,
-        const_lift(*, map(last, scroll), 120f0)
+        const_lift(*, map(last, scroll), 95f0)
     )
     translate_theta(
         xytranslate, ztranslate, xytheta,
@@ -317,8 +317,8 @@ function PerspectiveCamera{T}(
         upvector,
         area,
         Signal(41f0), # Field of View
-        Signal(1f0),  # Min distance (clip distance)
-        Signal(100f0) # Max distance (clip distance)
+        Signal(0.1f0),  # Min distance (clip distance)
+        Signal(50f0) # Max distance (clip distance)
     )
 end
 
@@ -491,13 +491,13 @@ function center!(camera::PerspectiveCamera, renderlist::Vector)
         x,y,_ = middle
         push!(camera.eyeposition, Vec3f0(x, y, zoom*1.2f0))
         push!(camera.lookat, Vec3f0(x, y, 0))
-        push!(camera.farclip, zoom*20f0)
+        push!(camera.farclip, zoom*10f0)
     else
         push!(camera.lookat, middle)
         neweyepos = middle + (width*1.2f0)
         push!(camera.eyeposition, neweyepos)
         push!(camera.up, Vec3f0(0,0,1))
-        push!(camera.farclip, norm(width)*20f0)
+        push!(camera.farclip, norm(width)*10f0)
     end
 end
 function robj_from_camera() end
