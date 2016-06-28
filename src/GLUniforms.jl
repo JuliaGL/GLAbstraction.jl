@@ -158,7 +158,7 @@ gl_promote{T <: BGRA}(x::Type{T})          = BGRA{gl_promote(eltype(T))}
 gl_promote{T <: BGR}(x::Type{T})           = BGR{gl_promote(eltype(T))}
 
 
-gl_promote{T <: FixedVector}(x::Type{T})   = similar(T, gl_promote(eltype(T)))
+gl_promote{T <: FixedVector}(x::Type{T}) = similar_type(T, gl_promote(eltype(T)))
 
 gl_promote{T <: HomogenousMesh}(x::Type{T}) = NativeMesh{T}
 
