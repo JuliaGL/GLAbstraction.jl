@@ -120,6 +120,10 @@ include("GLTexture.jl")
 
 ########################################################################
 
+# const GLAtrributeTypeFloat = [GL_FLOAT,GL_FLOAT_VEC2]
+
+const GLSLFloatTypes = GLenum[GL_FLOAT,GL_FLOAT_VEC2, GL_FLOAT_VEC3, GL_FLOAT_VEC4, GL_FLOAT_MAT2, GL_FLOAT_MAT3, GL_FLOAT_MAT4, GL_FLOAT_MAT2x3, GL_FLOAT_MAT2x4, GL_FLOAT_MAT3x2, GL_FLOAT_MAT3x4, GL_FLOAT_MAT4x2, GL_FLOAT_MAT4x3]
+const GLSLIntTypes = GLenum[GL_INT, GL_INT_VEC2, GL_INT_VEC3, GL_INT_VEC4, GL_UNSIGNED_INT, GL_UNSIGNED_INT_VEC2, GL_UNSIGNED_INT_VEC3, GL_UNSIGNED_INT_VEC4]
 
 """
 Represents an OpenGL vertex array type.
@@ -148,6 +152,8 @@ function GLVertexArray(bufferdict::Dict, program::GLProgram)
     glBindVertexArray(id)
     lenbuffer = 0
     buffers = Dict{Compat.UTF8String, GLBuffer}()
+    attributeTypes = attribute_name_type(program.id)
+    println(attributeTypes)
     for (name, buffer) in bufferdict
         if isa(buffer, GLBuffer) && buffer.buffertype == GL_ELEMENT_ARRAY_BUFFER
             bind(buffer)
@@ -164,7 +170,19 @@ function GLVertexArray(bufferdict::Dict, program::GLProgram)
             )
             bind(buffer)
             attribLocation = get_attribute_location(program.id, attribute)
-            glVertexAttribPointer(attribLocation, cardinality(buffer), julia2glenum(eltype(buffer)), GL_FALSE, 0, C_NULL)
+            # println(attribLocation)
+            # name,glslType = glGetActiveAttrib(program.id,attribLocation)
+            glslType = attributeTypes[Symbol(attribute)]
+            # println(attribute," => ", "($name,$attribLocation)", ": ", GLENUM(glslType))
+            if glslType in GLSLFloatTypes
+                glVertexAttribPointer(attribLocation, cardinality(buffer), julia2glenum(eltype(buffer)), GL_FALSE, 0, C_NULL)
+                # println(GLENUM(glGetError())," ",GLENUM(julia2glenum(eltype(buffer))), " ", GLENUM(glslType))
+            elseif glslType in GLSLIntTypes
+                glVertexAttribIPointer(attribLocation,cardinality(buffer), julia2glenum(eltype(buffer)), 0, C_NULL)
+                # println(GLENUM(glGetError())," ",GLENUM(julia2glenum(eltype(buffer))), " ", GLENUM(glslType))
+            else
+                error("Unknown Attribute Type")
+            end
             glEnableVertexAttribArray(attribLocation)
             buffers[attribute] = buffer
             lenbuffer = buffer
