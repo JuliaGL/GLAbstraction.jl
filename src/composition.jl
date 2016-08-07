@@ -43,7 +43,7 @@ layout!(b, c, composable...) = layout!(b, (c,composable...))
 function combine_s_t(scale_trans1, scale_trans2)
     s1,t1 = scale_trans1
     s2,t2 = scale_trans2
-    s2 = 1f0/s2
+    s2 = 1f0./s2
     t2 = -t2
     s,t = s1.*s2, t1+t2
     Mat4f0( # always return float32 matrix

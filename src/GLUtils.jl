@@ -33,10 +33,10 @@ getindex(A::IterOrScalar, i::Integer) = A.val
 
 #Some mapping functions for dictionaries
 function mapvalues(func, collection::Dict)
-    [key => func(value) for (key, value) in collection]
+    Dict([(key, func(value)) for (key, value) in collection])
 end
 function mapkeys(func, collection::Dict)
-    [func(key) => value for (key, value) in collection]
+    Dict([(func(key), value) for (key, value) in collection])
 end
 Base.get{KT, VT}(a::Dict{KT, VT}, keys::Vector{KT}) = [a[key] for key in keys]
 
@@ -246,8 +246,8 @@ immutable NativeMesh{MeshType <: HomogenousMesh}
 end
 export NativeMesh
 
-Base.call{T <: HomogenousMesh}(::Type{NativeMesh}, m::T) = NativeMesh{T}(m)
-function Base.call{T <: HomogenousMesh}(MT::Type{NativeMesh{T}}, m::T)
+@compat (::Type{NativeMesh}){T <: HomogenousMesh}(m::T) = NativeMesh{T}(m)
+@compat function (MT::Type{NativeMesh{T}}){T <: HomogenousMesh}(m::T)
     result = Dict{Symbol, Any}()
     attribs = attributes(m)
     @materialize! vertices, faces = attribs

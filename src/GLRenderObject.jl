@@ -1,14 +1,11 @@
-RenderObject(data::Dict{Symbol}, program, bbs=Signal(AABB{Float32}(Vec3f0(0),Vec3f0(1))), main=nothing) = RenderObject(convert(Dict{Symbol,Any}, data), program, bbs, main)
-
+function RenderObject(
+        data::Dict{Symbol}, program,
+        bbs=Signal(AABB{Float32}(Vec3f0(0),Vec3f0(1))), main=nothing
+    )
+    RenderObject(convert(Dict{Symbol,Any}, data), program, bbs, main)
+end
 function Base.show(io::IO, obj::RenderObject)
     println(io, "RenderObject with ID: ", obj.id)
-
-    println(io, "uniforms: ")
-    for (name, uniform) in obj.uniforms
-        println(io, "   ", name, "\n      ", uniform)
-    end
-    println(io, "vertexarray length: ", length(obj.vertexarray))
-    println(io, "vertexarray indexlength: ", obj.vertexarray.indices)
 end
 
 
@@ -124,7 +121,7 @@ end
 Copy function for a RenderObject. We only copy the uniform dict
 """
 function Base.copy{Pre}(robj::RenderObject{Pre})
-    uniforms = Dict{Symbol, Any}([k=>v for (k,v) in robj.uniforms])
+    uniforms = Dict{Symbol, Any}([(k, v) for (k,v) in robj.uniforms])
     robj = RenderObject{Pre}(
         robj.main,
         uniforms,

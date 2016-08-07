@@ -210,7 +210,7 @@ gpu_setindex!(t) = error("gpu_setindex! not implemented for: $(typeof(t)). This 
 max_dim(t)       = error("max_dim not implemented for: $(typeof(t)). This happens, when you call setindex! on an array, without implementing the GPUArray interface")
 
 
-function Base.call{T <: GPUArray}(::Type{T}, x::Signal)
+@compat function (::Type{T}){T <: GPUArray}(x::Signal)
     gpu_mem = T(value(x))
     preserve(const_lift(update!, gpu_mem, x))
     gpu_mem
