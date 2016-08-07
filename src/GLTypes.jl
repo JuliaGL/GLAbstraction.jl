@@ -19,7 +19,9 @@ immutable Shader
     name::Symbol
     source::Vector{UInt8}
     typ::GLenum
+    id::GLuint
 end
+Shader(name, source, typ) = Shader(name, source, typ, 0)
 name(s::Shader) = s.name
 function Base.show(io::IO, shader::Shader)
     println(io, GLENUM(shader.typ).name, " shader: $(shader.name))")
@@ -211,6 +213,13 @@ type RenderObject{Pre} <: Composable{DeviceUnit}
     end
 
 end
+
+
+
+
+
+
+
 function RenderObject{Pre}(
         data::Dict{Symbol, Any}, program,
         pre::Pre, post,
