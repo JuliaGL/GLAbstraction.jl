@@ -10,7 +10,6 @@ using Reactive
 using FixedPointNumbers
 using ColorTypes
 using Compat
-import Mustache
 using FileIO
 import FileIO: load, save
 using GLFW
