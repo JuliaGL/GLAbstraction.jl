@@ -31,7 +31,7 @@ Represents standard sets of function applied before rendering
 immutable StandardPrerender
 end
 
-function call(::StandardPrerender)
+@compat function (::StandardPrerender)()
     glEnable(GL_DEPTH_TEST)
     glDepthMask(GL_TRUE)
     glDepthFunc(GL_LEQUAL)
@@ -58,7 +58,7 @@ end
 
 immutable EmptyPrerender
 end
-function call(sp::EmptyPrerender)
+@compat function (sp::EmptyPrerender)()
 end
 export EmptyPrerender
 export prerendertype
@@ -108,7 +108,7 @@ end
 Copy function for a RenderObject. We only copy the uniform dict
 """
 function Base.copy{Pre}(robj::RenderObject{Pre})
-    uniforms = Dict{Symbol, Any}([k=>v for (k,v) in robj.uniforms])
+    uniforms = Dict{Symbol, Any}([(k,v) for (k,v) in robj.uniforms])
     robj = RenderObject{Pre}(
         robj.main,
         uniforms,
