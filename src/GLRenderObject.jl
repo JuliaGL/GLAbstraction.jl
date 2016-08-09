@@ -2,15 +2,7 @@ RenderObject(data::Dict{Symbol}, program, bbs=Signal(AABB{Float32}(Vec3f0(0),Vec
 
 function Base.show(io::IO, obj::RenderObject)
     println(io, "RenderObject with ID: ", obj.id)
-
-    println(io, "uniforms: ")
-    for (name, uniform) in obj.uniforms
-        println(io, "   ", name, "\n      ", uniform)
-    end
-    println(io, "vertexarray length: ", length(obj.vertexarray))
-    println(io, "vertexarray indexlength: ", obj.vertexarray.indices)
 end
-
 
 
 Base.getindex(obj::RenderObject, symbol::Symbol)         = obj.uniforms[symbol]
