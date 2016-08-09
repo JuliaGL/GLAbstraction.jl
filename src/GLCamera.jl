@@ -68,11 +68,11 @@ Dict(
 function OrthographicPixelCamera(
         inputs;
         fov=41f0, near=0.01f0, up=Vec3f0(0,1,0),
-        translation_speed=Signal(1), theta=Signal(Vec3f0(0))
+        translation_speed=Signal(1), theta=Signal(Vec3f0(0)), keep=Signal(true)
     )
     @materialize mouseposition, mouse_buttons_pressed, buttons_pressed, scroll = inputs
     left_ctrl     = Set([GLFW.KEY_LEFT_CONTROL])
-    use_cam       = const_lift(==, buttons_pressed, left_ctrl)
+    use_cam       = map(AND, const_lift(==, buttons_pressed, left_ctrl), keep)
 
     mouseposition = droprepeats(map(Vec2f0, mouseposition))
     left_pressed  = const_lift(pressed, mouse_buttons_pressed, GLFW.MOUSE_BUTTON_LEFT)
@@ -125,14 +125,14 @@ singlepressed(keys, key) = length(keys) == 1 && first(keys) == key
 
 mouse_dragg(v0, args) = mouse_dragg(v0..., args...)
 function mouse_dragg(
-        started::Bool, startpoint, diff,
+        started::Bool, waspressed::Bool, startpoint, diff,
         ispressed::Bool, position, start_condition::Bool
     )
-    if !started && ispressed && start_condition
-        return (true, position, Vec2f0(0))
+    if !started && !waspressed && ispressed && start_condition
+        return (true, true, position, Vec2f0(0))
     end
-    started && ispressed && return (true, startpoint, position-startpoint)
-    (false, Vec2f0(0), Vec2f0(0))
+    started && ispressed && return (true, ispressed, startpoint, position-startpoint)
+    (false, ispressed, Vec2f0(0), Vec2f0(0))
 end
 mouse_dragg_diff(v0, args) = mouse_dragg_diff(v0..., args...)
 function mouse_dragg_diff(
@@ -147,7 +147,7 @@ function mouse_dragg_diff(
 end
 
 function dragged(mouseposition, key_pressed, start_condition=true)
-    v0 = (false, Vec2f0(0), Vec2f0(0))
+    v0 = (false, false, Vec2f0(0), Vec2f0(0))
     args = const_lift(tuple, key_pressed, mouseposition, start_condition)
     dragg_sig = foldp(mouse_dragg, v0, args)
     is_dragg = map(first, dragg_sig)
@@ -201,11 +201,13 @@ function clicked(robj::RenderObject, button::MouseButton, window)
 end
 export is_same_id
 is_same_id(id_index, robj) = id_index.id == robj.id
+is_same_id(id_index, ids::Tuple) = id_index.id in ids
 """
 Returns a boolean signal indicating if the mouse hovers over `robj`
 """
-is_hovering(robj::RenderObject, window) =
+function is_hovering(robj::RenderObject, window)
     droprepeats(const_lift(is_same_id, window.inputs[:mouse_hover], robj))
+end
 
 
 
@@ -241,7 +243,7 @@ function default_camera_control(
     xytranslate   = dragged_diff(mouseposition, right_pressed, keep)
 
     ztranslate    = filterwhen(keep, 0f0,
-        const_lift(*, map(last, scroll), 120f0)
+        const_lift(*, map(last, scroll), 95f0)
     )
     translate_theta(
         xytranslate, ztranslate, xytheta,
@@ -285,9 +287,11 @@ lookatvec: Point the camera looks at
 """
 function PerspectiveCamera{T}(
         inputs::Dict{Symbol,Any},
-        eyeposition::Vec{3, T}, lookatvec::Vec{3, T}
+        eyeposition::Vec{3, T}, lookatvec::Vec{3, T}; keep=Signal(true)
     )
-    theta, trans = default_camera_control(inputs, Signal(0.1f0), Signal(0.01f0))
+    theta, trans = default_camera_control(
+        inputs, Signal(0.1f0), Signal(0.01f0), keep
+    )
 
     PerspectiveCamera(
         theta,
@@ -313,8 +317,8 @@ function PerspectiveCamera{T}(
         upvector,
         area,
         Signal(41f0), # Field of View
-        Signal(1f0),  # Min distance (clip distance)
-        Signal(100f0) # Max distance (clip distance)
+        Signal(0.1f0),  # Min distance (clip distance)
+        Signal(50f0) # Max distance (clip distance)
     )
 end
 
@@ -487,23 +491,23 @@ function center!(camera::PerspectiveCamera, renderlist::Vector)
         x,y,_ = middle
         push!(camera.eyeposition, Vec3f0(x, y, zoom*1.2f0))
         push!(camera.lookat, Vec3f0(x, y, 0))
-        push!(camera.farclip, zoom*20f0)
-
+        push!(camera.farclip, zoom*10f0)
     else
         push!(camera.lookat, middle)
         neweyepos = middle + (width*1.2f0)
         push!(camera.eyeposition, neweyepos)
         push!(camera.up, Vec3f0(0,0,1))
-        push!(camera.farclip, norm(width)*20f0)
+        push!(camera.farclip, norm(width)*10f0)
     end
 end
-
+function robj_from_camera() end
 function renderlist() end
-export renderlist
+export renderlist, robj_from_camera
 
 """
 Centers the camera(=:perspective) on all render objects in `window`
 """
 function center!(window, camera=:perspective)
-    center!(window.cameras[camera], renderlist(window))
+    rl = robj_from_camera(window, camera)
+    center!(window.cameras[camera], rl)
 end

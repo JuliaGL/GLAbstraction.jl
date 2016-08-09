@@ -463,7 +463,7 @@ TextureParameters{T, NDim}(t::Texture{T, NDim}; kw_args...) = TextureParameters(
 
 function set_parameters{T, N}(t::Texture{T, N}, params::TextureParameters=t.parameters)
     result    = Array(Tuple{GLenum, GLenum}, N+2)
-    data      = [name => map_texture_paramers(getfield(params, name)) for name in fieldnames(params)]
+    data      = Dict([(name, map_texture_paramers(getfield(params, name))) for name in fieldnames(params)])
     result[1] = (GL_TEXTURE_MIN_FILTER,        data[:minfilter])
     result[2] = (GL_TEXTURE_MAG_FILTER,        data[:magfilter])
     result[3] = (GL_TEXTURE_WRAP_S,            data[:repeat][1])

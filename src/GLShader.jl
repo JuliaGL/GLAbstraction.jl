@@ -44,7 +44,7 @@ function getinfolog(obj::GLuint)
         sizei = GLsizei[0]
         get_log(obj, maxlength, sizei, buffer)
         length = first(sizei)
-        return bytestring(pointer(buffer), length)
+        return unsafe_string(pointer(buffer), length)
     else
         return "success"
     end
@@ -120,7 +120,7 @@ let shader_cache = Dict{Tuple{GLenum, Vector{UInt8}}, GLuint}() # shader cache p
             glShaderSource(shaderid, shader.source)
             glCompileShader(shaderid)
             if !iscompiled(shaderid)
-                print_with_lines(bytestring(shader.source))
+                print_with_lines(unsafe_string(shader.source))
                 warn("shader $(shader.name) didn't compile. \n$(getinfolog(shaderid))")
             end
             shaderid
@@ -197,14 +197,94 @@ gl_convert(lazyshader::AbstractLazyShader, data) = TemplateProgram(
     lazyshader.kw_args...
 )
 
+function insert_from_view(io, replace_view::Function, keyword::AbstractString)
+    print(io, replace_view(keyword))
+    nothing
+end
 
+function insert_from_view(io, replace_view::Dict, keyword::AbstractString)
+    if haskey(replace_view, keyword)
+        print(io, replace_view[keyword])
+    end
+    nothing
+end
+
+"""
+Replaces
+{{keyword}} with the key in `replace_view`, or replace_view(key)
+in a string
+"""
+function mustache_replace(replace_view::Union{Dict, Function}, string)
+    io = IOBuffer()
+    replace_started = false
+    open_mustaches = 0
+    closed_mustaches = 0
+    i = 0
+    replace_begin = i
+    last_char = SubString(string, 1, 1)
+    len = endof(string)
+    while i <= len
+        i = nextind(string, i)
+        char = SubString(string, i, i)
+        if replace_started
+            # ignore, or wait for }
+            if char == "}"
+                closed_mustaches += 1
+                if closed_mustaches == 2 # we found a complete mustache!
+                    insert_from_view(io, replace_view, SubString(string, replace_begin+1, i-2))
+                    open_mustaches = 0
+                    closed_mustaches = 0
+                    replace_started = false
+                end
+            else
+                closed_mustaches = 0
+                continue
+            end
+        elseif char == "{"
+            open_mustaches += 1
+            if open_mustaches == 2
+                replace_begin = i
+                replace_started = true
+            end
+        else
+            if open_mustaches == 1
+                print(io, last_char)
+            end
+            print(io, char) # just copy all the rest
+            open_mustaches = 0
+            closed_mustaches = 0
+        end
+        last_char = char
+    end
+    takebuf_string(io)
+end
+
+
+function mustache2replacement(mustache_key, view, attributes)
+    haskey(view, mustache_key) && return view[mustache_key]
+    for postfix in ("_type", "_calculation")
+        keystring = replace(mustache_key, postfix, "")
+        keysym = Symbol(keystring)
+        if haskey(attributes, keysym)
+            val = attributes[keysym]
+            if !isa(val, AbstractString)
+                return if postfix == "_type"
+                    toglsltype_string(val)
+                else  postfix == "_calculation"
+                    glsl_variable_access(keystring, val)
+                end
+            end
+        end
+    end
+    "" # no match found, leave empty!
+end
 # Takes a shader template and renders the template and returns shader source
-template2source(source::Array{UInt8, 1}, attributes::Dict{Symbol, Any}, view) = template2source(bytestring(source), attributes, view)
+template2source(source::Array{UInt8, 1}, attributes::Dict{Symbol, Any}, view) = template2source(Compat.String(source), attributes, view)
 function template2source(source::AbstractString, attributes::Dict{Symbol, Any}, view)
-    code_template    = Mustache.parse(source)
-    specialized_view = merge(createview(attributes, mustachekeys(code_template)), view)
-    code_source      = replace(replace(Mustache.render(code_template, specialized_view), "&#x2F;", "/"), "&gt;", ">")
-    ascii(code_source)
+    source = mustache_replace(source) do mustache_key
+        mustache2replacement(mustache_key, view, attributes)
+    end
+    source
 end
 
 #TemplateProgram() = error("Can't create TemplateProgram without parameters")
@@ -244,7 +324,7 @@ function TemplateProgram(kw_args::Dict{Symbol, Any}, s::Shader, shaders::Shader.
     if haskey(view, "in") || haskey(view, "out") || haskey(view, "GLSL_VERSION")
         println("warning: using internal keyword \"$(in/out/GLSL_VERSION)\" for shader template. The value will be overwritten")
     end
-    extension = @osx? "" : "#extension GL_ARB_draw_instanced : enable"
+    extension = is_apple() ? "" : "#extension GL_ARB_draw_instanced : enable"
     if haskey(view, "GLSL_EXTENSIONS")
         #to do: check custom extension...
         #for now we just append the extensions
@@ -261,25 +341,8 @@ function TemplateProgram(kw_args::Dict{Symbol, Any}, s::Shader, shaders::Shader.
     return GLProgram(code, program, fragdatalocation=fragdatalocation)
 end
 
-
-
-function createview(x::Dict{Symbol, Any}, keys)
-  view = Dict{Compat.UTF8String, Compat.UTF8String}()
-  for (key, val) in x
-    if !isa(val, AbstractString)
-        keystring = string(key)
-        typekey = keystring*"_type"
-        calculationkey = keystring*"_calculation"
-        in(typekey, keys) && (view[keystring*"_type"] = toglsltype_string(val))
-        in(calculationkey, keys) && (view[keystring*"_calculation"] = glsl_variable_access(keystring, val))
-    end
-  end
-  view
-end
-mustachekeys(mustache::Mustache.MustacheTokens) = map(x->x[2], filter(x-> x[1] == "name", mustache.tokens))
-
 function glsl_version_string()
-    glsl = split(bytestring(glGetString(GL_SHADING_LANGUAGE_VERSION)), ['.', ' '])
+    glsl = split(unsafe_string(glGetString(GL_SHADING_LANGUAGE_VERSION)), ['.', ' '])
     if length(glsl) >= 2
         glsl = VersionNumber(parse(Int, glsl[1]), parse(Int, glsl[2]))
         glsl.major == 1 && glsl.minor <= 2 && error("OpenGL shading Language version too low. Try updating graphic driver!")

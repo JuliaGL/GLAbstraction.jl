@@ -31,7 +31,7 @@ Represents standard sets of function applied before rendering
 immutable StandardPrerender
 end
 
-function call(::StandardPrerender)
+@compat function (::StandardPrerender)()
     glEnable(GL_DEPTH_TEST)
     glDepthMask(GL_TRUE)
     glDepthFunc(GL_LEQUAL)
@@ -44,7 +44,7 @@ immutable StandardPostrender
     vao::GLVertexArray
     primitive::GLenum
 end
-function call(sp::StandardPostrender)
+@compat function (sp::StandardPostrender)()
     render(sp.vao, sp.primitive)
 end
 immutable StandardPostrenderInstanced{T}
@@ -52,13 +52,13 @@ immutable StandardPostrenderInstanced{T}
     vao::GLVertexArray
     primitive::GLenum
 end
-function call(sp::StandardPostrenderInstanced)
+@compat function (sp::StandardPostrenderInstanced)()
     renderinstanced(sp.vao, value(sp.main), sp.primitive)
 end
 
 immutable EmptyPrerender
 end
-function call(sp::EmptyPrerender)
+@compat function (sp::EmptyPrerender)()
 end
 export EmptyPrerender
 export prerendertype
@@ -80,7 +80,6 @@ end
 prerendertype{Pre}(::Type{RenderObject{Pre}}) = Pre
 prerendertype{Pre}(::RenderObject{Pre}) = Pre
 
-
 extract_renderable(context::Vector{RenderObject}) = context
 extract_renderable(context::RenderObject) = [context]
 extract_renderable{T <: Composable}(context::Vector{T}) = map(extract_renderable, context)
@@ -93,6 +92,7 @@ function extract_renderable(context::Context)
 end
 transformation(c::RenderObject) = c[:model]
 transformation(c::RenderObject, model) = (c[:model] = const_lift(*, model, c[:model]))
+transform!(c::RenderObject, model) = (c[:model] = const_lift(*, model, c[:model]))
 
 
 """
@@ -108,7 +108,7 @@ end
 Copy function for a RenderObject. We only copy the uniform dict
 """
 function Base.copy{Pre}(robj::RenderObject{Pre})
-    uniforms = Dict{Symbol, Any}([k=>v for (k,v) in robj.uniforms])
+    uniforms = Dict{Symbol, Any}([(k,v) for (k,v) in robj.uniforms])
     robj = RenderObject{Pre}(
         robj.main,
         uniforms,
