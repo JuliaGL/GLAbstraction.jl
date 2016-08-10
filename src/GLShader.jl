@@ -120,7 +120,7 @@ let shader_cache = Dict{Tuple{GLenum, Vector{UInt8}}, GLuint}() # shader cache p
             glShaderSource(shaderid, shader.source)
             glCompileShader(shaderid)
             if !iscompiled(shaderid)
-                print_with_lines(unsafe_string(shader.source))
+                print_with_lines(Compat.String(shader.source))
                 warn("shader $(shader.name) didn't compile. \n$(getinfolog(shaderid))")
             end
             shaderid
