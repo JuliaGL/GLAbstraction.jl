@@ -6,7 +6,6 @@ function render(list::Tuple)
     point, right now it's pretty unpredictable how the flow of the different
     tasks and callbacks actually translates to drawcalls
     =#
-    yield()
     for elem in list
         render(elem)
     end
@@ -57,7 +56,6 @@ a lot of objects.
 """
 function render(renderobject::RenderObject, vertexarray=renderobject.vertexarray)
     # same as the yield on line 9
-    yield()
     if Bool(value(renderobject.uniforms[:visible]))
         renderobject.prerenderfunction()
         program = vertexarray.program
