@@ -230,9 +230,11 @@ function doubleclick(mouseclick, threshold::Real)
 end
 
 export doubleclick
-
+function zoomtranslate(z)
+    last(z)
+end
 function default_camera_control(
-        inputs, rotation_speed, translation_speed, keep=Signal(true)
+        inputs, rotation_speed, translation_speed, keep=Signal(true), dir=Signal(Vec3f0(3))
     )
     @materialize mouseposition, mouse_buttons_pressed, scroll = inputs
 
@@ -243,7 +245,7 @@ function default_camera_control(
     xytranslate   = dragged_diff(mouseposition, right_pressed, keep)
 
     ztranslate    = filterwhen(keep, 0f0,
-        const_lift(*, map(last, scroll), 95f0)
+        map(last, scroll)
     )
     translate_theta(
         xytranslate, ztranslate, xytheta,
@@ -289,20 +291,24 @@ function PerspectiveCamera{T}(
         inputs::Dict{Symbol,Any},
         eyeposition::Vec{3, T}, lookatvec::Vec{3, T}; keep=Signal(true)
     )
+    lookat, eyepos = Signal(lookatvec), Signal(eyeposition)
+    dir = map(-, eyepos, lookat)
     theta, trans = default_camera_control(
-        inputs, Signal(0.1f0), Signal(0.01f0), keep
+        inputs, Signal(0.1f0), Signal(1f0), keep, dir
     )
-
+    zclip = map(dir) do x
+        norm(x) * 2f0
+    end
     PerspectiveCamera(
         theta,
         trans,
-        Signal(lookatvec),
-        Signal(eyeposition),
+        lookat,
+        eyepos,
         Signal(Vec3f0(0,0,1)),
         inputs[:window_area],
         Signal(41f0), # Field of View
         Signal(0.01f0),  # Min distance (clip distance)
-        Signal(100f0) # Max distance (clip distance)
+        zclip # Max distance (clip distance)
     )
 end
 function PerspectiveCamera{T}(
@@ -336,19 +342,31 @@ function projection_switch{T<:Real}(
     orthographicprojection(-w, w, -h, h, near, far)
 end
 
-
-
+function to_worldspace{T}(p::T, projectionview, prj_type, cam_res)
+    prj_view_inv = inv(projectionview)
+    clip_space = (Vec3f0(p)./cam_res) * 2f0
+    ws = prj_view_inv * Vec4f0(clip_space, 0f0) # worldspace
+    z = prj_type == PERSPECTIVE ? ws[4] : ws[3]
+    T(ws[1], ws[2], z)
+end
+zoom_scaling(x) = abs(x)>1 ? sign(x)*(1+log(abs(x))) : x
 function translate_cam(
-        translate,
+        translate, proj_view, window_size, prj_type,
         eyepos_s, lookat_s, up_s,
     )
     translate == Vec3f0(0) && return nothing # nothing to do
-
     lookat, eyepos, up = map(value, (lookat_s, eyepos_s, up_s))
-    dir = normalize(eyepos - lookat)
-    right = normalize(cross(dir, up))
-    zoom_trans = dir*(translate[1])
-    side_trans = right*(-translate[2]) + normalize(up)*translate[3]
+    dir = eyepos - lookat
+    dir_len = norm(dir)
+    ws = widths(value(window_size))
+    cam_res = Vec3f0(ws, maximum(ws))
+    translate = Vec3f0(translate[2], translate[3], zoom_scaling(translate[1]*dir_len))
+    translate = to_worldspace(translate, value(proj_view), value(prj_type), cam_res)
+
+    dir_norm = normalize(dir)
+    right = normalize(cross(dir_norm, up))
+    zoom_trans = dir_norm*(translate[3])
+    side_trans = right*(-translate[1]) + normalize(up)*translate[2]
     push!(eyepos_s, eyepos + side_trans + zoom_trans)
     push!(lookat_s, lookat + side_trans)
     nothing
@@ -402,8 +420,18 @@ function PerspectiveCamera{T<:Vec3}(
     # we have three ways to manipulate the camera: rotation, lookat/eyeposition and translation
     positions = (eyeposition, lookatposition, upvector)
 
-    preserve(map(
-       translate_cam, trans,
+    zoomlen = map(norm, map(-, lookatposition, eyeposition))
+    projectionmatrix = map(projection_switch,
+        window_size, fov, nearclip,
+        farclip, projectiontype, zoomlen
+    )
+
+    # create the vievmatrix with the help of the lookat function
+    viewmatrix = map(lookat, eyeposition, lookatposition, upvector)
+    projectionview = map(*, projectionmatrix, viewmatrix)
+
+    preserve(map((x...) -> translate_cam(x[1]::Any, x[2:end]...),
+       trans, Signal(projectionmatrix), Signal(window_size), Signal(projectiontype),
        Signal(eyeposition), Signal(lookatposition), Signal(upvector)
     ))
 
@@ -422,15 +450,6 @@ function PerspectiveCamera{T<:Vec3}(
         push!(upvector, r_up)
     end)
 
-    zoomlen = map(norm, map(-, lookatposition, eyeposition))
-    projectionmatrix = map(projection_switch,
-        window_size, fov, nearclip,
-        farclip, projectiontype, zoomlen
-    )
-
-    # create the vievmatrix with the help of the lookat function
-    viewmatrix = map(lookat, eyeposition, lookatposition, upvector)
-    projectionview = map(*, projectionmatrix, viewmatrix)
 
     PerspectiveCamera{eltype(T)}(
         window_size,
@@ -455,20 +474,30 @@ signal_boundingbox(robj) = value(boundingbox(robj))
 
 
 """
-Centers the camera on a list of render objects
+Calculates union boundingbox of all elements in renderlist
+(Can't do ::Vector{RenderObject{T}}, because t is not always the same)
 """
-function center!(camera::PerspectiveCamera, renderlist::Vector)
+function renderlist_boundingbox(renderlist::Vector)
     isempty(renderlist) && return nothing # nothing to do here
-    # reset camera
-    push!(camera.up, Vec3f0(0,0,1))
-    push!(camera.eyeposition, Vec3f0(3))
-    push!(camera.lookat, Vec3f0(0))
-
     robj1 = first(renderlist)
     bb = value(robj1[:model])*signal_boundingbox(robj1)
     for elem in renderlist[2:end]
         bb = union(value(elem[:model])*signal_boundingbox(elem), bb)
     end
+    bb
+end
+
+"""
+Centers the camera on a list of render objects
+"""
+function center!(camera::PerspectiveCamera, renderlist::Vector)
+    bb = renderlist_boundingbox(renderlist)
+    center!(camera, bb)
+end
+"""
+Centers a camera onto a boundingbox
+"""
+function center!(camera::PerspectiveCamera, bb::AABB)
     width        = widths(bb)
     half_width   = width/2f0
     lower_corner = minimum(bb)
@@ -479,25 +508,23 @@ function center!(camera::PerspectiveCamera, renderlist::Vector)
         )
         aspect = Float32(area.w/area.h)
         h = Float32(tan(fov / 360.0 * pi) * near)
-        w      = h * aspect
+        w = h * aspect
         w_, h_, _ = half_width
         if h_ > w_
             zoom = h_/h
         else
             zoom = w_/w
         end
-        zoom = max(h_,w_)/h
+        zoom = max(h_,w_)/max(w,h)
         push!(camera.up, Vec3f0(0,1,0))
         x,y,_ = middle
-        push!(camera.eyeposition, Vec3f0(x, y, zoom*1.2f0))
+        push!(camera.eyeposition, Vec3f0(x, y, zoom))
         push!(camera.lookat, Vec3f0(x, y, 0))
-        push!(camera.farclip, zoom*10f0)
     else
         push!(camera.lookat, middle)
         neweyepos = middle + (width*1.2f0)
         push!(camera.eyeposition, neweyepos)
         push!(camera.up, Vec3f0(0,0,1))
-        push!(camera.farclip, norm(width)*10f0)
     end
 end
 function robj_from_camera() end
