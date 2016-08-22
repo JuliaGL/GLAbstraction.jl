@@ -342,16 +342,14 @@ function projection_switch{T<:Real}(
     orthographicprojection(-w, w, -h, h, near, far)
 end
 
-function to_worldspace{T}(p::T, projectionview, prj_type, cam_res)
+function to_worldspace{T}(p::T, projectionview, cam_res)
     prj_view_inv = inv(projectionview)
     clip_space = (Vec3f0(p)./cam_res) * 2f0
     ws = prj_view_inv * Vec4f0(clip_space, 0f0) # worldspace
-    z = prj_type == PERSPECTIVE ? ws[4] : ws[3]
-    T(ws[1], ws[2], z)
+    T(ws[1], ws[2], ws[3])
 end
-zoom_scaling(x) = abs(x)>1 ? sign(x)*(1+log(abs(x))) : x
 function translate_cam(
-        translate, proj_view, window_size, prj_type,
+        translate, proj_view, window_size,
         eyepos_s, lookat_s, up_s,
     )
     translate == Vec3f0(0) && return nothing # nothing to do
@@ -360,13 +358,14 @@ function translate_cam(
     dir_len = norm(dir)
     ws = widths(value(window_size))
     cam_res = Vec3f0(ws, maximum(ws))
-    translate = Vec3f0(translate[2], translate[3], zoom_scaling(translate[1]*dir_len))
-    translate = to_worldspace(translate, value(proj_view), value(prj_type), cam_res)
+    p = Vec3f0(translate[2], translate[3], 0)
+    p = to_worldspace(p, value(proj_view), cam_res)
+    x,y,z = p[1], p[2], translate[1]*0.4f0*dir_len
 
     dir_norm = normalize(dir)
     right = normalize(cross(dir_norm, up))
-    zoom_trans = dir_norm*(translate[3])
-    side_trans = right*(-translate[1]) + normalize(up)*translate[2]
+    zoom_trans = dir_norm*z
+    side_trans = right*(-x) + normalize(up)*y
     push!(eyepos_s, eyepos + side_trans + zoom_trans)
     push!(lookat_s, lookat + side_trans)
     nothing
@@ -430,8 +429,8 @@ function PerspectiveCamera{T<:Vec3}(
     viewmatrix = map(lookat, eyeposition, lookatposition, upvector)
     projectionview = map(*, projectionmatrix, viewmatrix)
 
-    preserve(map((x...) -> translate_cam(x[1]::Any, x[2:end]...),
-       trans, Signal(projectionmatrix), Signal(window_size), Signal(projectiontype),
+    preserve(map(translate_cam,
+       trans, Signal(projectionmatrix), Signal(window_size),
        Signal(eyeposition), Signal(lookatposition), Signal(upvector)
     ))
 
