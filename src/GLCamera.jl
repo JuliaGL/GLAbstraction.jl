@@ -136,14 +136,14 @@ function mouse_dragg(
 end
 mouse_dragg_diff(v0, args) = mouse_dragg_diff(v0..., args...)
 function mouse_dragg_diff(
-        started::Bool, position0, diff,
+        started::Bool, waspressed, position0, diff,
         ispressed::Bool, position, start_condition::Bool
     )
-    if !started && ispressed && start_condition
-        return (true, position, Vec2f0(0))
+    if !started && ispressed && (start_condition && !waspressed)
+        return (true, ispressed, position, Vec2f0(0))
     end
-    started && ispressed && return (true, position, position0-position)
-    (false, Vec2f0(0), Vec2f0(0))
+    started && ispressed && return (true, ispressed, position, position0-position)
+    (false, ispressed, Vec2f0(0), Vec2f0(0))
 end
 
 function dragged(mouseposition, key_pressed, start_condition=true)
@@ -156,7 +156,7 @@ function dragged(mouseposition, key_pressed, start_condition=true)
     dragg_diff
 end
 function dragged_diff(mouseposition, key_pressed, start_condition=true)
-    v0 = (false, Vec2f0(0), Vec2f0(0))
+    v0 = (false, false, Vec2f0(0), Vec2f0(0))
     args = const_lift(tuple, key_pressed, mouseposition, start_condition)
     dragg_sig = foldp(mouse_dragg_diff, v0, args)
     is_dragg = map(first, dragg_sig)
@@ -230,11 +230,8 @@ function doubleclick(mouseclick, threshold::Real)
 end
 
 export doubleclick
-function zoomtranslate(z)
-    last(z)
-end
 function default_camera_control(
-        inputs, rotation_speed, translation_speed, keep=Signal(true), dir=Signal(Vec3f0(3))
+        inputs, rotation_speed, translation_speed, keep=Signal(true)
     )
     @materialize mouseposition, mouse_buttons_pressed, scroll = inputs
 
@@ -289,15 +286,18 @@ lookatvec: Point the camera looks at
 """
 function PerspectiveCamera{T}(
         inputs::Dict{Symbol,Any},
-        eyeposition::Vec{3, T}, lookatvec::Vec{3, T}; keep=Signal(true)
+        eyeposition::Vec{3, T}, lookatvec::Vec{3, T};
+        keep=Signal(true), theta=nothing, trans=nothing
     )
     lookat, eyepos = Signal(lookatvec), Signal(eyeposition)
-    dir = map(-, eyepos, lookat)
-    theta, trans = default_camera_control(
-        inputs, Signal(0.1f0), Signal(1f0), keep, dir
+    # TODO make this more elegant!
+    _theta, _trans = default_camera_control(
+        inputs, Signal(0.1f0), Signal(1f0), keep
     )
-    zclip = map(dir) do x
-        norm(x) * 2f0
+    theta = theta == nothing ? _theta : theta
+    trans = trans == nothing ? _trans : trans
+    zclip = map(eyepos, lookat) do a,b
+        norm(b-a) * 2f0
     end
     PerspectiveCamera(
         theta,
