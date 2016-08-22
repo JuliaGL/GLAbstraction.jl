@@ -344,27 +344,31 @@ end
 
 function to_worldspace{T}(p::T, projectionview, cam_res)
     prj_view_inv = inv(projectionview)
-    clip_space = (Vec3f0(p)./cam_res) * 2f0
-    ws = prj_view_inv * Vec4f0(clip_space, 0f0) # worldspace
-    T(ws[1], ws[2], ws[3])
+    clip_space = (Vec2f0(p)./cam_res) * 2f0
+    ws = prj_view_inv * Vec4f0(clip_space, 0f0, 0f0) # worldspace
+    T(ws[1], ws[2], 0)
 end
 function translate_cam(
-        translate, proj_view, window_size,
+        translate, proj_view, window_size, prj_type,
         eyepos_s, lookat_s, up_s,
     )
     translate == Vec3f0(0) && return nothing # nothing to do
-    lookat, eyepos, up = map(value, (lookat_s, eyepos_s, up_s))
+
+    lookat, eyepos, up, prjt = map(value, (lookat_s, eyepos_s, up_s, prj_type))
     dir = eyepos - lookat
     dir_len = norm(dir)
-    ws = widths(value(window_size))
-    cam_res = Vec3f0(ws, maximum(ws))
-    p = Vec3f0(translate[2], translate[3], 0)
-    p = to_worldspace(p, value(proj_view), cam_res)
-    x,y,z = p[1], p[2], translate[1]*0.4f0*dir_len
+    cam_res = Vec2f0(widths(value(window_size)))
 
+    zoom, x, y = translate
+    zoom *= 0.5f0*dir_len
+    if prjt != PERSPECTIVE
+        x,y = to_worldspace(Vec3f0(x,y,0), value(proj_view), cam_res)
+    else
+        x,y = (Vec2f0(x,y) ./ cam_res) .* dir_len
+    end
     dir_norm = normalize(dir)
     right = normalize(cross(dir_norm, up))
-    zoom_trans = dir_norm*z
+    zoom_trans = dir_norm*zoom
     side_trans = right*(-x) + normalize(up)*y
     push!(eyepos_s, eyepos + side_trans + zoom_trans)
     push!(lookat_s, lookat + side_trans)
@@ -430,7 +434,7 @@ function PerspectiveCamera{T<:Vec3}(
     projectionview = map(*, projectionmatrix, viewmatrix)
 
     preserve(map(translate_cam,
-       trans, Signal(projectionmatrix), Signal(window_size),
+       trans, Signal(projectionmatrix), Signal(window_size), Signal(projectiontype),
        Signal(eyeposition), Signal(lookatposition), Signal(upvector)
     ))
 
