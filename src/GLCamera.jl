@@ -360,7 +360,7 @@ function translate_cam(
     cam_res = Vec2f0(widths(value(window_size)))
 
     zoom, x, y = translate
-    zoom *= 0.5f0*dir_len
+    zoom *= 0.1f0*dir_len
     if prjt != PERSPECTIVE
         x,y = to_worldspace(Vec3f0(x,y,0), value(proj_view), cam_res)
     else
