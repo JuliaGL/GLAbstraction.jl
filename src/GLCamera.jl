@@ -297,7 +297,7 @@ function PerspectiveCamera{T}(
     theta = theta == nothing ? _theta : theta
     trans = trans == nothing ? _trans : trans
     zclip = map(eyepos, lookat) do a,b
-        norm(b-a) * 2f0
+        max(norm(b-a) * 5f0, 30f0)
     end
     PerspectiveCamera(
         theta,
