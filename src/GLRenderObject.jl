@@ -18,6 +18,41 @@ Base.setindex!(obj::RenderObject, value, ::Val{:postrender}, x::Function) = obj.
 
 
 """
+Function which sets an argument of a Context/RenderObject.
+If multiple RenderObjects are supplied, it'll try to set the same argument in all
+of them.
+"""
+function set_arg!(robj::RenderObject, sym, value)
+    current_val = robj[sym]
+    update_arg!(robj, sym, current_val, value)
+    nothing
+end
+function set_arg!(robj::Context, sym, value)
+    set_arg!(robj.children, sym, value)
+    nothing
+end
+function set_arg!(robj::Vector, sym, value)
+    for elem in robj
+        set_arg!(elem, sym, value)
+    end
+    nothing
+end
+
+function update_arg!(robj, sym, to_update::GPUArray, value)
+    update!(to_update, value)
+end
+function update_arg!(robj, sym, to_update, value)
+    robj[sym] = value
+end
+function update_arg!(robj, sym, to_update::Signal, value::Signal)
+    robj[sym] = value
+end
+function update_arg!(robj, sym, to_update::Signal, value)
+    push!(to_update, value)
+end
+
+
+"""
 Represents standard sets of function applied before rendering
 """
 immutable StandardPrerender
