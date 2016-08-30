@@ -78,7 +78,6 @@ function gpu_setindex!{T}(b::GLBuffer{T}, value::Vector{T}, offset::Integer)
     bind(b)
     glBufferSubData(b.buffertype, multiplicator*offset-1, sizeof(value), value)
     bind(b, 0)
-
 end
 function gpu_setindex!{T}(b::GLBuffer{T}, value::Vector{T}, offset::UnitRange{Int})
     multiplicator = sizeof(T)
@@ -113,7 +112,7 @@ function Base.next{T}(buffer::GLBuffer{T}, state::Tuple{Ptr{T}, Int})
     val = unsafe_load(ptr, i)
     (val, (ptr, i+1))
 end
-function Base.done{T}(buffer::GLBuffer{T}, ptr::Tuple{Ptr{T}, Int})
+function Base.done{T}(buffer::GLBuffer{T}, state::Tuple{Ptr{T}, Int})
     ptr, i = state
     isdone = length(buffer) < i
     isdone && glUnmapBuffer(buffer.buffertype)

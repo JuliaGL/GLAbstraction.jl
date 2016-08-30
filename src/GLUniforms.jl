@@ -167,6 +167,7 @@ gl_convert{T <: Number}(x::T) = gl_promote(T)(x)
 gl_convert{T <: Colorant}(x::T) = gl_promote(T)(x)
 gl_convert{T <: AbstractMesh}(x::T) = gl_convert(convert(GLNormalMesh, x))
 gl_convert{T <: HomogenousMesh}(x::T) = gl_promote(T)(x)
+gl_convert{T <: HomogenousMesh}(x::Signal{T}) = gl_promote(T)(x)
 
 gl_convert{T<:Colorant}(s::Vector{Matrix{T}}) = Texture(s)
 gl_convert(s::AABB) = s

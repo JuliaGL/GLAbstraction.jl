@@ -296,8 +296,11 @@ function PerspectiveCamera{T}(
     )
     theta = theta == nothing ? _theta : theta
     trans = trans == nothing ? _trans : trans
-    zclip = map(eyepos, lookat) do a,b
+    farclip = map(eyepos, lookat) do a,b
         max(norm(b-a) * 5f0, 30f0)
+    end
+    minclip = map(eyepos, lookat) do a,b
+        norm(b-a) * 0.007f0
     end
     PerspectiveCamera(
         theta,
@@ -307,8 +310,8 @@ function PerspectiveCamera{T}(
         Signal(Vec3f0(0,0,1)),
         inputs[:window_area],
         Signal(41f0), # Field of View
-        Signal(0.01f0),  # Min distance (clip distance)
-        zclip # Max distance (clip distance)
+        Signal(0.001f0),  # Min distance (clip distance)
+        farclip # Max distance (clip distance)
     )
 end
 function PerspectiveCamera{T}(

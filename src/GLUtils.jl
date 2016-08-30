@@ -247,6 +247,8 @@ end
 export NativeMesh
 
 @compat (::Type{NativeMesh}){T <: HomogenousMesh}(m::T) = NativeMesh{T}(m)
+
+
 @compat function (MT::Type{NativeMesh{T}}){T <: HomogenousMesh}(m::T)
     result = Dict{Symbol, Any}()
     attribs = attributes(m)
@@ -262,5 +264,32 @@ export NativeMesh
             result[field] = Texture(val)
         end
     end
+    MT(result)
+end
+
+@compat function (MT::Type{NativeMesh{T}}){T <: HomogenousMesh}(m::Signal{T})
+    println("jo, doin the signal thing!")
+    result = Dict{Symbol, Any}()
+    mv = value(m)
+    attribs = attributes(mv)
+    @materialize! vertices, faces = attribs
+    result[:vertices] = GLBuffer(vertices)
+    result[:faces]    = indexbuffer(faces)
+    for (field, val) in attribs
+        if field in (:texturecoordinates, :normals, :attribute_id, :color)
+            if isa(val, Vector)
+                result[field] = GLBuffer(val)
+            end
+        else
+            result[field] = Texture(val)
+        end
+    end
+    preserve(map(m) do mesh
+        for (field, val) in attributes(mesh)
+            if haskey(result, field)
+                update!(result[field], val)
+            end
+        end
+    end)
     MT(result)
 end

@@ -24,7 +24,10 @@ of them.
 """
 function set_arg!(robj::RenderObject, sym, value)
     current_val = robj[sym]
-    update_arg!(robj, sym, current_val, value)
+    set_arg!(robj, sym, current_val, value)
+    # GLVisualize relies on reactives event system no for rendering
+    # so if a change should be visible there must be an event to indicate change
+    Reactive.post_empty()
     nothing
 end
 function set_arg!(robj::Context, sym, value)
@@ -38,16 +41,16 @@ function set_arg!(robj::Vector, sym, value)
     nothing
 end
 
-function update_arg!(robj, sym, to_update::GPUArray, value)
+function set_arg!(robj::RenderObject, sym, to_update::GPUArray, value)
     update!(to_update, value)
 end
-function update_arg!(robj, sym, to_update, value)
+function set_arg!(robj::RenderObject, sym, to_update, value)
     robj[sym] = value
 end
-function update_arg!(robj, sym, to_update::Signal, value::Signal)
+function set_arg!(robj::RenderObject, sym, to_update::Signal, value::Signal)
     robj[sym] = value
 end
-function update_arg!(robj, sym, to_update::Signal, value)
+function set_arg!(robj::RenderObject, sym, to_update::Signal, value)
     push!(to_update, value)
 end
 
