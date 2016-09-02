@@ -3,7 +3,7 @@
 # here is my approach, to handle all of the uniforms with one function, namely gluniform
 # For uniforms, the Vector and Matrix types from ImmutableArrays should be used, as they map the relation almost 1:1
 
-GLSL_COMPATIBLE_NUMBER_TYPES = (GLfloat, GLint, GLuint)
+GLSL_COMPATIBLE_NUMBER_TYPES = (GLfloat, GLint, GLuint, GLdouble)
 const NATIVE_TYPES = Union{FixedArray, GLSL_COMPATIBLE_NUMBER_TYPES..., GLBuffer, GPUArray, Shader, GLProgram, NativeMesh}
 
 opengl_prefix(T)  = error("Object $T is not a supported uniform element type")
@@ -64,18 +64,21 @@ gluniform(location::Integer, x::Signal)                              = gluniform
 gluniform(location::Integer, x::Union{GLubyte, GLushort, GLuint}) 	 = glUniform1ui(GLint(location), x)
 gluniform(location::Integer, x::Union{GLbyte, GLshort, GLint, Bool}) = glUniform1i(GLint(location),  x)
 gluniform(location::Integer, x::GLfloat)                             = glUniform1f(GLint(location),  x)
+gluniform(location::Integer, x::GLdouble)                            = glUniform1d(GLint(location),  x)
 
 #Uniform upload functions for julia arrays...
 gluniform(location::GLint, x::Vector{Float32}) = glUniform1fv(location,  length(x), pointer(x))
+gluniform(location::GLint, x::Vector{GLdouble}) = glUniform1dv(location,  length(x), pointer(x))
 gluniform(location::GLint, x::Vector{GLint})   = glUniform1iv(location,  length(x), pointer(x))
 gluniform(location::GLint, x::Vector{GLuint})  = glUniform1uiv(location, length(x), pointer(x))
 
 
-glsl_typename{T}(x::T)          = glsl_typename(T)
-glsl_typename(t::Type{Void})    = "Nothing"
-glsl_typename(t::Type{GLfloat}) = "float"
-glsl_typename(t::Type{GLuint})  = "uint"
-glsl_typename(t::Type{GLint})   = "int"
+glsl_typename{T}(x::T)           = glsl_typename(T)
+glsl_typename(t::Type{Void})     = "Nothing"
+glsl_typename(t::Type{GLfloat})  = "float"
+glsl_typename(t::Type{GLdouble}) = "double"
+glsl_typename(t::Type{GLuint})   = "uint"
+glsl_typename(t::Type{GLint})    = "int"
 glsl_typename{T<:Union{FixedVector,Colorant}}(t::Type{T}) = string(opengl_prefix(eltype(t)), "vec", length(t))
 glsl_typename{T}(t::Type{TextureBuffer{T}}) = "$(opengl_prefix(eltype(T)))samplerBuffer"
 
@@ -142,6 +145,7 @@ gl_promote(x::Type{Union{UInt16, UInt8}})  = x
 
 gl_promote{T <: AbstractFloat}(x::Type{T}) = Float32
 gl_promote(x::Type{Float16})               = x
+gl_promote(x::Type{Float64})               = x
 
 gl_promote{T <: UFixed}(x::Type{T})        = UFixed32
 gl_promote(x::Type{UFixed16})              = x

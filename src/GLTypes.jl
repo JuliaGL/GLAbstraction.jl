@@ -110,6 +110,7 @@ julia2glenum(x::Type{GLushort}) = GL_UNSIGNED_SHORT
 julia2glenum(x::Type{GLshort})  = GL_SHORT
 julia2glenum(x::Type{GLint})    = GL_INT
 julia2glenum(x::Type{GLfloat})  = GL_FLOAT
+julia2glenum(x::Type{GLdouble}) = GL_DOUBLE
 julia2glenum(x::Type{Float16})  = GL_HALF_FLOAT
 function julia2glenum{T}(::Type{T})
     error("Type: $T not supported as opengl number datatype")
