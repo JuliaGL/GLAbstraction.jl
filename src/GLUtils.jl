@@ -268,7 +268,6 @@ export NativeMesh
 end
 
 @compat function (MT::Type{NativeMesh{T}}){T <: HomogenousMesh}(m::Signal{T})
-    println("jo, doin the signal thing!")
     result = Dict{Symbol, Any}()
     mv = value(m)
     attribs = attributes(mv)
