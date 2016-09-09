@@ -78,9 +78,8 @@ function OrthographicPixelCamera(
     left_pressed  = const_lift(pressed, mouse_buttons_pressed, GLFW.MOUSE_BUTTON_LEFT)
     xytranslate   = dragged_diff(mouseposition, left_pressed, use_cam)
 
-    ztranslate    = filterwhen(use_cam, 0f0,
-        const_lift(*, map(last, scroll), 5000f0)
-    )
+    ztranslate    = filterwhen(use_cam, 0f0, map(x->Float32(x[2]), scroll))
+
     trans = map(translationlift, xytranslate, ztranslate, translation_speed)
     OrthographicPixelCamera(
         theta, trans, Signal(up), Signal(fov), Signal(near),
@@ -516,16 +515,13 @@ function center!(camera::PerspectiveCamera, bb::AABB)
         h = Float32(tan(fov / 360.0 * pi) * near)
         w = h * aspect
         w_, h_, _ = half_width
-        if h_ > w_
-            zoom = h_/h
-        else
-            zoom = w_/w
-        end
-        zoom = max(h_,w_)/max(w,h)
-        push!(camera.up, Vec3f0(0,1,0))
+        zoom = Vec2f0(w_, h_)./Vec2f0(w,h)
         x,y,_ = middle
-        push!(camera.eyeposition, Vec3f0(x, y, zoom))
+        push!(camera.eyeposition, Vec3f0(x, y, maximum(zoom)))
         push!(camera.lookat, Vec3f0(x, y, 0))
+        push!(camera.up, Vec3f0(0,1,0))
+        #push!(camera.nearclip, 1)
+        #push!(camera.farclip, 50f0)
     else
         push!(camera.lookat, middle)
         neweyepos = middle + (width*1.2f0)
