@@ -210,8 +210,12 @@ end
 
 gl_convert{T <: Face}(a::Vector{T}) = indexbuffer(s)
 gl_convert{T <: NATIVE_TYPES}(::Type{T}, a::NATIVE_TYPES; kw_args...) = a
-gl_convert{T <: GPUArray, X, N}(::Type{T}, a::Array{X, N}; kw_args...) =
+function gl_convert{T <: GPUArray, X, N}(::Type{T}, a::Array{X, N}; kw_args...)
     T(map(gl_promote(X), a); kw_args...)
+end
+function gl_convert{T <: Texture, X}(::Type{T}, a::Vector{Array{X, 2}}; kw_args...)
+    T(a; kw_args...)
+end
 
 function gl_convert{T <: GPUArray, X, N}(::Type{T}, a::Signal{Array{X, N}}; kw_args...)
     TGL = gl_promote(X)
