@@ -199,7 +199,8 @@ function clicked(robj::RenderObject, button::MouseButton, window)
     clicked_on, clicked_on_obj
 end
 export is_same_id
-is_same_id(id_index, robj) = id_index.id == robj.id
+is_same_id(id_index, id::Int) = id_index.id == id
+is_same_id(id_index, robj::RenderObject) = id_index.id == robj.id
 is_same_id(id_index, ids::Tuple) = id_index.id in ids
 """
 Returns a boolean signal indicating if the mouse hovers over `robj`
