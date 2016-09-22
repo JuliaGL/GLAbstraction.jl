@@ -32,6 +32,12 @@ function GLBuffer{T <: GLArrayEltypes}(
     )
     GLBuffer{T}(pointer(buffer), length(buffer), buffertype, usage)
 end
+function GLBuffer{T <: GLArrayEltypes}(
+        ::Type{T}, len::Int;
+        buffertype::GLenum = GL_ARRAY_BUFFER, usage::GLenum = GL_STATIC_DRAW
+    )
+    GLBuffer{T}(Ptr{T}(C_NULL), len, buffertype, usage)
+end
 
 
 indexbuffer{T<:GLArrayEltypes}(buffer::Vector{T}; usage::GLenum = GL_STATIC_DRAW) =
