@@ -124,19 +124,28 @@ transformation(c::RenderObject) = c[:model]
 transformation(c::RenderObject, model) = (c[:model] = const_lift(*, model, c[:model]))
 transform!(c::RenderObject, model) = (c[:model] = const_lift(*, model, c[:model]))
 
-function _translate!(c::RenderObject, trans::Mat4f0)
+function _translate!(c::RenderObject, trans::TOrSignal{Mat4f0})
     c[:model] = const_lift(*, trans, c[:model])
 end
-function _translate!(c::Context, m::Mat4f0)
+function _translate!(c::Context, m::TOrSignal{Mat4f0})
     for elem in c.children
         _translate!(elem, m)
     end
 end
-function _translate!(c::Composable, vec::Vec{3})
-     _translate!(c, translationmatrix(Vec3f0(vec)))
+
+function translate!{T<:Vec{3}}(c::Composable, vec::TOrSignal{T})
+     _translate!(c, const_lift(translationmatrix, vec))
 end
-
-
+function _boundingbox(c::RenderObject)
+    bb = value(c[:boundingbox])
+    bb == nothing && return AABB(Vec3f0(0), Vec3f0(0))
+    value(c[:model]) * bb
+end
+function _boundingbox(c::Composable)
+    robjs = extract_renderable(c)
+    isempty(robjs) && return AABB(Vec3f0(NaN), Vec3f0(0))
+    mapreduce(_boundingbox, union, robjs)
+end
 """
 Copy function for a context. We only need to copy the children
 """

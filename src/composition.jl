@@ -117,11 +117,14 @@ function Base.push!{unit <: Unit}(context::Context{unit}, x::Composable)
         elseif b == AABB{Float32}(Vec3f0(0), Vec3f0(0))
             return a
         end
-        union(a,b)
+        union(a, b)
     end
     transformation(x, transformation(context))
     push!(context.children, x)
     context
 end
+
+
+
 export transformation
 export boundingbox
