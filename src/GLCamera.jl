@@ -484,7 +484,8 @@ Calculates union boundingbox of all elements in renderlist
 (Can't do ::Vector{RenderObject{T}}, because t is not always the same)
 """
 function renderlist_boundingbox(renderlist::Vector)
-    isempty(renderlist) && return nothing # nothing to do here
+    renderlist = filter(x->x!=nothing, renderlist)
+    isempty(renderlist) && return AABB(Vec3f0(NaN), Vec3f0(0)) # nothing to do here
     robj1 = first(renderlist)
     bb = value(robj1[:model])*signal_boundingbox(robj1)
     for elem in renderlist[2:end]
@@ -537,7 +538,7 @@ export renderlist, robj_from_camera
 """
 Centers the camera(=:perspective) on all render objects in `window`
 """
-function center!(window, camera=:perspective)
+function center!(window, camera::Symbol=:perspective)
     rl = robj_from_camera(window, camera)
     center!(window.cameras[camera], rl)
 end
