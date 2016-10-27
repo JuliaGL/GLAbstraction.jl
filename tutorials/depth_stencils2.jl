@@ -1,5 +1,5 @@
 using ModernGL, GeometryTypes, GLAbstraction, GLWindow, Images, FileIO
-
+import GLAbstraction: StandardPostrender
 # Load our textures. See "downloads.jl" to get the images.
 kitten = load(Pkg.dir("GLAbstraction", "tutorials", "images", "kitten.png"))
 puppy  = load(Pkg.dir("GLAbstraction", "tutorials", "images", "puppy.png"))
@@ -153,6 +153,7 @@ model2 = translationmatrix_z(-1f0) * scalematrix(Vec3f0(1,1,-1))
 view = lookat(Vec3f0((2.5, 2.5, 2)), Vec3f0((0, 0, 0)), Vec3f0((0, 0, 1)))
 proj = perspectiveprojection(Float32, 45, 600/600, 1, 10)
 
+
 ## Now render the distinct objects. Rather than always using std_renderobject,
 ## here we control the settings manually.
 # The cube
@@ -166,11 +167,14 @@ bufferdict_cube = Dict(:position=>GLBuffer(vertex_positions),
                        :view=>view,
                        :proj=>proj)
 
-ro_cube = std_renderobject(bufferdict_cube,
-                           LazyShader(vertex_shader, fragment_shader))
-prerender!(ro_cube,
-    glDisable, GL_STENCIL_TEST
+pre = () -> glDisable(GL_STENCIL_TEST)
+ro_cube = RenderObject(
+    bufferdict_cube,
+    LazyShader(vertex_shader, fragment_shader),
+     pre, nothing, AABB(Vec3f0(0), Vec3f0(1)), nothing
 )
+ro_cube.postrenderfunction = StandardPostrender(ro_cube.vertexarray, GL_TRIANGLES)
+
 # The floor. This is drawn without writing to the depth buffer, but we
 # write stencil values.
 bufferdict_floor = Dict(:position=>GLBuffer(floor_positions),
@@ -183,17 +187,20 @@ bufferdict_floor = Dict(:position=>GLBuffer(floor_positions),
                         :view=>view,
                         :proj=>proj)
 
-ro_floor = RenderObject(bufferdict_floor,
-                        LazyShader(vertex_shader, fragment_shader))
-prerender!(ro_floor,
-           glDepthMask, GL_FALSE,                  # don't write to depth buffer
-           glEnable, GL_STENCIL_TEST,              # use stencils
-           glStencilMask, 0xff,                    # do write to stencil buffer
-           glStencilFunc, GL_ALWAYS, 1, 0xff,      # all pass
-           glStencilOp, GL_KEEP, GL_KEEP, GL_REPLACE,  # replace stencil value
-           glClear, GL_STENCIL_BUFFER_BIT)         # start with empty buffer
-postrender!(ro_floor,
-            render, ro_floor.vertexarray, GL_TRIANGLES)
+function prerender()
+    glDepthMask(GL_FALSE)                  # don't write to depth buffer
+    glEnable(GL_STENCIL_TEST)              # use stencils
+    glStencilMask(0xff)                    # do write to stencil buffer
+    glStencilFunc(GL_ALWAYS, 1, 0xff)      # all pass
+    glStencilOp(GL_KEEP, GL_KEEP, GL_REPLACE)  # replace stencil value
+    glClear(GL_STENCIL_BUFFER_BIT)         # start with empty buffer
+end
+ro_floor = RenderObject(
+    bufferdict_floor,
+    LazyShader(vertex_shader, fragment_shader),
+    prerender, nothing, AABB(Vec3f0(0), Vec3f0(1)), nothing
+)
+ro_floor.postrenderfunction = StandardPostrender(ro_floor.vertexarray, GL_TRIANGLES)
 
 # The cube reflection
 bufferdict_refl = Dict(:position=>GLBuffer(vertex_positions),
@@ -206,20 +213,27 @@ bufferdict_refl = Dict(:position=>GLBuffer(vertex_positions),
                        :view=>view,
                        :proj=>proj)
 
-ro_refl = RenderObject(bufferdict_refl,
-                       LazyShader(vertex_shader, fragment_shader))
-prerender!(ro_refl,
-           glStencilFunc, GL_EQUAL, 1, 0xff,
-           glStencilMask, 0x00)
-postrender!(ro_refl,
-            render, ro_refl.vertexarray, GL_TRIANGLES)
+pre = () -> begin
+    glStencilFunc(GL_EQUAL, 1, 0xff)
+    glStencilMask(0x00)
+end
+
+ro_refl = RenderObject(
+   bufferdict_refl,
+   LazyShader(vertex_shader, fragment_shader),
+   pre, nothing, AABB(Vec3f0(0), Vec3f0(1)), nothing
+)
+ro_refl.postrenderfunction = StandardPostrender(ro_refl.vertexarray, GL_TRIANGLES)
+
 
 glClearColor(1,1,1,1) # make the background white, so we can see the floor
 glClearStencil(0)     # clear the stencil buffer with 0
 
 while !GLFW.WindowShouldClose(window)
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
-    render([ro_cube, ro_floor, ro_refl])
+    GLAbstraction.render(ro_cube)
+    GLAbstraction.render(ro_floor)
+    GLAbstraction.render(ro_refl)
 
     GLFW.SwapBuffers(window)
     GLFW.PollEvents()
@@ -227,5 +241,4 @@ while !GLFW.WindowShouldClose(window)
         GLFW.SetWindowShouldClose(window, true)
     end
 end
-
 GLFW.DestroyWindow(window)  # needed if you're running this from the REPL

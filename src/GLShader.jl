@@ -111,7 +111,13 @@ compileshader(file::File{format"GLSLShader"}, program::GLuint) = compileshader(l
                     #(shadertype, shadercode) -> shader id
 let shader_cache = Dict{Tuple{GLenum, Vector{UInt8}}, GLuint}() # shader cache prevents that a shader is compiled more than one time
     #finalizer(shader_cache, dict->foreach(glDeleteShader, values(dict))) # delete all shaders when done
-    empty_shader_cache!() = empty!(shader_cache)
+    function empty_shader_cache!()
+        for (k,id) in shader_cache
+            glDeleteShader(id)
+        end
+        empty!(shader_cache)
+        nothing
+    end
     global empty_shader_cache!
 
     function compileshader(shader::Shader)

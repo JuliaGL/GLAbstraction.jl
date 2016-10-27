@@ -65,8 +65,6 @@ end
     glEnable(GL_DEPTH_TEST)
     glDepthMask(GL_TRUE)
     glDepthFunc(GL_LEQUAL)
-    glDisable(GL_STENCIL_TEST)
-    glStencilMask(0xff)
     glDisable(GL_CULL_FACE)
     enabletransparency()
 end

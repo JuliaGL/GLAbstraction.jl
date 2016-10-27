@@ -60,15 +60,15 @@ include("GLTypes.jl")
 export GLProgram                # Shader/program object
 export Texture                  # Texture object, basically a 1/2/3D OpenGL data array
 export TextureParameters
-export TextureBuffer			# OpenGL texture buffer
+export TextureBuffer            # OpenGL texture buffer
 export update!                  # updates a gpu array with a Julia array
-export gpu_data 				# gets the data of a gpu array as a Julia Array
+export gpu_data                 # gets the data of a gpu array as a Julia Array
 
 export RenderObject             # An object which holds all GPU handles and datastructes to ready for rendering by calling render(obj)
 export prerender!               # adds a function to a RenderObject, which gets executed befor setting the OpenGL render state
 export postrender!              # adds a function to a RenderObject, which gets executed after setting the OpenGL render states
-export std_renderobject			# creates a renderobject with standard parameters
-export instanced_renderobject	# simplification for creating a RenderObject which renders instances
+export std_renderobject            # creates a renderobject with standard parameters
+export instanced_renderobject    # simplification for creating a RenderObject which renders instances
 export extract_renderable
 export set_arg!
 export GLVertexArray            # VertexArray wrapper object
@@ -87,8 +87,8 @@ export MouseButton, MOUSE_LEFT, MOUSE_MIDDLE, MOUSE_RIGHT
 include("GLExtendedFunctions.jl")
 export glTexImage # Julian wrapper for glTexImage1D, glTexImage2D, glTexImage3D
 include("GLShader.jl")
-export Shader 				#Shader Type
-export readshader 			#reads a shader
+export Shader                 #Shader Type
+export readshader             #reads a shader
 export glsl_variable_access # creates access string from julia variable for the use in glsl shaders
 export createview #creates a view from a templated shader
 export TemplateProgram # Creates a shader from a Mustache view and and a shader file, which uses mustache syntax to replace values.

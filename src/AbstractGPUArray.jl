@@ -84,14 +84,21 @@ function update!{T, N}(A::GPUArray{T, N}, value::Array{T, N})
     nothing
 end
 
-getindex{T, N}(A::GPUArray{T, N}, i::Int) = (checkbounds(A, i); gpu_getindex(A, i:i)[1]) # not as bad as its looks, as so far gpu data must be loaded into an array anyways
+function getindex{T, N}(A::GPUArray{T, N}, i::Int)
+    checkbounds(A, i)
+    gpu_getindex(A, i:i)[1] # not as bad as its looks, as so far gpu data must be loaded into an array anyways
+end
 function getindex{T, N}(A::GPUArray{T, N}, ranges::UnitRange...)
     checkbounds(A, ranges...)
     gpu_getindex(A, ranges...)
 end
 
-getindex{T, N}(A::GPUArray{T, N}, rect::SimpleRectangle)                      = A[rect.x+1:rect.x+rect.w, rect.y+1:rect.y+rect.h]
-setindex!{T, N}(A::GPUArray{T, N}, value::Array{T, N}, rect::SimpleRectangle) = (A[rect.x+1:rect.x+rect.w, rect.y+1:rect.y+rect.h] = value)
+function getindex{T, N}(A::GPUArray{T, N}, rect::SimpleRectangle)
+    A[rect.x+1:rect.x+rect.w, rect.y+1:rect.y+rect.h]
+end
+function setindex!{T, N}(A::GPUArray{T, N}, value::Array{T, N}, rect::SimpleRectangle)
+    A[rect.x+1:rect.x+rect.w, rect.y+1:rect.y+rect.h] = value
+end
 
 
 type GPUVector{T} <: GPUArray{T, 1}
@@ -210,11 +217,22 @@ gpu_setindex!(t) = error("gpu_setindex! not implemented for: $(typeof(t)). This 
 max_dim(t)       = error("max_dim not implemented for: $(typeof(t)). This happens, when you call setindex! on an array, without implementing the GPUArray interface")
 
 
-function Base.call{T <: GPUArray}(::Type{T}, x::Signal)
+@compat function (::Type{T}){T <: GPUArray}(x::Signal)
     gpu_mem = T(value(x))
     preserve(const_lift(update!, gpu_mem, x))
     gpu_mem
 end
+
+
+function Base.serialize{T<:GPUArray}(s::Base.AbstractSerializer, t::T)
+    Base.serialize_type(s, T)
+    serialize(s, Array(t))
+end
+function Base.deserialize{T<:GPUArray}(s::Base.AbstractSerializer, ::Type{T})
+    A = deserialize(s)
+    T(A)
+end
+
 
 export data
 export resize
