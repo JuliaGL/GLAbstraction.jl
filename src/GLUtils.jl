@@ -110,7 +110,8 @@ matches_target(::Function, x::Void) = false
 export matches_target
 
 
-
+signal_convert(T, y) = convert(T, y)
+signal_convert{T2<:Signal}(T1, y::T2) = map(convert, Signal(T1), y)
 """
 Takes a dict and inserts defaults, if not already available.
 The variables are made accessible in local scope, so things like this are possible:
@@ -147,7 +148,7 @@ macro gen_defaults!(dict, args)
             key_name, value_expr = elem.args
             if isa(key_name, Expr) && key_name.head == :(::) # we need to convert to a julia type
                 key_name, convert_target = key_name.args
-                convert_target = :(convert($convert_target, $key_name))
+                convert_target = :(GLAbstraction.signal_convert($convert_target, $key_name))
             else
                 convert_target = :($key_name)
             end
