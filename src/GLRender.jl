@@ -1,11 +1,4 @@
 function render(list::Tuple)
-    #=
-    this yield...
-    Not sure if this is even safe to do it here, but it turned out to make
-    animations a lot smoother. We need to get a grip on these yields at some
-    point, right now it's pretty unpredictable how the flow of the different
-    tasks and callbacks actually translates to drawcalls
-    =#
     for elem in list
         render(elem)
     end
@@ -55,7 +48,6 @@ So rewriting this function could get us a lot of performance for scenes with
 a lot of objects.
 """
 function render(renderobject::RenderObject, vertexarray=renderobject.vertexarray)
-    # same as the yield on line 9
     if Bool(value(renderobject.uniforms[:visible]))
         renderobject.prerenderfunction()
         program = vertexarray.program
