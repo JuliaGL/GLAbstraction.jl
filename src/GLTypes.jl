@@ -19,13 +19,16 @@ immutable Shader
     name::Symbol
     source::Vector{UInt8}
     typ::GLenum
+    id::GLuint
 end
+Shader(name, source, typ) = Shader(name, source, typ, 0)
 name(s::Shader) = s.name
 function Base.show(io::IO, shader::Shader)
     println(io, GLENUM(shader.typ).name, " shader: $(shader.name))")
     println(io, "source:")
-    print_with_lines(io, bytestring(shader.source))
+    print_with_lines(io, Compat.String(shader.source))
 end
+
 type GLProgram
     id          ::GLuint
     shader      ::Vector{Shader}
