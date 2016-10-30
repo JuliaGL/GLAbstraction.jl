@@ -2,14 +2,14 @@
 typealias TOrSignal{T} Union{Signal{T}, T}
 
 typealias ArrayOrSignal{T, N} TOrSignal{Array{T, N}}
-typealias VecOrSignal{T} 	ArrayOrSignal{T, 1}
-typealias MatOrSignal{T} 	ArrayOrSignal{T, 2}
+typealias VecOrSignal{T}     ArrayOrSignal{T, 1}
+typealias MatOrSignal{T}     ArrayOrSignal{T, 2}
 typealias VolumeOrSignal{T} ArrayOrSignal{T, 3}
 
 typealias ArrayTypes{T, N} Union{GPUArray{T, N}, ArrayOrSignal{T,N}}
-typealias VecTypes{T} 		ArrayTypes{T, 1}
-typealias MatTypes{T} 		ArrayTypes{T, 2}
-typealias VolumeTypes{T} 	ArrayTypes{T, 3}
+typealias VecTypes{T}         ArrayTypes{T, 1}
+typealias MatTypes{T}         ArrayTypes{T, 2}
+typealias VolumeTypes{T}     ArrayTypes{T, 3}
 
 @enum Projection PERSPECTIVE ORTHOGRAPHIC
 @enum MouseButton MOUSE_LEFT MOUSE_MIDDLE MOUSE_RIGHT
@@ -129,11 +129,11 @@ Keys with the name `indices` will get special treatment and will be used as
 the indexbuffer.
 """
 type GLVertexArray{T}
-  program       ::GLProgram
-  id            ::GLuint
-  bufferlength  ::Int
-  buffers       ::Dict{Compat.String, GLBuffer}
-  indices       ::T
+    program      ::GLProgram
+    id           ::GLuint
+    bufferlength ::Int
+    buffers      ::Dict{Compat.String, GLBuffer}
+    indices      ::T
 end
 """
 returns the length of the vertex array.
@@ -211,8 +211,9 @@ type RenderObject{Pre} <: Composable{DeviceUnit}
             RENDER_OBJECT_ID_COUNTER, boundingbox
         )
     end
-
 end
+
+
 function RenderObject{Pre}(
         data::Dict{Symbol, Any}, program,
         pre::Pre, post,
@@ -229,7 +230,7 @@ function RenderObject{Pre}(
             # but in some cases we want a Texture, sometimes a GLBuffer or TextureBuffer
             data[k] = gl_convert(targets[k], v)
         else
-            k == :indices && continue
+            k in (:indices, :visible, :fxaa) && continue
             if isa_gl_struct(v) # structs are treated differently, since they have to be composed into their fields
                 merge!(data, gl_convert_struct(v, k))
             elseif applicable(gl_convert, v) # if can't be converted to an OpenGL datatype,
@@ -259,7 +260,7 @@ function RenderObject{Pre}(
         post,
         bbs
     )
-    # automatucally integrate object ID, will be discarded if shader doesn't use it
+    # automatically integrate object ID, will be discarded if shader doesn't use it
     robj[:objectid] = robj.id
     robj
 end

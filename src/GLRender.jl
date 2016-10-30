@@ -2,6 +2,7 @@ function render(list::Tuple)
     for elem in list
         render(elem)
     end
+    return
 end
 """
 When rendering a specialised list of Renderables, we can do some optimizations
@@ -27,7 +28,13 @@ function render{Pre}(list::Vector{RenderObject{Pre}})
         end
         for (key,value) in program.uniformloc
             if haskey(renderobject.uniforms, key)
-                gluniform(value..., renderobject.uniforms[key])
+                if length(value) == 1
+                    gluniform(value[1], renderobject.uniforms[key])
+                elseif length(value) == 2
+                    gluniform(value[1], value[2], renderobject.uniforms[key])
+                else
+                    error("Uniform tuple too long: $(length(value))")
+                end
             end
         end
         renderobject.postrenderfunction()
@@ -37,7 +44,7 @@ function render{Pre}(list::Vector{RenderObject{Pre}})
     # Otherwise, every glBind(::GLBuffer) operation will be recorded into the state
     # of the currently bound vertexarray
     glBindVertexArray(0)
-    return nothing
+    return
 end
 
 """
@@ -52,16 +59,26 @@ function render(renderobject::RenderObject, vertexarray=renderobject.vertexarray
         renderobject.prerenderfunction()
         program = vertexarray.program
         glUseProgram(program.id)
-        for (key,value) in program.uniformloc
+        for (key, value) in program.uniformloc
             if haskey(renderobject.uniforms, key)
-                gluniform(value..., renderobject.uniforms[key])
+                if length(value) == 1
+                    gluniform(value[1], renderobject.uniforms[key])
+                elseif length(value) == 2
+                    gluniform(value[1], value[2], renderobject.uniforms[key])
+                else
+                    error("Uniform tuple too long: $(length(value))")
+                end
             end
         end
         glBindVertexArray(vertexarray.id)
         renderobject.postrenderfunction()
         glBindVertexArray(0)
     end
-     return nothing
+    return
+end
+
+function render_uniforms(robj, uniforms)
+    
 end
 
 """
@@ -80,14 +97,14 @@ Renders a vertex array which supplies an indexbuffer
 """
 function render{T<:Union{Integer, Face}}(vao::GLVertexArray{GLBuffer{T}}, mode::GLenum=GL_TRIANGLES)
     glDrawElements(mode, length(vao.indices)*cardinality(vao.indices), julia2glenum(T), C_NULL)
-    return nothing
+    return
 end
 """
 Renders a normal vertex array only containing the usual buffers buffers.
 """
 function render(vao::GLVertexArray, mode::GLenum=GL_TRIANGLES)
     glDrawArrays(mode, 0, length(vao))
-    return nothing
+    return
 end
 
 """
@@ -100,14 +117,14 @@ Renders `amount` instances of an indexed geometry
 """
 function renderinstanced{T<:Union{Integer, Face}}(vao::GLVertexArray{GLBuffer{T}}, amount::Integer, primitive=GL_TRIANGLES)
     glDrawElementsInstanced(primitive, length(vao.indices)*cardinality(vao.indices), julia2glenum(T), C_NULL, amount)
-    return nothing
+    return
 end
 """
 Renders `amount` instances of an not indexed geoemtry geometry
 """
 function renderinstanced(vao::GLVertexArray, amount::Integer, primitive=GL_TRIANGLES)
     glDrawElementsInstanced(primitive, length(vao), GL_UNSIGNED_INT, C_NULL, amount)
-    return nothing
+    return
 end
 #handle all uniform objects
 
@@ -120,4 +137,5 @@ function enabletransparency()
     glEnablei(GL_BLEND, 0)
     glDisablei(GL_BLEND, 1)
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
+    return
 end
