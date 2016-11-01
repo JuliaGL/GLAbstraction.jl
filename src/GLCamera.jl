@@ -42,9 +42,8 @@ function DummyCamera(;
     DummyCamera{Float32}(window_size, view, projection, projectionview)
 end
 
-function Base.collect(camera::Camera)
-    collected = Dict{Symbol, Any}()
-    names     = fieldnames(camera)
+function Base.collect(camera::Camera, collected = Dict{Symbol, Any}())
+    names = fieldnames(camera)
     for name in (:view, :projection, :projectionview, :eyeposition)
         if name in names
             collected[name] = getfield(camera, name)
