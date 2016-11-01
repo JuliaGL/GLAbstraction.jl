@@ -69,6 +69,7 @@ function Texture{T, NDim}(
         internalformat::GLenum = default_internalcolorformat(T),
         texturetype   ::GLenum = default_texturetype(NDim),
         format        ::GLenum = default_colorformat(T),
+        mipmap = false,
         parameters... # rest should be texture parameters
     )
     texparams = TextureParameters(T, NDim; parameters...)
@@ -77,6 +78,7 @@ function Texture{T, NDim}(
     set_packing_alignment(data)
     numbertype = julia2glenum(eltype(T))
     glTexImage(texturetype, 0, internalformat, dims..., 0, format, numbertype, data)
+    mipmap && glGenerateMipmap(texturetype)
     texture = Texture{T, NDim}(
         id, texturetype, numbertype, internalformat, format,
         texparams,
