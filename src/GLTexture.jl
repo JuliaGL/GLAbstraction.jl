@@ -2,6 +2,7 @@ immutable TextureParameters{NDim}
     minfilter::Symbol
     magfilter::Symbol # magnification
     repeat   ::NTuple{NDim, Symbol}
+    anisotropic::Float32
     swizzle_mask::Vector{GLenum}
 end
 
@@ -453,6 +454,7 @@ function TextureParameters(T, NDim;
         x_repeat  = :clamp_to_edge, #wrap_s
         y_repeat  = x_repeat, #wrap_t
         z_repeat  = x_repeat, #wrap_r
+        anisotropic = 1f0
     )
     T <: Integer && (minfilter == :linear || magfilter == :linear) && error("Wrong Texture Parameter: Integer texture can't interpolate. Try :nearest")
     repeat = (x_repeat, y_repeat, z_repeat)
@@ -463,11 +465,15 @@ function TextureParameters(T, NDim;
     else
         GLenum[]
     end
-    GL_TEXTURE_SWIZZLE_RGBA
-    TextureParameters(minfilter, magfilter, ntuple(i->repeat[i], NDim), swizzle_mask)
+    TextureParameters(
+        minfilter, magfilter, ntuple(i->repeat[i], NDim),
+        anisotropic, swizzle_mask
+    )
 end
-TextureParameters{T, NDim}(t::Texture{T, NDim}; kw_args...) = TextureParameters(T, NDim; kw_args...)
-
+function TextureParameters{T, NDim}(t::Texture{T, NDim}; kw_args...)
+    TextureParameters(T, NDim; kw_args...)
+end
+const GL_TEXTURE_MAX_ANISOTROPY_EXT = GLenum(0x84FE)
 
 function set_parameters{T, N}(t::Texture{T, N}, params::TextureParameters=t.parameters)
     fnames    = (:minfilter, :magfilter, :repeat)
@@ -483,7 +489,7 @@ function set_parameters{T, N}(t::Texture{T, N}, params::TextureParameters=t.para
     if N >= 3 && !is_texturearray(t) # for texture arrays, third dimension can not be set
         push!(result, (GL_TEXTURE_WRAP_R, data[:repeat][3]))
     end
-
+    push!(result, GL_TEXTURE_MAX_ANISOTROPY_EXT, params.anisotropic)
     t.parameters = params
     set_parameters(t, result)
 end
@@ -492,6 +498,9 @@ function texparameter(t::Texture, key::GLenum, val::GLenum)
 end
 function texparameter(t::Texture, key::GLenum, val::Vector)
     glTexParameteriv(t.texturetype, key, val)
+end
+function texparameter(t::Texture, key::GLenum, val::Float32)
+    glTexParameterf(t.texturetype, key, val)
 end
 function set_parameters(t::Texture, parameters::Vector{Tuple{GLenum, Any}})
     bind(t)
