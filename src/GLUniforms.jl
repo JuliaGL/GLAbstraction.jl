@@ -80,7 +80,7 @@ glsl_typename(t::Type{GLdouble}) = "double"
 glsl_typename(t::Type{GLuint})   = "uint"
 glsl_typename(t::Type{GLint})    = "int"
 glsl_typename{T<:Union{FixedVector,Colorant}}(t::Type{T}) = string(opengl_prefix(eltype(t)), "vec", length(t))
-glsl_typename{T}(t::Type{TextureBuffer{T}}) = "$(opengl_prefix(eltype(T)))samplerBuffer"
+glsl_typename{T}(t::Type{TextureBuffer{T}}) = string(opengl_prefix(eltype(T)), "samplerBuffer")
 
 function glsl_typename{T, D}(t::Texture{T, D})
     str = string(opengl_prefix(eltype(T)), "sampler", D, "D")
@@ -89,27 +89,36 @@ function glsl_typename{T, D}(t::Texture{T, D})
 end
 function glsl_typename{T<:FixedMatrix}(t::Type{T})
     M,N = size(t)
-    string(opengl_prefix(eltype(t)),"mat", M==N ? "$M" : "$(M)x$(N)")
+    string(opengl_prefix(eltype(t)), "mat", M==N ? M : string(M, "x", N))
 end
 toglsltype_string(t::Signal) = toglsltype_string(t.value)
 toglsltype_string{T<:Union{Real, FixedArray, Texture, Colorant, TextureBuffer, Void}}(x::T) = "uniform $(glsl_typename(x))"
 #Handle GLSL structs, which need to be addressed via single fields
 function toglsltype_string{T}(x::T)
     if isa_gl_struct(x)
-        "uniform $(T.name.name)"
+        string("uniform ", T.name.name)
     else
         error("can't splice $T into an OpenGL shader. Make sure all fields are of a concrete type and isbits(FieldType)-->true")
     end
 end
-toglsltype_string{T}(t::Union{GLBuffer{T}, GPUVector{T}}) = "in $(glsl_typename(T))"
+toglsltype_string{T}(t::Union{GLBuffer{T}, GPUVector{T}}) = string("in ", glsl_typename(T))
 # Gets used to access a
 function glsl_variable_access{T,D}(keystring, t::Texture{T, D})
-    t.texturetype == GL_TEXTURE_BUFFER && return "texelFetch($(keystring), index)."*"rgba"[1:length(T)]*";"
-    return "getindex($(keystring), index)."*"rgba"[1:length(T)]*";"
+    fields = SubString("rgba", 1, length(T))
+    if t.texturetype == GL_TEXTURE_BUFFER
+        return string("texelFetch(", keystring, "index).", fields, ";")
+    end
+    return string("getindex(", keystring, "index).", fields, ";")
 end
-glsl_variable_access(keystring, ::Union{Real, GLBuffer, GPUVector, FixedArray, Colorant}) = keystring*";"
-glsl_variable_access(keystring, s::Signal) = glsl_variable_access(keystring, s.value)
-glsl_variable_access(keystring, t::Any)    = error("no glsl variable calculation available for : ", keystring, " of type ", typeof(t))
+function glsl_variable_access(keystring, ::Union{Real, GLBuffer, GPUVector, FixedArray, Colorant})
+    string(keystring, ";")
+end
+function glsl_variable_access(keystring, s::Signal)
+    glsl_variable_access(keystring, s.value)
+end
+function glsl_variable_access(keystring, t::Any)
+    error("no glsl variable calculation available for : ", keystring, " of type ", typeof(t))
+end
 
 function uniform_name_type(program::GLuint)
     uniformLength = glGetProgramiv(program, GL_ACTIVE_UNIFORMS)
