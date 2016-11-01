@@ -23,6 +23,15 @@ immutable Shader
 end
 Shader(name, source, typ) = Shader(name, source, typ, 0)
 name(s::Shader) = s.name
+function Base.:(==)(a::Shader, b::Shader)
+    a.source == b.source && a.typ == b.typ && a.id == b.id
+end
+
+function Base.hash(s::Shader, h::UInt64)
+    hash((s.source, s.typ, s.id), h)
+end
+
+
 function Base.show(io::IO, shader::Shader)
     println(io, GLENUM(shader.typ).name, " shader: $(shader.name))")
     println(io, "source:")
@@ -253,7 +262,7 @@ function RenderObject{Pre}(
     uniforms = filter((key, value) -> !isa(value, GLBuffer) && key != :indices, data)
     get!(data, :visible, true) # make sure, visibility is set
     merge!(data, passthrough) # in the end, we insert back the non opengl data, to keep things simple
-    p = value(gl_convert(value(program), data)) # "compile" lazyshader
+    p = gl_convert(value(program), data) # "compile" lazyshader
     vertexarray = GLVertexArray(Dict(buffers), p)
     robj = RenderObject{Pre}(
         main,
