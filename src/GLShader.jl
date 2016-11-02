@@ -1,11 +1,3 @@
-
-function Shader(f::File{format"GLSLShader"})
-    st = stream(open(f))
-    s = Shader(Symbol(f.filename), read(st), shadertype(f))
-    close(st)
-    s
-end
-Shader(s::Shader; name=s.name, source=s.source, typ=s.typ) = Shader(name, source, typ)
 # Different shader string literals- usage: e.g. frag" my shader code"
 macro frag_str(source::AbstractString)
     quote
@@ -68,9 +60,11 @@ function createprogram()
     program::GLuint
 end
 
-shadertype(s::Shader)                      = s.typ
+shadertype(s::Shader) = s.typ
 function shadertype(f::File{format"GLSLShader"})
-    ext = file_extension(f)
+    shadertype(file_extension(f))
+end
+function shadertype(ext::AbstractString)
     ext == ".comp" && return GL_COMPUTE_SHADER
     ext == ".vert" && return GL_VERTEX_SHADER
     ext == ".frag" && return GL_FRAGMENT_SHADER
@@ -78,63 +72,15 @@ function shadertype(f::File{format"GLSLShader"})
     error("$ext not a valid extension for $f")
 end
 
-"""
-Gives back a signal, which signals true everytime the file gets edited
-"""
-function isupdated(file::File, updatewhile=Signal(true), update_interval=1.0)
-    fn = filename(file)
-    file_edited = foldp((false, mtime(fn)), fpswhen(updatewhile, 1.0/update_interval)) do v0, v1
-        time_edited = mtime(fn)
-        (!isapprox(0.0, v0[2] - time_edited), time_edited)
-    end
-    preserve(file_edited)
-    return preserve(filter(identity, false, const_lift(first, file_edited))) # extract bool
-end
-
-#reads from the file and updates the source whenever the file gets edited
-function const_lift_shader(shader_file::File, updatewhile=Signal(true), update_interval=1.0)
-    s = const_lift(isupdated(shader_file, updatewhile, update_interval)) do _unused
-        Shader(shader_file)
-    end
-    preserve(s)
-end
-
 #Implement File IO interface
-load(f::File{format"GLSLShader"}) = preserve(const_lift_shader(f))
+function load(f::File{format"GLSLShader"})
+    Shader(f)
+end
 function save(f::File{format"GLSLShader"}, data::Shader)
     s = open(f, "w")
     write(s, data.source)
     close(s)
 end
-
-compileshader(file::File{format"GLSLShader"}, program::GLuint) = compileshader(load(file), program)
-                    #(shadertype, shadercode) -> shader id
-let shader_cache = Dict{Tuple{GLenum, Vector{UInt8}}, GLuint}() # shader cache prevents that a shader is compiled more than one time
-    #finalizer(shader_cache, dict->foreach(glDeleteShader, values(dict))) # delete all shaders when done
-    function empty_shader_cache!()
-        for (k,id) in shader_cache
-            glDeleteShader(id)
-        end
-        empty!(shader_cache)
-        nothing
-    end
-    global empty_shader_cache!
-
-    function compileshader(shader::Shader)
-        get!(shader_cache, (shader.typ, shader.source)) do
-            shaderid = createshader(shader.typ)
-            glShaderSource(shaderid, shader.source)
-            glCompileShader(shaderid)
-            if !iscompiled(shaderid)
-                print_with_lines(Compat.String(shader.source))
-                warn("shader $(shader.name) didn't compile. \n$(getinfolog(shaderid))")
-            end
-            shaderid
-        end
-    end
-end
-
-export empty_shadercache
 
 function uniformlocations(nametypedict::Dict{Symbol, GLenum}, program)
     isempty(nametypedict) && return Dict{Symbol,Tuple}()
@@ -152,22 +98,91 @@ function uniformlocations(nametypedict::Dict{Symbol, GLenum}, program)
     end)
 end
 
-# Actually compiles and links shader sources
-function GLProgram(
-        shaders::Vector{Shader}, program=createprogram();
-        fragdatalocation=Tuple{Int, Compat.UTF8String}[]
-    )
+abstract AbstractLazyShader
+immutable LazyShader <: AbstractLazyShader
+    paths::Tuple
+    kw_args::Dict{Symbol, Any}
+    function LazyShader(paths...; kw_args...)
+        args = Dict{Symbol, Any}(kw_args)
+        get!(args, :view, Dict{String, String}())
+        new(paths, args)
+    end
+end
 
+gl_convert(shader::GLProgram, data) = shader
+
+
+
+
+# caching templated shaders is a pain -.-
+
+# cache for template keys per file
+# path --> template keys
+const _template_cache = Dict{String, Vector{String}}()
+# path --> Dict{template_replacements --> Shader)
+const _shader_cache = Dict{String, Dict{Any, Shader}}()
+const _program_cache = Dict{Any, GLProgram}()
+
+function empty_shader_cache!()
+    empty!(_template_cache)
+    empty!(_shader_cache)
+    empty!(_program_cache)
+end
+
+function __init__()
+    Base.rehash!(_template_cache)
+    Base.rehash!(_shader_cache)
+    Base.rehash!(_program_cache)
+end
+function compile_shader(path, source_str::AbstractString)
+    typ = GLAbstraction.shadertype(query(path))
+    source = Vector{UInt8}(source_str)
+    shaderid = GLAbstraction.createshader(typ)
+    glShaderSource(shaderid, source)
+    glCompileShader(shaderid)
+    if !GLAbstraction.iscompiled(shaderid)
+        GLAbstraction.print_with_lines(source_str)
+        warn("shader $(path) didn't compile. \n$(GLAbstraction.getinfolog(shaderid))")
+    end
+    Shader(Symbol(path), source, typ, shaderid)
+end
+
+function get_shader!(path, template_replacement, view, attributes)
+    # this should always be in here, since we already have the template keys
+    shader_dict = _shader_cache[path]
+    get!(shader_dict, template_replacement) do
+        template_source = readstring(path)
+        source = mustache_replace(template_replacement, template_source)
+        compile_shader(path, source)::Shader
+    end::Shader
+end
+function get_template!(path, view, attributes)
+    get!(_template_cache, path) do
+        _, ext = splitext(path)
+
+        typ = shadertype(ext)
+        template_source = readstring(path)
+        source, replacements = template2source(
+            template_source, view, attributes
+        )
+        s = compile_shader(path, source)
+        template_keys = collect(keys(replacements))
+        template_replacements = collect(values(replacements))
+        # can't yet be in here, since we didn't even have template keys
+        _shader_cache[path] = Dict(template_replacements => s)
+
+        template_keys
+    end
+end
+
+
+function compile_program(shaders, fragdatalocation)
     # Remove old shaders
-    glUseProgram(0)
-    shader_ids = glGetAttachedShaders(program)
-    foreach(glDetachShader, program, shader_ids)
-
+    program = createprogram()
+    glUseProgram(program)
     #attach new ones
-    shader_ids = map(shaders) do shader
-        shaderid = compileshader(shader)
-        glAttachShader(program, shaderid)
-        shaderid
+    foreach(shaders) do shader
+        glAttachShader(program, shader.id)
     end
 
     #Bind frag data
@@ -177,31 +192,52 @@ function GLProgram(
 
     #link program
     glLinkProgram(program)
-    !islinked(program) && warn("program $program not linked. Error in: \n", join(map(x->x.name, shaders), " or\n"), "\n", getinfolog(program))
-    #foreach(glDeleteShader, shader_ids) # Can be deleted, as they will still be linked to Program and released after program gets released
-
+    if !GLAbstraction.islinked(program)
+        error(
+            "program $program not linked. Error in: \n",
+            join(map(x->String(x.name), shaders), " or "), "\n", getinfolog(program)
+        )
+    end
+    # Can be deleted, as they will still be linked to Program and released after program gets released
+    #foreach(glDeleteShader, shader_ids)
     # generate the link locations
-    nametypedict        = uniform_name_type(program)
+    nametypedict = uniform_name_type(program)
     uniformlocationdict = uniformlocations(nametypedict, program)
-
     GLProgram(program, shaders, nametypedict, uniformlocationdict)
 end
 
+function get_view(kw_dict)
+    _view = kw_dict[:view]
+    extension = is_apple() ? "" : "#extension GL_ARB_draw_instanced : enable\n"
+    _view["GLSL_EXTENSION"] = extension*get(_view, "GLSL_EXTENSIONS", "")
+    _view["GLSL_VERSION"] = glsl_version_string()
+    _view
+end
 
-abstract AbstractLazyShader
-immutable LazyShader <: AbstractLazyShader
-    paths  ::Tuple
-    kw_args::Vector
-    function LazyShader(paths...; kw_args...)
-        new(paths, kw_args)
+function gl_convert(lazyshader::AbstractLazyShader, data)
+    kw_dict = lazyshader.kw_args
+    paths = lazyshader.paths
+    v = get_view(kw_dict)
+    template_keys = Array(Vector{String}, length(paths))
+    replacements = Array(Vector{String}, length(paths))
+    for (i, path) in enumerate(paths)
+        template = get_template!(path, v, data)
+        template_keys[i] = template
+        replacements[i] = String[mustache2replacement(k, v, data) for k in template]
+    end
+    program = get!(_program_cache, (paths, replacements)) do
+        # when we're here, this means there were uncached shaders, meaning we definitely have
+        # to compile a new program
+        shaders = Array(Shader, length(paths))
+        for (i, path) in enumerate(paths)
+            tr = Dict(zip(template_keys[i], replacements[i]))
+            shaders[i] = get_shader!(path, tr, v, data)
+        end
+        fragdatalocation = get(kw_dict, :fragdatalocation, Tuple{Int, String}[])
+        compile_program(shaders, fragdatalocation)
     end
 end
 
-gl_convert(lazyshader::AbstractLazyShader, data) = TemplateProgram(
-    lazyshader.paths...;
-    attributes = data,
-    lazyshader.kw_args...
-)
 
 function insert_from_view(io, replace_view::Function, keyword::AbstractString)
     print(io, replace_view(keyword))
@@ -214,7 +250,6 @@ function insert_from_view(io, replace_view::Dict, keyword::AbstractString)
     end
     nothing
 end
-
 """
 Replaces
 {{keyword}} with the key in `replace_view`, or replace_view(key)
@@ -275,76 +310,26 @@ function mustache2replacement(mustache_key, view, attributes)
             val = attributes[keysym]
             if !isa(val, AbstractString)
                 return if postfix == "_type"
-                    toglsltype_string(val)
+                    toglsltype_string(val)::String
                 else  postfix == "_calculation"
-                    glsl_variable_access(keystring, val)
+                    glsl_variable_access(keystring, val)::String
                 end
             end
         end
     end
     "" # no match found, leave empty!
 end
+
 # Takes a shader template and renders the template and returns shader source
-template2source(source::Array{UInt8, 1}, attributes::Dict{Symbol, Any}, view) = template2source(Compat.String(source), attributes, view)
-function template2source(source::AbstractString, attributes::Dict{Symbol, Any}, view)
+template2source(source::Array{UInt8, 1}, view, attributes::Dict{Symbol, Any}) = template2source(Compat.String(source), attributes, view)
+function template2source(source::AbstractString, view, attributes::Dict{Symbol, Any})
+    replacements = Dict{String, String}()
     source = mustache_replace(source) do mustache_key
-        mustache2replacement(mustache_key, view, attributes)
+        r = mustache2replacement(mustache_key, view, attributes)
+        replacements[mustache_key] = r
+        r
     end
-    source
-end
-
-#TemplateProgram() = error("Can't create TemplateProgram without parameters")
-
-
-function TemplateProgram(x::Union{Shader, File, Signal{Shader}}...; kw_args...)
-    TemplateProgram(merge(Dict(
-        :view               => Dict{Compat.UTF8String, Compat.UTF8String}(),
-        :attributes         => Dict{Symbol, Any}(),
-        :fragdatalocation   => Tuple{Int, Compat.UTF8String}[],
-        :program            => createprogram()
-    ), Dict{Symbol, Any}(kw_args)), x...)
-end
-
-function TemplateProgram(kw_args::Dict{Symbol, Any}, s::File, shaders::File...)
-    updatewhile     = get(kw_args, :updatewhile, Signal(true))
-    update_interval = get(kw_args, :update_interval, 1.0)
-    shader_signals  = map(s->const_lift_shader(s, updatewhile, update_interval), [s,shaders...])
-    TemplateProgram(kw_args, shader_signals...)
-end
-function TemplateProgram(kw_args::Dict{Symbol, Any}, s::Signal{Shader}, shaders::Signal{Shader}...)
-    program_signal = const_lift(s, shaders...) do _unused... #just needed to update the signal
-        # extract values from signals
-        shader_values = map(value, [s, shaders...])
-        TemplateProgram(kw_args, shader_values...)
-    end
-    Reactive.preserve(program_signal)
-    program_signal
-end
-function TemplateProgram(kw_args::Dict{Symbol, Any}, shaders::Union{Shader,Signal{Shader}}...)
-    newshaders = map(s->isa(s, Shader) ? Signal(s) : s, shaders)
-    TemplateProgram(kw_args, newshaders...)
-end
-
-function TemplateProgram(kw_args::Dict{Symbol, Any}, s::Shader, shaders::Shader...)
-    @materialize program, view, attributes, fragdatalocation = kw_args
-    if haskey(view, "in") || haskey(view, "out") || haskey(view, "GLSL_VERSION")
-        println("warning: using internal keyword \"$(in/out/GLSL_VERSION)\" for shader template. The value will be overwritten")
-    end
-    extension = is_apple() ? "" : "#extension GL_ARB_draw_instanced : enable"
-    if haskey(view, "GLSL_EXTENSIONS")
-        #to do: check custom extension...
-        #for now we just append the extensions
-        extension *= "\n" * view["GLSL_EXTENSIONS"]
-    end
-    internaldata = Dict{Compat.UTF8String, Compat.UTF8String}(
-        "GLSL_VERSION"    => glsl_version_string(),
-        "GLSL_EXTENSIONS" => extension
-    )
-    view = merge(internaldata, view)
-
-    # transform dict of templates into actual shader source
-    code = Shader[Shader(shader, source=template2source(shader.source, attributes, view)) for shader in [s, shaders...]]
-    return GLProgram(code, program, fragdatalocation=fragdatalocation)
+    source, replacements
 end
 
 function glsl_version_string()

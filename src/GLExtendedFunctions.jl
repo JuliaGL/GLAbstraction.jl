@@ -153,8 +153,6 @@ function glDeleteBuffers(id::GLuint)
   glDeleteBuffers(1, arr)
 end
 
-
-
 function glGetTexLevelParameteriv(target::GLenum, level, name::GLenum)
   result = GLint[0]
   glGetTexLevelParameteriv(target, level, name, result)

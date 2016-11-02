@@ -42,9 +42,8 @@ function DummyCamera(;
     DummyCamera{Float32}(window_size, view, projection, projectionview)
 end
 
-function Base.collect(camera::Camera)
-    collected = Dict{Symbol, Any}()
-    names     = fieldnames(camera)
+function Base.collect(camera::Camera, collected = Dict{Symbol, Any}())
+    names = fieldnames(camera)
     for name in (:view, :projection, :projectionview, :eyeposition)
         if name in names
             collected[name] = getfield(camera, name)
@@ -100,7 +99,7 @@ function OrthographicPixelCamera(
     x, y = w_, h_
     eyeposition = Signal(Vec3f0(x, y, zoom))
     lookatvec   = Signal(Vec3f0(x, y, 0))
-    far         = Signal(zoom*5.0f0) # this should probably be not calculated
+    far         = Signal(zoom*10.0f0) # this should probably be not calculated
     # since there is no scene independant, well working far clip
 
     PerspectiveCamera(
