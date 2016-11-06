@@ -344,12 +344,34 @@ function projection_switch{T<:Real}(
     orthographicprojection(-w, w, -h, h, near, far)
 end
 
-function to_worldspace{T}(p::T, projectionview, cam_res)
-    prj_view_inv = inv(projectionview)
-    clip_space = (Vec2f0(p)./cam_res) * 2f0
-    ws = prj_view_inv * Vec4f0(clip_space, 0f0, 0f0) # worldspace
-    T(ws[1], ws[2], 0)
+w_component{N,T}(::Point{N,T}) = T(1)
+w_component{N,T}(::Vec{N,T}) = T(0)
+
+function to_worldspace{T<:FixedVector{2}}(point::T, cam)
+    to_worldspace(
+        point,
+        value(cam.projectionview),
+        T(widths(value(cam.window_size)))
+    )
 end
+function to_worldspace{T}(
+        p::FixedVector{2, T},
+        projectionview::Mat4,
+        cam_res::FixedVector
+    )
+    VT = typeof(p)
+    prj_view_inv = inv(projectionview)
+    clip_space = 2 * (VT(p) ./ VT(cam_res))
+    pix_space = Vec{4, T}(
+        clip_space[1],
+        clip_space[2],
+        T(0), w_component(p)
+    )
+    ws = prj_view_inv * pix_space
+    ws
+end
+
+
 function translate_cam(
         translate, proj_view, window_size, prj_type,
         eyepos_s, lookat_s, up_s,
@@ -364,9 +386,9 @@ function translate_cam(
     zoom, x, y = translate
     zoom *= 0.1f0*dir_len
     if prjt != PERSPECTIVE
-        x,y = to_worldspace(Vec3f0(x,y,0), value(proj_view), cam_res)
+        x, y = to_worldspace(Vec2f0(x, y), value(proj_view), cam_res)
     else
-        x,y = (Vec2f0(x,y) ./ cam_res) .* dir_len
+        x, y = (Vec2f0(x,y) ./ cam_res) .* dir_len
     end
     dir_norm = normalize(dir)
     right = normalize(cross(dir_norm, up))
