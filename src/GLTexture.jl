@@ -16,6 +16,7 @@ type Texture{T <: GLArrayEltypes, NDIM} <: OpenglTexture{T, NDIM}
     format          ::GLenum
     parameters      ::TextureParameters{NDIM}
     size            ::NTuple{NDIM, Int}
+    context         ::GLContext
     function Texture(
             id              ::GLuint,
             texturetype     ::GLenum,
@@ -32,7 +33,8 @@ type Texture{T <: GLArrayEltypes, NDIM} <: OpenglTexture{T, NDIM}
             internalformat,
             format,
             parameters,
-            size
+            size,
+            current_context()
         )
         finalizer(tex, free)
         tex

@@ -14,21 +14,45 @@ typealias VolumeTypes{T}     ArrayTypes{T, 3}
 @enum Projection PERSPECTIVE ORTHOGRAPHIC
 @enum MouseButton MOUSE_LEFT MOUSE_MIDDLE MOUSE_RIGHT
 
+typealias GLContext Symbol
+
+#=
+We need to track the current OpenGL context.
+Since we can't do this via pointer identity  (OpenGL may reuse the same pointers)
+We go for this slightly ugly version.
+In the future, this should probably be part of GLWindow.
+=#
+begin
+    local const context = Ref(:none)
+    function current_context()
+        context[]
+    end
+    function is_current_context(x)
+        x == context[]
+    end
+    function new_context()
+        context[] = gensym()
+    end
+end
 
 immutable Shader
     name::Symbol
     source::Vector{UInt8}
     typ::GLenum
     id::GLuint
+    context::GLContext
+    function Shader(name, source, typ, id)
+        new(name, source, typ, id, current_context())
+    end
 end
 Shader(name, source, typ) = Shader(name, source, typ, 0)
 name(s::Shader) = s.name
 function Base.:(==)(a::Shader, b::Shader)
-    a.source == b.source && a.typ == b.typ && a.id == b.id
+    a.source == b.source && a.typ == b.typ && a.id == b.id && a.context == b.context
 end
 
 function Base.hash(s::Shader, h::UInt64)
-    hash((s.source, s.typ, s.id), h)
+    hash((s.source, s.typ, s.id, s.context), h)
 end
 
 
@@ -43,10 +67,10 @@ type GLProgram
     shader      ::Vector{Shader}
     nametype    ::Dict{Symbol, GLenum}
     uniformloc  ::Dict{Symbol, Tuple}
-
+    context     ::GLContext
     function GLProgram(id::GLuint, shader::Vector{Shader}, nametype::Dict{Symbol, GLenum}, uniformloc::Dict{Symbol, Tuple})
-        obj = new(id, shader, nametype, uniformloc)
-        #finalizer(obj, free)
+        obj = new(id, shader, nametype, uniformloc, current_context())
+        finalizer(obj, free)
         obj
     end
 end
@@ -69,14 +93,14 @@ end
 immutable RenderBuffer
     id      ::GLuint
     format  ::GLenum
-
+    context ::GLContext
     function RenderBuffer(format, dimension)
         @assert length(dimensions) == 2
         id = GLuint[0]
         glGenRenderbuffers(1, id)
         glBindRenderbuffer(GL_RENDERBUFFER, id[1])
         glRenderbufferStorage(GL_RENDERBUFFER, format, dimension...)
-        new(id, format)
+        new(id, format, current_context())
     end
 end
 function resize!(rb::RenderBuffer, newsize::AbstractArray)
@@ -90,10 +114,11 @@ end
 immutable FrameBuffer{T}
     id          ::GLuint
     attachments ::Vector{Any}
-
+    context     ::GLContext
     function FrameBuffer(dimensions::Signal)
         fb = glGenFramebuffers()
         glBindFramebuffer(GL_FRAMEBUFFER, fb)
+        new(id, attachments, current_context())
     end
 end
 function resize!(fbo::FrameBuffer, newsize::AbstractArray)
@@ -146,6 +171,11 @@ type GLVertexArray{T}
     bufferlength ::Int
     buffers      ::Dict{Compat.String, GLBuffer}
     indices      ::T
+    context      ::GLContext
+
+    function GLVertexArray(program, id, bufferlength, buffers, indices)
+        new(program, id, bufferlength, buffers, indices, current_context())
+    end
 end
 """
 returns the length of the vertex array.
@@ -284,42 +314,60 @@ include("GLRenderObject.jl")
 
 ####################################################################################
 # freeing
+
+# OpenGL has the annoying habit of reusing id's when creating a new context
+# We need to make sure to only free the current one
 function free(x::GLProgram)
-    id = [x.id]
+    if !is_current_context(x.context)
+        return # don't free from other context
+    end
     try
-    glDeleteProgram(1, id)
+        glDeleteProgram(x.id)
     catch e
         free_handle_error(e)
     end
+    return
 end
 function free(x::GLBuffer)
+    if !is_current_context(x.context)
+        return # don't free from other context
+    end
     id = [x.id]
     try
         glDeleteBuffers(1, id)
     catch e
         free_handle_error(e)
     end
+    return
 end
 function free(x::Texture)
+    if !is_current_context(x.context)
+        return # don't free from other context
+    end
     id = [x.id]
     try
         glDeleteTextures(x.id)
     catch e
         free_handle_error(e)
     end
+    return
 end
 
 function free(x::GLVertexArray)
+    if !is_current_context(x.context)
+        return # don't free from other context
+    end
     id = [x.id]
     try
         glDeleteVertexArrays(1, id)
     catch e
         free_handle_error(e)
     end
+    return
 end
-function free_handle_error(e::ContextNotAvailable)
-    #ignore, since freeing is not needed if context is not available
-end
+
 function free_handle_error(e)
+    #ignore, since freeing is not needed if context is not available
+    isa(e, ContextNotAvailable) && return
     rethrow(e)
 end

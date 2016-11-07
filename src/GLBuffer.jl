@@ -3,14 +3,15 @@ type GLBuffer{T} <: GPUArray{T, 1}
     size        ::NTuple{1, Int}
     buffertype  ::GLenum
     usage       ::GLenum
+    context     ::GLContext
 
     function GLBuffer(ptr::Ptr{T}, buff_length::Int, buffertype::GLenum, usage::GLenum)
         id = glGenBuffers()
         glBindBuffer(buffertype, id)
-        glBufferData(buffertype, buff_length*sizeof(T), ptr, usage)
+        glBufferData(buffertype, buff_length * sizeof(T), ptr, usage)
         glBindBuffer(buffertype, 0)
 
-        obj = new(id, (buff_length,), buffertype, usage)
+        obj = new(id, (buff_length,), buffertype, usage, current_context())
         finalizer(obj, free)
         obj
     end
