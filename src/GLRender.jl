@@ -78,7 +78,7 @@ function render(renderobject::RenderObject, vertexarray=renderobject.vertexarray
 end
 
 function render_uniforms(robj, uniforms)
-    
+
 end
 
 """
@@ -96,7 +96,11 @@ end
 Renders a vertex array which supplies an indexbuffer
 """
 function render{T<:Union{Integer, Face}}(vao::GLVertexArray{GLBuffer{T}}, mode::GLenum=GL_TRIANGLES)
-    glDrawElements(mode, length(vao.indices)*cardinality(vao.indices), julia2glenum(T), C_NULL)
+    glDrawElements(
+        mode,
+        length(vao.indices) * cardinality(vao.indices),
+        julia2glenum(T), C_NULL
+    )
     return
 end
 """

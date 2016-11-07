@@ -40,9 +40,12 @@ function GLBuffer{T <: GLArrayEltypes}(
 end
 
 
-indexbuffer{T<:GLArrayEltypes}(buffer::Vector{T}; usage::GLenum = GL_STATIC_DRAW) =
+function indexbuffer{T<:GLArrayEltypes}(
+        buffer::Vector{T};
+        usage::GLenum = GL_STATIC_DRAW
+    )
     GLBuffer(buffer, buffertype = GL_ELEMENT_ARRAY_BUFFER, usage=usage)
-
+end
 # GPUArray interface
 function gpu_data{T}(b::GLBuffer{T})
     data = Array(T, length(b))
@@ -56,19 +59,19 @@ end
 # Resize buffer
 function gpu_resize!{T}(buffer::GLBuffer{T}, newdims::NTuple{1, Int})
     #TODO make this safe!
-     newlength = newdims[1]
-     oldlen    = length(buffer)
-     if oldlen>0
-         old_data = gpu_data(buffer)
-     end
+    newlength = newdims[1]
+    oldlen    = length(buffer)
+    if oldlen > 0
+        old_data = gpu_data(buffer)
+    end
     bind(buffer)
     glBufferData(buffer.buffertype, newlength*sizeof(T), C_NULL, buffer.usage)
-     bind(buffer, 0)
-     buffer.size = newdims
-      if oldlen>0
-          max_len = min(length(old_data), newlength) #might also shrink
-         buffer[1:max_len] = old_data[1:max_len]
-     end
+    bind(buffer, 0)
+    buffer.size = newdims
+    if oldlen>0
+        max_len = min(length(old_data), newlength) #might also shrink
+        buffer[1:max_len] = old_data[1:max_len]
+    end
     #probably faster, but changes the buffer ID
     # newbuff     = similar(buffer, newdims...)
     # unsafe_copy!(buffer, 1, newbuff, 1, length(buffer))
@@ -99,10 +102,12 @@ function Base.unsafe_copy!{T}(a::GLBuffer{T}, readoffset::Int, b::GLBuffer{T}, w
     multiplicator = sizeof(T)
     glBindBuffer(GL_COPY_READ_BUFFER, a.id)
     glBindBuffer(GL_COPY_WRITE_BUFFER, b.id)
-    glCopyBufferSubData(GL_COPY_READ_BUFFER, GL_COPY_WRITE_BUFFER,
+    glCopyBufferSubData(
+        GL_COPY_READ_BUFFER, GL_COPY_WRITE_BUFFER,
         multiplicator*(readoffset-1),
         multiplicator*(writeoffset-1),
-        multiplicator*len)
+        multiplicator*len
+    )
     glBindBuffer(GL_COPY_READ_BUFFER, 0)
     glBindBuffer(GL_COPY_WRITE_BUFFER, 0)
     return nothing
@@ -127,7 +132,7 @@ end
 
 #copy inside one buffer
 function Base.unsafe_copy!{T}(buffer::GLBuffer{T}, readoffset::Int, writeoffset::Int, len::Int)
-    len <=0 && return nothing
+    len <= 0 && return nothing
     bind(buffer)
     ptr = Ptr{T}(glMapBuffer(buffer.buffertype, GL_READ_WRITE))
     for i=1:len+1
