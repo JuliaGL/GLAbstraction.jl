@@ -67,7 +67,7 @@ Dict(
 function OrthographicPixelCamera(
         inputs;
         fov=41f0, near=0.01f0, up=Vec3f0(0,1,0),
-        translation_speed=Signal(1), theta=Signal(Vec3f0(0)), keep=Signal(true)
+        translation_speed = Signal(1), theta = Signal(Vec3f0(0)), keep = Signal(true)
     )
     @materialize mouseposition, mouse_buttons_pressed, buttons_pressed, scroll = inputs
     left_ctrl     = Set([GLFW.KEY_LEFT_CONTROL])
@@ -94,12 +94,12 @@ function OrthographicPixelCamera(
     # the pixel of the window (area)
     area = value(area_s)
     h = Float32(tan(fov / 360.0 * pi) * near)
-    w_, h_ = area.w/2f0, area.h/2f0
-    zoom = min(h_,w_)/h
+    w_, h_ = area.w / 2f0, area.h / 2f0
+    zoom = min(h_, w_) / h
     x, y = w_, h_
     eyeposition = Signal(Vec3f0(x, y, zoom))
     lookatvec   = Signal(Vec3f0(x, y, 0))
-    far         = Signal(zoom*10.0f0) # this should probably be not calculated
+    far         = Signal(zoom * 10.0f0) # this should probably be not calculated
     # since there is no scene independant, well working far clip
 
     PerspectiveCamera(
@@ -344,13 +344,13 @@ function projection_switch{T<:Real}(
     orthographicprojection(-w, w, -h, h, near, far)
 end
 
-w_component{N,T}(::Point{N,T}) = T(1)
-w_component{N,T}(::Vec{N,T}) = T(0)
+w_component{N, T}(::Point{N, T}) = T(1)
+w_component{N, T}(::Vec{N, T}) = T(0)
 
 function to_worldspace{T<:FixedVector{2}}(point::T, cam)
     to_worldspace(
         point,
-        value(cam.projectionview),
+        value(cam.projection) * value(cam.view),
         T(widths(value(cam.window_size)))
     )
 end
@@ -361,19 +361,40 @@ function to_worldspace{T}(
     )
     VT = typeof(p)
     prj_view_inv = inv(projectionview)
-    clip_space = 2 * (VT(p) ./ VT(cam_res))
+    clip_space = 4 * (VT(p) ./ VT(cam_res))
     pix_space = Vec{4, T}(
         clip_space[1],
         clip_space[2],
         T(0), w_component(p)
     )
     ws = prj_view_inv * pix_space
-    ws
+    ws # ./ ws[4]
+end
+
+"""
+Takes a point and a camera and transforms it from mouse (imagespace) to world space
+"""
+function imagespace(pos, camera)
+    # Setup transformation matrix
+    pv = value(camera.projection) * value(camera.view)
+    inv_pv = inv(pv)
+    width, height = widths(value(camera.window_size)) # get pixel resolution
+    x, y = pos
+    # transform to normalized device coordinates [-1, 1]
+    device_space = Vec4f0(
+        2 * (x / width)  - 1,
+        2 * (y / height) - 1,
+        0.0,
+        1.0
+    )
+    pos = inv_pv * device_space
+    Point2f0(pos[1], pos[2]) / pos[4]
 end
 
 
+
 function translate_cam(
-        translate, proj_view, window_size, prj_type,
+        translate, proj, view, window_size, prj_type,
         eyepos_s, lookat_s, up_s,
     )
     translate == Vec3f0(0) && return nothing # nothing to do
@@ -384,16 +405,16 @@ function translate_cam(
     cam_res = Vec2f0(widths(value(window_size)))
 
     zoom, x, y = translate
-    zoom *= 0.1f0*dir_len
+    zoom *= 0.1f0 * dir_len
     if prjt != PERSPECTIVE
-        x, y = to_worldspace(Vec2f0(x, y), value(proj_view), cam_res)
+        x, y = to_worldspace(Vec2f0(x, y), value(proj) * value(view), cam_res)
     else
-        x, y = (Vec2f0(x,y) ./ cam_res) .* dir_len
+        x, y = (Vec2f0(x, y) ./ cam_res) .* dir_len
     end
     dir_norm = normalize(dir)
     right = normalize(cross(dir_norm, up))
     zoom_trans = dir_norm*zoom
-    side_trans = right*(-x) + normalize(up)*y
+    side_trans = right * (-x) + normalize(up) * y
     push!(eyepos_s, eyepos + side_trans + zoom_trans)
     push!(lookat_s, lookat + side_trans)
     nothing
@@ -458,8 +479,9 @@ function PerspectiveCamera{T<:Vec3}(
     projectionview = map(*, projectionmatrix, viewmatrix)
 
     preserve(map(translate_cam,
-       trans, Signal(projectionmatrix), Signal(window_size), Signal(projectiontype),
-       Signal(eyeposition), Signal(lookatposition), Signal(upvector)
+       trans, Signal(projectionmatrix), Signal(viewmatrix), Signal(window_size),
+       Signal(projectiontype),  Signal(eyeposition), Signal(lookatposition),
+       Signal(upvector)
     ))
 
     preserve(map(theta) do theta_v
@@ -518,8 +540,9 @@ end
 """
 Centers the camera on a list of render objects
 """
-function center!(camera::PerspectiveCamera, renderlist::Vector)
+function center!(camera::PerspectiveCamera, renderlist::Vector; border = 0)
     bb = renderlist_boundingbox(renderlist)
+    bb = AABB(minimum(bb) .- border, widths(bb) .+ 2border)
     center!(camera, bb)
 end
 """
@@ -539,7 +562,7 @@ function center!(camera::PerspectiveCamera, bb::AABB)
         w = h * aspect
         w_, h_, _ = half_width
         zoom = Vec2f0(w_, h_)./Vec2f0(w,h)
-        x,y,_ = middle
+        x, y, _ = middle
         push!(camera.eyeposition, Vec3f0(x, y, maximum(zoom)))
         push!(camera.lookat, Vec3f0(x, y, 0))
         push!(camera.up, Vec3f0(0,1,0))
@@ -559,7 +582,7 @@ export renderlist, robj_from_camera
 """
 Centers the camera(=:perspective) on all render objects in `window`
 """
-function center!(window, camera::Symbol=:perspective)
+function center!(window, camera::Symbol=:perspective; border = 0)
     rl = robj_from_camera(window, camera)
-    center!(window.cameras[camera], rl)
+    center!(window.cameras[camera], rl, border = border)
 end
