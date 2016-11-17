@@ -91,14 +91,14 @@ end
 export EmptyPrerender
 export prerendertype
 
-function instanced_renderobject(data, program, bb=Signal(AABB(Vec3f0(0), Vec3f0(1))), primitive::GLenum=GL_TRIANGLES, main=nothing)
+function instanced_renderobject(data, program, bb = Signal(AABB(Vec3f0(0), Vec3f0(1))), primitive::GLenum=GL_TRIANGLES, main=nothing)
     pre = StandardPrerender()
     robj = RenderObject(data, program, pre, nothing, bb, main)
     robj.postrenderfunction = StandardPostrenderInstanced(main, robj.vertexarray, primitive)
     robj
 end
 
-function std_renderobject(data, program, bb=Signal(AABB(Vec3f0(0), Vec3f0(1))), primitive=GL_TRIANGLES, main=nothing)
+function std_renderobject(data, program, bb = Signal(AABB(Vec3f0(0), Vec3f0(1))), primitive=GL_TRIANGLES, main=nothing)
     pre = StandardPrerender()
     robj = RenderObject(data, program, pre, nothing, bb, main)
     robj.postrenderfunction = StandardPostrender(robj.vertexarray, primitive)
@@ -109,7 +109,7 @@ prerendertype{Pre}(::Type{RenderObject{Pre}}) = Pre
 prerendertype{Pre}(::RenderObject{Pre}) = Pre
 
 extract_renderable(context::Vector{RenderObject}) = context
-extract_renderable(context::RenderObject) = [context]
+extract_renderable(context::RenderObject) = RenderObject[context]
 extract_renderable{T <: Composable}(context::Vector{T}) = map(extract_renderable, context)
 function extract_renderable(context::Context)
     result = extract_renderable(context.children[1])
