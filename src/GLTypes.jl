@@ -47,7 +47,10 @@ immutable Shader
 end
 Shader(name, source, typ) = Shader(name, source, typ, 0)
 name(s::Shader) = s.name
-function Base.:(==)(a::Shader, b::Shader)
+
+import Base: ==
+
+function (==)(a::Shader, b::Shader)
     a.source == b.source && a.typ == b.typ && a.id == b.id && a.context == b.context
 end
 
