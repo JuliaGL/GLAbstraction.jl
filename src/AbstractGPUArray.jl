@@ -223,12 +223,19 @@ max_dim(t)       = error("max_dim not implemented for: $(typeof(t)). This happen
     gpu_mem
 end
 
+const BaseSerializer = if isdefined(Base, :AbstractSerializer)
+    Base.AbstractSerializer
+elseif isdefined(Base, :SerializationState)
+    Base.SerializationState
+else
+    error("No Serialization type found. Probably unsupported Julia version")
+end
 
-function Base.serialize{T<:GPUArray}(s::Base.AbstractSerializer, t::T)
+function Base.serialize{T<:GPUArray}(s::BaseSerializer, t::T)
     Base.serialize_type(s, T)
     serialize(s, Array(t))
 end
-function Base.deserialize{T<:GPUArray}(s::Base.AbstractSerializer, ::Type{T})
+function Base.deserialize{T<:GPUArray}(s::BaseSerializer, ::Type{T})
     A = deserialize(s)
     T(A)
 end
