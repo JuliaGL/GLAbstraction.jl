@@ -18,7 +18,7 @@ import Base: merge, resize!, unsafe_copy!, similar, length, getindex, setindex!,
 import Reactive: value
 
 using Compat
-import Compat: foreach
+import Compat: foreach, String, unsafe_string
 
 
 include("AbstractGPUArray.jl")
