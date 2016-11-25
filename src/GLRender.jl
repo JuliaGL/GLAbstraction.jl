@@ -86,7 +86,7 @@ Renders a vertexarray, which consists of the usual buffers plus a vector of
 unitranges which defines the segments of the buffers to be rendered
 """
 function render{T <: VecOrSignal{UnitRange{Int}}}(vao::GLVertexArray{T}, mode::GLenum=GL_TRIANGLES)
-    for elem in value(vao.indexes)
+    for elem in value(vao.indices)
         glDrawArrays(mode, max(first(elem)-1, 0), length(elem)+1)
     end
      return nothing
