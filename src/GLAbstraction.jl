@@ -3,7 +3,7 @@ module GLAbstraction
 
 import Quaternions
 const Q = Quaternions # save some writing!
-using FixedSizeArrays
+using StaticArrays
 using GeometryTypes
 using ModernGL
 using Reactive

@@ -3,9 +3,9 @@ const Q = Quaternions # save some writing!
 
 type OrthographicCamera{T} <: Camera{T}
     window_size     ::Signal{SimpleRectangle{Int}}
-    view            ::Signal{Mat{4,4,T}}
-    projection      ::Signal{Mat{4,4,T}}
-    projectionview  ::Signal{Mat{4,4,T}}
+    view            ::Signal{Mat4{T}}
+    projection      ::Signal{Mat4{T}}
+    projectionview  ::Signal{Mat4{T}}
 end
 
 type PerspectiveCamera{T} <: Camera{T}
@@ -13,9 +13,9 @@ type PerspectiveCamera{T} <: Camera{T}
     nearclip        ::Signal{T}
     farclip         ::Signal{T}
     fov             ::Signal{T}
-    view            ::Signal{Mat{4,4,T}}
-    projection      ::Signal{Mat{4,4,T}}
-    projectionview  ::Signal{Mat{4,4,T}}
+    view            ::Signal{Mat4{T}}
+    projection      ::Signal{Mat4{T}}
+    projectionview  ::Signal{Mat4{T}}
     eyeposition     ::Signal{Vec{3, T}}
     lookat          ::Signal{Vec{3, T}}
     up              ::Signal{Vec{3, T}}
@@ -26,14 +26,14 @@ end
 
 type DummyCamera{T} <: Camera{T}
     window_size     ::Signal{SimpleRectangle{Int}}
-    view            ::Signal{Mat{4,4,T}}
-    projection      ::Signal{Mat{4,4,T}}
-    projectionview  ::Signal{Mat{4,4,T}}
+    view            ::Signal{Mat4{T}}
+    projection      ::Signal{Mat4{T}}
+    projectionview  ::Signal{Mat4{T}}
 end
 
 function DummyCamera(;
         window_size    = Signal(SimpleRectangle(-1, -1, 1, 1)),
-        view           = Signal(eye(Mat{4,4, Float32})),
+        view           = Signal(eye(Mat4f0)),
         nearclip       = Signal(-10_000f0),
         farclip        = Signal(10_000f0),
         projection     = const_lift(orthographicprojection, window_size, nearclip, farclip),
@@ -347,17 +347,17 @@ end
 w_component{N, T}(::Point{N, T}) = T(1)
 w_component{N, T}(::Vec{N, T}) = T(0)
 
-function to_worldspace{T<:FixedVector{2}}(point::T, cam)
+function to_worldspace{T <: StaticVector}(point::T, cam)
     to_worldspace(
         point,
         value(cam.projection) * value(cam.view),
         T(widths(value(cam.window_size)))
     )
 end
-function to_worldspace{T}(
-        p::FixedVector{2, T},
+function to_worldspace(
+        p::StaticVector,
         projectionview::Mat4,
-        cam_res::FixedVector
+        cam_res::StaticVector
     )
     VT = typeof(p)
     prj_view_inv = inv(projectionview)

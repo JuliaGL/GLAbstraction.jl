@@ -61,4 +61,3 @@ function test()
 end
 
 test()
-

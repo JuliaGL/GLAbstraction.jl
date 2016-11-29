@@ -388,7 +388,7 @@ end
 
 default_colorformat_sym{T <: Real}(::Type{T})           = default_colorformat_sym(1, T <: Integer, "RED")
 default_colorformat_sym{T <: AbstractArray}(::Type{T})  = default_colorformat_sym(length(T), eltype(T) <: Integer, "RGBA")
-default_colorformat_sym{T <: FixedVector}(::Type{T})    = default_colorformat_sym(length(T), eltype(T) <: Integer, "RGBA")
+default_colorformat_sym{T <: StaticVector}(::Type{T})    = default_colorformat_sym(length(T), eltype(T) <: Integer, "RGBA")
 default_colorformat_sym{T <: Colorant}(::Type{T})       = default_colorformat_sym(length(T), eltype(T) <: Integer, string(T.name.name))
 
 @generated function default_internalcolorformat{T}(::Type{T})
@@ -493,7 +493,7 @@ function set_parameters{T, N}(t::Texture{T, N}, params::TextureParameters=t.para
     if N >= 3 && !is_texturearray(t) # for texture arrays, third dimension can not be set
         push!(result, (GL_TEXTURE_WRAP_R, data[:repeat][3]))
     end
-    push!(result, GL_TEXTURE_MAX_ANISOTROPY_EXT, params.anisotropic)
+    push!(result, (GL_TEXTURE_MAX_ANISOTROPY_EXT, params.anisotropic))
     t.parameters = params
     set_parameters(t, result)
 end
