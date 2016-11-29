@@ -4,7 +4,11 @@
 # For uniforms, the Vector and Matrix types from ImmutableArrays should be used, as they map the relation almost 1:1
 
 GLSL_COMPATIBLE_NUMBER_TYPES = (GLfloat, GLint, GLuint, GLdouble)
-const NATIVE_TYPES = Union{FixedArray, GLSL_COMPATIBLE_NUMBER_TYPES..., GLBuffer, GPUArray, Shader, GLProgram, NativeMesh}
+const NATIVE_TYPES = Union{
+    FixedArray, GLSL_COMPATIBLE_NUMBER_TYPES..., 
+    ZeroIndex{GLint}, ZeroIndex{GLuint},
+    GLBuffer, GPUArray, Shader, GLProgram, NativeMesh
+}
 
 opengl_prefix(T)  = error("Object $T is not a supported uniform element type")
 opengl_postfix(T) = error("Object $T is not a supported uniform element type")
