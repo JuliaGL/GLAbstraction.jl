@@ -144,7 +144,7 @@ function mouse_dragg_diff(
     (false, ispressed, Vec2f0(0), Vec2f0(0))
 end
 
-function dragged(mouseposition, key_pressed, start_condition=true)
+function dragged(mouseposition, key_pressed, start_condition = true)
     v0 = (false, false, Vec2f0(0), Vec2f0(0))
     args = const_lift(tuple, key_pressed, mouseposition, start_condition)
     dragg_sig = foldp(mouse_dragg, v0, args)
@@ -354,8 +354,8 @@ function to_worldspace{T <: StaticVector}(point::T, cam)
         T(widths(value(cam.window_size)))
     )
 end
-function to_worldspace(
-        p::StaticVector,
+function to_worldspace{T}(
+        p::StaticVector{T},
         projectionview::Mat4,
         cam_res::StaticVector
     )
