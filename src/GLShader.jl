@@ -195,7 +195,7 @@ function compile_program(shaders, fragdatalocation)
     if !GLAbstraction.islinked(program)
         error(
             "program $program not linked. Error in: \n",
-            join(map(x->String(x.name), shaders), " or "), "\n", getinfolog(program)
+            join(map(x-> string(x.name), shaders), " or "), "\n", getinfolog(program)
         )
     end
     # Can be deleted, as they will still be linked to Program and released after program gets released
