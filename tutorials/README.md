@@ -30,6 +30,8 @@ Some of the files require external resources; it's recommended that
 you first `include("downloads.jl")` to download all the relevant
 files.
 
+There is a `run_all.jl` file in tutorial, you can try it out to go through the whole tutorial. It will run `download.jl` first to download necessary files.
+
 The sequence of tutorials is:
 
 - [`context_creation.jl`](context_creation.jl)
