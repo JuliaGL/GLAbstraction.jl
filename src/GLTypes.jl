@@ -45,7 +45,9 @@ immutable Shader
         new(name, source, typ, id, current_context())
     end
 end
-Shader(name, source, typ) = Shader(name, source, typ, 0)
+function Shader(name, source::Vector{UInt8}, typ)
+    compile_shader(source, typ, name)
+end
 name(s::Shader) = s.name
 
 import Base: ==

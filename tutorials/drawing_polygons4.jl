@@ -115,7 +115,9 @@ glVertexAttribPointer(col_attribute, 3,
                       GL_FLOAT, GL_FALSE, 5*sizeof(Float32), Ptr{Void}(2*sizeof(Float32)))
 
 # Draw while waiting for a close event
+glClearColor(0,0,0,0)
 while !GLFW.WindowShouldClose(window)
+    glClear(GL_COLOR_BUFFER_BIT)
     glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, C_NULL)
     GLFW.SwapBuffers(window)
     GLFW.PollEvents()

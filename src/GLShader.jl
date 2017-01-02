@@ -74,7 +74,9 @@ end
 
 #Implement File IO interface
 function load(f::File{format"GLSLShader"})
-    Shader(f)
+    fname = filename(f)
+    source = open(readall, fname)
+    compile_shader(fname, source)
 end
 function save(f::File{format"GLSLShader"}, data::Shader)
     s = open(f, "w")
@@ -134,9 +136,9 @@ function __init__()
     Base.rehash!(_shader_cache)
     Base.rehash!(_program_cache)
 end
-function compile_shader(path, source_str::AbstractString)
-    typ = GLAbstraction.shadertype(query(path))
-    source = Vector{UInt8}(source_str)
+
+# TODO remove this silly constructor
+function compile_shader(source::Vector{UInt8}, typ, name)
     shaderid = GLAbstraction.createshader(typ)
     glShaderSource(shaderid, source)
     glCompileShader(shaderid)
@@ -144,7 +146,14 @@ function compile_shader(path, source_str::AbstractString)
         GLAbstraction.print_with_lines(source_str)
         warn("shader $(path) didn't compile. \n$(GLAbstraction.getinfolog(shaderid))")
     end
-    Shader(Symbol(path), source, typ, shaderid)
+    Shader(name, source, typ, shaderid)
+end
+
+function compile_shader(path, source_str::AbstractString)
+    typ = GLAbstraction.shadertype(query(path))
+    source = Vector{UInt8}(source_str)
+    name = Symbol(path)
+    compile_shader(source, typ, name)
 end
 
 function get_shader!(path, template_replacement, view, attributes)
@@ -217,6 +226,11 @@ end
 function gl_convert(lazyshader::AbstractLazyShader, data)
     kw_dict = lazyshader.kw_args
     paths = lazyshader.paths
+    if all(x-> isa(x, Shader), paths)
+        fragdatalocation = get(kw_dict, :fragdatalocation, Tuple{Int, String}[])
+        return compile_program([paths...], fragdatalocation)
+    end
+
     v = get_view(kw_dict)
     template_keys = Array(Vector{String}, length(paths))
     replacements = Array(Vector{String}, length(paths))

@@ -98,7 +98,9 @@ glEnableVertexAttribArray(pos_attribute)
 uni_color = glGetUniformLocation(shader_program, "triangleColor")
 
 # Draw while waiting for a close event
+glClearColor(0,0,0,0)
 while !GLFW.WindowShouldClose(window)
+    glClear(GL_COLOR_BUFFER_BIT)
     r = (sin(4*time()) + 1)/2
     glUniform3f(uni_color, Float32(r), 0.0f0, 0.0f0)
     glDrawArrays(GL_TRIANGLES, 0, length(vertices))
