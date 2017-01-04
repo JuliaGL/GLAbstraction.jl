@@ -75,7 +75,7 @@ end
 #Implement File IO interface
 function load(f::File{format"GLSLShader"})
     fname = filename(f)
-    source = open(readall, fname)
+    source = open(readstring, fname)
     compile_shader(fname, source)
 end
 function save(f::File{format"GLSLShader"}, data::Shader)
@@ -143,8 +143,8 @@ function compile_shader(source::Vector{UInt8}, typ, name)
     glShaderSource(shaderid, source)
     glCompileShader(shaderid)
     if !GLAbstraction.iscompiled(shaderid)
-        GLAbstraction.print_with_lines(source_str)
-        warn("shader $(path) didn't compile. \n$(GLAbstraction.getinfolog(shaderid))")
+        GLAbstraction.print_with_lines(String(source))
+        warn("shader $(name) didn't compile. \n$(GLAbstraction.getinfolog(shaderid))")
     end
     Shader(name, source, typ, shaderid)
 end

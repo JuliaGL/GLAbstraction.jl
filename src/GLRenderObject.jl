@@ -22,6 +22,8 @@ Base.setindex!(obj::RenderObject, value, symbol::Symbol, x::Function)     = seti
 Base.setindex!(obj::RenderObject, value, ::Val{:prerender}, x::Function)  = obj.prerenderfunctions[x] = value
 Base.setindex!(obj::RenderObject, value, ::Val{:postrender}, x::Function) = obj.postrenderfunctions[x] = value
 
+const empty_signal = Signal(false)
+post_empty() = push!(empty_signal, false)
 
 """
 Function which sets an argument of a Context/RenderObject.
@@ -33,7 +35,7 @@ function set_arg!(robj::RenderObject, sym, value)
     set_arg!(robj, sym, current_val, value)
     # GLVisualize relies on reactives event system no for rendering
     # so if a change should be visible there must be an event to indicate change
-    Reactive.post_empty()
+    post_empty()
     nothing
 end
 function set_arg!(robj::Context, sym, value)
