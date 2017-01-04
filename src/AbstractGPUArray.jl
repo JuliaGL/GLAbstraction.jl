@@ -71,10 +71,11 @@ function setindex!{T, N}(A::GPUArray{T, N}, value::Array{T, N}, ranges::UnitRang
 end
 
 function update!{T, N}(A::GPUArray{T, N}, value::Array{T, N})
-
     if length(A) != length(value)
         if isa(A, GLBuffer)
             resize!(A, length(value))
+        elseif isa(A, Texture) && ndims(A) == 2
+            resize_nocopy!(A, size(value))
         else
             error("Dynamic resizing not implemented for $(typeof(A))")
         end

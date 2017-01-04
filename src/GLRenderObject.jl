@@ -1,4 +1,10 @@
-RenderObject(data::Dict{Symbol}, program, bbs=Signal(AABB{Float32}(Vec3f0(0),Vec3f0(1))), main=nothing) = RenderObject(convert(Dict{Symbol,Any}, data), program, bbs, main)
+function RenderObject(
+        data::Dict{Symbol}, program, pre,
+        bbs = Signal(AABB{Float32}(Vec3f0(0),Vec3f0(1))),
+        main = nothing
+    )
+    RenderObject(convert(Dict{Symbol,Any}, data), program, pre, bbs, main)
+end
 
 function Base.show(io::IO, obj::RenderObject)
     println(io, "RenderObject with ID: ", obj.id)
@@ -93,14 +99,14 @@ export prerendertype
 
 function instanced_renderobject(data, program, bb = Signal(AABB(Vec3f0(0), Vec3f0(1))), primitive::GLenum=GL_TRIANGLES, main=nothing)
     pre = StandardPrerender()
-    robj = RenderObject(data, program, pre, nothing, bb, main)
+    robj = RenderObject(convert(Dict{Symbol,Any}, data), program, pre, nothing, bb, main)
     robj.postrenderfunction = StandardPostrenderInstanced(main, robj.vertexarray, primitive)
     robj
 end
 
 function std_renderobject(data, program, bb = Signal(AABB(Vec3f0(0), Vec3f0(1))), primitive=GL_TRIANGLES, main=nothing)
     pre = StandardPrerender()
-    robj = RenderObject(data, program, pre, nothing, bb, main)
+    robj = RenderObject(convert(Dict{Symbol,Any}, data), program, pre, nothing, bb, main)
     robj.postrenderfunction = StandardPostrender(robj.vertexarray, primitive)
     robj
 end

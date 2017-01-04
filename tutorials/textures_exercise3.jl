@@ -92,7 +92,7 @@ while !GLFW.WindowShouldClose(window)
     glUniform1f(phase_loc, Float32(phase))
     glUniform1f(yperiod_loc, Float32(0.02))
 
-    render(ro)
+    GLAbstraction.render(ro)
     GLFW.SwapBuffers(window)
     GLFW.PollEvents()
     if GLFW.GetKey(window, GLFW.KEY_ESCAPE) == GLFW.PRESS
