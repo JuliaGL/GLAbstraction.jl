@@ -80,7 +80,7 @@ while !GLFW.WindowShouldClose(window)
     flipinc *= (1-flipdecay)
     flipangle += flipinc
     glClear(GL_COLOR_BUFFER_BIT)
-    render(ro)
+    GLAbstraction.render(ro)
     GLFW.SwapBuffers(window)
     GLFW.PollEvents()
     if GLFW.GetKey(window, GLFW.KEY_ESCAPE) == GLFW.PRESS

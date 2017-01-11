@@ -37,5 +37,5 @@ while isopen(window)
     render(triangle)
 
   	swapbuffers(window)
-  	pollevents()
+  	poll_glfw()
 end

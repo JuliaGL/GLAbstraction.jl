@@ -2,6 +2,8 @@ immutable TextureParameters{NDim}
     minfilter::Symbol
     magfilter::Symbol # magnification
     repeat   ::NTuple{NDim, Symbol}
+    anisotropic::Float32
+    swizzle_mask::Vector{GLenum}
 end
 
 abstract OpenglTexture{T, NDIM} <: GPUArray{T, NDIM}
@@ -14,6 +16,7 @@ type Texture{T <: GLArrayEltypes, NDIM} <: OpenglTexture{T, NDIM}
     format          ::GLenum
     parameters      ::TextureParameters{NDIM}
     size            ::NTuple{NDIM, Int}
+    context         ::GLContext
     function Texture(
             id              ::GLuint,
             texturetype     ::GLenum,
@@ -30,7 +33,8 @@ type Texture{T <: GLArrayEltypes, NDIM} <: OpenglTexture{T, NDIM}
             internalformat,
             format,
             parameters,
-            size
+            size,
+            current_context()
         )
         finalizer(tex, free)
         tex
@@ -67,6 +71,7 @@ function Texture{T, NDim}(
         internalformat::GLenum = default_internalcolorformat(T),
         texturetype   ::GLenum = default_texturetype(NDim),
         format        ::GLenum = default_colorformat(T),
+        mipmap = false,
         parameters... # rest should be texture parameters
     )
     texparams = TextureParameters(T, NDim; parameters...)
@@ -75,6 +80,7 @@ function Texture{T, NDim}(
     set_packing_alignment(data)
     numbertype = julia2glenum(eltype(T))
     glTexImage(texturetype, 0, internalformat, dims..., 0, format, numbertype, data)
+    mipmap && glGenerateMipmap(texturetype)
     texture = Texture{T, NDim}(
         id, texturetype, numbertype, internalformat, format,
         texparams,
@@ -280,10 +286,15 @@ end
 # Implementing the GPUArray interface
 function gpu_data{T, ND}(t::Texture{T, ND})
     result = Array(T, size(t))
-    glBindTexture(t.texturetype, t.id)
-    glGetTexImage(t.texturetype, 0, t.format, t.pixeltype, result)
-    glBindTexture(t.texturetype, 0)
+    unsafe_copy!(result, t)
     return result
+end
+
+function Base.unsafe_copy!{T,N}(dest::Array{T, N}, source::Texture{T, N})
+    bind(source)
+    glGetTexImage(source.texturetype, 0, source.format, source.pixeltype, dest)
+    bind(source, 0)
+    nothing
 end
 
 gpu_data{T}(t::TextureBuffer{T}) = gpu_data(t.buffer)
@@ -356,7 +367,6 @@ function Base.done{T}(t::TextureBuffer{T}, state::Tuple{Ptr{T}, Int})
     isdone
 end
 
-default_colorformat{T}(::Type{GrayA{T}}) = GL_LUMINANCE_ALPHA
 @generated function default_colorformat{T}(::Type{T})
     sym = default_colorformat_sym(T)
     if !isdefined(ModernGL, sym)
@@ -410,10 +420,6 @@ function default_internalcolorformat_sym{T}(::Type{T})
     Symbol(sym)
 end
 
-function default_internalcolorformat_sym{T}(::Type{GrayA{T}})
-    s=sizeof(T)*8
-    Symbol(string("GL_LUMINANCE", s, "_ALPHA", s))
-end
 
 
 
@@ -452,33 +458,58 @@ function TextureParameters(T, NDim;
         x_repeat  = :clamp_to_edge, #wrap_s
         y_repeat  = x_repeat, #wrap_t
         z_repeat  = x_repeat, #wrap_r
+        anisotropic = 1f0
     )
     T <: Integer && (minfilter == :linear || magfilter == :linear) && error("Wrong Texture Parameter: Integer texture can't interpolate. Try :nearest")
     repeat = (x_repeat, y_repeat, z_repeat)
-    TextureParameters(minfilter, magfilter, ntuple(i->repeat[i], NDim))
+    swizzle_mask = if T <: Gray
+        GLenum[GL_RED, GL_RED, GL_RED, GL_ONE]
+    elseif T <: GrayA
+        GLenum[GL_RED, GL_RED, GL_RED, GL_ALPHA]
+    else
+        GLenum[]
+    end
+    TextureParameters(
+        minfilter, magfilter, ntuple(i->repeat[i], NDim),
+        anisotropic, swizzle_mask
+    )
 end
-TextureParameters{T, NDim}(t::Texture{T, NDim}; kw_args...) = TextureParameters(T, NDim; kw_args...)
-
-
+function TextureParameters{T, NDim}(t::Texture{T, NDim}; kw_args...)
+    TextureParameters(T, NDim; kw_args...)
+end
+const GL_TEXTURE_MAX_ANISOTROPY_EXT = GLenum(0x84FE)
 
 function set_parameters{T, N}(t::Texture{T, N}, params::TextureParameters=t.parameters)
-    result    = Array(Tuple{GLenum, GLenum}, N+2)
-    data      = [name => map_texture_paramers(getfield(params, name)) for name in fieldnames(params)]
-    result[1] = (GL_TEXTURE_MIN_FILTER,        data[:minfilter])
-    result[2] = (GL_TEXTURE_MAG_FILTER,        data[:magfilter])
-    result[3] = (GL_TEXTURE_WRAP_S,            data[:repeat][1])
-    N >= 2 && (result[4] = (GL_TEXTURE_WRAP_T, data[:repeat][2]))
-    if N >= 3 && !is_texturearray(t) # for texture arrays, third dimension can not be set
-        result[5] = (GL_TEXTURE_WRAP_R,        data[:repeat][3])
+    fnames    = (:minfilter, :magfilter, :repeat)
+    data      = Dict([(name, map_texture_paramers(getfield(params, name))) for name in fnames])
+    result    = Tuple{GLenum, Any}[]
+    push!(result, (GL_TEXTURE_MIN_FILTER, data[:minfilter]))
+    push!(result, (GL_TEXTURE_MAG_FILTER, data[:magfilter]))
+    push!(result, (GL_TEXTURE_WRAP_S, data[:repeat][1]))
+    if !isempty(params.swizzle_mask)
+        push!(result, (GL_TEXTURE_SWIZZLE_RGBA, params.swizzle_mask))
     end
+    N >= 2 && push!(result, (GL_TEXTURE_WRAP_T, data[:repeat][2]))
+    if N >= 3 && !is_texturearray(t) # for texture arrays, third dimension can not be set
+        push!(result, (GL_TEXTURE_WRAP_R, data[:repeat][3]))
+    end
+    push!(result, GL_TEXTURE_MAX_ANISOTROPY_EXT, params.anisotropic)
     t.parameters = params
     set_parameters(t, result)
 end
-
-function set_parameters(t::Texture, parameters::Vector{Tuple{GLenum, GLenum}})
-    glBindTexture(t.texturetype, t.id)
+function texparameter(t::Texture, key::GLenum, val::GLenum)
+    glTexParameteri(t.texturetype, key, val)
+end
+function texparameter(t::Texture, key::GLenum, val::Vector)
+    glTexParameteriv(t.texturetype, key, val)
+end
+function texparameter(t::Texture, key::GLenum, val::Float32)
+    glTexParameterf(t.texturetype, key, val)
+end
+function set_parameters(t::Texture, parameters::Vector{Tuple{GLenum, Any}})
+    bind(t)
     for elem in parameters
-        glTexParameteri(t.texturetype, elem...)
+        texparameter(t, elem...)
     end
-    glBindTexture(t.texturetype, 0)
+    bind(t, 0)
 end

@@ -3,7 +3,7 @@
 # here is my approach, to handle all of the uniforms with one function, namely gluniform
 # For uniforms, the Vector and Matrix types from ImmutableArrays should be used, as they map the relation almost 1:1
 
-GLSL_COMPATIBLE_NUMBER_TYPES = (GLfloat, GLint, GLuint)
+GLSL_COMPATIBLE_NUMBER_TYPES = (GLfloat, GLint, GLuint, GLdouble)
 const NATIVE_TYPES = Union{FixedArray, GLSL_COMPATIBLE_NUMBER_TYPES..., GLBuffer, GPUArray, Shader, GLProgram, NativeMesh}
 
 opengl_prefix(T)  = error("Object $T is not a supported uniform element type")
@@ -64,20 +64,23 @@ gluniform(location::Integer, x::Signal)                              = gluniform
 gluniform(location::Integer, x::Union{GLubyte, GLushort, GLuint}) 	 = glUniform1ui(GLint(location), x)
 gluniform(location::Integer, x::Union{GLbyte, GLshort, GLint, Bool}) = glUniform1i(GLint(location),  x)
 gluniform(location::Integer, x::GLfloat)                             = glUniform1f(GLint(location),  x)
+gluniform(location::Integer, x::GLdouble)                            = glUniform1d(GLint(location),  x)
 
 #Uniform upload functions for julia arrays...
 gluniform(location::GLint, x::Vector{Float32}) = glUniform1fv(location,  length(x), pointer(x))
+gluniform(location::GLint, x::Vector{GLdouble}) = glUniform1dv(location,  length(x), pointer(x))
 gluniform(location::GLint, x::Vector{GLint})   = glUniform1iv(location,  length(x), pointer(x))
 gluniform(location::GLint, x::Vector{GLuint})  = glUniform1uiv(location, length(x), pointer(x))
 
 
-glsl_typename{T}(x::T)          = glsl_typename(T)
-glsl_typename(t::Type{Void})    = "Nothing"
-glsl_typename(t::Type{GLfloat}) = "float"
-glsl_typename(t::Type{GLuint})  = "uint"
-glsl_typename(t::Type{GLint})   = "int"
+glsl_typename{T}(x::T)           = glsl_typename(T)
+glsl_typename(t::Type{Void})     = "Nothing"
+glsl_typename(t::Type{GLfloat})  = "float"
+glsl_typename(t::Type{GLdouble}) = "double"
+glsl_typename(t::Type{GLuint})   = "uint"
+glsl_typename(t::Type{GLint})    = "int"
 glsl_typename{T<:Union{FixedVector,Colorant}}(t::Type{T}) = string(opengl_prefix(eltype(t)), "vec", length(t))
-glsl_typename{T}(t::Type{TextureBuffer{T}}) = "$(opengl_prefix(eltype(T)))samplerBuffer"
+glsl_typename{T}(t::Type{TextureBuffer{T}}) = string(opengl_prefix(eltype(T)), "samplerBuffer")
 
 function glsl_typename{T, D}(t::Texture{T, D})
     str = string(opengl_prefix(eltype(T)), "sampler", D, "D")
@@ -86,27 +89,36 @@ function glsl_typename{T, D}(t::Texture{T, D})
 end
 function glsl_typename{T<:FixedMatrix}(t::Type{T})
     M,N = size(t)
-    string(opengl_prefix(eltype(t)),"mat", M==N ? "$M" : "$(M)x$(N)")
+    string(opengl_prefix(eltype(t)), "mat", M==N ? M : string(M, "x", N))
 end
 toglsltype_string(t::Signal) = toglsltype_string(t.value)
 toglsltype_string{T<:Union{Real, FixedArray, Texture, Colorant, TextureBuffer, Void}}(x::T) = "uniform $(glsl_typename(x))"
 #Handle GLSL structs, which need to be addressed via single fields
 function toglsltype_string{T}(x::T)
     if isa_gl_struct(x)
-        "uniform $(T.name.name)"
+        string("uniform ", T.name.name)
     else
         error("can't splice $T into an OpenGL shader. Make sure all fields are of a concrete type and isbits(FieldType)-->true")
     end
 end
-toglsltype_string{T}(t::Union{GLBuffer{T}, GPUVector{T}}) = "in $(glsl_typename(T))"
+toglsltype_string{T}(t::Union{GLBuffer{T}, GPUVector{T}}) = string("in ", glsl_typename(T))
 # Gets used to access a
 function glsl_variable_access{T,D}(keystring, t::Texture{T, D})
-    t.texturetype == GL_TEXTURE_BUFFER && return "texelFetch($(keystring), index)."*"rgba"[1:length(T)]*";"
-    return "getindex($(keystring), index)."*"rgba"[1:length(T)]*";"
+    fields = SubString("rgba", 1, length(T))
+    if t.texturetype == GL_TEXTURE_BUFFER
+        return string("texelFetch(", keystring, "index).", fields, ";")
+    end
+    return string("getindex(", keystring, "index).", fields, ";")
 end
-glsl_variable_access(keystring, ::Union{Real, GLBuffer, GPUVector, FixedArray, Colorant}) = keystring*";"
-glsl_variable_access(keystring, s::Signal) = glsl_variable_access(keystring, s.value)
-glsl_variable_access(keystring, t::Any)    = error("no glsl variable calculation available for : ", keystring, " of type ", typeof(t))
+function glsl_variable_access(keystring, ::Union{Real, GLBuffer, GPUVector, FixedArray, Colorant})
+    string(keystring, ";")
+end
+function glsl_variable_access(keystring, s::Signal)
+    glsl_variable_access(keystring, s.value)
+end
+function glsl_variable_access(keystring, t::Any)
+    error("no glsl variable calculation available for : ", keystring, " of type ", typeof(t))
+end
 
 function uniform_name_type(program::GLuint)
     uniformLength = glGetProgramiv(program, GL_ACTIVE_UNIFORMS)
@@ -167,6 +179,7 @@ gl_convert{T <: Number}(x::T) = gl_promote(T)(x)
 gl_convert{T <: Colorant}(x::T) = gl_promote(T)(x)
 gl_convert{T <: AbstractMesh}(x::T) = gl_convert(convert(GLNormalMesh, x))
 gl_convert{T <: HomogenousMesh}(x::T) = gl_promote(T)(x)
+gl_convert{T <: HomogenousMesh}(x::Signal{T}) = gl_promote(T)(x)
 
 gl_convert{T<:Colorant}(s::Vector{Matrix{T}}) = Texture(s)
 gl_convert(s::AABB) = s
@@ -209,8 +222,12 @@ end
 
 gl_convert{T <: Face}(a::Vector{T}) = indexbuffer(s)
 gl_convert{T <: NATIVE_TYPES}(::Type{T}, a::NATIVE_TYPES; kw_args...) = a
-gl_convert{T <: GPUArray, X, N}(::Type{T}, a::Array{X, N}; kw_args...) =
+function gl_convert{T <: GPUArray, X, N}(::Type{T}, a::Array{X, N}; kw_args...)
     T(map(gl_promote(X), a); kw_args...)
+end
+function gl_convert{T <: Texture, X}(::Type{T}, a::Vector{Array{X, 2}}; kw_args...)
+    T(a; kw_args...)
+end
 
 function gl_convert{T <: GPUArray, X, N}(::Type{T}, a::Signal{Array{X, N}}; kw_args...)
     TGL = gl_promote(X)

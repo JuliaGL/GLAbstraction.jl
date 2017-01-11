@@ -75,7 +75,7 @@ while !GLFW.WindowShouldClose(window)
     push!(model, scalematrix((0.75+0.25*sin(5*time()))*Vec3((1,1,1))) * rotationmatrix_z(time()*deg2rad(180)))
     Reactive.run_till_now()
     glClear(GL_COLOR_BUFFER_BIT)
-    render(ro)
+    GLAbstraction.render(ro)
     GLFW.SwapBuffers(window)
     GLFW.PollEvents()
     if GLFW.GetKey(window, GLFW.KEY_ESCAPE) == GLFW.PRESS
