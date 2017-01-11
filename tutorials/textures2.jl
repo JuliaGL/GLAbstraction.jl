@@ -81,7 +81,7 @@ ro = std_renderobject(bufferdict,
 # Draw until we receive a close event
 while !GLFW.WindowShouldClose(window)
     glClear(GL_COLOR_BUFFER_BIT)
-    render(ro)
+    GLAbstraction.render(ro)
     GLFW.SwapBuffers(window)
     GLFW.PollEvents()
     if GLFW.GetKey(window, GLFW.KEY_ESCAPE) == GLFW.PRESS

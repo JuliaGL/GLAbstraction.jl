@@ -64,14 +64,13 @@ bufferdict = Dict(:position=>GLBuffer(vertex_positions),
 
 ro = std_renderobject(bufferdict,
                       LazyShader(vertex_shader, fragment_shader))
-
 # Do the rendering
 glClearColor(0,0,0,1)
 while !GLFW.WindowShouldClose(window)
     push!(trans, rotationmatrix_z(time()*deg2rad(180)))
     Reactive.run_till_now()
     glClear(GL_COLOR_BUFFER_BIT)
-    render(ro)
+    GLAbstraction.render(ro)
     GLFW.SwapBuffers(window)
     GLFW.PollEvents()
     if GLFW.GetKey(window, GLFW.KEY_ESCAPE) == GLFW.PRESS

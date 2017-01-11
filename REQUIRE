@@ -7,6 +7,6 @@ ModernGL
 Reactive
 FixedPointNumbers
 ColorTypes
-Compat 0.7.15
-Mustache
+Compat 0.8.0
 FileIO
+GLFW

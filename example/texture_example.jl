@@ -49,5 +49,5 @@ while isopen(window)
     render(robj)
 
   	swapbuffers(window)
-  	pollevents()
+  	poll_glfw()
 end

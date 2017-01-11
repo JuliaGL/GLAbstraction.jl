@@ -123,7 +123,9 @@ glVertexAttribPointer(pos_attribute, length(eltype(vertices)),
 glEnableVertexAttribArray(pos_attribute)
 
 # Draw while waiting for a close event
+glClearColor(0,0,0,0)
 while !GLFW.WindowShouldClose(window)
+    glClear(GL_COLOR_BUFFER_BIT)
     glDrawArrays(GL_TRIANGLES, 0, length(vertices))
     GLFW.SwapBuffers(window)
     GLFW.PollEvents()

@@ -73,8 +73,10 @@ ro = std_renderobject(bufferdict,
                       LazyShader(vertex_shader, fragment_shader))
 
 # Draw until we receive a close event
+glClearColor(0,0,0,0)
 while !GLFW.WindowShouldClose(window)
-    render(ro)
+    glClear(GL_COLOR_BUFFER_BIT)
+    GLAbstraction.render(ro)
     GLFW.SwapBuffers(window)
     GLFW.PollEvents()
     if GLFW.GetKey(window, GLFW.KEY_ESCAPE) == GLFW.PRESS
