@@ -1,9 +1,12 @@
-using GLAbstraction, GeometryTypes, ModernGL, Compat, FileIO, GLWindow, FixedSizeArrays, FixedPointNumbers, ColorTypes
+using GLAbstraction, GeometryTypes, ModernGL, Compat, FileIO, GLWindow
+using FixedSizeArrays, FixedPointNumbers, ColorTypes
 using Base.Test
 
 
 function is_ci()
-	get(ENV, "TRAVIS", "") == "true" || get(ENV, "APPVEYOR", "") == "true" || get(ENV, "CI", "") == "true"
+    get(ENV, "TRAVIS", "") == "true" ||
+    get(ENV, "APPVEYOR", "") == "true" ||
+    get(ENV, "CI", "") == "true"
 end
 
 include("macro_test.jl")
@@ -28,26 +31,26 @@ v = Vec2f0[Vec2f0(0.0, 0.5), Vec2f0(0.5, -0.5), Vec2f0(-0.5,-0.5)]
 verts = GLBuffer(v)
 @test size(verts, 1) == 3
 @test size(verts, 2) == 1
+
 # lets define some uniforms
 # uniforms are shader variables, which are supposed to stay the same for an entire draw call
-
-const triangle = RenderObject(
-	Dict(
-		:vertex => verts,
-		:name_doesnt_matter_for_indexes => indexes
-	),
-	LazyShader(load("test.vert"), load("test.frag"))
+cd(dirname(@__FILE__))
+const triangle = std_renderobject(
+    Dict(
+        :vertex => verts,
+        :name_doesnt_matter_for_indexes => indexes
+    ),
+    LazyShader("test.vert", "test.frag")
 )
-
-postrender!(triangle, render, triangle.vertexarray)
 
 glClearColor(0,0,0,1)
 while isopen(window)
   	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
-	render(triangle)
-	swapbuffers(window)
-	poll_glfw()
-	sleep(0.01)
+    GLAbstraction.render(triangle)
+    swapbuffers(window)
+    poll_glfw()
+    sleep(0.01)
 end
+GLFW.DestroyWindow(window)
 
 end
