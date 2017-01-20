@@ -493,7 +493,7 @@ function set_parameters{T, N}(t::Texture{T, N}, params::TextureParameters=t.para
     if N >= 3 && !is_texturearray(t) # for texture arrays, third dimension can not be set
         push!(result, (GL_TEXTURE_WRAP_R, data[:repeat][3]))
     end
-    push!(result, GL_TEXTURE_MAX_ANISOTROPY_EXT, params.anisotropic)
+    push!(result, (GL_TEXTURE_MAX_ANISOTROPY_EXT, params.anisotropic))
     t.parameters = params
     set_parameters(t, result)
 end
