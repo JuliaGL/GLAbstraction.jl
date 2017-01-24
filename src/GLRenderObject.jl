@@ -127,8 +127,12 @@ function extract_renderable(context::Context)
     result
 end
 transformation(c::RenderObject) = c[:model]
-transformation(c::RenderObject, model) = (c[:model] = const_lift(*, model, c[:model]))
-transform!(c::RenderObject, model) = (c[:model] = const_lift(*, model, c[:model]))
+function transformation(c::RenderObject, model)
+    c[:model] = const_lift(*, model, c[:model])
+end
+function transform!(c::RenderObject, model)
+    c[:model] = const_lift(*, model, c[:model])
+end
 
 function _translate!(c::RenderObject, trans::TOrSignal{Mat4f0})
     c[:model] = const_lift(*, trans, c[:model])
@@ -139,7 +143,7 @@ function _translate!(c::Context, m::TOrSignal{Mat4f0})
     end
 end
 
-function translate!{T<:Vec{3}}(c::Composable, vec::TOrSignal{T})
+function translate!{T <: Vec{3}}(c::Composable, vec::TOrSignal{T})
      _translate!(c, const_lift(translationmatrix, vec))
 end
 function _boundingbox(c::RenderObject)
