@@ -23,7 +23,6 @@ import Compat: foreach, String, unsafe_string
 
 include("AbstractGPUArray.jl")
 
-
 #Methods which get overloaded by GLExtendedFunctions.jl:
 import ModernGL.glShaderSource
 import ModernGL.glGetAttachedShaders
