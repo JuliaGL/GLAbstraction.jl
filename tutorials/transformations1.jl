@@ -3,8 +3,8 @@
 using ModernGL, GeometryTypes, GLAbstraction, GLWindow, Images, FileIO, Reactive
 
 # Load our textures. See "downloads.jl" to get the images.
-kitten = load(Pkg.dir("GLAbstraction", "tutorials", "images", "kitten.png"))
-puppy  = load(Pkg.dir("GLAbstraction", "tutorials", "images", "puppy.png"))
+kitten = load(GLAbstraction.dir("tutorials", "images", "kitten.png"))
+puppy  = load(GLAbstraction.dir("tutorials", "images", "puppy.png"))
 
 # Create the window. This sets all the hints and makes the context current.
 window = create_glcontext("Transformations 1", resolution=(600,600))

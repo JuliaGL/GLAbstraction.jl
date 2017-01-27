@@ -1,8 +1,8 @@
 using ModernGL, GeometryTypes, GLAbstraction, GLWindow, Images, FileIO
 
 # Load our textures. See "downloads.jl" to get the images.
-kitten = load(Pkg.dir("GLAbstraction", "tutorials", "images", "kitten.png"))
-puppy  = load(Pkg.dir("GLAbstraction", "tutorials", "images", "puppy.png"))
+kitten = load(GLAbstraction.dir("tutorials", "images", "kitten.png"))
+puppy  = load(GLAbstraction.dir("tutorials", "images", "puppy.png"))
 
 # create_glcontext creates a "bare" window with no depth or stencil
 # buffer. So we set window hints to override this.

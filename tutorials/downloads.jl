@@ -1,4 +1,6 @@
-image_path = Pkg.dir("GLAbstraction", "tutorials", "images")
+using GLAbstraction
+
+image_path = GLAbstraction.dir("tutorials", "images")
 if !isdir(image_path)
     mkdir(image_path)
 end
