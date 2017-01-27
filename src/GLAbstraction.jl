@@ -141,5 +141,6 @@ export getUniformsInfo
 export getProgramInfo
 export getAttributesInfo
 
-include("precompile_funs.jl")
+
+
 end # module
