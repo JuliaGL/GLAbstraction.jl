@@ -13,7 +13,7 @@ typealias uVec4 Vec{4, Cuint}
 function test_textures()
     N = 100
 
-    t1 = Texture(RGBA{U8}, (512,10), minfilter=:nearest, x_repeat=:clamp_to_edge)
+    t1 = Texture(RGBA{N0f8}, (512,10), minfilter=:nearest, x_repeat=:clamp_to_edge)
     t2 = Texture(Vec{2, GLushort}, (77,91), minfilter=:nearest, x_repeat=:clamp_to_edge)
 
 
