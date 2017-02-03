@@ -1,10 +1,10 @@
-dicta = @compat Dict(
+dicta = Dict(
 	:a => 2332,
 	:b => 777,
 	:c => 999,
 )
 
-dictb = @compat Dict(
+dictb = Dict(
 	:a => 2332,
 	:b => 777,
 	:c => 999,
@@ -29,4 +29,3 @@ dictb = @compat Dict(
 @test a == dicta[:a]
 @test b == dicta[:b]
 @test c == dicta[:c]
-

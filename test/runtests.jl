@@ -1,7 +1,7 @@
 using GLAbstraction, GeometryTypes, ModernGL, Compat, FileIO, GLWindow
-using FixedSizeArrays, FixedPointNumbers, ColorTypes
+using FixedSizeArrays, ColorTypes
 using Base.Test
-
+import GLAbstraction: N0f8
 
 function is_ci()
     get(ENV, "TRAVIS", "") == "true" ||
@@ -18,6 +18,7 @@ window = create_glcontext("test", resolution=(500,500))
 include("accessors.jl")
 include("uniforms.jl")
 include("texture.jl")
+include("macro_test.jl")
 
 # Test for creating a GLBuffer with a 1D Julia Array
 # You need to supply the cardinality, as it can't be inferred

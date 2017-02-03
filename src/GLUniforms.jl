@@ -155,7 +155,7 @@ gl_promote(x::Type{Union{UInt16, UInt8}})  = x
 gl_promote{T <: AbstractFloat}(x::Type{T}) = Float32
 gl_promote(x::Type{Float16})               = x
 
-gl_promote{T <: UFixed}(x::Type{T})     = N0f32
+gl_promote{T <: Normed}(x::Type{T})     = N0f32
 gl_promote(x::Type{N0f16})              = x
 gl_promote(x::Type{N0f8})               = x
 

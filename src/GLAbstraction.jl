@@ -15,11 +15,12 @@ using GLFW
 
 import FileIO: load, save
 if isdefined(FixedPointNumbers, :N0f8)
-    import FixedPointNumbers: N0f8, N0f16, N0f8
+    import FixedPointNumbers: N0f8, N0f16, N0f8, Normed
 else
     const N0f8 = FixedPointNumbers.UFixed8
     const N0f16 = FixedPointNumbers.UFixed16
     const N0f32 = FixedPointNumbers.UFixed{UInt32, 32}
+    const Normed = FixedPointNumbers.UFixed
 end
 
 

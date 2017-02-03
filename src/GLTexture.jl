@@ -171,7 +171,7 @@ function TextureBuffer{T <: GLArrayEltypes}(buffer::GLBuffer{T})
     TextureBuffer(tex, buffer)
 end
 function TextureBuffer{T <: GLArrayEltypes}(buffer::Vector{T})
-    buff = GLBuffer(buffer, buffertype=GL_TEXTURE_BUFFER, usage=GL_DYNAMIC_DRAW)
+    buff = GLBuffer(buffer, buffertype = GL_TEXTURE_BUFFER, usage = GL_DYNAMIC_DRAW)
     TextureBuffer(buff)
 end
 
@@ -411,7 +411,7 @@ function default_internalcolorformat_sym{T}(::Type{T})
     if eltyp <: AbstractFloat
         sym *= "F"
     elseif eltyp <: FixedPoint
-        sym *= eltyp <: UFixed ? "" : "_SNORM"
+        sym *= eltyp <: Normed ? "" : "_SNORM"
     elseif eltyp <: Signed
         sym *= "I"
     elseif eltyp <: Unsigned
