@@ -201,7 +201,7 @@ max_dim(t)       = error("max_dim not implemented for: $(typeof(t)). This happen
 
 function Base.call{T <: GPUArray}(::Type{T}, x::Signal)
     gpu_mem = T(value(x))
-    const_lift(update!, gpu_mem, x)
+    Reactive.preserve(const_lift(update!, gpu_mem, x))
     gpu_mem
 end
 

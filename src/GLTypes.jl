@@ -146,6 +146,7 @@ type RenderObject <: Composable{DeviceUnit}
     function RenderObject(data::Dict{Symbol, Any}, program::Signal{GLProgram}, bbs=Input(AABB{Float32}(Vec3f0(0),Vec3f0(1))), main=nothing)
         global RENDER_OBJECT_ID_COUNTER
         RENDER_OBJECT_ID_COUNTER     += one(GLushort)
+        Reactive.preserve(program)
         program              = program.value
         buffers              = filter((key, value) -> isa(value, GLBuffer), data)
         uniforms             = filter((key, value) -> !isa(value, GLBuffer), data)
