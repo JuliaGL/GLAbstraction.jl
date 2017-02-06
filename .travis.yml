@@ -56,7 +56,7 @@ before_install:
   - make
   - sudo make install
   - cd $TOP/mesa
-  - ./autogen.sh --prefix=/usr --libdir=${LIBDIR} --with-gallium-drivers=svga,swrast --enable-xa --disable-dri --disable-gbm --enable-xlib-glx --with-llvm-prefix=/usr/local/bin
+  - ./autogen.sh --prefix=/usr --libdir=${LIBDIR} --with-gallium-drivers=svga,swrast --enable-xa --disable-dri --disable-egl --disable-gbm --enable-xlib-glx --with-llvm-prefix=/usr/local/bin
   - ./autogen.sh --prefix=/usr --libdir=${LIBDIR} --with-gallium-drivers=svga --with-dri-drivers=swrast --enable-xa --disable-dri3 --enable-glx-tls --with-llvm-prefix=/usr/local/bin
   - make
   - sudo make install
