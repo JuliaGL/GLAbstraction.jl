@@ -37,12 +37,11 @@ before_install:
   - sudo apt-get update -qq -y
   - export DEBIAN_FRONTEND=noninteractive
   - sudo apt-get -yq --force-yes install libgl1-mesa-dev libgl1-mesa-glx mesa-common-dev libglapi-mesa libgbm1 libgl1-mesa-dri libxatracker-dev xvfb
-  - "/sbin/start-stop-daemon --start --quiet --pidfile /tmp/custom_xvfb_99.pid --make-pidfile --background --exec /usr/bin/Xvfb -- :99 -ac -screen 0 1024x768x24 +extension GLX +extension RANDR +extension RENDER"
+  #- "/sbin/start-stop-daemon --start --quiet --pidfile /tmp/custom_xvfb_99.pid --make-pidfile --background --exec /usr/bin/Xvfb -- :99 -ac -screen 0 1024x768x24 +extension GLX +extension RANDR +extension RENDER"
 before_script:
   - export DISPLAY=:99.0
   - export LIBGL_ALWAYS_SOFTWARE=1
-  #- xpra --xvfb="Xorg +extension GLX +extension RANDR +extension RENDER -config `pwd`/test/dummy.xorg.conf -logfile ${HOME}/.xpra/xorg.log"  start :99
-  - sh -e /etc/init.d/xvfb start;
+  - xpra --xvfb="Xorg +extension GLX +extension RANDR +extension RENDER -config `pwd`/test/dummy.xorg.conf"  start :99
   - sleep 3
   - LIBGL_ALWAYS_SOFTWARE=1 glxinfo
   #- cat ${HOME}/.xpra/xorg.log
