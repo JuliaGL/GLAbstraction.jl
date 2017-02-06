@@ -11,9 +11,9 @@ end
 
 include("macro_test.jl")
 
-if !is_ci() # only do test if not CI... this is for automated testing environments which fail for OpenGL stuff, but I'd like to test if at least including works
+if true # only do test if not CI... this is for automated testing environments which fail for OpenGL stuff, but I'd like to test if at least including works
 
-window = create_glcontext("test", resolution=(500,500))
+window = create_glcontext("test", resolution = (500,500), major = 3, minor = 0)
 
 include("accessors.jl")
 include("uniforms.jl")
@@ -45,7 +45,7 @@ const triangle = std_renderobject(
 )
 
 glClearColor(0,0,0,1)
-while isopen(window)
+for i=1:100
   	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
     GLAbstraction.render(triangle)
     swapbuffers(window)
