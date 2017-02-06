@@ -39,9 +39,10 @@ before_install:
   - sudo apt-get -yq --force-yes install libgl1-mesa-dev libgl1-mesa-glx mesa-common-dev libglapi-mesa libgbm1 libgl1-mesa-dri libxatracker-dev xvfb
 
 before_script:
-  - export DISPLAY=:99
+  - export DISPLAY=:99.0
   - export LIBGL_ALWAYS_SOFTWARE=1
   - xpra --xvfb="Xorg +extension GLX +extension RANDR +extension RENDER -config `pwd`/test/dummy.xorg.conf -logfile ${HOME}/.xpra/xorg.log"  start :99
+  - sh -e /etc/init.d/xvfb start;
   - sleep 3
   - LIBGL_ALWAYS_SOFTWARE=1 glxinfo
   - glxinfo
