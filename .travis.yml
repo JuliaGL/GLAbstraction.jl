@@ -1,10 +1,52 @@
 language: julia
 os:
   - linux
-  - osx
 julia:
   - 0.5
-  - nightly
+  #- nightly
+#matrix:
+  #allow_failures:
+    #- julia: nightly
 notifications:
   email: false
-# uncomment the following lines to override the default test script
+sudo: required
+dist: trusty
+addons:
+  apt:
+     packages:
+        - libglew-dev
+        - freeglut3-dev
+        - libxi-dev
+        - libxmu-dev
+        - xserver-xorg-video-dummy
+        - xpra
+        - xorg-dev
+        - opencl-headers
+        - libgl1-mesa-dev
+        - libxcursor-dev
+        - libpulse-dev
+        - libxinerama-dev
+        - libxrandr-dev
+        - libxv-dev
+        - libasound2-dev
+        - libudev-dev
+        - mesa-utils
+        - libgl1-mesa-glx
+before_install:
+  - sudo add-apt-repository -y ppa:oibaf/graphics-drivers
+  - sudo apt-get update -qq -y
+  - export DEBIAN_FRONTEND=noninteractive
+  - sudo apt-get -yq --force-yes install libgl1-mesa-dev libgl1-mesa-glx mesa-common-dev libglapi-mesa libgbm1 libgl1-mesa-dri libxatracker-dev xvfb
+
+before_script:
+  - export DISPLAY=:99
+  - export LIBGL_ALWAYS_SOFTWARE=1
+  - xpra --xvfb="Xorg +extension GLX +extension RANDR +extension RENDER -config `pwd`/test/dummy.xorg.conf -logfile ${HOME}/.xpra/xorg.log"  start :99
+  - sleep 3
+  - LIBGL_ALWAYS_SOFTWARE=1 glxinfo
+  - glxinfo
+  - cat ${HOME}/.xpra/xorg.log
+  - dmesg | grep vmw
+script:
+  - if [[ -a .git/shallow ]]; then git fetch --unshallow; fi
+  - LIBGL_ALWAYS_SOFTWARE=1 julia --check-bounds=yes --depwarn=no -e 'Pkg.clone(pwd()); Pkg.build("GLAbstraction"); Pkg.test("GLAbstraction"; coverage=true)'

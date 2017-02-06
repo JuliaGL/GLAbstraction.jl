@@ -11,7 +11,7 @@ end
 
 include("macro_test.jl")
 
-if !is_ci() # only do test if not CI... this is for automated testing environments which fail for OpenGL stuff, but I'd like to test if at least including works
+if true # only do test if not CI... this is for automated testing environments which fail for OpenGL stuff, but I'd like to test if at least including works
 
 window = create_glcontext("test", resolution=(500,500))
 
