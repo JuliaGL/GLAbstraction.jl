@@ -71,8 +71,8 @@ void main()
 # the Dict key
 bufferdict = Dict(:position=>GLBuffer(vertex_positions),
                   :texcoord=>GLBuffer(vertex_texcoords),
-                  :texKitten=>Texture(data(kitten)),
-                  :texPuppy=>Texture(data(puppy)),
+                  :texKitten=>Texture(kitten'),
+                  :texPuppy=>Texture(puppy'),
                   :indexes=>indexbuffer(elements)) # special for element buffers
 
 ro = std_renderobject(bufferdict,

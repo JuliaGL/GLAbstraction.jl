@@ -57,8 +57,8 @@ trans = Signal(rotate(0f0, Vec((0,0,1f0))))
 # the Dict key
 bufferdict = Dict(:position=>GLBuffer(vertex_positions),
                   :texcoord=>GLBuffer(vertex_texcoords),
-                  :texKitten=>Texture(data(kitten)),
-                  :texPuppy=>Texture(data(puppy)),
+                  :texKitten=>Texture(kitten'),
+                  :texPuppy=>Texture(puppy'),
                   :trans=>trans,
                   :indexes=>indexbuffer(elements)) # special for element buffers
 
