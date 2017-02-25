@@ -75,7 +75,7 @@ end
 #Implement File IO interface
 function load(f::File{format"GLSLShader"})
     fname = filename(f)
-    source = open(readall, fname)
+    source = open(readstring, fname)
     compile_shader(fname, source)
 end
 function save(f::File{format"GLSLShader"}, data::Shader)

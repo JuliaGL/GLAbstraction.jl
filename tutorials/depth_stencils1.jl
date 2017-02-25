@@ -137,8 +137,8 @@ proj = perspectiveprojection(Float32, 45, 800/600, 1, 10)
 bufferdict = Dict(:position=>GLBuffer(vertex_positions),
                   :texcoord=>GLBuffer(vertex_texcoords),
                   :color=>GLBuffer(vertex_colors),
-                  :texKitten=>Texture(data(kitten)),
-                  :texPuppy=>Texture(data(puppy)),
+                  :texKitten=>Texture(kitten'),
+                  :texPuppy=>Texture(puppy'),
                   :model=>model,
                   :view=>view,
                   :proj=>proj)

@@ -77,7 +77,7 @@ void main()
 bufferdict = Dict(:position=>GLBuffer(vertex_positions),
                   :color=>GLBuffer(vertex_colors),
                   :texcoord=>GLBuffer(vertex_texcoords),
-                  :tex=>Texture(data(img)),
+                  :tex=>Texture(img'),
                   :indexes=>indexbuffer(elements)) # special for element buffers
 
 ro = std_renderobject(bufferdict,
