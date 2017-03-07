@@ -140,7 +140,10 @@ macro gen_defaults!(dict, args)
     push!(return_expression.args, :(doc_strings = get!($dictsym, :doc_string, Dict{Symbol, Any}()))) # exceptions for glconvert.
     # @gen_defaults can be used multiple times, so we need to reuse gl_convert_targets if already in here
     for (i,elem) in enumerate(tuple_list)
-        elem.head == :line && continue
+        if Base.is_linenumber(elem)
+            push!(return_expression.args, expr)
+            continue
+        end
         opengl_convert_target = :() # is optional, so first is an empty expression
         convert_target        = :() # is optional, so first is an empty expression
         doc_strings           = :()
