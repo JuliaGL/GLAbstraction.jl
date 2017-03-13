@@ -217,11 +217,7 @@ function doubleclick(mouseclick, threshold::Real)
     ddclick = foldp((time(), value(mouseclick), false), mouseclick) do v0, mclicked
         t0, lastc, _ = v0
         t1 = time()
-        isclicked = (length(mclicked) == 1 &&
-            length(lastc) == 1 &&
-            first(lastc) == first(mclicked) &&
-            t1-t0 < threshold
-        )
+        isclicked = mclicked && t1-t0 < threshold
         return (t1, mclicked, isclicked)
     end
     dd = const_lift(last, ddclick)
