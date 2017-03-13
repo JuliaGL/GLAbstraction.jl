@@ -34,16 +34,18 @@ function gluniform{FSA <: Union{FixedArray, Colorant}}(location::Integer, x::FSA
     gluniform(location, x)
 end
 
-Base.size(p::Colorant) = (length(p),)
-Base.size{T <: Colorant}(p::Type{T}) = (length(p),)
-Base.ndims{T <: Colorant}(p::Type{T}) = 1
+_size(p) = size(p)
+_size(p::Colorant) = (length(p),)
+_size{T <: Colorant}(p::Type{T}) = (length(p),)
+_ndims(p) = ndims(p)
+_ndims{T <: Colorant}(p::Type{T}) = 1
 
 @generated function gluniform{FSA <: Union{FixedArray, Colorant}}(location::Integer, x::Vector{FSA})
-    func = uniformfunc(eltype(FSA), size(FSA))
-    if ndims(FSA) == 2
-        :($func(location, length(x), GL_FALSE, pointer(x)))
+    func = uniformfunc(eltype(FSA), _size(FSA))
+    if _ndims(FSA) == 2
+        :($func(location, cardinality(x), GL_FALSE, pointer(x)))
     else
-        :($func(location, length(x), pointer(x)))
+        :($func(location, cardinality(x), pointer(x)))
     end
 end
 
@@ -79,7 +81,7 @@ glsl_typename(t::Type{GLfloat})  = "float"
 glsl_typename(t::Type{GLdouble}) = "double"
 glsl_typename(t::Type{GLuint})   = "uint"
 glsl_typename(t::Type{GLint})    = "int"
-glsl_typename{T<:Union{FixedVector,Colorant}}(t::Type{T}) = string(opengl_prefix(eltype(t)), "vec", length(t))
+glsl_typename{T<:Union{FixedVector, Colorant}}(t::Type{T}) = string(opengl_prefix(eltype(T)), "vec", length(T))
 glsl_typename{T}(t::Type{TextureBuffer{T}}) = string(opengl_prefix(eltype(T)), "samplerBuffer")
 
 function glsl_typename{T, D}(t::Texture{T, D})

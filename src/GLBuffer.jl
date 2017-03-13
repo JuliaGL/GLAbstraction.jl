@@ -24,7 +24,7 @@ function similar{T}(x::GLBuffer{T}, buff_length::Int)
     GLBuffer{T}(Ptr{T}(C_NULL), buff_length, x.buffertype, x.usage)
 end
 
-cardinality{T}(::GLBuffer{T}) = length(T)
+cardinality{T}(::GLBuffer{T}) = cardinality(T)
 
 #Function to deal with any Immutable type with Real as Subtype
 function GLBuffer{T <: GLArrayEltypes}(

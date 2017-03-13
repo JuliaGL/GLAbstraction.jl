@@ -16,6 +16,13 @@ typealias VolumeTypes{T} ArrayTypes{T, 3}
 
 typealias GLContext Symbol
 
+"""
+Returns the cardinality of a type. falls back to length
+"""
+cardinality(x) = length(x)
+cardinality(x::Number) = 1
+cardinality{T <: Number}(x::Type{T}) = 1
+
 #=
 We need to track the current OpenGL context.
 Since we can't do this via pointer identity  (OpenGL may reuse the same pointers)

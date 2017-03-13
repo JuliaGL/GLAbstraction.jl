@@ -203,7 +203,7 @@ export @gen_defaults!
 value(any) = any # add this, to make it easier to work with a combination of signals and constants
 
 makesignal(s::Signal) = s
-makesignal(v)         = Signal(v)
+makesignal(v) = Signal(v)
 
 @inline const_lift(f::Union{DataType, Function}, inputs...) = map(f, map(makesignal, inputs)...)
 export const_lift
@@ -238,11 +238,6 @@ end
 isnotempty(x) = !isempty(x)
 AND(a,b) = a&&b
 OR(a,b) = a||b
-
-
-#Uhm I should remove this. Needed for smooth transition between FixedSizeArrays and Number, though
-Base.length{T <: Number}(::Type{T}) = 1
-
 
 #Meshtype holding native OpenGL data.
 immutable NativeMesh{MeshType <: HomogenousMesh}
