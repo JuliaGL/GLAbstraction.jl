@@ -30,13 +30,10 @@ const triangle = std_renderobject(
 
 glClearColor(0, 0, 0, 1)
 
-
 while isopen(window)
-      glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
-
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
     render(triangle)
-
-      swapbuffers(window)
-      poll_glfw()
+    swapbuffers(window)
+    poll_glfw()
 end
 GLFW.DestroyWindow(window)

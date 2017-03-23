@@ -109,3 +109,4 @@ while !GLFW.WindowShouldClose(window.nativewindow)
     GLFW.PollEvents()
     sleep(0.01)
 end
+GLFW.DestroyWindow(window)
