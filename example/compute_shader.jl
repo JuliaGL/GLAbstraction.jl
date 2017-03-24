@@ -101,7 +101,6 @@ postrender!(texobj, render, texobj.vertexarray)
 glClearColor(0,0,0,1)
 frame = 0f0
 while !GLFW.WindowShouldClose(window.nativewindow)
-
     yield()
     render(ro)
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
@@ -110,3 +109,4 @@ while !GLFW.WindowShouldClose(window.nativewindow)
     GLFW.PollEvents()
     sleep(0.01)
 end
+GLFW.DestroyWindow(window)

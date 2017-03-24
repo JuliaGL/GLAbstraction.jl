@@ -1,22 +1,22 @@
 # Different shader string literals- usage: e.g. frag" my shader code"
 macro frag_str(source::AbstractString)
     quote
-        Shader(Symbol(@__FILE__), $(Vector{UInt8}(ascii(source))), GL_FRAGMENT_SHADER)
+        ($source, GL_FRAGMENT_SHADER)
     end
 end
 macro vert_str(source::AbstractString)
     quote
-        Shader(Symbol(@__FILE__), $(Vector{UInt8}(ascii(source))), GL_VERTEX_SHADER)
+        ($source, GL_VERTEX_SHADER)
     end
 end
 macro geom_str(source::AbstractString)
     quote
-        Shader(Symbol(@__FILE__), $(Vector{UInt8}(ascii(source))), GL_GEOMETRY_SHADER)
+        ($source, GL_GEOMETRY_SHADER)
     end
 end
 macro comp_str(source::AbstractString)
     quote
-        Shader(Symbol(@__FILE__), $(Vector{UInt8}(ascii(source))), GL_COMPUTE_SHADER)
+        ($source, GL_COMPUTE_SHADER)
     end
 end
 
@@ -230,14 +230,34 @@ function gl_convert(lazyshader::AbstractLazyShader, data)
         fragdatalocation = get(kw_dict, :fragdatalocation, Tuple{Int, String}[])
         return compile_program([paths...], fragdatalocation)
     end
-
     v = get_view(kw_dict)
+    fragdatalocation = get(kw_dict, :fragdatalocation, Tuple{Int, String}[])
+
+    # Tuple(Source, ShaderType)
+    if all(paths) do x
+            isa(x, Tuple) && length(x) == 2 &&
+            isa(first(x), String) &&
+            isa(last(x), GLenum)
+        end
+        # we don't cache view & templates for shader strings!
+        shaders = map(paths) do source_typ
+            source, typ = source_typ
+            src, _ = template2source(source, v, data)
+            compile_shader(Vector{UInt8}(src), typ, :from_string)
+        end
+        return compile_program([shaders...], fragdatalocation)
+    end
+    if !all(x-> isa(x, String), paths)
+        error("Please supply only paths or tuples of (source, typ) for Lazy Shader
+            Found: $paths"
+        )
+    end
     template_keys = Array(Vector{String}, length(paths))
     replacements = Array(Vector{String}, length(paths))
     for (i, path) in enumerate(paths)
         template = get_template!(path, v, data)
         template_keys[i] = template
-        replacements[i] = String[mustache2replacement(k, v, data) for k in template]
+        replacements[i] = String[mustache2replacement(t, v, data) for t in template]
     end
     program = get!(_program_cache, (paths, replacements)) do
         # when we're here, this means there were uncached shaders, meaning we definitely have
@@ -247,7 +267,6 @@ function gl_convert(lazyshader::AbstractLazyShader, data)
             tr = Dict(zip(template_keys[i], replacements[i]))
             shaders[i] = get_shader!(path, tr, v, data)
         end
-        fragdatalocation = get(kw_dict, :fragdatalocation, Tuple{Int, String}[])
         compile_program(shaders, fragdatalocation)
     end
 end
