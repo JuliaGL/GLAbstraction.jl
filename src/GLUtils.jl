@@ -139,8 +139,11 @@ macro gen_defaults!(dict, args)
     push!(return_expression.args, :(gl_convert_targets = get!($dictsym, :gl_convert_targets, Dict{Symbol, Any}()))) # exceptions for glconvert.
     push!(return_expression.args, :(doc_strings = get!($dictsym, :doc_string, Dict{Symbol, Any}()))) # exceptions for glconvert.
     # @gen_defaults can be used multiple times, so we need to reuse gl_convert_targets if already in here
-    for (i,elem) in enumerate(tuple_list)
-        elem.head == :line && continue
+    for (i, elem) in enumerate(tuple_list)
+        if Base.is_linenumber(elem)
+            push!(return_expression.args, elem)
+            continue
+        end
         opengl_convert_target = :() # is optional, so first is an empty expression
         convert_target        = :() # is optional, so first is an empty expression
         doc_strings           = :()
@@ -153,7 +156,7 @@ macro gen_defaults!(dict, args)
                 convert_target = :($key_name)
             end
             key_sym = Expr(:quote, key_name)
-            if isa(value_expr, Expr) && value_expr.head == :(=>)  # we might need to insert a convert target
+            if isa(value_expr, Expr) && value_expr.head == :(->)  # we might need to insert a convert target
 
                 value_expr, target = value_expr.args
                 undecided = []
@@ -200,7 +203,7 @@ export @gen_defaults!
 value(any) = any # add this, to make it easier to work with a combination of signals and constants
 
 makesignal(s::Signal) = s
-makesignal(v)         = Signal(v)
+makesignal(v) = Signal(v)
 
 @inline const_lift(f::Union{DataType, Function}, inputs...) = map(f, map(makesignal, inputs)...)
 export const_lift
@@ -235,11 +238,6 @@ end
 isnotempty(x) = !isempty(x)
 AND(a,b) = a&&b
 OR(a,b) = a||b
-
-
-#Uhm I should remove this. Needed for smooth transition between FixedSizeArrays and Number, though
-Base.length{T <: Number}(::Type{T}) = 1
-
 
 #Meshtype holding native OpenGL data.
 immutable NativeMesh{MeshType <: HomogenousMesh}

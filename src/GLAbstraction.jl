@@ -11,8 +11,18 @@ using FixedPointNumbers
 using ColorTypes
 using Compat
 using FileIO
-import FileIO: load, save
 using GLFW
+
+import FileIO: load, save
+if isdefined(FixedPointNumbers, :N0f8)
+    import FixedPointNumbers: N0f8, N0f16, N0f8, Normed
+else
+    const N0f8 = FixedPointNumbers.UFixed8
+    const N0f16 = FixedPointNumbers.UFixed16
+    const N0f32 = FixedPointNumbers.UFixed{UInt32, 32}
+    const Normed = FixedPointNumbers.UFixed
+end
+
 
 import Base: merge, resize!, unsafe_copy!, similar, length, getindex, setindex!, call
 import Reactive: value
@@ -22,7 +32,6 @@ import Compat: foreach, String, unsafe_string
 
 
 include("AbstractGPUArray.jl")
-
 
 #Methods which get overloaded by GLExtendedFunctions.jl:
 import ModernGL.glShaderSource
@@ -142,5 +151,6 @@ export getUniformsInfo
 export getProgramInfo
 export getAttributesInfo
 
-include("precompile_funs.jl")
+dir(dirs...) = joinpath(dirname(@__FILE__), "..", dirs...)
+
 end # module

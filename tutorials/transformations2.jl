@@ -1,8 +1,8 @@
 using ModernGL, GeometryTypes, GLAbstraction, GLWindow, Images, FileIO, Reactive
 
 # Load our textures. See "downloads.jl" to get the images.
-kitten = load(Pkg.dir("GLAbstraction", "tutorials", "images", "kitten.png"))
-puppy  = load(Pkg.dir("GLAbstraction", "tutorials", "images", "puppy.png"))
+kitten = load(GLAbstraction.dir("tutorials", "images", "kitten.png"))
+puppy  = load(GLAbstraction.dir("tutorials", "images", "puppy.png"))
 
 # Create the window. This sets all the hints and makes the context current.
 window = create_glcontext("Transformations 2", resolution=(600,600))
@@ -58,8 +58,8 @@ proj = perspectiveprojection(Float32, 45, 800/600, 1, 10)
 # the Dict key
 bufferdict = Dict(:position=>GLBuffer(vertex_positions),
                   :texcoord=>GLBuffer(vertex_texcoords),
-                  :texKitten=>Texture(data(kitten)),
-                  :texPuppy=>Texture(data(puppy)),
+                  :texKitten=>Texture(kitten'),
+                  :texPuppy=>Texture(puppy'),
                   :model=>model,
                   :view=>view,
                   :proj=>proj,

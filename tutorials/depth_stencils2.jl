@@ -1,8 +1,8 @@
 using ModernGL, GeometryTypes, GLAbstraction, GLWindow, Images, FileIO
 import GLAbstraction: StandardPostrender
 # Load our textures. See "downloads.jl" to get the images.
-kitten = load(Pkg.dir("GLAbstraction", "tutorials", "images", "kitten.png"))
-puppy  = load(Pkg.dir("GLAbstraction", "tutorials", "images", "puppy.png"))
+kitten = load(GLAbstraction.dir("tutorials", "images", "kitten.png"))
+puppy  = load(GLAbstraction.dir("tutorials", "images", "puppy.png"))
 
 windowhints = [(GLFW.DEPTH_BITS, 32), (GLFW.STENCIL_BITS, 8)]
 window = create_glcontext("Depth and stencils 2",

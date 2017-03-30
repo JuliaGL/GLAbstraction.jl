@@ -1,7 +1,7 @@
 using ModernGL, GeometryTypes, GLAbstraction, GLWindow, Images
 
 # Load our texture. See "downloads.jl" to get the images.
-img = load(Pkg.dir("GLAbstraction", "tutorials", "images", "kitten.png"))
+img = load(GLAbstraction.dir("tutorials", "images", "kitten.png"))
 
 # Create the window. This sets all the hints and makes the context current.
 window = create_glcontext("Textures exercise 3", resolution=(800,600))

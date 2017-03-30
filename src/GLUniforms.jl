@@ -30,7 +30,7 @@ function uniformfunc(typ::DataType, dims::Tuple{Int})
 end
 function uniformfunc(typ::DataType, dims::Tuple{Int, Int})
     M, N = dims
-    Symbol(string("glUniformMatrix", M==N ? "$M":"$(M)x$(N)", opengl_postfix(typ)))
+    Symbol(string("glUniformMatrix", M == N ? "$M":"$(M)x$(N)", opengl_postfix(typ)))
 end
 
 function gluniform{FSA <: Union{StaticArray, Colorant}}(location::Integer, x::FSA)
@@ -38,16 +38,19 @@ function gluniform{FSA <: Union{StaticArray, Colorant}}(location::Integer, x::FS
     gluniform(location, x)
 end
 
-Base.size(p::Colorant) = (length(p),)
-Base.size{T <: Colorant}(p::Type{T}) = (length(p),)
-Base.ndims{T <: Colorant}(p::Type{T}) = 1
+_size(p) = size(p)
+_size(p::Colorant) = (length(p),)
+_size{T <: Colorant}(p::Type{T}) = (length(p),)
+_ndims(p) = ndims(p)
+_ndims{T <: Colorant}(p::Type{T}) = 1
 
 @generated function gluniform{FSA <: Union{StaticArray, Colorant}}(location::Integer, x::Vector{FSA})
-    func = uniformfunc(eltype(FSA), size(FSA))
+    println(x)
+    func = uniformfunc(eltype(FSA), _size(FSA))
     if ndims(FSA) == 2
         :($func(location, length(x), GL_FALSE, pointer(x)))
     else
-        :($func(location, length(x), pointer(x)))
+        :($func(location, cardinality(x), pointer(x)))
     end
 end
 
@@ -63,8 +66,12 @@ function gluniform(location::GLint, target::GLint, t::Texture)
     glBindTexture(t.texturetype, t.id)
     gluniform(location, target)
 end
-gluniform(location::Integer, x::Enum) 	 						     = gluniform(GLint(location), GLint(x))
-gluniform(location::Integer, x::Signal)                              = gluniform(GLint(location), value(x))
+gluniform(location::Integer, x::Enum) = gluniform(GLint(location), GLint(x))
+
+function gluniform{T}(loc::Integer, x::Signal{T})
+    gluniform(GLint(loc), Reactive.value(x))
+end
+
 gluniform(location::Integer, x::Union{GLubyte, GLushort, GLuint}) 	 = glUniform1ui(GLint(location), x)
 gluniform(location::Integer, x::Union{GLbyte, GLshort, GLint, Bool}) = glUniform1i(GLint(location),  x)
 gluniform(location::Integer, x::GLfloat)                             = glUniform1f(GLint(location),  x)
@@ -83,7 +90,7 @@ glsl_typename(t::Type{GLfloat})  = "float"
 glsl_typename(t::Type{GLdouble}) = "double"
 glsl_typename(t::Type{GLuint})   = "uint"
 glsl_typename(t::Type{GLint})    = "int"
-glsl_typename{T<:Union{StaticVector, Colorant}}(t::Type{T}) = string(opengl_prefix(eltype(t)), "vec", length(t))
+glsl_typename{T<:Union{StaticVector, Colorant}}(t::Type{T}) = string(opengl_prefix(eltype(T)), "vec", length(T))
 glsl_typename{T}(t::Type{TextureBuffer{T}}) = string(opengl_prefix(eltype(T)), "samplerBuffer")
 
 function glsl_typename{T, D}(t::Texture{T, D})
@@ -159,9 +166,9 @@ gl_promote(x::Type{Union{UInt16, UInt8}})  = x
 gl_promote{T <: AbstractFloat}(x::Type{T}) = Float32
 gl_promote(x::Type{Float16})               = x
 
-gl_promote{T <: UFixed}(x::Type{T})        = UFixed32
-gl_promote(x::Type{UFixed16})              = x
-gl_promote(x::Type{UFixed8})               = x
+gl_promote{T <: Normed}(x::Type{T})     = N0f32
+gl_promote(x::Type{N0f16})              = x
+gl_promote(x::Type{N0f8})               = x
 
 typealias Color3{T} Colorant{T, 3}
 typealias Color4{T} Colorant{T, 4}

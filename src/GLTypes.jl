@@ -7,14 +7,21 @@ typealias MatOrSignal{T}     ArrayOrSignal{T, 2}
 typealias VolumeOrSignal{T} ArrayOrSignal{T, 3}
 
 typealias ArrayTypes{T, N} Union{GPUArray{T, N}, ArrayOrSignal{T,N}}
-typealias VecTypes{T}         ArrayTypes{T, 1}
-typealias MatTypes{T}         ArrayTypes{T, 2}
-typealias VolumeTypes{T}     ArrayTypes{T, 3}
+typealias VecTypes{T} ArrayTypes{T, 1}
+typealias MatTypes{T} ArrayTypes{T, 2}
+typealias VolumeTypes{T} ArrayTypes{T, 3}
 
 @enum Projection PERSPECTIVE ORTHOGRAPHIC
 @enum MouseButton MOUSE_LEFT MOUSE_MIDDLE MOUSE_RIGHT
 
 typealias GLContext Symbol
+
+"""
+Returns the cardinality of a type. falls back to length
+"""
+cardinality(x) = length(x)
+cardinality(x::Number) = 1
+cardinality{T <: Number}(x::Type{T}) = 1
 
 #=
 We need to track the current OpenGL context.

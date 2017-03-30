@@ -24,8 +24,8 @@ type PerspectiveCamera{T} <: Camera{T}
     projectiontype  ::Signal{Projection}
 end
 
-type DummyCamera{T} <: Camera{T}
-    window_size     ::Signal{SimpleRectangle{Int}}
+type DummyCamera{T, IT} <: Camera{T}
+    window_size     ::Signal{SimpleRectangle{IT}}
     view            ::Signal{Mat4{T}}
     projection      ::Signal{Mat4{T}}
     projectionview  ::Signal{Mat4{T}}
@@ -39,7 +39,7 @@ function DummyCamera(;
         projection     = const_lift(orthographicprojection, window_size, nearclip, farclip),
         projectionview = const_lift(*, projection, view)
     )
-    DummyCamera{Float32}(window_size, view, projection, projectionview)
+    DummyCamera(window_size, view, projection, projectionview)
 end
 
 function Base.collect(camera::Camera, collected = Dict{Symbol, Any}())
@@ -99,7 +99,7 @@ function OrthographicPixelCamera(
     x, y = w_, h_
     eyeposition = Signal(Vec3f0(x, y, zoom))
     lookatvec   = Signal(Vec3f0(x, y, 0))
-    far         = Signal(zoom * 10.0f0) # this should probably be not calculated
+    far         = Signal(zoom * 10f0) # this should probably be not calculated
     # since there is no scene independant, well working far clip
 
     PerspectiveCamera(

@@ -52,11 +52,11 @@ Base.length(t::TextureBuffer) = length(t.buffer)
 bind(t::Texture) = glBindTexture(t.texturetype, t.id)
 bind(t::Texture, id) = glBindTexture(t.texturetype, id)
 
-is_texturearray(t::Texture)  = t.texturetype == GL_TEXTURE_2D_ARRAY
+is_texturearray(t::Texture) = t.texturetype == GL_TEXTURE_2D_ARRAY
 is_texturebuffer(t::Texture) = t.texturetype == GL_TEXTURE_BUFFER
 
-colordim{T}(::Type{T})       = length(T)
-colordim{T<:Real}(::Type{T}) = 1
+colordim{T}(::Type{T}) = cardinality(T)
+colordim{T <: Real}(::Type{T}) = 1
 
 function set_packing_alignment(a) # at some point we should specialize to array/ptr a
     glPixelStorei(GL_UNPACK_ALIGNMENT, 1)
@@ -171,7 +171,7 @@ function TextureBuffer{T <: GLArrayEltypes}(buffer::GLBuffer{T})
     TextureBuffer(tex, buffer)
 end
 function TextureBuffer{T <: GLArrayEltypes}(buffer::Vector{T})
-    buff = GLBuffer(buffer, buffertype=GL_TEXTURE_BUFFER, usage=GL_DYNAMIC_DRAW)
+    buff = GLBuffer(buffer, buffertype = GL_TEXTURE_BUFFER, usage = GL_DYNAMIC_DRAW)
     TextureBuffer(buff)
 end
 
@@ -385,11 +385,12 @@ function default_colorformat_sym(colordim::Integer, isinteger::Bool, colororder:
     sym *= color * integer
     return Symbol(sym)
 end
+using Compat.TypeUtils
 
 default_colorformat_sym{T <: Real}(::Type{T})           = default_colorformat_sym(1, T <: Integer, "RED")
-default_colorformat_sym{T <: AbstractArray}(::Type{T})  = default_colorformat_sym(length(T), eltype(T) <: Integer, "RGBA")
-default_colorformat_sym{T <: StaticVector}(::Type{T})    = default_colorformat_sym(length(T), eltype(T) <: Integer, "RGBA")
-default_colorformat_sym{T <: Colorant}(::Type{T})       = default_colorformat_sym(length(T), eltype(T) <: Integer, string(T.name.name))
+default_colorformat_sym{T <: AbstractArray}(::Type{T})  = default_colorformat_sym(cardinality(T), eltype(T) <: Integer, "RGBA")
+default_colorformat_sym{T <: StaticVector}(::Type{T})    = default_colorformat_sym(cardinality(T), eltype(T) <: Integer, "RGBA")
+default_colorformat_sym{T <: Colorant}(::Type{T})       = default_colorformat_sym(cardinality(T), eltype(T) <: Integer, string(typename(T).name))
 
 @generated function default_internalcolorformat{T}(::Type{T})
     sym = default_internalcolorformat_sym(T)
@@ -411,7 +412,7 @@ function default_internalcolorformat_sym{T}(::Type{T})
     if eltyp <: AbstractFloat
         sym *= "F"
     elseif eltyp <: FixedPoint
-        sym *= eltyp <: UFixed ? "" : "_SNORM"
+        sym *= eltyp <: Normed ? "" : "_SNORM"
     elseif eltyp <: Signed
         sym *= "I"
     elseif eltyp <: Unsigned
