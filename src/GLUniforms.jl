@@ -46,10 +46,10 @@ _ndims{T <: Colorant}(p::Type{T}) = 1
 
 @generated function gluniform{FSA <: Union{StaticArray, Colorant}}(location::Integer, x::Vector{FSA})
     func = uniformfunc(eltype(FSA), _size(FSA))
-    callexpr = if ndims(FSA) == 2
-        :($func(location, 1, GL_FALSE, xref))
+    callexpr = if _ndims(FSA) == 2
+        :($func(location, length(x), GL_FALSE, xref))
     else
-        :($func(location, length(FSA), xref))
+        :($func(location, length(x), xref))
     end
     quote
         xref = reinterpret(eltype(FSA), x)

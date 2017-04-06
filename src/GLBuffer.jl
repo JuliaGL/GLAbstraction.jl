@@ -5,7 +5,7 @@ type GLBuffer{T} <: GPUArray{T, 1}
     usage       ::GLenum
     context     ::GLContext
 
-    function GLBuffer(ptr::Ptr{T}, buff_length::Int, buffertype::GLenum, usage::GLenum)
+    function GLBuffer{T}(ptr::Ptr{T}, buff_length::Int, buffertype::GLenum, usage::GLenum) where T
         id = glGenBuffers()
         glBindBuffer(buffertype, id)
         glBufferData(buffertype, buff_length * sizeof(T), ptr, usage)

@@ -6,7 +6,7 @@ immutable TextureParameters{NDim}
     swizzle_mask::Vector{GLenum}
 end
 
-abstract OpenglTexture{T, NDIM} <: GPUArray{T, NDIM}
+abstract type OpenglTexture{T, NDIM} <: GPUArray{T, NDIM} end
 
 type Texture{T <: GLArrayEltypes, NDIM} <: OpenglTexture{T, NDIM}
     id              ::GLuint
@@ -17,7 +17,7 @@ type Texture{T <: GLArrayEltypes, NDIM} <: OpenglTexture{T, NDIM}
     parameters      ::TextureParameters{NDIM}
     size            ::NTuple{NDIM, Int}
     context         ::GLContext
-    function Texture(
+    function Texture{T, NDIM}(
             id              ::GLuint,
             texturetype     ::GLenum,
             pixeltype       ::GLenum,
@@ -25,7 +25,7 @@ type Texture{T <: GLArrayEltypes, NDIM} <: OpenglTexture{T, NDIM}
             format          ::GLenum,
             parameters      ::TextureParameters{NDIM},
             size            ::NTuple{NDIM, Int}
-        )
+        )  where {T, NDIM}
         tex = new(
             id,
             texturetype,
@@ -43,8 +43,8 @@ end
 
 # for bufferSampler, aka Texture Buffer
 type TextureBuffer{T <: GLArrayEltypes} <: OpenglTexture{T, 1}
-    texture ::Texture{T, 1}
-    buffer  ::GLBuffer{T}
+    texture::Texture{T, 1}
+    buffer::GLBuffer{T}
 end
 Base.size(t::TextureBuffer) = size(t.buffer)
 Base.size(t::TextureBuffer, i::Integer) = size(t.buffer, i)

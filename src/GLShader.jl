@@ -100,7 +100,7 @@ function uniformlocations(nametypedict::Dict{Symbol, GLenum}, program)
     end)
 end
 
-abstract AbstractLazyShader
+abstract type AbstractLazyShader end
 immutable LazyShader <: AbstractLazyShader
     paths::Tuple
     kw_args::Dict{Symbol, Any}

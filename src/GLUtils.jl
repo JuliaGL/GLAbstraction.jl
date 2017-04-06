@@ -204,7 +204,7 @@ Reactive.value(x) = x # add this, to make it easier to work with a combination o
 makesignal(s::Signal) = s
 makesignal(v) = Signal(v)
 
-@inline const_lift(f::Union{DataType, Function}, inputs...) = map(f, map(makesignal, inputs)...)
+@inline const_lift(f::Union{DataType, Type, Function}, inputs...) = map(f, map(makesignal, inputs)...)
 export const_lift
 
 function close_to_square(n::Real)

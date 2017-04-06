@@ -1,4 +1,4 @@
-abstract Camera{T}
+abstract type Camera{T} end
 const Q = Quaternions # save some writing!
 
 type OrthographicCamera{T} <: Camera{T}

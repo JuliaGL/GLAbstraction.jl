@@ -127,7 +127,7 @@ immutable FrameBuffer{T}
     id          ::GLuint
     attachments ::Vector{Any}
     context     ::GLContext
-    function FrameBuffer(dimensions::Signal)
+    function FrameBuffer{T}(dimensions::Signal) where T
         fb = glGenFramebuffers()
         glBindFramebuffer(GL_FRAMEBUFFER, fb)
         new(id, attachments, current_context())
@@ -186,7 +186,7 @@ type GLVertexArray{T}
     indices      ::T
     context      ::GLContext
 
-    function GLVertexArray(program, id, bufferlength, buffers, indices)
+    function GLVertexArray{T}(program, id, bufferlength, buffers, indices) where T
         new(program, id, bufferlength, buffers, indices, current_context())
     end
 end
@@ -253,11 +253,11 @@ type RenderObject{Pre} <: Composable{DeviceUnit}
     postrenderfunction
     id                  ::GLushort
     boundingbox          # workaround for having lazy boundingbox queries, while not using multiple dispatch for boundingbox function (No type hierarchy for RenderObjects)
-    function RenderObject(
+    function RenderObject{Pre}(
             main, uniforms::Dict{Symbol, Any}, vertexarray::GLVertexArray,
             prerenderfunctions, postrenderfunctions,
             boundingbox
-        )
+        ) where Pre
         global RENDER_OBJECT_ID_COUNTER
         RENDER_OBJECT_ID_COUNTER += one(GLushort)
         new(
