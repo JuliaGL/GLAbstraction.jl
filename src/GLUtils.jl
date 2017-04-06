@@ -5,7 +5,7 @@ macro gputime(codeblock)
         local const done         = GLint[0]
         glGenQueries(1, query)
         glBeginQuery(GL_TIME_ELAPSED, query[1])
-        value = $(esc(codeblock))
+        $(esc(codeblock))
         glEndQuery(GL_TIME_ELAPSED)
 
         while (done[1] != 1)
@@ -200,7 +200,7 @@ end
 export @gen_defaults!
 
 
-value(any) = any # add this, to make it easier to work with a combination of signals and constants
+Reactive.value(x) = x # add this, to make it easier to work with a combination of signals and constants
 
 makesignal(s::Signal) = s
 makesignal(v) = Signal(v)
@@ -271,7 +271,7 @@ end
 
 @compat function (MT::Type{NativeMesh{T}}){T <: HomogenousMesh}(m::Signal{T})
     result = Dict{Symbol, Any}()
-    mv = value(m)
+    mv = Reactive.value(m)
     attribs = attributes(mv)
     @materialize! vertices, faces = attribs
     result[:vertices] = GLBuffer(vertices)

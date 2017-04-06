@@ -45,7 +45,6 @@ _ndims(p) = ndims(p)
 _ndims{T <: Colorant}(p::Type{T}) = 1
 
 @generated function gluniform{FSA <: Union{StaticArray, Colorant}}(location::Integer, x::Vector{FSA})
-    println(x)
     func = uniformfunc(eltype(FSA), _size(FSA))
     if ndims(FSA) == 2
         :($func(location, length(x), GL_FALSE, pointer(x)))

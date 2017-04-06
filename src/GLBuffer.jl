@@ -165,7 +165,7 @@ end
 function gpu_getindex{T}(b::GLBuffer{T}, range::UnitRange)
     multiplicator = sizeof(T)
     offset        = first(range)-1
-    value         = Array(T, length(range))
+    value         = Vector{T}(length(range))
     bind(b)
     glGetBufferSubData(b.buffertype, multiplicator*offset, sizeof(value), value)
     bind(b, 0)

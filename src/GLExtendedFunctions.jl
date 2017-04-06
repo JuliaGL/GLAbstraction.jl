@@ -60,11 +60,11 @@ function get_uniform_location(program::GLuint, name::Compat.ASCIIString)
 end
 
 function glGetActiveUniform(programID::GLuint, index::Integer)
-    const actualLength   = GLsizei[1]
-    const uniformSize    = GLint[1]
-    const typ            = GLenum[1]
-    const maxcharsize 	 = glGetProgramiv(programID, GL_ACTIVE_UNIFORM_MAX_LENGTH)
-    const name           = Array(GLchar, maxcharsize)
+    actualLength   = GLsizei[1]
+    uniformSize    = GLint[1]
+    typ            = GLenum[1]
+    maxcharsize    = glGetProgramiv(programID, GL_ACTIVE_UNIFORM_MAX_LENGTH)
+    name           = Vector{GLchar}(maxcharsize)
 
     glGetActiveUniform(programID, index, maxcharsize, actualLength, uniformSize, typ, name)
 
@@ -75,11 +75,11 @@ function glGetActiveUniform(programID::GLuint, index::Integer)
     (uname, typ[1], uniformSize[1])
 end
 function glGetActiveAttrib(programID::GLuint, index::Integer)
-    const actualLength   = GLsizei[1]
-    const attributeSize  = GLint[1]
-    const typ            = GLenum[1]
-    const maxcharsize    = glGetProgramiv(programID, GL_ACTIVE_ATTRIBUTE_MAX_LENGTH)
-    const name           = Array(GLchar, maxcharsize)
+    actualLength   = GLsizei[1]
+    attributeSize  = GLint[1]
+    typ            = GLenum[1]
+    maxcharsize    = glGetProgramiv(programID, GL_ACTIVE_ATTRIBUTE_MAX_LENGTH)
+    name           = Vector{GLchar}(maxcharsize)
 
     glGetActiveAttrib(programID, index, maxcharsize, actualLength, attributeSize, typ, name)
 
