@@ -1,14 +1,14 @@
-typealias Vec2 Vec{2, Float32}
-typealias Vec3 Vec{3, Float32}
-typealias Vec4 Vec{4, Float32}
+@compat const Vec2 = Vec{2, Float32}
+@compat const Vec3 = Vec{3, Float32}
+@compat const Vec4 = Vec{4, Float32}
 
-typealias iVec2 Vec{2, Cint}
-typealias iVec3 Vec{3, Cint}
-typealias iVec4 Vec{4, Cint}
+@compat const iVec2 = Vec{2, Cint}
+@compat const iVec3 = Vec{3, Cint}
+@compat const iVec4 = Vec{4, Cint}
 
-typealias uVec2 Vec{2, Cuint}
-typealias uVec3 Vec{3, Cuint}
-typealias uVec4 Vec{4, Cuint}
+@compat const uVec2 = Vec{2, Cuint}
+@compat const uVec3 = Vec{3, Cuint}
+@compat const uVec4 = Vec{4, Cuint}
 
 function test_textures()
     N = 100

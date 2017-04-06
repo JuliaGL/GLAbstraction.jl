@@ -34,8 +34,8 @@ function uniformfunc(typ::DataType, dims::Tuple{Int, Int})
 end
 
 function gluniform{FSA <: Union{StaticArray, Colorant}}(location::Integer, x::FSA)
-    x = [x]
-    gluniform(location, x)
+    xref = [x]
+    gluniform(location, xref)
 end
 
 _size(p) = size(p)
@@ -46,10 +46,14 @@ _ndims{T <: Colorant}(p::Type{T}) = 1
 
 @generated function gluniform{FSA <: Union{StaticArray, Colorant}}(location::Integer, x::Vector{FSA})
     func = uniformfunc(eltype(FSA), _size(FSA))
-    if ndims(FSA) == 2
-        :($func(location, length(x), GL_FALSE, pointer(x)))
+    callexpr = if ndims(FSA) == 2
+        :($func(location, 1, GL_FALSE, xref))
     else
-        :($func(location, cardinality(x), pointer(x)))
+        :($func(location, length(FSA), xref))
+    end
+    quote
+        xref = reinterpret(eltype(FSA), x)
+        $callexpr
     end
 end
 
@@ -77,10 +81,10 @@ gluniform(location::Integer, x::GLfloat)                             = glUniform
 gluniform(location::Integer, x::GLdouble)                            = glUniform1d(GLint(location),  x)
 
 #Uniform upload functions for julia arrays...
-gluniform(location::GLint, x::Vector{Float32}) = glUniform1fv(location,  length(x), pointer(x))
-gluniform(location::GLint, x::Vector{GLdouble}) = glUniform1dv(location,  length(x), pointer(x))
-gluniform(location::GLint, x::Vector{GLint})   = glUniform1iv(location,  length(x), pointer(x))
-gluniform(location::GLint, x::Vector{GLuint})  = glUniform1uiv(location, length(x), pointer(x))
+gluniform(location::GLint, x::Vector{Float32}) = glUniform1fv(location,  length(x), x)
+gluniform(location::GLint, x::Vector{GLdouble}) = glUniform1dv(location,  length(x), x)
+gluniform(location::GLint, x::Vector{GLint})   = glUniform1iv(location,  length(x), x)
+gluniform(location::GLint, x::Vector{GLuint})  = glUniform1uiv(location, length(x), x)
 
 
 glsl_typename{T}(x::T)           = glsl_typename(T)
@@ -169,8 +173,8 @@ gl_promote{T <: Normed}(x::Type{T})     = N0f32
 gl_promote(x::Type{N0f16})              = x
 gl_promote(x::Type{N0f8})               = x
 
-typealias Color3{T} Colorant{T, 3}
-typealias Color4{T} Colorant{T, 4}
+@compat const Color3{T} = Colorant{T, 3}
+@compat const Color4{T} = Colorant{T, 4}
 
 gl_promote(x::Type{Bool})                  = GLboolean
 gl_promote{T <: Gray}(x::Type{T})          = Gray{gl_promote(eltype(T))}

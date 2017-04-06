@@ -88,11 +88,11 @@ end
 function OrthographicPixelCamera(
         theta, trans, up, fov_s, near_s, area_s
     )
-    fov, near = value(fov_s), value(near_s)
+    fov, near = Reactive.value(fov_s), Reactive.value(near_s)
 
     # lets calculate how we need to adjust the camera, so that it mapps to
     # the pixel of the window (area)
-    area = value(area_s)
+    area = Reactive.value(area_s)
     h = Float32(tan(fov / 360.0 * pi) * near)
     w_, h_ = area.w / 2f0, area.h / 2f0
     zoom = min(h_, w_) / h
@@ -150,7 +150,7 @@ function dragged(mouseposition, key_pressed, start_condition = true)
     dragg_sig = foldp(mouse_dragg, v0, args)
     is_dragg = map(first, dragg_sig)
     dragg = map(last, dragg_sig)
-    dragg_diff = filterwhen(is_dragg, value(dragg), dragg)
+    dragg_diff = filterwhen(is_dragg, Reactive.value(dragg), dragg)
     dragg_diff
 end
 function dragged_diff(mouseposition, key_pressed, start_condition=true)
@@ -214,7 +214,7 @@ end
 returns a signal which becomes true whenever there is a doublecklick
 """
 function doubleclick(mouseclick, threshold::Real)
-    ddclick = foldp((time(), value(mouseclick), false), mouseclick) do v0, mclicked
+    ddclick = foldp((time(), Reactive.value(mouseclick), false), mouseclick) do v0, mclicked
         t0, lastc, _ = v0
         t1 = time()
         isclicked = (length(mclicked) == 1 &&
@@ -350,8 +350,8 @@ w_component{N, T}(::Vec{N, T}) = T(0)
 function to_worldspace{T <: StaticVector}(point::T, cam)
     to_worldspace(
         point,
-        value(cam.projection) * value(cam.view),
-        T(widths(value(cam.window_size)))
+        Reactive.value(cam.projection) * Reactive.value(cam.view),
+        T(widths(Reactive.value(cam.window_size)))
     )
 end
 function to_worldspace{T}(
@@ -376,9 +376,9 @@ Takes a point and a camera and transforms it from mouse (imagespace) to world sp
 """
 function imagespace(pos, camera)
     # Setup transformation matrix
-    pv = value(camera.projection) * value(camera.view)
+    pv = Reactive.value(camera.projection) * Reactive.value(camera.view)
     inv_pv = inv(pv)
-    width, height = widths(value(camera.window_size)) # get pixel resolution
+    width, height = widths(Reactive.value(camera.window_size)) # get pixel resolution
     x, y = pos
     # transform to normalized device coordinates [-1, 1]
     device_space = Vec4f0(
@@ -402,12 +402,12 @@ function translate_cam(
     lookat, eyepos, up, prjt = map(value, (lookat_s, eyepos_s, up_s, prj_type))
     dir = eyepos - lookat
     dir_len = norm(dir)
-    cam_res = Vec2f0(widths(value(window_size)))
+    cam_res = Vec2f0(widths(Reactive.value(window_size)))
 
     zoom, x, y = translate
     zoom *= 0.1f0 * dir_len
     if prjt != PERSPECTIVE
-        x, y = to_worldspace(Vec2f0(x, y), value(proj) * value(view), cam_res)
+        x, y = to_worldspace(Vec2f0(x, y), Reactive.value(proj) * Reactive.value(view), cam_res)
     else
         x, y = (Vec2f0(x, y) ./ cam_res) .* dir_len
     end
@@ -519,7 +519,7 @@ end
 get's the boundingbox of a render object.
 needs value, because boundingbox will always return a boundingbox signal
 """
-signal_boundingbox(robj) = value(boundingbox(robj))
+signal_boundingbox(robj) = Reactive.value(boundingbox(robj))
 
 
 """
@@ -530,9 +530,9 @@ function renderlist_boundingbox(renderlist::Vector)
     renderlist = filter(x->x!=nothing, renderlist)
     isempty(renderlist) && return AABB(Vec3f0(NaN), Vec3f0(0)) # nothing to do here
     robj1 = first(renderlist)
-    bb = value(robj1[:model])*signal_boundingbox(robj1)
+    bb = Reactive.value(robj1[:model])*signal_boundingbox(robj1)
     for elem in renderlist[2:end]
-        bb = union(value(elem[:model])*signal_boundingbox(elem), bb)
+        bb = union(Reactive.value(elem[:model])*signal_boundingbox(elem), bb)
     end
     bb
 end
@@ -553,7 +553,7 @@ function center!(camera::PerspectiveCamera, bb::AABB)
     half_width   = width/2f0
     lower_corner = minimum(bb)
     middle       = maximum(bb) - half_width
-    if value(camera.projectiontype) == ORTHOGRAPHIC
+    if Reactive.value(camera.projectiontype) == ORTHOGRAPHIC
         area, fov, near, far = map(value,
             (camera.window_size, camera.fov, camera.nearclip, camera.farclip)
         )

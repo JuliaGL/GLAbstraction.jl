@@ -15,7 +15,7 @@ function render{Pre}(list::Vector{RenderObject{Pre}})
     glUseProgram(program.id)
     glBindVertexArray(vertexarray.id)
     for renderobject in list
-        Bool(value(renderobject.uniforms[:visible])) || continue # skip invisible
+        Bool(Reactive.value(renderobject.uniforms[:visible])) || continue # skip invisible
         # make sure we only bind new programs and vertexarray when it is actually
         # different from the previous one
         if renderobject.vertexarray != vertexarray
@@ -55,7 +55,7 @@ So rewriting this function could get us a lot of performance for scenes with
 a lot of objects.
 """
 function render(renderobject::RenderObject, vertexarray=renderobject.vertexarray)
-    if Bool(value(renderobject.uniforms[:visible]))
+    if Bool(Reactive.value(renderobject.uniforms[:visible]))
         renderobject.prerenderfunction()
         program = vertexarray.program
         glUseProgram(program.id)
@@ -86,7 +86,7 @@ Renders a vertexarray, which consists of the usual buffers plus a vector of
 unitranges which defines the segments of the buffers to be rendered
 """
 function render{T <: VecOrSignal{UnitRange{Int}}}(vao::GLVertexArray{T}, mode::GLenum=GL_TRIANGLES)
-    for elem in value(vao.indices)
+    for elem in Reactive.value(vao.indices)
         glDrawArrays(mode, max(first(elem)-1, 0), length(elem)+1)
     end
      return nothing

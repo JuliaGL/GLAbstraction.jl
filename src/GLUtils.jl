@@ -156,9 +156,8 @@ macro gen_defaults!(dict, args)
                 convert_target = :($key_name)
             end
             key_sym = Expr(:quote, key_name)
-            if isa(value_expr, Expr) && value_expr.head == :(->)  # we might need to insert a convert target
-
-                value_expr, target = value_expr.args
+            if isa(value_expr, Expr) && value_expr.head == :call && value_expr.args[1] == :(=>)  # we might need to insert a convert target
+                value_expr, target = value_expr.args[2:end]
                 undecided = []
                 if isa(target, Expr)
                     undecided = target.args

@@ -24,7 +24,7 @@ else
 end
 
 
-import Base: merge, resize!, unsafe_copy!, similar, length, getindex, setindex!, call
+import Base: merge, resize!, unsafe_copy!, similar, length, getindex, setindex!
 import Reactive: value
 
 using Compat

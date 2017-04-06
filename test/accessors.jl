@@ -7,7 +7,7 @@ immutable SpriteStyle{T} <: FixedVector{2, T}
     _::NTuple{2, T}
 end
 
-typealias GLSpriteStyle SpriteStyle{UInt16}
+@compat const GLSpriteStyle = SpriteStyle{UInt16}
 
 const TEST_1D = Any[]
 const TEST_2D = Any[]

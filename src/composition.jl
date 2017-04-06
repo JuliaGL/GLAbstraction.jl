@@ -1,6 +1,6 @@
 
-abstract Unit
-abstract Composable{unit}
+@compat abstract type Unit end
+@compat abstract type Composable{unit} end
 
 immutable DeviceUnit <: Unit end
 

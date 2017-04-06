@@ -89,7 +89,7 @@ immutable StandardPostrenderInstanced{T}
     primitive::GLenum
 end
 @compat function (sp::StandardPostrenderInstanced)()
-    renderinstanced(sp.vao, value(sp.main), sp.primitive)
+    renderinstanced(sp.vao, Reactive.value(sp.main), sp.primitive)
 end
 
 immutable EmptyPrerender
@@ -147,9 +147,9 @@ function translate!{T <: Vec{3}}(c::Composable, vec::TOrSignal{T})
      _translate!(c, const_lift(translationmatrix, vec))
 end
 function _boundingbox(c::RenderObject)
-    bb = value(c[:boundingbox])
+    bb = Reactive.value(c[:boundingbox])
     bb == nothing && return AABB(Vec3f0(0), Vec3f0(0))
-    value(c[:model]) * bb
+    Reactive.value(c[:model]) * bb
 end
 function _boundingbox(c::Composable)
     robjs = extract_renderable(c)
