@@ -27,7 +27,7 @@ end
 cardinality{T}(::GLBuffer{T}) = cardinality(T)
 
 #Function to deal with any Immutable type with Real as Subtype
-function GLBuffer{T <: GLArrayEltypes}(
+function GLBuffer{T}(
         buffer::DenseVector{T};
         buffertype::GLenum = GL_ARRAY_BUFFER, usage::GLenum = GL_STATIC_DRAW
     )
@@ -41,7 +41,7 @@ function GLBuffer{T <: GLArrayEltypes}(
 end
 
 
-function indexbuffer{T<:GLArrayEltypes}(
+function indexbuffer{T<: GLArrayEltypes}(
         buffer::Vector{T};
         usage::GLenum = GL_STATIC_DRAW
     )

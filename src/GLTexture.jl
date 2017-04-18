@@ -206,6 +206,10 @@ GeometryTypes.height(t::Texture) = size(t, 2)
 depth(t::Texture)  = size(t, 3)
 
 
+Base.convert{T <: Texture}(::Type{T}, x::AbstractArray) = T(x)
+Base.convert{T <: Texture}(::Type{T}, x::Texture) = x
+Base.convert{T <: Texture}(::Type{T}, x::T) = x
+
 function Base.show{T,D}(io::IO, t::Texture{T,D})
     println(io, "Texture$(D)D: ")
     println(io, "                  ID: ", t.id)
