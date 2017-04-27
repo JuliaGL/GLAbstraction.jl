@@ -11,7 +11,16 @@ type GLBuffer{T} <: GPUArray{T, 1}
         glBufferData(buffertype, buff_length * sizeof(T), ptr, usage)
         glBindBuffer(buffertype, 0)
 
-        obj = new(id, (buff_length,), buffertype, usage, current_context())
+        obj = new{T}(id, (buff_length,), buffertype, usage, current_context())
+        #finalizer(obj, free)
+        obj
+    end
+    function GLBuffer{T}(length::Int, sizeof::Int, buffertype::GLenum, usage::GLenum) where T
+        id = glGenBuffers()
+        glBindBuffer(buffertype, id)
+        glBufferData(buffertype, sizeof, C_NULL, usage)
+        glBindBuffer(buffertype, 0)
+        obj = new{T}(id, (length,), buffertype, usage, current_context())
         finalizer(obj, free)
         obj
     end
