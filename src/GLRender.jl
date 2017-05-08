@@ -77,9 +77,6 @@ function render(renderobject::RenderObject, vertexarray=renderobject.vertexarray
     return
 end
 
-function render_uniforms(robj, uniforms)
-
-end
 
 """
 Renders a vertexarray, which consists of the usual buffers plus a vector of
@@ -95,7 +92,7 @@ end
 """
 Renders a vertex array which supplies an indexbuffer
 """
-function render{T<:Union{Integer, Face}}(vao::GLVertexArray{GLBuffer{T}}, mode::GLenum=GL_TRIANGLES)
+function render{T<:Union{Integer, Face}}(vao::GLVertexArray{GLBuffer{T}}, mode::GLenum = GL_TRIANGLES)
     glDrawElements(
         mode,
         length(vao.indices) * cardinality(vao.indices),
@@ -106,7 +103,7 @@ end
 """
 Renders a normal vertex array only containing the usual buffers buffers.
 """
-function render(vao::GLVertexArray, mode::GLenum=GL_TRIANGLES)
+function render(vao::GLVertexArray, mode::GLenum = GL_TRIANGLES)
     glDrawArrays(mode, 0, length(vao))
     return
 end

@@ -1,63 +1,57 @@
 using GLAbstraction, GLWindow, GeometryTypes, ColorTypes, GLFW, Reactive, ModernGL
 
+
+
 const vert = vert"""
 {{GLSL_VERSION}}
-in vec2 pos;
-out vec2 g_position;
 
-void main() {
-    g_position = pos;
+in vec2 vertex_data;
+out vec2 vertex_out;
+void main()
+{
+    vertex_out = vertex_data;
 }
 """
 
 const frag = frag"""
 {{GLSL_VERSION}}
-
 out vec4 outColor;
-
 void main() {
     outColor = vec4(1,0,0,1);
 }
 """
 
 const geom = geom"""
-
 {{GLSL_VERSION}}
-
 layout(points) in;
 layout(triangle_strip, max_vertices = 4) out;
-in vec2 g_position[];
+
+in vec2 vertex_out[];
 
 void main(void)
 {
   // get the four vertices passed to the shader:
-  vec2 p0 = g_position[0];   // start of previous segment
-
+  vec2 p0 = vertex_out[0];   // start of previous segment
   gl_Position = vec4(p0, 0, 1);
   EmitVertex();
-
   gl_Position = vec4(p0+vec2(0,0.1), 0, 1);
   EmitVertex();
-
   gl_Position = vec4(p0+vec2(0.1,0), 0, 1);
   EmitVertex();
-
   gl_Position = vec4(p0+vec2(0.1), 0, 1);
   EmitVertex();
-
-
   EndPrimitive();
 }
 """
 
 const window = GLWindow.create_glcontext("Geometry Shader")
 
-const b = Point2f0[(-0.5,0),(0.0, 0.0),(0.4, 0.3)]
+const b = Point2f0[(-0.5,0), (0.0, 0.0), (0.4, 0.3)]
 
 data = Dict{Symbol, Any}(
-    :pos => GLBuffer(b),
+    :vertex_data => GLBuffer(b),
 )
-
+GLAbstraction.empty_shader_cache!()
 program = GLAbstraction.LazyShader(vert, geom, frag)
 robj = std_renderobject(data, program, Signal(AABB(Vec3f0(0), Vec3f0(1))), GL_POINTS)
 

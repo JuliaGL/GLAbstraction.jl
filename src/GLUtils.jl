@@ -45,7 +45,7 @@ function print_with_lines(out::IO, text::AbstractString)
     for (i,line) in enumerate(split(text, "\n"))
         println(io, @sprintf("%-4d: %s", i, line))
     end
-    println(out, takebuf_string(io))
+    write(out, take!(io))
 end
 print_with_lines(text::AbstractString) = print_with_lines(STDOUT, text)
 
