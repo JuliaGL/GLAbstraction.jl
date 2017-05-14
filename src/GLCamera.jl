@@ -347,29 +347,7 @@ end
 w_component{N, T}(::Point{N, T}) = T(1)
 w_component{N, T}(::Vec{N, T}) = T(0)
 
-function to_worldspace{T <: StaticVector}(point::T, cam)
-    to_worldspace(
-        point,
-        Reactive.value(cam.projection) * Reactive.value(cam.view),
-        T(widths(Reactive.value(cam.window_size)))
-    )
-end
-function to_worldspace{T}(
-        p::StaticVector{T},
-        projectionview::Mat4,
-        cam_res::StaticVector
-    )
-    VT = typeof(p)
-    prj_view_inv = inv(projectionview)
-    clip_space = 4 * (VT(p) ./ VT(cam_res))
-    pix_space = Vec{4, T}(
-        clip_space[1],
-        clip_space[2],
-        T(0), w_component(p)
-    )
-    ws = prj_view_inv * pix_space
-    ws # ./ ws[4]
-end
+
 
 """
 Takes a point and a camera and transforms it from mouse (imagespace) to world space

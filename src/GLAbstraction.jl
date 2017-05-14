@@ -1,4 +1,4 @@
-VERSION >= v"0.4.0-dev+6521" && __precompile__(true)
+__precompile__(true)
 module GLAbstraction
 
 import Quaternions
@@ -114,27 +114,10 @@ export toglsltype_string        # infers a glsl type string from a julia type. E
 # only difference to GLSL: first character is uppercase uppercase
 export gl_convert
 
-include("GLMatrixMath.jl")
-export scalematrix #returns scale matrix
-export lookat # creates the lookat matrix
-export perspectiveprojection
-export orthographicprojection
-export translationmatrix, translationmatrix_x, translationmatrix_y, translationmatrix_z # translates in x, y, z direction
-export rotationmatrix_x, rotationmatrix_y, rotationmatrix_z # returns rotation matrix which rotates around x, y, z axis
-export rotation, rotate #rotation matrix for rotation between 2 vectors.
-export qrotation    # quaternion rotation
-export Pivot # Pivot object, putting axis, scale position into one object
-export transformationmatrix # creates a transformation matrix from a pivot
-export rotationmatrix4 # returns a 4x4 rotation matrix
-
-
 include("GLRender.jl")
 export render  #renders arbitrary objects
 export enabletransparency # can be pushed to an renderobject, enables transparency
 export renderinstanced # renders objects instanced
-
-
-
 
 include("GLCamera.jl")
 export Camera
