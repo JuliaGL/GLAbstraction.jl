@@ -1,12 +1,15 @@
-julia 0.5
+julia 0.5 0.6.0
 
-Quaternions
+
+GeometryTypes 0.2 0.3
+Reactive 0.3.0 0.3.7 0.5-
+
 FixedSizeArrays
-GeometryTypes
 ModernGL
-Reactive
+
 FixedPointNumbers
 ColorTypes
 Compat 0.8.0
 FileIO
 GLFW
+Quaternions
