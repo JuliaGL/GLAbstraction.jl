@@ -77,9 +77,6 @@ function render(renderobject::RenderObject, vertexarray=renderobject.vertexarray
     return
 end
 
-function render_uniforms(robj, uniforms)
-
-end
 
 """
 Renders a vertexarray, which consists of the usual buffers plus a vector of
