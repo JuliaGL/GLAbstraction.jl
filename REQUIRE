@@ -1,8 +1,10 @@
-julia 0.6-
+julia 0.6-pre
+
+StaticArrays 0.5.0
+GeometryTypes
 
 Quaternions
-FixedSizeArrays
-GeometryTypes
+
 ModernGL
 Reactive
 FixedPointNumbers
