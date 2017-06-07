@@ -93,7 +93,7 @@ glsl_typename(t::Type{GLfloat})  = "float"
 glsl_typename(t::Type{GLdouble}) = "double"
 glsl_typename(t::Type{GLuint})   = "uint"
 glsl_typename(t::Type{GLint})    = "int"
-glsl_typename{T<:Union{StaticVector, Colorant}}(t::Type{T}) = string(opengl_prefix(eltype(T)), "vec", length(T))
+glsl_typename{T <: Union{StaticVector, Colorant}}(t::Type{T}) = string(opengl_prefix(eltype(T)), "vec", length(T))
 glsl_typename{T}(t::Type{TextureBuffer{T}}) = string(opengl_prefix(eltype(T)), "samplerBuffer")
 
 function glsl_typename{T, D}(t::Texture{T, D})
@@ -227,7 +227,7 @@ gl_convert{T <: NATIVE_TYPES}(a::T) = a
 gl_convert{T <: NATIVE_TYPES}(s::Signal{T}) = s
 gl_convert{T}(s::Signal{T}) = const_lift(gl_convert, s)
 
-gl_convert{T}(x::StaticVector{T}) = map(gl_promote(T), x)
+gl_convert{N, T}(x::StaticVector{N, T}) = map(gl_promote(T), x)
 gl_convert{N, M, T}(x::SMatrix{N, M, T}) = map(gl_promote(T), x)
 
 
