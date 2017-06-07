@@ -24,14 +24,14 @@ else
 end
 
 
-import Base: merge, resize!, unsafe_copy!, similar, length, getindex, setindex!
+import Base: merge, resize!, copy!, similar, length, getindex, setindex!, size, eltype, ndims
 import Reactive: value
 
 using Compat
 import Compat: foreach, String, unsafe_string
 
 
-include("AbstractGPUArray.jl")
+#include("AbstractGPUArray.jl")
 
 #Methods which get overloaded by GLExtendedFunctions.jl:
 import ModernGL.glShaderSource

@@ -1,4 +1,4 @@
-type GLBuffer{T} <: GPUArray{T, 1}
+type GLBuffer{T} <: GLMemory{T, 1}
     id          ::GLuint
     size        ::NTuple{1, Int}
     buffertype  ::GLenum
@@ -25,11 +25,13 @@ type GLBuffer{T} <: GPUArray{T, 1}
         obj
     end
 end
+
+
 bind(buffer::GLBuffer) = glBindBuffer(buffer.buffertype, buffer.id)
 #used to reset buffer target
 bind(buffer::GLBuffer, other_target) = glBindBuffer(buffer.buffertype, other_target)
 
-function similar{T}(x::GLBuffer{T}, buff_length::Int)
+function similar{T}(::Type{GLBuffer{T}}, buff_length::Int)
     GLBuffer{T}(Ptr{T}(C_NULL), buff_length, x.buffertype, x.usage)
 end
 
@@ -49,7 +51,6 @@ function GLBuffer{T <: GLArrayEltypes}(
     GLBuffer{T}(Ptr{T}(C_NULL), len, buffertype, usage)
 end
 
-
 function indexbuffer{T<: GLArrayEltypes}(
         buffer::Vector{T};
         usage::GLenum = GL_STATIC_DRAW
@@ -58,7 +59,7 @@ function indexbuffer{T<: GLArrayEltypes}(
 end
 # GPUArray interface
 function gpu_data{T}(b::GLBuffer{T})
-    data = Array(T, length(b))
+    data = Vector{T}(length(b))
     bind(b)
     glGetBufferSubData(b.buffertype, 0, sizeof(data), data)
     bind(b, 0)
@@ -78,45 +79,122 @@ function gpu_resize!{T}(buffer::GLBuffer{T}, newdims::NTuple{1, Int})
     glBufferData(buffer.buffertype, newlength*sizeof(T), C_NULL, buffer.usage)
     bind(buffer, 0)
     buffer.size = newdims
-    if oldlen>0
+    if oldlen > 0
         max_len = min(length(old_data), newlength) #might also shrink
         buffer[1:max_len] = old_data[1:max_len]
     end
-    #probably faster, but changes the buffer ID
-    # newbuff     = similar(buffer, newdims...)
+    # probably faster, but changes the buffer ID
+    # newbuff = similar(buffer, newdims...)
     # unsafe_copy!(buffer, 1, newbuff, 1, length(buffer))
-    # buffer.id   = newbuff.id
+    # buffer.id = newbuff.id
     # buffer.size = newbuff.size
     nothing
 end
 
 
 
-function gpu_setindex!{T}(b::GLBuffer{T}, value::Vector{T}, offset::Integer)
-    multiplicator = sizeof(T)
-    bind(b)
-    glBufferSubData(b.buffertype, multiplicator*offset-1, sizeof(value), value)
-    bind(b, 0)
-end
-function gpu_setindex!{T}(b::GLBuffer{T}, value::Vector{T}, offset::UnitRange{Int})
-    multiplicator = sizeof(T)
-    bind(b)
-    glBufferSubData(b.buffertype, multiplicator*(first(offset)-1), sizeof(value), value)
-    bind(b, 0)
-    return nothing
+# Dublicate of below. TODO benchmark and chose better version
+# function Base.unsafe_copy!{T}(a::GLBuffer{T}, readoffset::Int, b::Vector{T}, writeoffset::Int, len::Int)
+#     bind(a)
+#     ptr = Ptr{T}(glMapBuffer(a.buffertype, GL_READ_ONLY))
+#     for i=1:len
+#         b[i+writeoffset-1] = unsafe_load(ptr, i+readoffset-2) #-2 => -1 to zero offset, -1 gl indexing starts at 0
+#     end
+#     glUnmapBuffer(a.buffertype)
+#     bind(a,0)
+# end
+
+function check_copy_bounds(
+        dest, d_offset::Integer,
+        src, s_offset::Integer,
+        amount::Integer
+    )
+    amount > 0 || throw(ArgumentError(string("tried to copy n=", amount, " elements, but amount should be nonnegative")))
+    if s_offset < 1 || d_offset < 1 ||
+            s_offset + amount - 1 > length(src) ||
+            d_offset + amount - 1 > length(dest)
+        throw(BoundsError())
+    end
+    nothing
 end
 
-# copy between two buffers
-# could be a setindex! operation, with subarrays for buffers
-function Base.unsafe_copy!{T}(a::GLBuffer{T}, readoffset::Int, b::GLBuffer{T}, writeoffset::Int, len::Int)
+
+function copy!{T}(
+        dest::GLBuffer{T}, d_range::CartesianRange{CartesianIndex{1}},
+        src::Vector{T}, s_range::CartesianRange{CartesianIndex{1}},
+    )
+    amount = length(d_range)
+    if length(s_range) != amount
+        throw(ArgumentError("Copy range needs same length. Found: dest: $amount, src: $(length(s_range))"))
+    end
+    amount == 0 && return dest
+    d_offset = first(d_range)[1]
+    s_offset = first(s_range)[1]
+    check_copy_bounds(dest, d_offset, src, s_offset, amount)
     multiplicator = sizeof(T)
-    glBindBuffer(GL_COPY_READ_BUFFER, a.id)
-    glBindBuffer(GL_COPY_WRITE_BUFFER, b.id)
+    nsz = multiplicator * amount
+    bind(dest)
+    glBufferSubData(dest.buffertype, multiplicator * (d_offset - 1), nsz, Ref(src, s_offset))
+    bind(dest, 0)
+end
+
+# function copy!{T}(a::Vector{T}, readoffset::Int, b::GLBuffer{T}, writeoffset::Int, len::Int)
+#     bind(b)
+#     ptr = Ptr{T}(glMapBuffer(b.buffertype, GL_WRITE_ONLY))
+#     for i=1:len
+#         unsafe_store!(ptr, a[i+readoffset-1], i+writeoffset-1)
+#     end
+#     glUnmapBuffer(b.buffertype)
+#     bind(b,0)
+# end
+
+function copy!{T}(
+        dest::Vector{T}, d_range::CartesianRange{CartesianIndex{1}},
+        src::GLBuffer{T}, s_range::CartesianRange{CartesianIndex{1}},
+    )
+    amount = length(d_range)
+    if length(s_range) != amount
+        throw(ArgumentError("Copy range needs same length. Found: dest: $amount, src: $(length(s_range))"))
+    end
+    amount == 0 && return dest
+    d_offset = first(d_range)[1]
+    s_offset = first(s_range)[1]
+    check_copy_bounds(dest, d_offset, src, s_offset, amount)
+    multiplicator = sizeof(T)
+    nsz = multiplicator * amount
+    bind(src)
+    glGetBufferSubData(
+        src.buffertype, multiplicator * (s_offset - 1), nsz,
+        Ref(dest, d_offset)
+    )
+    bind(src, 0)
+    dest
+end
+
+
+# copy between two buffers
+function copy!{T}(
+        dest::GLBuffer{T}, d_range::CartesianRange{CartesianIndex{1}},
+        src::GLBuffer{T}, s_range::CartesianRange{CartesianIndex{1}}
+    )
+    amount = length(d_range)
+    if length(s_range) != amount
+        throw(ArgumentError("Copy range needs same length. Found: dest: $amount, src: $(length(s_range))"))
+    end
+    amount == 0 && return dest
+    d_offset = first(d_range)[1]
+    s_offset = first(s_range)[1]
+    check_copy_bounds(dest, d_offset, src, s_offset, amount)
+    multiplicator = sizeof(T)
+    nsz = multiplicator * amount
+
+    glBindBuffer(GL_COPY_READ_BUFFER, src.id)
+    glBindBuffer(GL_COPY_WRITE_BUFFER, dest.id)
     glCopyBufferSubData(
         GL_COPY_READ_BUFFER, GL_COPY_WRITE_BUFFER,
-        multiplicator*(readoffset-1),
-        multiplicator*(writeoffset-1),
-        multiplicator*len
+        multiplicator * (s_offset - 1),
+        multiplicator * (d_offset - 1),
+        multiplicator * amount
     )
     glBindBuffer(GL_COPY_READ_BUFFER, 0)
     glBindBuffer(GL_COPY_WRITE_BUFFER, 0)
@@ -141,7 +219,7 @@ function Base.done{T}(buffer::GLBuffer{T}, state::Tuple{Ptr{T}, Int})
 end
 
 #copy inside one buffer
-function Base.unsafe_copy!{T}(buffer::GLBuffer{T}, readoffset::Int, writeoffset::Int, len::Int)
+function copy!{T}(buffer::GLBuffer{T}, readoffset::Int, writeoffset::Int, len::Int)
     len <= 0 && return nothing
     bind(buffer)
     ptr = Ptr{T}(glMapBuffer(buffer.buffertype, GL_READ_WRITE))
@@ -149,34 +227,6 @@ function Base.unsafe_copy!{T}(buffer::GLBuffer{T}, readoffset::Int, writeoffset:
         unsafe_store!(ptr, unsafe_load(ptr, i+readoffset-1), i+writeoffset-1)
     end
     glUnmapBuffer(buffer.buffertype)
-    bind(buffer,0)
-    return nothing
-end
-function Base.unsafe_copy!{T}(a::Vector{T}, readoffset::Int, b::GLBuffer{T}, writeoffset::Int, len::Int)
-    bind(b)
-    ptr = Ptr{T}(glMapBuffer(b.buffertype, GL_WRITE_ONLY))
-    for i=1:len
-        unsafe_store!(ptr, a[i+readoffset-1], i+writeoffset-1)
-    end
-    glUnmapBuffer(b.buffertype)
-    bind(b,0)
-end
-function Base.unsafe_copy!{T}(a::GLBuffer{T}, readoffset::Int, b::Vector{T}, writeoffset::Int, len::Int)
-    bind(a)
-    ptr = Ptr{T}(glMapBuffer(a.buffertype, GL_READ_ONLY))
-    for i=1:len
-        b[i+writeoffset-1] = unsafe_load(ptr, i+readoffset-2) #-2 => -1 to zero offset, -1 gl indexing starts at 0
-    end
-    glUnmapBuffer(a.buffertype)
-    bind(a,0)
-end
-
-function gpu_getindex{T}(b::GLBuffer{T}, range::UnitRange)
-    multiplicator = sizeof(T)
-    offset        = first(range)-1
-    value         = Vector{T}(length(range))
-    bind(b)
-    glGetBufferSubData(b.buffertype, multiplicator*offset, sizeof(value), value)
-    bind(b, 0)
-    value
+    bind(buffer, 0)
+    buffer
 end

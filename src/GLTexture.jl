@@ -6,26 +6,24 @@ immutable TextureParameters{NDim}
     swizzle_mask::Vector{GLenum}
 end
 
-abstract type OpenglTexture{T, NDIM} <: GPUArray{T, NDIM} end
-
-type Texture{T <: GLArrayEltypes, NDIM} <: OpenglTexture{T, NDIM}
+type Texture{T <: GLArrayEltypes, N} <: GLMemory{T, N}
     id              ::GLuint
     texturetype     ::GLenum
     pixeltype       ::GLenum
     internalformat  ::GLenum
     format          ::GLenum
-    parameters      ::TextureParameters{NDIM}
-    size            ::NTuple{NDIM, Int}
+    parameters      ::TextureParameters{N}
+    size            ::NTuple{N, Int}
     context         ::GLContext
-    function Texture{T, NDIM}(
+    function Texture{T, N}(
             id              ::GLuint,
             texturetype     ::GLenum,
             pixeltype       ::GLenum,
             internalformat  ::GLenum,
             format          ::GLenum,
-            parameters      ::TextureParameters{NDIM},
-            size            ::NTuple{NDIM, Int}
-        )  where {T, NDIM}
+            parameters      ::TextureParameters{N},
+            size            ::NTuple{N, Int}
+        )  where {T, N}
         tex = new(
             id,
             texturetype,
@@ -41,14 +39,7 @@ type Texture{T <: GLArrayEltypes, NDIM} <: OpenglTexture{T, NDIM}
     end
 end
 
-# for bufferSampler, aka Texture Buffer
-type TextureBuffer{T <: GLArrayEltypes} <: OpenglTexture{T, 1}
-    texture::Texture{T, 1}
-    buffer::GLBuffer{T}
-end
-Base.size(t::TextureBuffer) = size(t.buffer)
-Base.size(t::TextureBuffer, i::Integer) = size(t.buffer, i)
-Base.length(t::TextureBuffer) = length(t.buffer)
+
 bind(t::Texture) = glBindTexture(t.texturetype, t.id)
 bind(t::Texture, id) = glBindTexture(t.texturetype, id)
 
@@ -157,30 +148,6 @@ end
 
 
 
-function TextureBuffer{T <: GLArrayEltypes}(buffer::GLBuffer{T})
-    texture_type = GL_TEXTURE_BUFFER
-    id = glGenTextures()
-    glBindTexture(texture_type, id)
-    internalformat = default_internalcolorformat(T)
-    glTexBuffer(texture_type, internalformat, buffer.id)
-    tex = Texture{T, 1}(
-        id, texture_type, julia2glenum(T), internalformat,
-        default_colorformat(T), TextureParameters(T, 1),
-        size(buffer)
-    )
-    TextureBuffer(tex, buffer)
-end
-function TextureBuffer{T <: GLArrayEltypes}(buffer::Vector{T})
-    buff = GLBuffer(buffer, buffertype = GL_TEXTURE_BUFFER, usage = GL_DYNAMIC_DRAW)
-    TextureBuffer(buff)
-end
-
-function TextureBuffer{T <: GLArrayEltypes}(s::Signal{Vector{T}})
-    tb = TextureBuffer(Reactive.value(s))
-    Reactive.preserve(const_lift(update!, tb, s))
-    tb
-end
-
 #=
 Some special treatmend for types, with alpha in the First place
 
@@ -201,7 +168,7 @@ Creates a texture from an Image
 #end
 
 
-GeometryTypes.width(t::Texture)  = size(t, 1)
+GeometryTypes.width(t::Texture) = size(t, 1)
 GeometryTypes.height(t::Texture) = size(t, 2)
 depth(t::Texture)  = size(t, 3)
 
@@ -214,7 +181,7 @@ function Base.show{T,D}(io::IO, t::Texture{T,D})
     println(io, "Texture$(D)D: ")
     println(io, "                  ID: ", t.id)
     println(io, "                Size: ", reduce("Dimensions: ", size(t)) do v0, v1
-        v0*"x"*string(v1)
+        v0 * "x" * string(v1)
     end)
     println(io, "    Julia pixel type: ", T)
     println(io, "   OpenGL pixel type: ", GLENUM(t.pixeltype).name)
@@ -224,61 +191,88 @@ function Base.show{T,D}(io::IO, t::Texture{T,D})
 end
 
 
-# GPUArray interface:
-function Base.unsafe_copy!{T}(a::Vector{T}, readoffset::Int, b::TextureBuffer{T}, writeoffset::Int, len::Int)
-    copy!(a, readoffset, b.buffer, writeoffset, len)
-    glBindTexture(b.texture.texturetype, b.texture.id)
-    glTexBuffer(b.texture.texturetype, b.texture.internalformat, b.buffer.id) # update texture
-end
-
-function Base.unsafe_copy!{T}(a::TextureBuffer{T}, readoffset::Int, b::Vector{T}, writeoffset::Int, len::Int)
-    copy!(a.buffer, readoffset, b, writeoffset, len)
-    glBindTexture(a.texture.texturetype, a.texture.id)
-    glTexBuffer(a.texture.texturetype, a.texture.internalformat, a.buffer.id) # update texture
-end
-function Base.unsafe_copy!{T}(a::TextureBuffer{T}, readoffset::Int, b::TextureBuffer{T}, writeoffset::Int, len::Int)
-    unsafe_copy!(a.buffer, readoffset, b.buffer, writeoffset, len)
-
-    glBindTexture(a.texture.texturetype, a.texture.id)
-    glTexBuffer(a.texture.texturetype, a.texture.internalformat, a.buffer.id) # update texture
-
-    glBindTexture(b.texture.texturetype, btexture..id)
-    glTexBuffer(b.texture.texturetype, b.texture.internalformat, b.buffer.id) # update texture
-    glBindTexture(t.texture.texturetype, 0)
-end
-function gpu_setindex!{T, I <: Integer}(t::TextureBuffer{T}, newvalue::Vector{T}, indexes::UnitRange{I})
-    glBindTexture(t.texture.texturetype, t.texture.id)
-    t.buffer[indexes] = newvalue # set buffer indexes
-    glTexBuffer(t.texture.texturetype, t.texture.internalformat, t.buffer.id) # update texture
-    glBindTexture(t.texture.texturetype, 0)
-end
-function gpu_setindex!{T, I <: Integer}(t::Texture{T, 1}, newvalue::Array{T, 1}, indexes::UnitRange{I})
-    glBindTexture(t.texturetype, t.id)
-    texsubimage(t, newvalue, indexes)
-    glBindTexture(t.texturetype, 0)
-end
-function gpu_setindex!{T, N}(t::Texture{T, N}, newvalue::Array{T, N}, indexes::Union{UnitRange,Integer}...)
-    glBindTexture(t.texturetype, t.id)
-    texsubimage(t, newvalue, indexes...)
-    glBindTexture(t.texturetype, 0)
-end
 
 
-function gpu_setindex!{T}(target::Texture{T, 2}, source::Texture{T, 2}, fbo=glGenFramebuffers())
-    glBindFramebuffer(GL_FRAMEBUFFER, fbo);
-    glFramebufferTexture2D(GL_READ_FRAMEBUFFER, GL_COLOR_ATTACHMENT0,
-                           GL_TEXTURE_2D, source.id, 0);
-    glFramebufferTexture2D(GL_DRAW_FRAMEBUFFER, GL_COLOR_ATTACHMENT1,
-                           GL_TEXTURE_2D, target.id, 0);
-    glDrawBuffer(GL_COLOR_ATTACHMENT1);
-    w, h = map(minimum, zip(size(target), size(source)))
-    glBlitFramebuffer(0, 0, w, h, 0, 0, w, h,
-                      GL_COLOR_BUFFER_BIT, GL_NEAREST)
+@compat const CartesianNRange{N} = CartesianRange{CartesianIndex{N}}
+
+function copy!{T, N}(dest::Array{T, N}, source::Texture{T, N})
+    if length(dest) != length(source)
+        # Should be bounds error, but isn't flexible enough
+        throw(ArgumentError(string("tried to copy ", length(source), " elements, destination can only hold: ", length(dest))))
+    end
+    bind(source)
+    glGetTexImage(source.texturetype, 0, source.format, source.pixeltype, dest)
+    bind(source, 0)
+    dest
 end
 
+function copy!{T, N}(
+        dest::Texture{T, N}, dest_range::CartesianNRange{N},
+        src::Array{T, N}, src_range::CartesianNRange{N},
+    )
+    bind(dest)
+    dstart, dstop = dest_range.start, dest_range.stop
+    sstart, sstop = src_range.start, src_range.stop
+    dindexes = ntuple(Val{N}) do i
+        dstart[i]:dstop[i]
+    end
+    sindexes = ntuple(Val{N}) do i
+        sstart[i]:sstop[i]
+    end
+    checkbounds(dest, dindexes...)
+    checkbounds(src, sstart)
+    checkbounds(src, sstop)
+    arr = src[sindexes...] # get offseted pointer
+    texsubimage(dest, arr, dindexes...)
+    bind(dest, 0)
+    dest
+end
 
+function copy!{T}(
+        dest::Texture{T, 2}, dest_range::CartesianNRange{2},
+        src::Texture{T, 2}, src_range::CartesianNRange{2},
+        fbo = glGenFramebuffers()
+    )
+
+    dstart, dstop = dest_range.start, dest_range.stop
+    sstart, sstop = src_range.start, src_range.stop
+    checkbounds(dest, dstart); checkbounds(dest, dstop)
+    checkbounds(src, sstart); checkbounds(src, sstop)
+
+    glBindFramebuffer(GL_FRAMEBUFFER, fbo)
+    glFramebufferTexture2D(
+        GL_READ_FRAMEBUFFER, GL_COLOR_ATTACHMENT0,
+        GL_TEXTURE_2D, src.id, 0
+    )
+    glFramebufferTexture2D(
+        GL_DRAW_FRAMEBUFFER, GL_COLOR_ATTACHMENT1,
+        GL_TEXTURE_2D, dest.id, 0
+    )
+    glDrawBuffer(GL_COLOR_ATTACHMENT1)
+
+    glBlitFramebuffer(
+        (sstart - 1).I..., (sstop).I...,
+        (dstart - 1).I..., (dstop).I...,
+        GL_COLOR_BUFFER_BIT, GL_NEAREST
+    )
+    dest
+end
+
+function Base.copy!{ET, ND}(
+        dest::Texture{ET, ND},
+        src::GLBuffer{ET},
+    )
+    glBindBuffer(GL_PIXEL_UNPACK_BUFFER, src.id)
+    # Select the appropriate texture
+    bind(dest)
+    glTexSubImage(dest, 0, length(src), C_NULL)
+    glBindBuffer(GL_PIXEL_UNPACK_BUFFER, 0)
+    bind(dest, 0)
+    dest
+end
 
 #=
+# this nicer version needs opengl 4.3 LOL
 function gpu_setindex!{T}(target::Texture{T, 2}, source::Texture{T, 2}, fbo=glGenFramebuffers())
     w, h = map(minimum, zip(size(target), size(source)))
     glCopyImageSubData( source.id, source.texturetype,
@@ -288,29 +282,11 @@ function gpu_setindex!{T}(target::Texture{T, 2}, source::Texture{T, 2}, fbo=glGe
 end
 =#
 # Implementing the GPUArray interface
-function gpu_data{T, ND}(t::Texture{T, ND})
-    result = Array(T, size(t))
-    unsafe_copy!(result, t)
-    return result
-end
-
-function Base.unsafe_copy!{T,N}(dest::Array{T, N}, source::Texture{T, N})
-    bind(source)
-    glGetTexImage(source.texturetype, 0, source.format, source.pixeltype, dest)
-    bind(source, 0)
-    nothing
-end
-
-gpu_data{T}(t::TextureBuffer{T}) = gpu_data(t.buffer)
-gpu_getindex{T}(t::TextureBuffer{T}, i::UnitRange{Int64}) = t.buffer[i]
 
 
 
 similar{T, NDim}(t::Texture{T, NDim}, newdims::Int...) = similar(t, newdims)
-function similar{T}(t::TextureBuffer{T}, newdims::NTuple{1, Int})
-    buff = similar(t.buffer, newdims...)
-    return TextureBuffer(buff)
-end
+
 function similar{T, NDim}(t::Texture{T, NDim}, newdims::NTuple{NDim, Int})
     Texture(
         Ptr{T}(C_NULL),
@@ -322,54 +298,32 @@ function similar{T, NDim}(t::Texture{T, NDim}, newdims::NTuple{NDim, Int})
     )
 end
 # Resize Texture
-function gpu_resize!{T}(t::TextureBuffer{T}, newdims::NTuple{1, Int})
-    resize!(t.buffer, newdims)
-    glBindTexture(t.texture.texturetype, t.texture.id)
-    glTexBuffer(t.texture.texturetype, t.texture.internalformat, t.buffer.id) #update data in texture
-    t.texture.size  = newdims
-    glBindTexture(t.texture.texturetype, 0)
-    t
-end
-# Resize Texture
-function gpu_resize!{T, ND}(t::Texture{T, ND}, newdims::NTuple{ND, Int})
-    # dangerous code right here...Better write a few tests for this
-    newtex   = similar(t, newdims)
-    old_size = size(t)
-    gpu_setindex!(newtex, t)
-    t.size   = newdims
-    free(t)
-    t.id     = newtex.id
-    return t
-end
 
-texsubimage{T}(t::Texture{T, 1}, newvalue::Array{T, 1}, xrange::UnitRange, level=0) = glTexSubImage1D(
-    t.texturetype, level, first(xrange)-1, length(xrange), t.format, t.pixeltype, newvalue
-)
-function texsubimage{T}(t::Texture{T, 2}, newvalue::Array{T, 2}, xrange::UnitRange, yrange::UnitRange, level=0)
+
+function texsubimage{T}(t::Texture{T, 1}, newvalue::Union{Array{T, 1}, Ref{T}}, xrange::UnitRange, level = 0)
+    glTexSubImage1D(
+        t.texturetype, level, first(xrange)-1, length(xrange),
+        t.format, t.pixeltype, newvalue
+    )
+end
+function texsubimage{T}(t::Texture{T, 2}, newvalue::Union{Array{T, 2}, Ref{T}}, xrange::UnitRange, yrange::UnitRange, level=0)
     glTexSubImage2D(
         t.texturetype, level,
         first(xrange)-1, first(yrange)-1, length(xrange), length(yrange),
         t.format, t.pixeltype, newvalue
     )
 end
-texsubimage{T}(t::Texture{T, 3}, newvalue::Array{T, 3}, xrange::UnitRange, yrange::UnitRange, zrange::UnitRange, level=0) = glTexSubImage3D(
-    t.texturetype, level,
-    first(xrange)-1, first(yrange)-1, first(zrange)-1, length(xrange), length(yrange), length(zrange),
-    t.format, t.pixeltype, newvalue
-)
-
-
-Base.start{T}(t::TextureBuffer{T}) = start(t.buffer)
-Base.next{T}(t::TextureBuffer{T}, state::Tuple{Ptr{T}, Int}) = next(t.buffer, state)
-function Base.done{T}(t::TextureBuffer{T}, state::Tuple{Ptr{T}, Int})
-    isdone = done(t.buffer, state)
-    if isdone
-        glBindTexture(t.texturetype, t.id)
-        glTexBuffer(t.texturetype, t.internalformat, t.buffer.id)
-        glBindTexture(t.texturetype, 0)
-    end
-    isdone
+function texsubimage{T}(
+        t::Texture{T, 3}, newvalue::Union{Array{T, 3}, Ref{T}},
+        xrange::UnitRange, yrange::UnitRange, zrange::UnitRange, level = 0
+    )
+    glTexSubImage3D(
+        t.texturetype, level,
+        first(xrange)-1, first(yrange)-1, first(zrange)-1, length(xrange), length(yrange), length(zrange),
+        t.format, t.pixeltype, newvalue
+    )
 end
+
 
 @generated function default_colorformat{T}(::Type{T})
     sym = default_colorformat_sym(T)
@@ -517,4 +471,91 @@ function set_parameters(t::Texture, parameters::Vector{Tuple{GLenum, Any}})
         texparameter(t, elem...)
     end
     bind(t, 0)
+end
+
+
+
+# for bufferSampler, aka Texture Buffer
+type TextureBuffer{T <: GLArrayEltypes}
+    texture::Texture{T, 1}
+    buffer::GLBuffer{T}
+end
+
+Base.size(t::TextureBuffer) = size(t.buffer)
+Base.size(t::TextureBuffer, i::Integer) = size(t.buffer, i)
+Base.length(t::TextureBuffer) = length(t.buffer)
+
+function TextureBuffer{T <: GLArrayEltypes}(buffer::GLBuffer{T})
+    texture_type = GL_TEXTURE_BUFFER
+    id = glGenTextures()
+    glBindTexture(texture_type, id)
+    internalformat = default_internalcolorformat(T)
+    glTexBuffer(texture_type, internalformat, buffer.id)
+    tex = Texture{T, 1}(
+        id, texture_type, julia2glenum(T), internalformat,
+        default_colorformat(T), TextureParameters(T, 1),
+        size(buffer)
+    )
+    TextureBuffer(tex, buffer)
+end
+function TextureBuffer{T <: GLArrayEltypes}(buffer::Vector{T})
+    buff = GLBuffer(buffer, buffertype = GL_TEXTURE_BUFFER, usage = GL_DYNAMIC_DRAW)
+    TextureBuffer(buff)
+end
+
+function TextureBuffer{T <: GLArrayEltypes}(s::Signal{Vector{T}})
+    tb = TextureBuffer(Reactive.value(s))
+    Reactive.preserve(const_lift(update!, tb, s))
+    tb
+end
+function similar{T}(t::TextureBuffer{T}, newdims::NTuple{1, Int})
+    buff = similar(t.buffer, newdims...)
+    return TextureBuffer(buff)
+end
+function gpu_resize!{T}(t::TextureBuffer{T}, newdims::NTuple{1, Int})
+    resize!(t.buffer, newdims)
+    glBindTexture(t.texture.texturetype, t.texture.id)
+    glTexBuffer(t.texture.texturetype, t.texture.internalformat, t.buffer.id) #update data in texture
+    t.texture.size  = newdims
+    glBindTexture(t.texture.texturetype, 0)
+    t
+end
+
+Base.start{T}(t::TextureBuffer{T}) = start(t.buffer)
+Base.next{T}(t::TextureBuffer{T}, state::Tuple{Ptr{T}, Int}) = next(t.buffer, state)
+function Base.done{T}(t::TextureBuffer{T}, state::Tuple{Ptr{T}, Int})
+    isdone = done(t.buffer, state)
+    if isdone
+        glBindTexture(t.texturetype, t.id)
+        glTexBuffer(t.texturetype, t.internalformat, t.buffer.id)
+        glBindTexture(t.texturetype, 0)
+    end
+    isdone
+end
+function copy!{T}(a::Vector{T}, readoffset::Int, b::TextureBuffer{T}, writeoffset::Int, len::Int)
+    copy!(a, readoffset, b.buffer, writeoffset, len)
+    glBindTexture(b.texture.texturetype, b.texture.id)
+    glTexBuffer(b.texture.texturetype, b.texture.internalformat, b.buffer.id) # update texture
+end
+
+function copy!{T}(a::TextureBuffer{T}, readoffset::Int, b::Vector{T}, writeoffset::Int, len::Int)
+    copy!(a.buffer, readoffset, b, writeoffset, len)
+    glBindTexture(a.texture.texturetype, a.texture.id)
+    glTexBuffer(a.texture.texturetype, a.texture.internalformat, a.buffer.id) # update texture
+end
+function copy!{T}(a::TextureBuffer{T}, readoffset::Int, b::TextureBuffer{T}, writeoffset::Int, len::Int)
+    unsafe_copy!(a.buffer, readoffset, b.buffer, writeoffset, len)
+
+    glBindTexture(a.texture.texturetype, a.texture.id)
+    glTexBuffer(a.texture.texturetype, a.texture.internalformat, a.buffer.id) # update texture
+
+    glBindTexture(b.texture.texturetype, btexture..id)
+    glTexBuffer(b.texture.texturetype, b.texture.internalformat, b.buffer.id) # update texture
+    glBindTexture(t.texture.texturetype, 0)
+end
+function gpu_setindex!{T, I <: Integer}(t::TextureBuffer{T}, newvalue::Vector{T}, indexes::UnitRange{I})
+    glBindTexture(t.texture.texturetype, t.texture.id)
+    t.buffer[indexes] = newvalue # set buffer indexes
+    glTexBuffer(t.texture.texturetype, t.texture.internalformat, t.buffer.id) # update texture
+    glBindTexture(t.texture.texturetype, 0)
 end

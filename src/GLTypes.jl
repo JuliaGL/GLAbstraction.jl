@@ -1,4 +1,15 @@
 ############################################################################
+
+abstract type GLMemory{T, N} <: DenseArray{T, N} end
+
+length(A::GLMemory)                   = prod(size(A))
+eltype{T, NDim}(b::GLMemory{T, NDim}) = T
+endof(A::GLMemory)                    = length(A)
+ndims{T, NDim}(A::GLMemory{T, NDim})  = NDim
+size(A::GLMemory)                     = A.size
+size(A::GLMemory, i::Integer)         = i <= ndims(A) ? A.size[i] : 1
+
+
 @compat const TOrSignal{T} = Union{Signal{T}, T}
 
 @compat const ArrayOrSignal{T, N} = TOrSignal{Array{T, N}}
@@ -6,7 +17,7 @@
 @compat const MatOrSignal{T} = ArrayOrSignal{T, 2}
 @compat const VolumeOrSignal{T} = ArrayOrSignal{T, 3}
 
-@compat const ArrayTypes{T, N} = Union{GPUArray{T, N}, ArrayOrSignal{T,N}}
+@compat const ArrayTypes{T, N} = Union{ArrayOrSignal{T,N}}
 @compat const VecTypes{T} = ArrayTypes{T, 1}
 @compat const MatTypes{T} = ArrayTypes{T, 2}
 @compat const VolumeTypes{T} = ArrayTypes{T, 3}
@@ -31,14 +42,22 @@ In the future, this should probably be part of GLWindow.
 =#
 begin
     local const context = Ref(:none)
+    local const window2context = Dict{WeakRef, GLContext}()
+    function getcontext(window::GLFW.Window)
+        weak_window = WeakRef(window)
+        !haskey(window2context, weak_window) && error("Window not found. Closed?")
+        window2context[weak_window]
+    end
     function current_context()
         context[]
     end
     function is_current_context(x)
         x == context[]
     end
-    function new_context()
-        context[] = gensym()
+    function new_context(window::GLFW.Window)
+        unique_identity = gensym()
+        window2context[WeakRef(window)] = unique_identity
+        context[] = unique_identity
     end
 end
 

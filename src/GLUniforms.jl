@@ -7,7 +7,7 @@ GLSL_COMPATIBLE_NUMBER_TYPES = (GLfloat, GLint, GLuint, GLdouble)
 const NATIVE_TYPES = Union{
     StaticArray, GLSL_COMPATIBLE_NUMBER_TYPES...,
     ZeroIndex{GLint}, ZeroIndex{GLuint},
-    GLBuffer, GPUArray, Shader, GLProgram, NativeMesh
+    GLBuffer, Shader, GLProgram, NativeMesh
 }
 
 opengl_prefix(T)  = error("Object $T is not a supported uniform element type")
@@ -60,7 +60,7 @@ end
 
 #Some additional uniform functions, not related to Imutable Arrays
 gluniform(location::Integer, target::Integer, t::Texture)   = gluniform(GLint(location), GLint(target), t)
-gluniform(location::Integer, target::Integer, t::GPUVector) = gluniform(GLint(location), GLint(target), t.buffer)
+# gluniform(location::Integer, target::Integer, t::GPUVector) = gluniform(GLint(location), GLint(target), t.buffer)
 gluniform(location::Integer, target::Integer, t::Signal)    = gluniform(GLint(location), GLint(target), t.value)
 gluniform(location::Integer, target::Integer, t::TextureBuffer) = gluniform(GLint(location), GLint(target), t.texture)
 function gluniform(location::GLint, target::GLint, t::Texture)
@@ -115,7 +115,7 @@ function toglsltype_string{T}(x::T)
         error("can't splice $T into an OpenGL shader. Make sure all fields are of a concrete type and isbits(FieldType)-->true")
     end
 end
-toglsltype_string{T}(t::Union{GLBuffer{T}, GPUVector{T}}) = string("in ", glsl_typename(T))
+#toglsltype_string{T}(t::Union{GLBuffer{T}, GPUVector{T}}) = string("in ", glsl_typename(T))
 # Gets used to access a
 function glsl_variable_access{T,D}(keystring, t::Texture{T, D})
     fields = SubString("rgba", 1, length(T))
@@ -124,9 +124,9 @@ function glsl_variable_access{T,D}(keystring, t::Texture{T, D})
     end
     return string("getindex(", keystring, "index).", fields, ";")
 end
-function glsl_variable_access(keystring, ::Union{Real, GLBuffer, GPUVector, StaticArray, Colorant})
-    string(keystring, ";")
-end
+# function glsl_variable_access(keystring, ::Union{Real, GLBuffer, GPUVector, StaticArray, Colorant})
+#     string(keystring, ";")
+# end
 function glsl_variable_access(keystring, s::Signal)
     glsl_variable_access(keystring, s.value)
 end
@@ -233,17 +233,18 @@ gl_convert{N, M, T}(x::SMatrix{N, M, T}) = map(gl_promote(T), x)
 
 gl_convert{T <: Face}(a::Vector{T}) = indexbuffer(s)
 gl_convert{T <: NATIVE_TYPES}(::Type{T}, a::NATIVE_TYPES; kw_args...) = a
-function gl_convert{T <: GPUArray, X, N}(::Type{T}, a::Array{X, N}; kw_args...)
-    T(map(gl_promote(X), a); kw_args...)
-end
+# function gl_convert{T <: GPUArray, X, N}(::Type{T}, a::Array{X, N}; kw_args...)
+#     T(map(gl_promote(X), a); kw_args...)
+# end
+# function gl_convert{T <: GPUArray, X, N}(::Type{T}, a::Signal{Array{X, N}}; kw_args...)
+#     TGL = gl_promote(X)
+#     s = (X == TGL) ? a : const_lift(map, TGL, a)
+#     T(s; kw_args...)
+# end
 function gl_convert{T <: Texture, X}(::Type{T}, a::Vector{Array{X, 2}}; kw_args...)
     T(a; kw_args...)
 end
 
-function gl_convert{T <: GPUArray, X, N}(::Type{T}, a::Signal{Array{X, N}}; kw_args...)
-    TGL = gl_promote(X)
-    s = (X == TGL) ? a : const_lift(map, TGL, a)
-    T(s; kw_args...)
-end
+
 
 gl_convert(f::Function, a) = f(a)

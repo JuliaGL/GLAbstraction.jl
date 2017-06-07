@@ -49,9 +49,9 @@ function set_arg!(robj::Vector, sym, value)
     nothing
 end
 
-function set_arg!(robj::RenderObject, sym, to_update::GPUArray, value)
-    update!(to_update, value)
-end
+# function set_arg!(robj::RenderObject, sym, to_update::GPUArray, value)
+#     update!(to_update, value)
+# end
 function set_arg!(robj::RenderObject, sym, to_update, value)
     robj[sym] = value
 end
