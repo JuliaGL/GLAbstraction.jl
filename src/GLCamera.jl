@@ -230,7 +230,7 @@ end
 
 export doubleclick
 function default_camera_control(
-        inputs, rotation_speed, translation_speed, keep=Signal(true)
+        inputs, rotation_speed, translation_speed, keep = Signal(true)
     )
     @materialize mouseposition, mouse_buttons_pressed, scroll = inputs
 
@@ -488,7 +488,7 @@ function PerspectiveCamera{T<:Vec3}(
         theta_v == Vec3f0(0) && return nothing #nothing to do!
         eyepos_v, lookat_v, up_v = map(value, positions)
 
-        dir = normalize(eyepos_v-lookat_v)
+        dir = normalize(eyepos_v - lookat_v)
         right_v = normalize(cross(up_v, dir))
         up_v  = normalize(cross(dir, right_v))
 
