@@ -195,10 +195,15 @@ end
 
 @compat const CartesianNRange{N} = CartesianRange{CartesianIndex{N}}
 
-function copy!{T, N}(dest::Array{T, N}, source::Texture{T, N})
-    if length(dest) != length(source)
-        # Should be bounds error, but isn't flexible enough
-        throw(ArgumentError(string("tried to copy ", length(source), " elements, destination can only hold: ", length(dest))))
+function copy!{T, N}(
+        dest::Array{T}, d_offset::Integer,
+        source::Texture{T, N}, s_offset::Integer, amount::Integer
+    )
+    if !(
+            d_offset == 1 && s_offset == 1 &&
+            amount == length(dest) && amount == length(source)
+        )
+        throw(ArgumentError(string("Texture can only be fully transfered to host")))
     end
     bind(source)
     glGetTexImage(source.texturetype, 0, source.format, source.pixeltype, dest)
@@ -207,10 +212,25 @@ function copy!{T, N}(dest::Array{T, N}, source::Texture{T, N})
 end
 
 function copy!{T, N}(
+        dest::Texture{T, N}, d_offset::Integer,
+        src::Array{T}, s_offset::Integer, amount::Integer
+    )
+    if amount != length(dest) && d_offset != 1
+        # TODO allow rectangular copies
+        error("Linear memory transfer for $N D Texture must map whole array")
+    end
+    ranges = ntuple(Val{N}) do i
+        1:size(dest, i)
+    end
+    bind(dest)
+    texsubimage(dest, Ref(src, s_offset), ranges...)
+    bind(dest, 0)
+    dest
+end
+function copy!{T, N}(
         dest::Texture{T, N}, dest_range::CartesianNRange{N},
         src::Array{T, N}, src_range::CartesianNRange{N},
     )
-    bind(dest)
     dstart, dstop = dest_range.start, dest_range.stop
     sstart, sstop = src_range.start, src_range.stop
     dindexes = ntuple(Val{N}) do i
@@ -223,6 +243,7 @@ function copy!{T, N}(
     checkbounds(src, sstart)
     checkbounds(src, sstop)
     arr = src[sindexes...] # get offseted pointer
+    bind(dest)
     texsubimage(dest, arr, dindexes...)
     bind(dest, 0)
     dest

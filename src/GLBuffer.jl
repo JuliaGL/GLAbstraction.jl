@@ -119,17 +119,13 @@ function check_copy_bounds(
 end
 
 
-function copy!{T}(
-        dest::GLBuffer{T}, d_range::CartesianRange{CartesianIndex{1}},
-        src::Vector{T}, s_range::CartesianRange{CartesianIndex{1}},
+
+
+function copy!{T, N}(
+        dest::GLBuffer{T}, d_offset::Integer,
+        src::Array{T, N}, s_offset::Integer, amount::Integer
     )
-    amount = length(d_range)
-    if length(s_range) != amount
-        throw(ArgumentError("Copy range needs same length. Found: dest: $amount, src: $(length(s_range))"))
-    end
     amount == 0 && return dest
-    d_offset = first(d_range)[1]
-    s_offset = first(s_range)[1]
     check_copy_bounds(dest, d_offset, src, s_offset, amount)
     multiplicator = sizeof(T)
     nsz = multiplicator * amount
@@ -138,27 +134,11 @@ function copy!{T}(
     bind(dest, 0)
 end
 
-# function copy!{T}(a::Vector{T}, readoffset::Int, b::GLBuffer{T}, writeoffset::Int, len::Int)
-#     bind(b)
-#     ptr = Ptr{T}(glMapBuffer(b.buffertype, GL_WRITE_ONLY))
-#     for i=1:len
-#         unsafe_store!(ptr, a[i+readoffset-1], i+writeoffset-1)
-#     end
-#     glUnmapBuffer(b.buffertype)
-#     bind(b,0)
-# end
-
-function copy!{T}(
-        dest::Vector{T}, d_range::CartesianRange{CartesianIndex{1}},
-        src::GLBuffer{T}, s_range::CartesianRange{CartesianIndex{1}},
+function copy!{T, N}(
+        dest::Array{T, N}, d_offset::Integer,
+        src::GLBuffer{T}, s_offset::Integer, amount::Integer
     )
-    amount = length(d_range)
-    if length(s_range) != amount
-        throw(ArgumentError("Copy range needs same length. Found: dest: $amount, src: $(length(s_range))"))
-    end
     amount == 0 && return dest
-    d_offset = first(d_range)[1]
-    s_offset = first(s_range)[1]
     check_copy_bounds(dest, d_offset, src, s_offset, amount)
     multiplicator = sizeof(T)
     nsz = multiplicator * amount
@@ -174,20 +154,13 @@ end
 
 # copy between two buffers
 function copy!{T}(
-        dest::GLBuffer{T}, d_range::CartesianRange{CartesianIndex{1}},
-        src::GLBuffer{T}, s_range::CartesianRange{CartesianIndex{1}}
+        dest::GLBuffer{T}, d_offset::Integer,
+        src::GLBuffer{T}, s_offset::Integer, amount::Integer
     )
-    amount = length(d_range)
-    if length(s_range) != amount
-        throw(ArgumentError("Copy range needs same length. Found: dest: $amount, src: $(length(s_range))"))
-    end
     amount == 0 && return dest
-    d_offset = first(d_range)[1]
-    s_offset = first(s_range)[1]
     check_copy_bounds(dest, d_offset, src, s_offset, amount)
     multiplicator = sizeof(T)
     nsz = multiplicator * amount
-
     glBindBuffer(GL_COPY_READ_BUFFER, src.id)
     glBindBuffer(GL_COPY_WRITE_BUFFER, dest.id)
     glCopyBufferSubData(
