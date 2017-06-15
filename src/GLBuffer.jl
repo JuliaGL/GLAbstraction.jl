@@ -30,6 +30,16 @@ end
 bind(buffer::GLBuffer) = glBindBuffer(buffer.buffertype, buffer.id)
 #used to reset buffer target
 bind(buffer::GLBuffer, other_target) = glBindBuffer(buffer.buffertype, other_target)
+function bind(f::Function, buffer::GLBuffer)
+    bind(buffer)
+    try
+        f()
+    catch e
+        rethrow(e)
+    finally
+        bind(buffer, 0)
+    end
+end
 
 function similar{T}(::Type{GLBuffer{T}}, buff_length::Int)
     GLBuffer{T}(Ptr{T}(C_NULL), buff_length, x.buffertype, x.usage)
