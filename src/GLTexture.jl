@@ -286,7 +286,7 @@ function Base.copy!{ET, ND}(
     glBindBuffer(GL_PIXEL_UNPACK_BUFFER, src.id)
     # Select the appropriate texture
     bind(dest)
-    glTexSubImage(dest, 0, length(src), C_NULL)
+    texsubimage(dest, Ptr{ET}(C_NULL), ntuple(i-> 1:size(dest, i), Val{ND})...)
     glBindBuffer(GL_PIXEL_UNPACK_BUFFER, 0)
     bind(dest, 0)
     dest
