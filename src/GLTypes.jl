@@ -43,7 +43,7 @@ In the future, this should probably be part of GLWindow.
 begin
     local const context = Ref(:none)
     local const window2context = Dict{WeakRef, GLContext}()
-    function getcontext(window::GLFW.Window)
+    function getcontext(window)
         weak_window = WeakRef(window)
         !haskey(window2context, weak_window) && error("Window not found. Closed?")
         window2context[weak_window]
@@ -54,10 +54,19 @@ begin
     function is_current_context(x)
         x == context[]
     end
-    function new_context(window::GLFW.Window)
+    function new_context(window)
         unique_identity = gensym()
         window2context[WeakRef(window)] = unique_identity
         context[] = unique_identity
+    end
+    function make_context_current(window)
+        weak_window = WeakRef(window)
+        if !haskey(window2context, weak_window)
+            new_context(window)
+        else
+            ctx = window2context[weak_window]
+            context[] = ctx
+        end
     end
 end
 
