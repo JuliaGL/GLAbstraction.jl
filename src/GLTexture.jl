@@ -6,7 +6,7 @@ immutable TextureParameters{NDim}
     swizzle_mask::Vector{GLenum}
 end
 
-abstract OpenglTexture{T, NDIM} <: GPUArray{T, NDIM}
+abstract type OpenglTexture{T, NDIM} <: GPUArray{T, NDIM} end
 
 type Texture{T <: GLArrayEltypes, NDIM} <: OpenglTexture{T, NDIM}
     id              ::GLuint
@@ -17,7 +17,7 @@ type Texture{T <: GLArrayEltypes, NDIM} <: OpenglTexture{T, NDIM}
     parameters      ::TextureParameters{NDIM}
     size            ::NTuple{NDIM, Int}
     context         ::GLContext
-    function Texture(
+    function Texture{T, NDIM}(
             id              ::GLuint,
             texturetype     ::GLenum,
             pixeltype       ::GLenum,
@@ -25,7 +25,7 @@ type Texture{T <: GLArrayEltypes, NDIM} <: OpenglTexture{T, NDIM}
             format          ::GLenum,
             parameters      ::TextureParameters{NDIM},
             size            ::NTuple{NDIM, Int}
-        )
+        )  where {T, NDIM}
         tex = new(
             id,
             texturetype,
@@ -43,8 +43,8 @@ end
 
 # for bufferSampler, aka Texture Buffer
 type TextureBuffer{T <: GLArrayEltypes} <: OpenglTexture{T, 1}
-    texture ::Texture{T, 1}
-    buffer  ::GLBuffer{T}
+    texture::Texture{T, 1}
+    buffer::GLBuffer{T}
 end
 Base.size(t::TextureBuffer) = size(t.buffer)
 Base.size(t::TextureBuffer, i::Integer) = size(t.buffer, i)
@@ -176,7 +176,7 @@ function TextureBuffer{T <: GLArrayEltypes}(buffer::Vector{T})
 end
 
 function TextureBuffer{T <: GLArrayEltypes}(s::Signal{Vector{T}})
-    tb = TextureBuffer(value(s))
+    tb = TextureBuffer(Reactive.value(s))
     Reactive.preserve(const_lift(update!, tb, s))
     tb
 end
@@ -385,11 +385,12 @@ function default_colorformat_sym(colordim::Integer, isinteger::Bool, colororder:
     sym *= color * integer
     return Symbol(sym)
 end
+using Compat.TypeUtils
 
 default_colorformat_sym{T <: Real}(::Type{T})           = default_colorformat_sym(1, T <: Integer, "RED")
 default_colorformat_sym{T <: AbstractArray}(::Type{T})  = default_colorformat_sym(cardinality(T), eltype(T) <: Integer, "RGBA")
-default_colorformat_sym{T <: FixedVector}(::Type{T})    = default_colorformat_sym(cardinality(T), eltype(T) <: Integer, "RGBA")
-default_colorformat_sym{T <: Colorant}(::Type{T})       = default_colorformat_sym(cardinality(T), eltype(T) <: Integer, string(T.name.name))
+default_colorformat_sym{T <: StaticVector}(::Type{T})    = default_colorformat_sym(cardinality(T), eltype(T) <: Integer, "RGBA")
+default_colorformat_sym{T <: Colorant}(::Type{T})       = default_colorformat_sym(cardinality(T), eltype(T) <: Integer, string(typename(T).name))
 
 @generated function default_internalcolorformat{T}(::Type{T})
     sym = default_internalcolorformat_sym(T)

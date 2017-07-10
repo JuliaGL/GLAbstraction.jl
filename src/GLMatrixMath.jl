@@ -1,10 +1,10 @@
 function scalematrix{T}(s::Vec{3, T})
     T0, T1 = zero(T), one(T)
-    Mat{4,4,T}(
-        (s[1],T0,  T0,  T0),
-        (T0,  s[2],T0,  T0),
-        (T0,  T0,  s[3],T0),
-        (T0,  T0,  T0,  T1),
+    Mat{4}(
+        s[1],T0,  T0,  T0,
+        T0,  s[2],T0,  T0,
+        T0,  T0,  s[3],T0,
+        T0,  T0,  T0,  T1,
     )
 end
 
@@ -14,11 +14,11 @@ translationmatrix_z{T}(z::T) = translationmatrix(Vec{3, T}(0, 0, z))
 
 function translationmatrix{T}(t::Vec{3, T})
     T0, T1 = zero(T), one(T)
-    Mat{4,4,T}(
-        (T1,  T0,  T0,  T0),
-        (T0,  T1,  T0,  T0),
-        (T0,  T0,  T1,  T0),
-        (t[1],t[2],t[3],T1),
+    Mat{4}(
+        T1,  T0,  T0,  T0,
+        T0,  T1,  T0,  T0,
+        T0,  T0,  T1,  T0,
+        t[1],t[2],t[3],T1,
     )
 end
 
@@ -27,29 +27,29 @@ rotate{T}(::Type{T}, angle::Number, axis::Vec{3}) = rotate(T(angle), convert(Vec
 
 function rotationmatrix_x{T}(angle::T)
     T0, T1 = zero(T), one(T)
-    Mat{4,4,T}(
-        (T1, T0, T0, T0),
-        (T0, cos(angle), sin(angle), T0),
-        (T0, -sin(angle), cos(angle),  T0),
-        (T0, T0, T0, T1)
+    Mat{4}(
+        T1, T0, T0, T0,
+        T0, cos(angle), sin(angle), T0,
+        T0, -sin(angle), cos(angle),  T0,
+        T0, T0, T0, T1
     )
 end
 function rotationmatrix_y{T}(angle::T)
     T0, T1 = zero(T), one(T)
-    Mat{4,4,T}(
-        (cos(angle), T0, -sin(angle),  T0),
-        (T0, T1, T0, T0),
-        (sin(angle), T0, cos(angle), T0),
-        (T0, T0, T0, T1)
+    Mat{4}(
+        cos(angle), T0, -sin(angle),  T0,
+        T0, T1, T0, T0,
+        sin(angle), T0, cos(angle), T0,
+        T0, T0, T0, T1
     )
 end
 function rotationmatrix_z{T}(angle::T)
     T0, T1 = zero(T), one(T)
-    Mat{4,4,T}(
-        (cos(angle), sin(angle), T0, T0),
-        (-sin(angle), cos(angle),  T0, T0),
-        (T0, T0, T1, T0),
-        (T0, T0, T0, T1)
+    Mat{4}(
+        cos(angle), sin(angle), T0, T0,
+        -sin(angle), cos(angle),  T0, T0,
+        T0, T0, T1, T0,
+        T0, T0, T0, T1
     )
 end
 #=
@@ -78,11 +78,11 @@ end
 function frustum{T}(left::T, right::T, bottom::T, top::T, znear::T, zfar::T)
     (right == left || bottom == top || znear == zfar) && return eye(Mat{4,4,T})
     T0, T1, T2 = zero(T), one(T), T(2)
-    return Mat{4,4,T}(
-        (T2 * znear / (right - left), T0, T0, T0),
-        (T0, T2 * znear / (top - bottom), T0, T0),
-        ((right + left) / (right - left), (top + bottom) / (top - bottom), -(zfar + znear) / (zfar - znear), -T1),
-        (T0, T0, (-T2 * znear * zfar) / (zfar - znear), T0)
+    return Mat{4}(
+        T2 * znear / (right - left), T0, T0, T0,
+        T0, T2 * znear / (top - bottom), T0, T0,
+        (right + left) / (right - left), (top + bottom) / (top - bottom), -(zfar + znear) / (zfar - znear), -T1,
+        T0, T0, (-T2 * znear * zfar) / (zfar - znear), T0
     )
 end
 
@@ -99,14 +99,24 @@ function perspectiveprojection{T}(fovy::T, aspect::T, znear::T, zfar::T)
     w = T(h * aspect)
     return frustum(-w, w, -h, h, znear, zfar)
 end
-perspectiveprojection{T}(::Type{T}, fovy::Number, aspect::Number, znear::Number, zfar::Number) = perspectiveprojection(T(fovy), T(aspect), T(znear), T(zfar))
+function perspectiveprojection{T}(
+        ::Type{T}, fovy::Number, aspect::Number, znear::Number, zfar::Number
+    )
+    perspectiveprojection(T(fovy), T(aspect), T(znear), T(zfar))
+end
 """
 `proj = perspectiveprojection([T], rect, fov, near, far)` defines the
 projection ratio in terms of the rectangular view size `rect` rather
 than the aspect ratio.
 """
-perspectiveprojection{T}(wh::SimpleRectangle, fov::T, near::T, far::T) = perspectiveprojection(fov, T(wh.w/wh.h), near, far)
-perspectiveprojection{T}(::Type{T}, wh::SimpleRectangle, fov::Number, near::Number, far::Number) = perspectiveprojection(T(fov), T(wh.w/wh.h), T(near), T(far))
+function perspectiveprojection{T}(wh::SimpleRectangle, fov::T, near::T, far::T)
+    perspectiveprojection(fov, T(wh.w/wh.h), near, far)
+end
+function perspectiveprojection{T}(
+        ::Type{T}, wh::SimpleRectangle, fov::Number, near::Number, far::Number
+    )
+    perspectiveprojection(T(fov), T(wh.w/wh.h), T(near), T(far))
+end
 
 """
 `view = lookat(eyeposition, lookat, up)` creates a view matrix with
@@ -121,18 +131,24 @@ function lookat{T}(eyePos::Vec{3, T}, lookAt::Vec{3, T}, up::Vec{3, T})
     xaxis  = normalize(cross(up,    zaxis))
     yaxis  = normalize(cross(zaxis, xaxis))
     T0, T1 = zero(T), one(T)
-    return Mat{4,4,T}(
-        (xaxis[1], yaxis[1], zaxis[1], T0),
-        (xaxis[2], yaxis[2], zaxis[2], T0),
-        (xaxis[3], yaxis[3], zaxis[3], T0),
-        (T0,       T0,       T0,       T1)
+    return Mat{4}(
+        xaxis[1], yaxis[1], zaxis[1], T0,
+        xaxis[2], yaxis[2], zaxis[2], T0,
+        xaxis[3], yaxis[3], zaxis[3], T0,
+        T0,       T0,       T0,       T1
     ) * translationmatrix(-eyePos)
 end
-lookat{T}(::Type{T}, eyePos::Vec{3}, lookAt::Vec{3}, up::Vec{3}) = lookat(Vec{3,T}(eyePos), Vec{3,T}(lookAt), Vec{3,T}(up))
+function lookat{T}(::Type{T}, eyePos::Vec{3}, lookAt::Vec{3}, up::Vec{3})
+    lookat(Vec{3,T}(eyePos), Vec{3,T}(lookAt), Vec{3,T}(up))
+end
 function orthographicprojection{T}(wh::SimpleRectangle, near::T, far::T)
     orthographicprojection(zero(T), T(wh.w), zero(T), T(wh.h), near, far)
 end
-orthographicprojection{T}(::Type{T}, wh::SimpleRectangle, near::Number, far::Number) = orthographicprojection(wh, T(near), T(far))
+function orthographicprojection{T}(
+        ::Type{T}, wh::SimpleRectangle, near::Number, far::Number
+    )
+    orthographicprojection(wh, T(near), T(far))
+end
 
 function orthographicprojection{T}(
         left  ::T, right::T,
@@ -141,11 +157,11 @@ function orthographicprojection{T}(
     )
     (right==left || bottom==top || znear==zfar) && return eye(Mat{4,4,T})
     T0, T1, T2 = zero(T), one(T), T(2)
-    Mat{4,4,T}(
-        (T2/(right-left), T0, T0,  T0),
-        (T0, T2/(top-bottom), T0,  T0),
-        (T0, T0, -T2/(zfar-znear), T0),
-        (-(right+left)/(right-left), -(top+bottom)/(top-bottom), -(zfar+znear)/(zfar-znear), T1)
+    Mat{4}(
+        T2/(right-left), T0, T0,  T0,
+        T0, T2/(top-bottom), T0,  T0,
+        T0, T0, -T2/(zfar-znear), T0,
+        -(right+left)/(right-left), -(top+bottom)/(top-bottom), -(zfar+znear)/(zfar-znear), T1
     )
 end
 function orthographicprojection{T}(::Type{T},
@@ -153,9 +169,11 @@ function orthographicprojection{T}(::Type{T},
         bottom::Number, top  ::Number,
         znear ::Number, zfar ::Number
     )
-    orthographicprojection(T(left),   T(right),
-                           T(bottom), T(top),
-                           T(znear),  T(zfar))
+    orthographicprojection(
+        T(left),   T(right),
+        T(bottom), T(top),
+        T(znear),  T(zfar)
+    )
 end
 
 import Base: (*)
@@ -181,29 +199,31 @@ end
 
 GeometryTypes.origin(p::Pivot) = p.origin
 
-rotationmatrix4{T}(q::Quaternions.Quaternion{T}) = Mat{4,4,T}(q)
+rotationmatrix4{T}(q::Quaternions.Quaternion{T}) = Mat4{T}(q)
 
-@compat function (::Type{Mat{4,4,T}}){T}(q::Quaternions.Quaternion)
+@compat function (::Type{M}){M <: Mat4}(q::Quaternions.Quaternion)
+    T = eltype(M)
     sx, sy, sz = 2q.s*q.v1,  2q.s*q.v2,   2q.s*q.v3
     xx, xy, xz = 2q.v1^2,    2q.v1*q.v2,  2q.v1*q.v3
     yy, yz, zz = 2q.v2^2,    2q.v2*q.v3,  2q.v3^2
     T0, T1 = zero(T), one(T)
-    Mat{4,4,T}(
-        (T1-(yy+zz), xy+sz,      xz-sy,      T0),
-        (xy-sz,      T1-(xx+zz), yz+sx,      T0),
-        (xz+sy,      yz-sx,      T1-(xx+yy), T0),
-        (T0,         T0,         T0,         T1)
+    Mat{4}(
+        T1-(yy+zz), xy+sz,      xz-sy,      T0,
+        xy-sz,      T1-(xx+zz), yz+sx,      T0,
+        xz+sy,      yz-sx,      T1-(xx+yy), T0,
+        T0,         T0,         T0,         T1
     )
 end
-@compat function (::Type{Mat{3,3,T}}){T}(q::Quaternions.Quaternion)
+@compat function (::Type{M}){M <: Mat3}(q::Quaternions.Quaternion)
+    T = eltype(M)
     sx, sy, sz = 2q.s*q.v1, 2q.s*q.v2,  2q.s*q.v3
     xx, xy, xz = 2q.v1^2,   2q.v1*q.v2, 2q.v1*q.v3
     yy, yz, zz = 2q.v2^2,   2q.v2*q.v3, 2q.v3^2
     T0, T1 = zero(T), one(T)
-    Mat{3,3,T}(
-        (T1-(yy+zz), xy+sz,      xz-sy     ),
-        (xy-sz,      T1-(xx+zz), yz+sx     ),
-        (xz+sy,      yz-sx,      T1-(xx+yy))
+    Mat{3}(
+        T1-(yy+zz), xy+sz,      xz-sy,
+        xy-sz,      T1-(xx+zz), yz+sx,
+        xz+sy,      yz-sx,      T1-(xx+yy)
     )
 end
 function transformationmatrix(p::Pivot)
@@ -216,22 +236,22 @@ end
 function transformationmatrix(translation, scale)
     T = eltype(translation)
     T0, T1 = zero(T), one(T)
-    Mat{4,4,T}(
-        (scale[1],T0,  T0,  T0),
-        (T0,  scale[2],T0,  T0),
-        (T0,  T0,  scale[3],T0),
-        (translation[1],translation[2],translation[3], T1)
+    Mat{4}(
+        scale[1],T0,  T0,  T0,
+        T0,  scale[2],T0,  T0,
+        T0,  T0,  scale[3],T0,
+        translation[1],translation[2],translation[3], T1
     )
 end
 
 function transformationmatrix(translation, scale, rotation::Quaternions.Quaternion)
     T = eltype(translation)
     trans_scale = transformationmatrix(translation, scale)
-    rotation    = Mat{4,4,T}(rotation)
+    rotation = Mat4f0(rotation)
     trans_scale*rotation
 end
 function transformationmatrix{T}(
-        translation, scale, rotation::Vec{3,T}, up=Vec{3,T}(0,0,1)
+        translation, scale, rotation::Vec{3,T}, up = Vec{3,T}(0,0,1)
     )
     q = rotation(rotation, up)
     transformationmatrix(translation, scale, q)

@@ -3,7 +3,7 @@ module GLAbstraction
 
 import Quaternions
 const Q = Quaternions # save some writing!
-using FixedSizeArrays
+using StaticArrays
 using GeometryTypes
 using ModernGL
 using Reactive
@@ -24,7 +24,7 @@ else
 end
 
 
-import Base: merge, resize!, unsafe_copy!, similar, length, getindex, setindex!, call
+import Base: merge, resize!, unsafe_copy!, similar, length, getindex, setindex!
 import Reactive: value
 
 using Compat

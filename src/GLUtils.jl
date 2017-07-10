@@ -5,7 +5,7 @@ macro gputime(codeblock)
         local const done         = GLint[0]
         glGenQueries(1, query)
         glBeginQuery(GL_TIME_ELAPSED, query[1])
-        value = $(esc(codeblock))
+        $(esc(codeblock))
         glEndQuery(GL_TIME_ELAPSED)
 
         while (done[1] != 1)
@@ -156,9 +156,8 @@ macro gen_defaults!(dict, args)
                 convert_target = :($key_name)
             end
             key_sym = Expr(:quote, key_name)
-            if isa(value_expr, Expr) && value_expr.head == :(=>)  # we might need to insert a convert target
-
-                value_expr, target = value_expr.args
+            if isa(value_expr, Expr) && value_expr.head == :call && value_expr.args[1] == :(=>)  # we might need to insert a convert target
+                value_expr, target = value_expr.args[2:end]
                 undecided = []
                 if isa(target, Expr)
                     undecided = target.args
@@ -200,12 +199,12 @@ end
 export @gen_defaults!
 
 
-value(any) = any # add this, to make it easier to work with a combination of signals and constants
+Reactive.value(x) = x # add this, to make it easier to work with a combination of signals and constants
 
 makesignal(s::Signal) = s
 makesignal(v) = Signal(v)
 
-@inline const_lift(f::Union{DataType, Function}, inputs...) = map(f, map(makesignal, inputs)...)
+@inline const_lift(f::Union{DataType, Type, Function}, inputs...) = map(f, map(makesignal, inputs)...)
 export const_lift
 
 function close_to_square(n::Real)
@@ -271,7 +270,7 @@ end
 
 @compat function (MT::Type{NativeMesh{T}}){T <: HomogenousMesh}(m::Signal{T})
     result = Dict{Symbol, Any}()
-    mv = value(m)
+    mv = Reactive.value(m)
     attribs = attributes(mv)
     @materialize! vertices, faces = attribs
     result[:vertices] = GLBuffer(vertices)

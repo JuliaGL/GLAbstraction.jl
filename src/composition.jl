@@ -1,6 +1,6 @@
 
-abstract Unit
-abstract Composable{unit}
+@compat abstract type Unit end
+@compat abstract type Composable{unit} end
 
 immutable DeviceUnit <: Unit end
 
@@ -21,10 +21,10 @@ end
 function translationmatrix(b)
     s,t = scale_trans(b)
     Mat4f0( # always return float32 matrix
-        (s[1], 0   , 0 , 0),
-        (0   , s[2], 0 , 0),
-        (0   , 0   , s[3], 0),
-        (t[1], t[2], t[3], 1),
+        s[1], 0   , 0 , 0,
+        0   , s[2], 0 , 0,
+        0   , 0   , s[3], 0,
+        t[1], t[2], t[3], 1,
     )
 end
 function inversetransformation(b)
@@ -32,10 +32,10 @@ function inversetransformation(b)
     s = 1f0/s
     t = -t
     Mat4f0( # always return float32 matrix
-        (s[1], 0   , 0 , 0),
-        (0   , s[2], 0 , 0),
-        (0   , 0   , s[3], 0),
-        (t[1], t[2], t[3], 1),
+        s[1], 0   , 0 , 0,
+        0   , s[2], 0 , 0,
+        0   , 0   , s[3], 0,
+        t[1], t[2], t[3], 1,
     )
 end
 layout!(b, c) =  layout!(b, (c,))[1]
@@ -47,10 +47,10 @@ function combine_s_t(scale_trans1, scale_trans2)
     t2 = -t2
     s,t = s1.*s2, t1+t2
     Mat4f0( # always return float32 matrix
-        (s[1], 0   , 0 , 0),
-        (0   , s[2], 0 , 0),
-        (0   , 0   , s[3], 0),
-        (t[1], t[2], t[3], 1),
+        s[1], 0   , 0 , 0,
+        0   , s[2], 0 , 0,
+        0   , 0   , s[3], 0,
+        t[1], t[2], t[3], 1,
     )
 end
 function layout!(b, composables::Union{Tuple, Vector})
@@ -63,13 +63,6 @@ function layout!(b, composables::Union{Tuple, Vector})
 end
 
 export layout!
-
-# layout(HyperRectangle(0,0,50,500), layout([
-#     "hello",
-#     slider(1:10),
-#     RGBA{Float32}(0,0,0,1)
-# ], gap=Vec3f0(0)))
-
 
 
 Context() = Context{DeviceUnit}(Composable[], Signal(AABB{Float32}(Vec3f0(0), Vec3f0(0))), Signal(eye(Mat{4,4, Float32})))

@@ -17,7 +17,7 @@ import Base: done
 
 import GeometryTypes.SimpleRectangle
 
-abstract GPUArray{T, NDim} <: AbstractArray{T, NDim}
+@compat abstract type GPUArray{T, NDim} <: AbstractArray{T, NDim} end
 
 #=
 immutable GPUArray{T, NDim, GPUBuff <: GPUBuffer} <: DenseArray{T, NDim}
@@ -219,7 +219,7 @@ max_dim(t)       = error("max_dim not implemented for: $(typeof(t)). This happen
 
 
 @compat function (::Type{T}){T <: GPUArray}(x::Signal)
-    gpu_mem = T(value(x))
+    gpu_mem = T(Reactive.value(x))
     preserve(const_lift(update!, gpu_mem, x))
     gpu_mem
 end

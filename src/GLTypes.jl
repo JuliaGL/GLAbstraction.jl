@@ -1,20 +1,20 @@
 ############################################################################
-typealias TOrSignal{T} Union{Signal{T}, T}
+@compat const TOrSignal{T} = Union{Signal{T}, T}
 
-typealias ArrayOrSignal{T, N} TOrSignal{Array{T, N}}
-typealias VecOrSignal{T}     ArrayOrSignal{T, 1}
-typealias MatOrSignal{T}     ArrayOrSignal{T, 2}
-typealias VolumeOrSignal{T} ArrayOrSignal{T, 3}
+@compat const ArrayOrSignal{T, N} = TOrSignal{Array{T, N}}
+@compat const VecOrSignal{T} = ArrayOrSignal{T, 1}
+@compat const MatOrSignal{T} = ArrayOrSignal{T, 2}
+@compat const VolumeOrSignal{T} = ArrayOrSignal{T, 3}
 
-typealias ArrayTypes{T, N} Union{GPUArray{T, N}, ArrayOrSignal{T,N}}
-typealias VecTypes{T} ArrayTypes{T, 1}
-typealias MatTypes{T} ArrayTypes{T, 2}
-typealias VolumeTypes{T} ArrayTypes{T, 3}
+@compat const ArrayTypes{T, N} = Union{GPUArray{T, N}, ArrayOrSignal{T,N}}
+@compat const VecTypes{T} = ArrayTypes{T, 1}
+@compat const MatTypes{T} = ArrayTypes{T, 2}
+@compat const VolumeTypes{T} = ArrayTypes{T, 3}
 
 @enum Projection PERSPECTIVE ORTHOGRAPHIC
 @enum MouseButton MOUSE_LEFT MOUSE_MIDDLE MOUSE_RIGHT
 
-typealias GLContext Symbol
+@compat const GLContext = Symbol
 
 """
 Returns the cardinality of a type. falls back to length
@@ -127,7 +127,7 @@ immutable FrameBuffer{T}
     id          ::GLuint
     attachments ::Vector{Any}
     context     ::GLContext
-    function FrameBuffer(dimensions::Signal)
+    function FrameBuffer{T}(dimensions::Signal) where T
         fb = glGenFramebuffers()
         glBindFramebuffer(GL_FRAMEBUFFER, fb)
         new(id, attachments, current_context())
@@ -146,12 +146,13 @@ end
 # OpenGL Arrays
 
 
-const GLArrayEltypes = Union{FixedVector, Real, Colorant}
+const GLArrayEltypes = Union{StaticVector, Real, Colorant}
 """
 Transform julia datatypes to opengl enum type
 """
 julia2glenum{T <: FixedPoint}(x::Type{T}) = julia2glenum(FixedPointNumbers.rawtype(x))
-julia2glenum{T <: Union{FixedVector, Colorant}}(x::Union{Type{T}, T}) = julia2glenum(eltype(x))
+julia2glenum{O, T}(x::Type{OffsetInteger{O, T}}) = julia2glenum(T)
+julia2glenum{T <: Union{StaticVector, Colorant}}(x::Union{Type{T}, T}) = julia2glenum(eltype(x))
 julia2glenum(x::Type{GLubyte})  = GL_UNSIGNED_BYTE
 julia2glenum(x::Type{GLbyte})   = GL_BYTE
 julia2glenum(x::Type{GLuint})   = GL_UNSIGNED_INT
@@ -185,7 +186,7 @@ type GLVertexArray{T}
     indices      ::T
     context      ::GLContext
 
-    function GLVertexArray(program, id, bufferlength, buffers, indices)
+    function GLVertexArray{T}(program, id, bufferlength, buffers, indices) where T
         new(program, id, bufferlength, buffers, indices, current_context())
     end
 end
@@ -252,11 +253,11 @@ type RenderObject{Pre} <: Composable{DeviceUnit}
     postrenderfunction
     id                  ::GLushort
     boundingbox          # workaround for having lazy boundingbox queries, while not using multiple dispatch for boundingbox function (No type hierarchy for RenderObjects)
-    function RenderObject(
+    function RenderObject{Pre}(
             main, uniforms::Dict{Symbol, Any}, vertexarray::GLVertexArray,
             prerenderfunctions, postrenderfunctions,
             boundingbox
-        )
+        ) where Pre
         global RENDER_OBJECT_ID_COUNTER
         RENDER_OBJECT_ID_COUNTER += one(GLushort)
         new(
@@ -304,7 +305,7 @@ function RenderObject{Pre}(
     uniforms = filter((key, value) -> !isa(value, GLBuffer) && key != :indices, data)
     get!(data, :visible, true) # make sure, visibility is set
     merge!(data, passthrough) # in the end, we insert back the non opengl data, to keep things simple
-    p = gl_convert(value(program), data) # "compile" lazyshader
+    p = gl_convert(Reactive.value(program), data) # "compile" lazyshader
     vertexarray = GLVertexArray(Dict(buffers), p)
     robj = RenderObject{Pre}(
         main,

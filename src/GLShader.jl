@@ -100,7 +100,7 @@ function uniformlocations(nametypedict::Dict{Symbol, GLenum}, program)
     end)
 end
 
-abstract AbstractLazyShader
+abstract type AbstractLazyShader end
 immutable LazyShader <: AbstractLazyShader
     paths::Tuple
     kw_args::Dict{Symbol, Any}
@@ -252,8 +252,8 @@ function gl_convert(lazyshader::AbstractLazyShader, data)
             Found: $paths"
         )
     end
-    template_keys = Array(Vector{String}, length(paths))
-    replacements = Array(Vector{String}, length(paths))
+    template_keys = Vector{Vector{String}}(length(paths))
+    replacements = Vector{Vector{String}}(length(paths))
     for (i, path) in enumerate(paths)
         template = get_template!(path, v, data)
         template_keys[i] = template
@@ -262,7 +262,7 @@ function gl_convert(lazyshader::AbstractLazyShader, data)
     program = get!(_program_cache, (paths, replacements)) do
         # when we're here, this means there were uncached shaders, meaning we definitely have
         # to compile a new program
-        shaders = Array(Shader, length(paths))
+        shaders = Vector{Shader}(length(paths))
         for (i, path) in enumerate(paths)
             tr = Dict(zip(template_keys[i], replacements[i]))
             shaders[i] = get_shader!(path, tr, v, data)
@@ -330,7 +330,7 @@ function mustache_replace(replace_view::Union{Dict, Function}, string)
         end
         last_char = char
     end
-    takebuf_string(io)
+    String(take!(io))
 end
 
 
@@ -354,7 +354,7 @@ function mustache2replacement(mustache_key, view, attributes)
 end
 
 # Takes a shader template and renders the template and returns shader source
-template2source(source::Array{UInt8, 1}, view, attributes::Dict{Symbol, Any}) = template2source(Compat.String(source), attributes, view)
+template2source(source::Vector{UInt8}, view, attributes::Dict{Symbol, Any}) = template2source(Compat.String(source), attributes, view)
 function template2source(source::AbstractString, view, attributes::Dict{Symbol, Any})
     replacements = Dict{String, String}()
     source = mustache_replace(source) do mustache_key
