@@ -1,20 +1,20 @@
 ############################################################################
-@compat const TOrSignal{T} = Union{Signal{T}, T}
+const TOrSignal{T} = Union{Signal{T}, T}
 
-@compat const ArrayOrSignal{T, N} = TOrSignal{Array{T, N}}
-@compat const VecOrSignal{T} = ArrayOrSignal{T, 1}
-@compat const MatOrSignal{T} = ArrayOrSignal{T, 2}
-@compat const VolumeOrSignal{T} = ArrayOrSignal{T, 3}
+const ArrayOrSignal{T, N} = TOrSignal{Array{T, N}}
+const VecOrSignal{T} = ArrayOrSignal{T, 1}
+const MatOrSignal{T} = ArrayOrSignal{T, 2}
+const VolumeOrSignal{T} = ArrayOrSignal{T, 3}
 
-@compat const ArrayTypes{T, N} = Union{GPUArray{T, N}, ArrayOrSignal{T,N}}
-@compat const VecTypes{T} = ArrayTypes{T, 1}
-@compat const MatTypes{T} = ArrayTypes{T, 2}
-@compat const VolumeTypes{T} = ArrayTypes{T, 3}
+const ArrayTypes{T, N} = Union{GPUArray{T, N}, ArrayOrSignal{T,N}}
+const VecTypes{T} = ArrayTypes{T, 1}
+const MatTypes{T} = ArrayTypes{T, 2}
+const VolumeTypes{T} = ArrayTypes{T, 3}
 
 @enum Projection PERSPECTIVE ORTHOGRAPHIC
 @enum MouseButton MOUSE_LEFT MOUSE_MIDDLE MOUSE_RIGHT
 
-@compat const GLContext = Symbol
+const GLContext = Symbol
 
 """
 Returns the cardinality of a type. falls back to length
@@ -42,7 +42,7 @@ begin
     end
 end
 
-immutable Shader
+struct Shader
     name::Symbol
     source::Vector{UInt8}
     typ::GLenum
@@ -74,7 +74,7 @@ function Base.show(io::IO, shader::Shader)
     print_with_lines(io, Compat.String(shader.source))
 end
 
-type GLProgram
+mutable struct GLProgram
     id          ::GLuint
     shader      ::Vector{Shader}
     nametype    ::Dict{Symbol, GLenum}
@@ -102,7 +102,7 @@ end
 ############################################
 # Framebuffers and the like
 
-immutable RenderBuffer
+struct RenderBuffer
     id      ::GLuint
     format  ::GLenum
     context ::GLContext
@@ -123,7 +123,7 @@ function resize!(rb::RenderBuffer, newsize::AbstractArray)
     glRenderbufferStorage(GL_RENDERBUFFER, rb.format, newsize...)
 end
 
-immutable FrameBuffer{T}
+struct FrameBuffer{T}
     id          ::GLuint
     attachments ::Vector{Any}
     context     ::GLContext
@@ -178,7 +178,7 @@ Can be created from a dict of buffers and an opengl Program.
 Keys with the name `indices` will get special treatment and will be used as
 the indexbuffer.
 """
-type GLVertexArray{T}
+mutable struct GLVertexArray{T}
     program      ::GLProgram
     id           ::GLuint
     bufferlength ::Int
@@ -245,7 +245,7 @@ end
 
 RENDER_OBJECT_ID_COUNTER = zero(GLushort)
 
-type RenderObject{Pre} <: Composable{DeviceUnit}
+mutable struct RenderObject{Pre} <: Composable{DeviceUnit}
     main                 # main object
     uniforms            ::Dict{Symbol, Any}
     vertexarray         ::GLVertexArray

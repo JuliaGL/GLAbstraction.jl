@@ -13,7 +13,7 @@ function glShaderSource(shaderID::GLuint, shadercode::Vector{UInt8})
     len              = Ref{GLint}(length(shadercode))
     glShaderSource(shaderID, 1, shader_code_ptrs, len)
 end
-glShaderSource(shaderID::GLuint, shadercode::Compat.UTF8String) = glShaderSource(shaderID, shadercode.data)
+glShaderSource(shaderID::GLuint, shadercode::String) = glShaderSource(shaderID, Vector{UInt8}(shadercode))
 function glGetAttachedShaders(program::GLuint)
     shader_count   = glGetProgramiv(program, GL_ATTACHED_SHADERS)
     length_written = GLsizei[0]
