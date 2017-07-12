@@ -4,13 +4,6 @@ function is_ci()
     get(ENV, "CI", "") == "true"
 end
 
-if is_ci()
-    cd(Pkg.dir("GLWindow")) do
-        run(`git fetch origin`)
-        run(`git checkout master`)
-    end
-end
-
 using GLAbstraction, GeometryTypes, ModernGL, Compat, FileIO, GLWindow
 using ColorTypes
 using Base.Test
