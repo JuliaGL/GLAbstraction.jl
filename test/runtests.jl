@@ -5,9 +5,10 @@ function is_ci()
 end
 
 if is_ci()
-    # To make tests pass, checkout GLWindow temporarily
-    # (there is no way to tag GLWindow first)
-    Pkg.checkout("GLWindow")
+    cd(Pkg.dir("GLWindow")) do
+        run(`git fetch origin`)
+        run(`git checkout master`)
+    end
 end
 
 using GLAbstraction, GeometryTypes, ModernGL, Compat, FileIO, GLWindow
