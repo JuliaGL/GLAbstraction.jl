@@ -1,13 +1,21 @@
-using GLAbstraction, GeometryTypes, ModernGL, Compat, FileIO, GLWindow
-using ColorTypes
-using Base.Test
-import GLAbstraction: N0f8
-
 function is_ci()
     get(ENV, "TRAVIS", "") == "true" ||
     get(ENV, "APPVEYOR", "") == "true" ||
     get(ENV, "CI", "") == "true"
 end
+
+if is_ci()
+    # To make tests pass, checkout GLWindow temporarily
+    # (there is no way to tag GLWindow first)
+    Pkg.checkout("GLWindow")
+end
+
+using GLAbstraction, GeometryTypes, ModernGL, Compat, FileIO, GLWindow
+using ColorTypes
+using Base.Test
+import GLAbstraction: N0f8
+
+
 
 include("macro_test.jl")
 
