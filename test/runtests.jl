@@ -1,5 +1,5 @@
 using GLAbstraction, GeometryTypes, ModernGL, Compat, FileIO, GLWindow
-using FixedSizeArrays, ColorTypes
+using ColorTypes
 using Base.Test
 import GLAbstraction: N0f8
 
@@ -45,12 +45,14 @@ const triangle = std_renderobject(
 )
 
 glClearColor(0,0,0,1)
-while isopen(window)
-  	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
+i = 1
+while isopen(window) && i < 20
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
     GLAbstraction.render(triangle)
     swapbuffers(window)
     poll_glfw()
     sleep(0.01)
+    i += 1
 end
 GLFW.DestroyWindow(window)
 
