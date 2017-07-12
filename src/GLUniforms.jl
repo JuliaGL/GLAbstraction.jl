@@ -173,8 +173,8 @@ gl_promote{T <: Normed}(x::Type{T})     = N0f32
 gl_promote(x::Type{N0f16})              = x
 gl_promote(x::Type{N0f8})               = x
 
-@compat const Color3{T} = Colorant{T, 3}
-@compat const Color4{T} = Colorant{T, 4}
+const Color3{T} = Colorant{T, 3}
+const Color4{T} = Colorant{T, 4}
 
 gl_promote(x::Type{Bool})                  = GLboolean
 gl_promote{T <: Gray}(x::Type{T})          = Gray{gl_promote(eltype(T))}

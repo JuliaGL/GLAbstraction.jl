@@ -71,7 +71,7 @@ end
 function Base.show(io::IO, shader::Shader)
     println(io, GLENUM(shader.typ).name, " shader: $(shader.name))")
     println(io, "source:")
-    print_with_lines(io, Compat.String(shader.source))
+    print_with_lines(io, String(shader.source))
 end
 
 mutable struct GLProgram
@@ -182,7 +182,7 @@ mutable struct GLVertexArray{T}
     program      ::GLProgram
     id           ::GLuint
     bufferlength ::Int
-    buffers      ::Dict{Compat.String, GLBuffer}
+    buffers      ::Dict{String, GLBuffer}
     indices      ::T
     context      ::GLContext
 
@@ -204,7 +204,7 @@ function GLVertexArray(bufferdict::Dict, program::GLProgram)
     id  = glGenVertexArrays()
     glBindVertexArray(id)
     lenbuffer = 0
-    buffers = Dict{Compat.String, GLBuffer}()
+    buffers = Dict{String, GLBuffer}()
     for (name, buffer) in bufferdict
         if isa(buffer, GLBuffer) && buffer.buffertype == GL_ELEMENT_ARRAY_BUFFER
             bind(buffer)

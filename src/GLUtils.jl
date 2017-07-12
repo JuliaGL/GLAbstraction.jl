@@ -244,10 +244,10 @@ immutable NativeMesh{MeshType <: HomogenousMesh}
 end
 export NativeMesh
 
-@compat (::Type{NativeMesh}){T <: HomogenousMesh}(m::T) = NativeMesh{T}(m)
+(::Type{NativeMesh}){T <: HomogenousMesh}(m::T) = NativeMesh{T}(m)
 
 
-@compat function (MT::Type{NativeMesh{T}}){T <: HomogenousMesh}(m::T)
+function (MT::Type{NativeMesh{T}}){T <: HomogenousMesh}(m::T)
     result = Dict{Symbol, Any}()
     attribs = attributes(m)
     @materialize! vertices, faces = attribs
@@ -268,7 +268,7 @@ export NativeMesh
     MT(result)
 end
 
-@compat function (MT::Type{NativeMesh{T}}){T <: HomogenousMesh}(m::Signal{T})
+function (MT::Type{NativeMesh{T}}){T <: HomogenousMesh}(m::Signal{T})
     result = Dict{Symbol, Any}()
     mv = Reactive.value(m)
     attribs = attributes(mv)

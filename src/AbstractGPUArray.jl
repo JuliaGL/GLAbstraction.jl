@@ -17,7 +17,7 @@ import Base: done
 
 import GeometryTypes.SimpleRectangle
 
-@compat abstract type GPUArray{T, NDim} <: AbstractArray{T, NDim} end
+abstract type GPUArray{T, NDim} <: AbstractArray{T, NDim} end
 
 #=
 immutable GPUArray{T, NDim, GPUBuff <: GPUBuffer} <: DenseArray{T, NDim}
@@ -218,7 +218,7 @@ gpu_setindex!(t) = error("gpu_setindex! not implemented for: $(typeof(t)). This 
 max_dim(t)       = error("max_dim not implemented for: $(typeof(t)). This happens, when you call setindex! on an array, without implementing the GPUArray interface")
 
 
-@compat function (::Type{T}){T <: GPUArray}(x::Signal)
+function (::Type{T}){T <: GPUArray}(x::Signal)
     gpu_mem = T(Reactive.value(x))
     preserve(const_lift(update!, gpu_mem, x))
     gpu_mem

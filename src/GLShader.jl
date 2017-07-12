@@ -354,7 +354,7 @@ function mustache2replacement(mustache_key, view, attributes)
 end
 
 # Takes a shader template and renders the template and returns shader source
-template2source(source::Vector{UInt8}, view, attributes::Dict{Symbol, Any}) = template2source(Compat.String(source), attributes, view)
+template2source(source::Vector{UInt8}, view, attributes::Dict{Symbol, Any}) = template2source(String(source), attributes, view)
 function template2source(source::AbstractString, view, attributes::Dict{Symbol, Any})
     replacements = Dict{String, String}()
     source = mustache_replace(source) do mustache_key

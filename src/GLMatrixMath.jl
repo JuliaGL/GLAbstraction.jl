@@ -201,7 +201,7 @@ GeometryTypes.origin(p::Pivot) = p.origin
 
 rotationmatrix4{T}(q::Quaternions.Quaternion{T}) = Mat4{T}(q)
 
-@compat function (::Type{M}){M <: Mat4}(q::Quaternions.Quaternion)
+function (::Type{M}){M <: Mat4}(q::Quaternions.Quaternion)
     T = eltype(M)
     sx, sy, sz = 2q.s*q.v1,  2q.s*q.v2,   2q.s*q.v3
     xx, xy, xz = 2q.v1^2,    2q.v1*q.v2,  2q.v1*q.v3
@@ -214,7 +214,8 @@ rotationmatrix4{T}(q::Quaternions.Quaternion{T}) = Mat4{T}(q)
         T0,         T0,         T0,         T1
     )
 end
-@compat function (::Type{M}){M <: Mat3}(q::Quaternions.Quaternion)
+
+function (::Type{M}){M <: Mat3}(q::Quaternions.Quaternion)
     T = eltype(M)
     sx, sy, sz = 2q.s*q.v1, 2q.s*q.v2,  2q.s*q.v3
     xx, xy, xz = 2q.v1^2,   2q.v1*q.v2, 2q.v1*q.v3
