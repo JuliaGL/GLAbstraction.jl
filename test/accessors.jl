@@ -6,7 +6,7 @@ immutable SpriteStyle{T} <: FieldVector{2, T}
     technique::T
 end
 
-@compat const GLSpriteStyle = SpriteStyle{UInt16}
+const GLSpriteStyle = SpriteStyle{UInt16}
 
 const TEST_1D = Any[]
 const TEST_2D = Any[]
