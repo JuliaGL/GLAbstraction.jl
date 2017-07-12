@@ -25,7 +25,7 @@ end
 
 get_attribute_location(program::GLuint, name) = get_uniform_location(program, ascii(name))
 get_attribute_location(program::GLuint, name::Symbol) = get_attribute_location(program, string(name))
-function get_attribute_location(program::GLuint, name::Compat.ASCIIString)
+function get_attribute_location(program::GLuint, name::String)
     const location::GLint = glGetAttribLocation(program, name)
     if location == -1
         error(
@@ -43,7 +43,7 @@ function get_attribute_location(program::GLuint, name::Compat.ASCIIString)
 end
 get_uniform_location(program::GLuint, name) = get_uniform_location(program, ascii(name))
 get_uniform_location(program::GLuint, name::Symbol) = get_uniform_location(program, string(name))
-function get_uniform_location(program::GLuint, name::Compat.ASCIIString)
+function get_uniform_location(program::GLuint, name::String)
     const location = glGetUniformLocation(program, name)::GLint
     if location == -1
         error(

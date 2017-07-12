@@ -385,12 +385,11 @@ function default_colorformat_sym(colordim::Integer, isinteger::Bool, colororder:
     sym *= color * integer
     return Symbol(sym)
 end
-using Compat.TypeUtils
 
-default_colorformat_sym{T <: Real}(::Type{T})           = default_colorformat_sym(1, T <: Integer, "RED")
-default_colorformat_sym{T <: AbstractArray}(::Type{T})  = default_colorformat_sym(cardinality(T), eltype(T) <: Integer, "RGBA")
-default_colorformat_sym{T <: StaticVector}(::Type{T})    = default_colorformat_sym(cardinality(T), eltype(T) <: Integer, "RGBA")
-default_colorformat_sym{T <: Colorant}(::Type{T})       = default_colorformat_sym(cardinality(T), eltype(T) <: Integer, string(typename(T).name))
+default_colorformat_sym{T <: Real}(::Type{T}) = default_colorformat_sym(1, T <: Integer, "RED")
+default_colorformat_sym{T <: AbstractArray}(::Type{T}) = default_colorformat_sym(cardinality(T), eltype(T) <: Integer, "RGBA")
+default_colorformat_sym{T <: StaticVector}(::Type{T}) = default_colorformat_sym(cardinality(T), eltype(T) <: Integer, "RGBA")
+default_colorformat_sym{T <: Colorant}(::Type{T}) = default_colorformat_sym(cardinality(T), eltype(T) <: Integer, string(Base.typename(T).name))
 
 @generated function default_internalcolorformat{T}(::Type{T})
     sym = default_internalcolorformat_sym(T)
