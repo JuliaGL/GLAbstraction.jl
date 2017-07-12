@@ -4,7 +4,7 @@ function is_ci()
     get(ENV, "CI", "") == "true"
 end
 
-using GLAbstraction, GeometryTypes, ModernGL, Compat, FileIO, GLWindow
+using GLAbstraction, GeometryTypes, ModernGL, FileIO, GLWindow
 using ColorTypes
 using Base.Test
 import GLAbstraction: N0f8
