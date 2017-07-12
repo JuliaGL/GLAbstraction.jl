@@ -5,7 +5,7 @@ ModernGL 0.2
 StaticArrays 0.6.0
 GeometryTypes 0.4.1
 
-Reactive 0.5
+Reactive 0.5.2
 Quaternions
 
 FixedPointNumbers 0.3.0
