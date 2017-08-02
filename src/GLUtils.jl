@@ -198,9 +198,6 @@ macro gen_defaults!(dict, args)
 end
 export @gen_defaults!
 
-
-Reactive.value(x) = x # add this, to make it easier to work with a combination of signals and constants
-
 makesignal(s::Signal) = s
 makesignal(v) = Signal(v)
 
