@@ -277,6 +277,9 @@ function (MT::Type{NativeMesh{T}}){T <: HomogenousMesh}(m::Signal{T})
     result[:faces]    = indexbuffer(faces)
     for (field, val) in attribs
         if field in (:texturecoordinates, :normals, :attribute_id, :color)
+            if field == :color
+                field = :vertex_color
+            end
             if isa(val, Vector)
                 result[field] = GLBuffer(val)
             end
