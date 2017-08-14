@@ -2,9 +2,9 @@
 abstract type Unit end
 abstract type Composable{unit} end
 
-immutable DeviceUnit <: Unit end
+struct DeviceUnit <: Unit end
 
-type Context{Unit} <: Composable{Unit}
+mutable struct Context{Unit} <: Composable{Unit}
     children
     boundingbox
     transformation
@@ -91,14 +91,14 @@ end
 
 convert!{unit <: Unit}(::Type{unit}, x::Composable) = x # We don't do units just yet
 
-function Base.append!{unit <: Unit, N}(context::Context{unit}, x::Union{Vector{Composable}, NTuple{N, Composable}})
+function Base.append!(context::Context{unit}, x::Union{Vector{Composable}, NTuple{N, Composable}}) where {unit <: Unit, N}
     for elem in x
         push!(context, elem)
     end
     context
 end
 
-function Base.push!{unit <: Unit}(context::Context{unit}, x::Composable)
+function Base.push!(context::Context{unit}, x::Composable) where unit <: Unit
     x = convert!(unit, x)
     context.boundingbox = const_lift(transformation(x), transformation(context), boundingbox(x), boundingbox(context)) do transa, transb, a,b
         a = transa*a
