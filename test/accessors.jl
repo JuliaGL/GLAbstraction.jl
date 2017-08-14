@@ -1,7 +1,7 @@
 using GLAbstraction, GLWindow, GLFW, FixedPointNumbers, StaticArrays
 using Base.Test
 
-immutable SpriteStyle{T} <: FieldVector{2, T}
+struct SpriteStyle{T} <: FieldVector{2, T}
     color_id::T # lookup attribute_id for attribute texture
     technique::T
 end

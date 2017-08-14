@@ -1,4 +1,4 @@
-function scalematrix{T}(s::Vec{3, T})
+function scalematrix(s::Vec{3, T}) where T
     T0, T1 = zero(T), one(T)
     Mat{4}(
         s[1],T0,  T0,  T0,
@@ -8,11 +8,11 @@ function scalematrix{T}(s::Vec{3, T})
     )
 end
 
-translationmatrix_x{T}(x::T) = translationmatrix(Vec{3, T}(x, 0, 0))
-translationmatrix_y{T}(y::T) = translationmatrix(Vec{3, T}(0, y, 0))
-translationmatrix_z{T}(z::T) = translationmatrix(Vec{3, T}(0, 0, z))
+translationmatrix_x(x::T) where {T} = translationmatrix(Vec{3, T}(x, 0, 0))
+translationmatrix_y(y::T) where {T} = translationmatrix(Vec{3, T}(0, y, 0))
+translationmatrix_z(z::T) where {T} = translationmatrix(Vec{3, T}(0, 0, z))
 
-function translationmatrix{T}(t::Vec{3, T})
+function translationmatrix(t::Vec{3, T}) where T
     T0, T1 = zero(T), one(T)
     Mat{4}(
         T1,  T0,  T0,  T0,
@@ -22,10 +22,10 @@ function translationmatrix{T}(t::Vec{3, T})
     )
 end
 
-rotate{T}(angle::T, axis::Vec{3, T}) = rotationmatrix4(Quaternions.qrotation(convert(Array, axis), angle))
+rotate(angle::T, axis::Vec{3, T}) where {T} = rotationmatrix4(Quaternions.qrotation(convert(Array, axis), angle))
 rotate{T}(::Type{T}, angle::Number, axis::Vec{3}) = rotate(T(angle), convert(Vec{3, T}, axis))
 
-function rotationmatrix_x{T}(angle::T)
+function rotationmatrix_x(angle::T) where T
     T0, T1 = zero(T), one(T)
     Mat{4}(
         T1, T0, T0, T0,
@@ -34,7 +34,7 @@ function rotationmatrix_x{T}(angle::T)
         T0, T0, T0, T1
     )
 end
-function rotationmatrix_y{T}(angle::T)
+function rotationmatrix_y(angle::T) where T
     T0, T1 = zero(T), one(T)
     Mat{4}(
         cos(angle), T0, -sin(angle),  T0,
@@ -43,7 +43,7 @@ function rotationmatrix_y{T}(angle::T)
         T0, T0, T0, T1
     )
 end
-function rotationmatrix_z{T}(angle::T)
+function rotationmatrix_z(angle::T) where T
     T0, T1 = zero(T), one(T)
     Mat{4}(
         cos(angle), sin(angle), T0, T0,
@@ -75,7 +75,7 @@ end
         M : array
          View frustum matrix (4x4).
 =#
-function frustum{T}(left::T, right::T, bottom::T, top::T, znear::T, zfar::T)
+function frustum(left::T, right::T, bottom::T, top::T, znear::T, zfar::T) where T
     (right == left || bottom == top || znear == zfar) && return eye(Mat{4,4,T})
     T0, T1, T2 = zero(T), one(T), T(2)
     return Mat{4}(
@@ -93,7 +93,7 @@ the y-axis (measured in degrees), the specified `aspect` ratio, and
 near and far clipping planes `znear`, `zfar`. Optionally specify the
 element type `T` of the matrix.
 """
-function perspectiveprojection{T}(fovy::T, aspect::T, znear::T, zfar::T)
+function perspectiveprojection(fovy::T, aspect::T, znear::T, zfar::T) where T
     (znear == zfar) && error("znear ($znear) must be different from tfar ($zfar)")
     h = T(tan(fovy / 360.0 * pi) * znear)
     w = T(h * aspect)
@@ -109,7 +109,7 @@ end
 projection ratio in terms of the rectangular view size `rect` rather
 than the aspect ratio.
 """
-function perspectiveprojection{T}(wh::SimpleRectangle, fov::T, near::T, far::T)
+function perspectiveprojection(wh::SimpleRectangle, fov::T, near::T, far::T) where T
     perspectiveprojection(fov, T(wh.w/wh.h), near, far)
 end
 function perspectiveprojection{T}(
@@ -126,7 +126,7 @@ the component of `up` that is perpendicular to the vector pointing
 from `eyeposition` to `lookat` will be used.  All inputs must be
 supplied as 3-vectors.
 """
-function lookat{T}(eyePos::Vec{3, T}, lookAt::Vec{3, T}, up::Vec{3, T})
+function lookat(eyePos::Vec{3, T}, lookAt::Vec{3, T}, up::Vec{3, T}) where T
     zaxis  = normalize(eyePos-lookAt)
     xaxis  = normalize(cross(up,    zaxis))
     yaxis  = normalize(cross(zaxis, xaxis))
@@ -141,7 +141,7 @@ end
 function lookat{T}(::Type{T}, eyePos::Vec{3}, lookAt::Vec{3}, up::Vec{3})
     lookat(Vec{3,T}(eyePos), Vec{3,T}(lookAt), Vec{3,T}(up))
 end
-function orthographicprojection{T}(wh::SimpleRectangle, near::T, far::T)
+function orthographicprojection(wh::SimpleRectangle, near::T, far::T) where T
     orthographicprojection(zero(T), T(wh.w), zero(T), T(wh.h), near, far)
 end
 function orthographicprojection{T}(
@@ -150,11 +150,11 @@ function orthographicprojection{T}(
     orthographicprojection(wh, T(near), T(far))
 end
 
-function orthographicprojection{T}(
+function orthographicprojection(
         left  ::T, right::T,
         bottom::T, top  ::T,
         znear ::T, zfar ::T
-    )
+    ) where T
     (right==left || bottom==top || znear==zfar) && return eye(Mat{4,4,T})
     T0, T1, T2 = zero(T), one(T), T(2)
     Mat{4}(
@@ -177,17 +177,17 @@ function orthographicprojection{T}(::Type{T},
 end
 
 import Base: (*)
-function (*){T}(q::Quaternions.Quaternion{T}, v::Vec{3, T})
+function (*)(q::Quaternions.Quaternion{T}, v::Vec{3, T}) where T
     t = T(2) * cross(Vec(q.v1, q.v2, q.v3), v)
     v + q.s * t + cross(Vec(q.v1, q.v2, q.v3), t)
 end
-function Quaternions.qrotation{T<:Real}(axis::Vec{3, T}, theta::T)
+function Quaternions.qrotation(axis::Vec{3, T}, theta::T) where T<:Real
     u = normalize(axis)
     s = sin(theta/2)
     Quaternions.Quaternion(cos(theta/2), s*u[1], s*u[2], s*u[3], true)
 end
 
-type Pivot{T}
+mutable struct Pivot{T}
     origin      ::Vec{3, T}
     xaxis       ::Vec{3, T}
     yaxis       ::Vec{3, T}
@@ -199,9 +199,9 @@ end
 
 GeometryTypes.origin(p::Pivot) = p.origin
 
-rotationmatrix4{T}(q::Quaternions.Quaternion{T}) = Mat4{T}(q)
+rotationmatrix4(q::Quaternions.Quaternion{T}) where {T} = Mat4{T}(q)
 
-function (::Type{M}){M <: Mat4}(q::Quaternions.Quaternion)
+function (::Type{M})(q::Quaternions.Quaternion) where M <: Mat4
     T = eltype(M)
     sx, sy, sz = 2q.s*q.v1,  2q.s*q.v2,   2q.s*q.v3
     xx, xy, xz = 2q.v1^2,    2q.v1*q.v2,  2q.v1*q.v3
@@ -215,7 +215,7 @@ function (::Type{M}){M <: Mat4}(q::Quaternions.Quaternion)
     )
 end
 
-function (::Type{M}){M <: Mat3}(q::Quaternions.Quaternion)
+function (::Type{M})(q::Quaternions.Quaternion) where M <: Mat3
     T = eltype(M)
     sx, sy, sz = 2q.s*q.v1, 2q.s*q.v2,  2q.s*q.v3
     xx, xy, xz = 2q.v1^2,   2q.v1*q.v2, 2q.v1*q.v3
@@ -251,15 +251,15 @@ function transformationmatrix(translation, scale, rotation::Quaternions.Quaterni
     rotation = Mat4f0(rotation)
     trans_scale*rotation
 end
-function transformationmatrix{T}(
+function transformationmatrix(
         translation, scale, rotation::Vec{3,T}, up = Vec{3,T}(0,0,1)
-    )
+    ) where T
     q = rotation(rotation, up)
     transformationmatrix(translation, scale, q)
 end
 
 #Calculate rotation between two vectors
-function rotation{T}(u::Vec{3, T}, v::Vec{3, T})
+function rotation(u::Vec{3, T}, v::Vec{3, T}) where T
     # It is important that the inputs are of equal length when
     # calculating the half-way vector.
     u, v = normalize(u), normalize(v)

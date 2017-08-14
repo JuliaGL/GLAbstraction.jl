@@ -21,7 +21,7 @@ Returns the cardinality of a type. falls back to length
 """
 cardinality(x) = length(x)
 cardinality(x::Number) = 1
-cardinality{T <: Number}(x::Type{T}) = 1
+cardinality(x::Type{T}) where {T <: Number} = 1
 
 #=
 We need to track the current OpenGL context.
@@ -150,9 +150,9 @@ const GLArrayEltypes = Union{StaticVector, Real, Colorant}
 """
 Transform julia datatypes to opengl enum type
 """
-julia2glenum{T <: FixedPoint}(x::Type{T}) = julia2glenum(FixedPointNumbers.rawtype(x))
-julia2glenum{O, T}(x::Type{OffsetInteger{O, T}}) = julia2glenum(T)
-julia2glenum{T <: Union{StaticVector, Colorant}}(x::Union{Type{T}, T}) = julia2glenum(eltype(x))
+julia2glenum(x::Type{T}) where {T <: FixedPoint} = julia2glenum(FixedPointNumbers.rawtype(x))
+julia2glenum(x::Type{OffsetInteger{O, T}}) where {O, T} = julia2glenum(T)
+julia2glenum(x::Union{Type{T}, T}) where {T <: Union{StaticVector, Colorant}} = julia2glenum(eltype(x))
 julia2glenum(x::Type{GLubyte})  = GL_UNSIGNED_BYTE
 julia2glenum(x::Type{GLbyte})   = GL_BYTE
 julia2glenum(x::Type{GLuint})   = GL_UNSIGNED_INT
@@ -270,12 +270,12 @@ mutable struct RenderObject{Pre} <: Composable{DeviceUnit}
 end
 
 
-function RenderObject{Pre}(
+function RenderObject(
         data::Dict{Symbol, Any}, program,
         pre::Pre, post,
         bbs=Signal(AABB{Float32}(Vec3f0(0),Vec3f0(1))),
         main=nothing
-    )
+    ) where Pre
     targets = get(data, :gl_convert_targets, Dict())
     delete!(data, :gl_convert_targets)
     passthrough = Dict{Symbol, Any}() # we also save a few non opengl related values in data

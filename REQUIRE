@@ -4,7 +4,7 @@ ModernGL 0.1.0
 
 StaticArrays 0.6.0
 GeometryTypes 0.4.1
-Reactive 0.5.2
+Reactive 0.6.0
 FixedPointNumbers 0.3.0
 ColorTypes 0.3.1
 

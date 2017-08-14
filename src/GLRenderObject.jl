@@ -66,7 +66,7 @@ end
 """
 Represents standard sets of function applied before rendering
 """
-immutable StandardPrerender
+struct StandardPrerender
 end
 
 function (::StandardPrerender)()
@@ -76,14 +76,14 @@ function (::StandardPrerender)()
     glDisable(GL_CULL_FACE)
     enabletransparency()
 end
-immutable StandardPostrender
+struct StandardPostrender
     vao::GLVertexArray
     primitive::GLenum
 end
 function (sp::StandardPostrender)()
     render(sp.vao, sp.primitive)
 end
-immutable StandardPostrenderInstanced{T}
+struct StandardPostrenderInstanced{T}
     main::T
     vao::GLVertexArray
     primitive::GLenum
@@ -92,7 +92,7 @@ function (sp::StandardPostrenderInstanced)()
     renderinstanced(sp.vao, Reactive.value(sp.main), sp.primitive)
 end
 
-immutable EmptyPrerender
+struct EmptyPrerender
 end
 function (sp::EmptyPrerender)()
 end
@@ -118,7 +118,7 @@ prerendertype{Pre}(::RenderObject{Pre}) = Pre
 
 extract_renderable(context::Vector{RenderObject}) = context
 extract_renderable(context::RenderObject) = RenderObject[context]
-extract_renderable{T <: Composable}(context::Vector{T}) = map(extract_renderable, context)
+extract_renderable(context::Vector{T}) where {T <: Composable} = map(extract_renderable, context)
 function extract_renderable(context::Context)
     result = extract_renderable(context.children[1])
     for elem in context.children[2:end]
@@ -143,7 +143,7 @@ function _translate!(c::Context, m::TOrSignal{Mat4f0})
     end
 end
 
-function translate!{T <: Vec{3}}(c::Composable, vec::TOrSignal{T})
+function translate!(c::Composable, vec::TOrSignal{T}) where T <: Vec{3}
      _translate!(c, const_lift(translationmatrix, vec))
 end
 function _boundingbox(c::RenderObject)
@@ -159,7 +159,7 @@ end
 """
 Copy function for a context. We only need to copy the children
 """
-function Base.copy{T}(c::GLAbstraction.Context{T})
+function Base.copy(c::GLAbstraction.Context{T}) where T
     new_children = [copy(child) for child in c.children]
     Context{T}(new_children, c.boundingbox, c.transformation)
 end
@@ -168,7 +168,7 @@ end
 """
 Copy function for a RenderObject. We only copy the uniform dict
 """
-function Base.copy{Pre}(robj::RenderObject{Pre})
+function Base.copy(robj::RenderObject{Pre}) where Pre
     uniforms = Dict{Symbol, Any}([(k,v) for (k,v) in robj.uniforms])
     robj = RenderObject{Pre}(
         robj.main,
