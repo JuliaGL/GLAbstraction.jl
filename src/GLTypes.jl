@@ -221,6 +221,7 @@ function GLVertexArray(bufferdict::Dict, program::GLProgram)
             )
             bind(buffer)
             attribLocation = get_attribute_location(program.id, attribute)
+            (attribLocation == -1) && continue
             glVertexAttribPointer(attribLocation, cardinality(buffer), julia2glenum(eltype(buffer)), GL_FALSE, 0, C_NULL)
             glEnableVertexAttribArray(attribLocation)
             buffers[attribute] = buffer
