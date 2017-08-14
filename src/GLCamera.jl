@@ -286,6 +286,7 @@ lookatvec: Point the camera looks at
 function PerspectiveCamera{T}(
         inputs::Dict{Symbol,Any},
         eyeposition::Vec{3, T}, lookatvec::Vec{3, T};
+        upvector = Vec3f0(0, 0, 1),
         keep=Signal(true), theta=nothing, trans=nothing
     )
     lookat, eyepos = Signal(lookatvec), Signal(eyeposition)
@@ -306,7 +307,7 @@ function PerspectiveCamera{T}(
         trans,
         lookat,
         eyepos,
-        Signal(Vec3f0(0,0,1)),
+        Signal(upvector),
         inputs[:window_area],
         Signal(41f0), # Field of View
         Signal(0.001f0),  # Min distance (clip distance)
