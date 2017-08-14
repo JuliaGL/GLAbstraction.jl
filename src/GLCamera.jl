@@ -1,14 +1,14 @@
 abstract type Camera{T} end
 const Q = Quaternions # save some writing!
 
-type OrthographicCamera{T} <: Camera{T}
+mutable struct OrthographicCamera{T} <: Camera{T}
     window_size     ::Signal{SimpleRectangle{Int}}
     view            ::Signal{Mat4{T}}
     projection      ::Signal{Mat4{T}}
     projectionview  ::Signal{Mat4{T}}
 end
 
-type PerspectiveCamera{T} <: Camera{T}
+mutable struct PerspectiveCamera{T} <: Camera{T}
     window_size     ::Signal{SimpleRectangle{Int}}
     nearclip        ::Signal{T}
     farclip         ::Signal{T}
@@ -24,7 +24,7 @@ type PerspectiveCamera{T} <: Camera{T}
     projectiontype  ::Signal{Projection}
 end
 
-type DummyCamera{T, IT} <: Camera{T}
+mutable struct DummyCamera{T, IT} <: Camera{T}
     window_size     ::Signal{SimpleRectangle{IT}}
     view            ::Signal{Mat4{T}}
     projection      ::Signal{Mat4{T}}
@@ -283,12 +283,12 @@ inputs: Dict of signals, looking like this:
 eyeposition: Position of the camera
 lookatvec: Point the camera looks at
 """
-function PerspectiveCamera{T}(
+function PerspectiveCamera(
         inputs::Dict{Symbol,Any},
         eyeposition::Vec{3, T}, lookatvec::Vec{3, T};
         upvector = Vec3f0(0, 0, 1),
         keep=Signal(true), theta=nothing, trans=nothing
-    )
+    ) where T
     lookat, eyepos = Signal(lookatvec), Signal(eyeposition)
     # TODO make this more elegant!
     _theta, _trans = default_camera_control(
@@ -314,10 +314,10 @@ function PerspectiveCamera{T}(
         farclip # Max distance (clip distance)
     )
 end
-function PerspectiveCamera{T}(
+function PerspectiveCamera(
         area,
         eyeposition::Signal{Vec{3, T}}, lookatvec::Signal{Vec{3, T}}, upvector
-    )
+    ) where T
     PerspectiveCamera(
         Signal(Vec3f0(0)),
         Signal(Vec3f0(0)),
@@ -332,11 +332,11 @@ function PerspectiveCamera{T}(
 end
 
 
-function projection_switch{T<:Real}(
+function projection_switch(
         wh::SimpleRectangle,
         fov::T, near::T, far::T,
         projection::Projection, zoom::T
-    )
+    ) where T<:Real
     aspect = T(wh.w/wh.h)
     h      = T(tan(fov / 360.0 * pi) * near)
     w      = T(h * aspect)
@@ -348,18 +348,18 @@ end
 w_component{N, T}(::Point{N, T}) = T(1)
 w_component{N, T}(::Vec{N, T}) = T(0)
 
-function to_worldspace{T <: StaticVector}(point::T, cam)
+function to_worldspace(point::T, cam) where T <: StaticVector
     to_worldspace(
         point,
         Reactive.value(cam.projection) * Reactive.value(cam.view),
         T(widths(Reactive.value(cam.window_size)))
     )
 end
-function to_worldspace{N, T}(
+function to_worldspace(
         p::StaticVector{N, T},
         projectionview::Mat4,
         cam_res::StaticVector
-    )
+    ) where {N, T}
     VT = typeof(p)
     prj_view_inv = inv(projectionview)
     clip_space = T(4) * (VT(p) ./ VT(cam_res))
@@ -421,10 +421,10 @@ function translate_cam(
     nothing
 end
 
-function rotate_cam{T}(
+function rotate_cam(
         theta::Vec{3, T},
         cam_right::Vec{3,T}, cam_up::Vec{3,T}, cam_dir::Vec{3, T}
-    )
+    ) where T
     rotation = one(Q.Quaternion{T})
     # first the rotation around up axis, since the other rotation should be relative to that rotation
     if theta[1] != 0
@@ -454,7 +454,7 @@ farclip: Far clip plane
 `lookatposition`: point the camera looks at
 `eyeposition`: the actual position of the camera (the lense, the \"eye\")
 """
-function PerspectiveCamera{T<:Vec3}(
+function PerspectiveCamera(
         theta,
         trans::Signal{T},
         lookatposition::Signal{T},
@@ -465,7 +465,7 @@ function PerspectiveCamera{T<:Vec3}(
         nearclip,
         farclip,
         projectiontype = Signal(PERSPECTIVE)
-    )
+    ) where T<:Vec3
     # we have three ways to manipulate the camera: rotation, lookat/eyeposition and translation
     positions = (eyeposition, lookatposition, upvector)
 
