@@ -38,7 +38,6 @@ end
 function mapkeys(func, collection::Dict)
     Dict([(func(key), value) for (key, value) in collection])
 end
-Base.get(a::Dict{KT, VT}, keys::Vector{KT}) where {KT, VT} = [a[key] for key in keys]
 
 function print_with_lines(out::IO, text::AbstractString)
     io = IOBuffer()
