@@ -345,8 +345,8 @@ function projection_switch(
     orthographicprojection(-w, w, -h, h, near, far)
 end
 
-w_component{N, T}(::Point{N, T}) = T(1)
-w_component{N, T}(::Vec{N, T}) = T(0)
+w_component(::Point{N, T}) where {N, T} = T(1)
+w_component(::Vec{N, T}) where {N, T} = T(0)
 
 function to_worldspace(point::T, cam) where T <: StaticVector
     to_worldspace(

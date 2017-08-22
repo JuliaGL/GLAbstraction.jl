@@ -23,7 +23,7 @@ function translationmatrix(t::Vec{3, T}) where T
 end
 
 rotate(angle::T, axis::Vec{3, T}) where {T} = rotationmatrix4(Quaternions.qrotation(convert(Array, axis), angle))
-rotate{T}(::Type{T}, angle::Number, axis::Vec{3}) = rotate(T(angle), convert(Vec{3, T}, axis))
+rotate(::Type{T}, angle::Number, axis::Vec{3}) where {T} = rotate(T(angle), convert(Vec{3, T}, axis))
 
 function rotationmatrix_x(angle::T) where T
     T0, T1 = zero(T), one(T)
@@ -99,9 +99,9 @@ function perspectiveprojection(fovy::T, aspect::T, znear::T, zfar::T) where T
     w = T(h * aspect)
     return frustum(-w, w, -h, h, znear, zfar)
 end
-function perspectiveprojection{T}(
+function perspectiveprojection(
         ::Type{T}, fovy::Number, aspect::Number, znear::Number, zfar::Number
-    )
+    ) where T
     perspectiveprojection(T(fovy), T(aspect), T(znear), T(zfar))
 end
 """
@@ -112,9 +112,9 @@ than the aspect ratio.
 function perspectiveprojection(wh::SimpleRectangle, fov::T, near::T, far::T) where T
     perspectiveprojection(fov, T(wh.w/wh.h), near, far)
 end
-function perspectiveprojection{T}(
+function perspectiveprojection(
         ::Type{T}, wh::SimpleRectangle, fov::Number, near::Number, far::Number
-    )
+    ) where T
     perspectiveprojection(T(fov), T(wh.w/wh.h), T(near), T(far))
 end
 
@@ -138,15 +138,15 @@ function lookat(eyePos::Vec{3, T}, lookAt::Vec{3, T}, up::Vec{3, T}) where T
         T0,       T0,       T0,       T1
     ) * translationmatrix(-eyePos)
 end
-function lookat{T}(::Type{T}, eyePos::Vec{3}, lookAt::Vec{3}, up::Vec{3})
+function lookat(::Type{T}, eyePos::Vec{3}, lookAt::Vec{3}, up::Vec{3}) where T
     lookat(Vec{3,T}(eyePos), Vec{3,T}(lookAt), Vec{3,T}(up))
 end
 function orthographicprojection(wh::SimpleRectangle, near::T, far::T) where T
     orthographicprojection(zero(T), T(wh.w), zero(T), T(wh.h), near, far)
 end
-function orthographicprojection{T}(
+function orthographicprojection(
         ::Type{T}, wh::SimpleRectangle, near::Number, far::Number
-    )
+    ) where T
     orthographicprojection(wh, T(near), T(far))
 end
 
@@ -164,11 +164,11 @@ function orthographicprojection(
         -(right+left)/(right-left), -(top+bottom)/(top-bottom), -(zfar+znear)/(zfar-znear), T1
     )
 end
-function orthographicprojection{T}(::Type{T},
+function orthographicprojection(::Type{T},
         left  ::Number, right::Number,
         bottom::Number, top  ::Number,
         znear ::Number, zfar ::Number
-    )
+    ) where T
     orthographicprojection(
         T(left),   T(right),
         T(bottom), T(top),

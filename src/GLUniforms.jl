@@ -44,7 +44,7 @@ _size(p::Type{T}) where {T <: Colorant} = (length(p),)
 _ndims(p) = ndims(p)
 _ndims(p::Type{T}) where {T <: Colorant} = 1
 
-@generated function gluniform{FSA <: Union{StaticArray, Colorant}}(location::Integer, x::Vector{FSA})
+@generated function gluniform(location::Integer, x::Vector{FSA}) where FSA <: Union{StaticArray, Colorant}
     func = uniformfunc(eltype(FSA), _size(FSA))
     callexpr = if _ndims(FSA) == 2
         :($func(location, length(x), GL_FALSE, xref))
@@ -232,15 +232,15 @@ gl_convert(x::SMatrix{N, M, T}) where {N, M, T} = map(gl_promote(T), x)
 
 
 gl_convert(a::Vector{T}) where {T <: Face} = indexbuffer(s)
-gl_convert{T <: NATIVE_TYPES}(::Type{T}, a::NATIVE_TYPES; kw_args...) = a
-function gl_convert{T <: GPUArray, X, N}(::Type{T}, a::Array{X, N}; kw_args...)
+gl_convert(::Type{T}, a::NATIVE_TYPES; kw_args...) where {T <: NATIVE_TYPES} = a
+function gl_convert(::Type{T}, a::Array{X, N}; kw_args...) where {T <: GPUArray, X, N}
     T(map(gl_promote(X), a); kw_args...)
 end
-function gl_convert{T <: Texture, X}(::Type{T}, a::Vector{Array{X, 2}}; kw_args...)
+function gl_convert(::Type{T}, a::Vector{Array{X, 2}}; kw_args...) where {T <: Texture, X}
     T(a; kw_args...)
 end
 
-function gl_convert{T <: GPUArray, X, N}(::Type{T}, a::Signal{Array{X, N}}; kw_args...)
+function gl_convert(::Type{T}, a::Signal{Array{X, N}}; kw_args...) where {T <: GPUArray, X, N}
     TGL = gl_promote(X)
     s = (X == TGL) ? a : const_lift(map, TGL, a)
     T(s; kw_args...)

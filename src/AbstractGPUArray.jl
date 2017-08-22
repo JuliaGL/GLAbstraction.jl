@@ -122,7 +122,7 @@ length(v::GPUVector)            = prod(size(v))
 size(v::GPUVector)              = v.size
 size(v::GPUVector, i::Integer)  = v.size[i]
 ndims(::GPUVector)              = 1
-eltype{T}(::GPUVector{T})       = T
+eltype(::GPUVector{T}) where {T}       = T
 endof(A::GPUVector)             = length(A)
 
 
