@@ -1,14 +1,14 @@
-@compat const Vec2 = Vec{2, Float32}
-@compat const Vec3 = Vec{3, Float32}
-@compat const Vec4 = Vec{4, Float32}
+const Vec2 = Vec{2, Float32}
+const Vec3 = Vec{3, Float32}
+const Vec4 = Vec{4, Float32}
 
-@compat const iVec2 = Vec{2, Cint}
-@compat const iVec3 = Vec{3, Cint}
-@compat const iVec4 = Vec{4, Cint}
+const iVec2 = Vec{2, Cint}
+const iVec3 = Vec{3, Cint}
+const iVec4 = Vec{4, Cint}
 
-@compat const uVec2 = Vec{2, Cuint}
-@compat const uVec3 = Vec{3, Cuint}
-@compat const uVec4 = Vec{4, Cuint}
+const uVec2 = Vec{2, Cuint}
+const uVec3 = Vec{3, Cuint}
+const uVec4 = Vec{4, Cuint}
 
 function test_textures()
     N = 100

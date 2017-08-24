@@ -17,7 +17,7 @@ import Base: done
 
 import GeometryTypes.SimpleRectangle
 
-@compat abstract type GPUArray{T, NDim} <: AbstractArray{T, NDim} end
+abstract type GPUArray{T, NDim} <: AbstractArray{T, NDim} end
 
 #=
 immutable GPUArray{T, NDim, GPUBuff <: GPUBuffer} <: DenseArray{T, NDim}
@@ -32,9 +32,9 @@ end
 =#
 
 length(A::GPUArray)                                     = prod(size(A))
-eltype{T, NDim}(b::GPUArray{T, NDim})                   = T
+eltype(b::GPUArray{T, NDim}) where {T, NDim} = T
 endof(A::GPUArray)                                      = length(A)
-ndims{T, NDim}(A::GPUArray{T, NDim})                    = NDim
+ndims(A::GPUArray{T, NDim}) where {T, NDim} = NDim
 size(A::GPUArray)                                       = A.size
 size(A::GPUArray, i::Integer)                           = i <= ndims(A) ? A.size[i] : 1
 
@@ -51,26 +51,26 @@ to_range(index) = map(index) do val
     error("Indexing only defined for integers or ranges. Found: $val")
 end
 
-setindex!{T, N}(A::GPUArray{T, N}, value::Union{T, Array{T, N}}) = (A[1] = value)
+setindex!(A::GPUArray{T, N}, value::Union{T, Array{T, N}}) where {T, N} = (A[1] = value)
 
-function setindex!{T, N}(A::GPUArray{T, N}, value, indexes...)
+function setindex!(A::GPUArray{T, N}, value, indexes...) where {T, N}
     ranges = to_range(indexes)
     v = isa(value, T) ? [value] : convert(Array{T,N}, value)
     setindex!(A, v, ranges...)
     nothing
 end
 
-setindex!{T}(A::GPUArray{T, 2}, value::Vector{T}, i::Integer, range::UnitRange) =
+setindex!(A::GPUArray{T, 2}, value::Vector{T}, i::Integer, range::UnitRange) where {T} =
    (A[i, range] = reshape(value, (length(value),1)))
 
-function setindex!{T, N}(A::GPUArray{T, N}, value::Array{T, N}, ranges::UnitRange...)
+function setindex!(A::GPUArray{T, N}, value::Array{T, N}, ranges::UnitRange...) where {T, N}
     checkbounds(A, ranges...)
     checkdimensions(value, ranges...)
     gpu_setindex!(A, value, ranges...)
     nothing
 end
 
-function update!{T, N}(A::GPUArray{T, N}, value::Array{T, N})
+function update!(A::GPUArray{T, N}, value::Array{T, N}) where {T, N}
     if length(A) != length(value)
         if isa(A, GLBuffer)
             resize!(A, length(value))
@@ -85,31 +85,31 @@ function update!{T, N}(A::GPUArray{T, N}, value::Array{T, N})
     nothing
 end
 
-function getindex{T, N}(A::GPUArray{T, N}, i::Int)
+function getindex(A::GPUArray{T, N}, i::Int) where {T, N}
     checkbounds(A, i)
     gpu_getindex(A, i:i)[1] # not as bad as its looks, as so far gpu data must be loaded into an array anyways
 end
-function getindex{T, N}(A::GPUArray{T, N}, ranges::UnitRange...)
+function getindex(A::GPUArray{T, N}, ranges::UnitRange...) where {T, N}
     checkbounds(A, ranges...)
     gpu_getindex(A, ranges...)
 end
 
-function getindex{T, N}(A::GPUArray{T, N}, rect::SimpleRectangle)
+function getindex(A::GPUArray{T, N}, rect::SimpleRectangle) where {T, N}
     A[rect.x+1:rect.x+rect.w, rect.y+1:rect.y+rect.h]
 end
-function setindex!{T, N}(A::GPUArray{T, N}, value::Array{T, N}, rect::SimpleRectangle)
+function setindex!(A::GPUArray{T, N}, value::Array{T, N}, rect::SimpleRectangle) where {T, N}
     A[rect.x+1:rect.x+rect.w, rect.y+1:rect.y+rect.h] = value
 end
 
 
-type GPUVector{T} <: GPUArray{T, 1}
+mutable struct GPUVector{T} <: GPUArray{T, 1}
     buffer
     size
     real_length
 end
 GPUVector(x::GPUArray) = GPUVector{eltype(x)}(x, size(x), length(x))
 
-function update!{T}(A::GPUVector{T}, value::Vector{T})
+function update!(A::GPUVector{T}, value::Vector{T}) where T
     if isa(A, GLBuffer) && (length(A) != length(value))
         resize!(A, length(value))
     end
@@ -134,15 +134,15 @@ gpu_data(A::GPUVector)          = A.buffer[1:length(A)]
 
 getindex(v::GPUVector, index::Int)       = v.buffer[index]
 getindex(v::GPUVector, index::UnitRange) = v.buffer[index]
-setindex!{T}(v::GPUVector{T}, value::T, index::Int)    = v.buffer[index] = value
-setindex!{T}(v::GPUVector{T}, value::T, index::UnitRange)    = v.buffer[index] = value
+setindex!(v::GPUVector{T}, value::T, index::Int) where {T} = v.buffer[index] = value
+setindex!(v::GPUVector{T}, value::T, index::UnitRange) where {T} = v.buffer[index] = value
 
 
 function grow_dimensions(real_length::Int, _size::Int, additonal_size::Int, growfactor::Real=1.5)
     new_dim = round(Int, real_length*growfactor)
     return max(new_dim, additonal_size+_size)
 end
-function Base.push!{T}(v::GPUVector{T}, x::Vector{T})
+function Base.push!(v::GPUVector{T}, x::Vector{T}) where T
     lv, lx = length(v), length(x)
     if (v.real_length < lv+lx)
         resize!(v.buffer, grow_dimensions(v.real_length, lv, lx))
@@ -152,12 +152,12 @@ function Base.push!{T}(v::GPUVector{T}, x::Vector{T})
     v.size                 = (lv+lx,)
     v
 end
-push!{T}(v::GPUVector{T}, x::T)            = push!(v, [x])
-push!{T}(v::GPUVector{T}, x::T...)         = push!(v, [x...])
-append!{T}(v::GPUVector{T}, x::Vector{T})  = push!(v, x)
+push!(v::GPUVector{T}, x::T) where {T} = push!(v, [x])
+push!(v::GPUVector{T}, x::T...) where {T} = push!(v, [x...])
+append!(v::GPUVector{T}, x::Vector{T}) where {T} = push!(v, x)
 
-resize!{T, NDim}(A::GPUArray{T, NDim}, dims::Int...) = resize!(A, dims)
-function resize!{T, NDim}(A::GPUArray{T, NDim}, newdims::NTuple{NDim, Int})
+resize!(A::GPUArray{T, NDim}, dims::Int...) where {T, NDim} = resize!(A, dims)
+function resize!(A::GPUArray{T, NDim}, newdims::NTuple{NDim, Int}) where {T, NDim}
     newdims == size(A) && return A
     gpu_resize!(A, newdims)
     A
@@ -177,7 +177,7 @@ function grow_at(v::GPUVector, index::Int, amount::Int)
     copy!(v, index, v, index+amount, amount)
 end
 
-function splice!{T}(v::GPUVector{T}, index::UnitRange, x::Vector=T[])
+function splice!(v::GPUVector{T}, index::UnitRange, x::Vector=T[]) where T
     lenv = length(v)
     elements_to_grow = length(x)-length(index) # -1
     buffer           = similar(v.buffer, length(v)+elements_to_grow)
@@ -189,8 +189,8 @@ function splice!{T}(v::GPUVector{T}, index::UnitRange, x::Vector=T[])
     copy!(x, 1, buffer, first(index), length(x)) # copy contents of insertion vector
     nothing
 end
-splice!{T}(v::GPUVector{T}, index::Int, x::T) = v[index] = x
-splice!{T}(v::GPUVector{T}, index::Int, x::Vector=T[]) = splice!(v, index:index, map(T, x))
+splice!(v::GPUVector{T}, index::Int, x::T) where {T} = v[index] = x
+splice!(v::GPUVector{T}, index::Int, x::Vector=T[]) where {T} = splice!(v, index:index, map(T, x))
 
 
 copy!(a::GPUVector, a_offset::Int, b::Vector, b_offset::Int, amount::Int)   = copy!(a.buffer, a_offset, b,        b_offset, amount)
@@ -218,7 +218,7 @@ gpu_setindex!(t) = error("gpu_setindex! not implemented for: $(typeof(t)). This 
 max_dim(t)       = error("max_dim not implemented for: $(typeof(t)). This happens, when you call setindex! on an array, without implementing the GPUArray interface")
 
 
-@compat function (::Type{T}){T <: GPUArray}(x::Signal)
+function (::Type{T})(x::Signal) where T <: GPUArray
     gpu_mem = T(Reactive.value(x))
     preserve(const_lift(update!, gpu_mem, x))
     gpu_mem
@@ -232,11 +232,11 @@ else
     error("No Serialization type found. Probably unsupported Julia version")
 end
 
-function Base.serialize{T<:GPUArray}(s::BaseSerializer, t::T)
+function Base.serialize(s::BaseSerializer, t::T) where T<:GPUArray
     Base.serialize_type(s, T)
     serialize(s, Array(t))
 end
-function Base.deserialize{T<:GPUArray}(s::BaseSerializer, ::Type{T})
+function Base.deserialize(s::BaseSerializer, ::Type{T}) where T<:GPUArray
     A = deserialize(s)
     T(A)
 end

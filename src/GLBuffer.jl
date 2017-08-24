@@ -51,7 +51,7 @@ cardinality{T}(::GLBuffer{T}) = cardinality(T)
 function GLBuffer{T}(
         buffer::DenseVector{T};
         buffertype::GLenum = GL_ARRAY_BUFFER, usage::GLenum = GL_STATIC_DRAW
-    )
+    ) where T <: GLArrayEltypes
     GLBuffer{T}(pointer(buffer), length(buffer), buffertype, usage)
 end
 function GLBuffer{T <: GLArrayEltypes}(
@@ -61,10 +61,10 @@ function GLBuffer{T <: GLArrayEltypes}(
     GLBuffer{T}(Ptr{T}(C_NULL), len, buffertype, usage)
 end
 
-function indexbuffer{T<: GLArrayEltypes}(
+function indexbuffer(
         buffer::Vector{T};
         usage::GLenum = GL_STATIC_DRAW
-    )
+    ) where T<:GLArrayEltypes
     GLBuffer(buffer, buffertype = GL_ELEMENT_ARRAY_BUFFER, usage=usage)
 end
 # GPUArray interface
@@ -78,7 +78,7 @@ end
 
 
 # Resize buffer
-function gpu_resize!{T}(buffer::GLBuffer{T}, newdims::NTuple{1, Int})
+function gpu_resize!(buffer::GLBuffer{T}, newdims::NTuple{1, Int}) where T
     #TODO make this safe!
     newlength = newdims[1]
     oldlen    = length(buffer)
@@ -184,17 +184,17 @@ function copy!{T}(
     return nothing
 end
 
-function Base.start{T}(buffer::GLBuffer{T})
+function Base.start(buffer::GLBuffer{T}) where T
     glBindBuffer(buffer.buffertype, buffer.id)
     ptr = Ptr{T}(glMapBuffer(buffer.buffertype, GL_READ_WRITE))
     (ptr, 1)
 end
-function Base.next{T}(buffer::GLBuffer{T}, state::Tuple{Ptr{T}, Int})
+function Base.next(buffer::GLBuffer{T}, state::Tuple{Ptr{T}, Int}) where T
     ptr, i = state
     val = unsafe_load(ptr, i)
     (val, (ptr, i+1))
 end
-function Base.done{T}(buffer::GLBuffer{T}, state::Tuple{Ptr{T}, Int})
+function Base.done(buffer::GLBuffer{T}, state::Tuple{Ptr{T}, Int}) where T
     ptr, i = state
     isdone = length(buffer) < i
     isdone && glUnmapBuffer(buffer.buffertype)

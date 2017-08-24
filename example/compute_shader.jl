@@ -67,7 +67,7 @@ const ro = RenderObject(data, Signal(prg))
 postrender!(ro, glDispatchCompute, div(512,16), div(512,16), 1) # 512^2 threads in blocks of 16^2
 
 cam = window.cameras[:orthographic_pixel]
-function collect_for_gl{T <: HomogenousMesh}(m::T)
+function collect_for_gl(m::T) where T <: HomogenousMesh
     result = Dict{Symbol, Any}()
     attribs = attributes(m)
     @materialize! vertices, faces = attribs

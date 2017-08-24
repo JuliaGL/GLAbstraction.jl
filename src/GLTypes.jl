@@ -1,5 +1,4 @@
 ############################################################################
-
 abstract type GLMemory{T, N} <: DenseArray{T, N} end
 
 length(A::GLMemory)                   = prod(size(A))
@@ -12,27 +11,28 @@ size(A::GLMemory, i::Integer)         = i <= ndims(A) ? A.size[i] : 1
 
 @compat const TOrSignal{T} = Union{Signal{T}, T}
 
-@compat const ArrayOrSignal{T, N} = TOrSignal{Array{T, N}}
-@compat const VecOrSignal{T} = ArrayOrSignal{T, 1}
-@compat const MatOrSignal{T} = ArrayOrSignal{T, 2}
-@compat const VolumeOrSignal{T} = ArrayOrSignal{T, 3}
 
-@compat const ArrayTypes{T, N} = Union{ArrayOrSignal{T,N}}
-@compat const VecTypes{T} = ArrayTypes{T, 1}
-@compat const MatTypes{T} = ArrayTypes{T, 2}
-@compat const VolumeTypes{T} = ArrayTypes{T, 3}
+const ArrayOrSignal{T, N} = TOrSignal{Array{T, N}}
+const VecOrSignal{T} = ArrayOrSignal{T, 1}
+const MatOrSignal{T} = ArrayOrSignal{T, 2}
+const VolumeOrSignal{T} = ArrayOrSignal{T, 3}
+
+const ArrayTypes{T, N} = Union{ArrayOrSignal{T,N}}
+const VecTypes{T} = ArrayTypes{T, 1}
+const MatTypes{T} = ArrayTypes{T, 2}
+const VolumeTypes{T} = ArrayTypes{T, 3}
 
 @enum Projection PERSPECTIVE ORTHOGRAPHIC
 @enum MouseButton MOUSE_LEFT MOUSE_MIDDLE MOUSE_RIGHT
 
-@compat const GLContext = Symbol
+const GLContext = Symbol
 
 """
 Returns the cardinality of a type. falls back to length
 """
 cardinality(x) = length(x)
 cardinality(x::Number) = 1
-cardinality{T <: Number}(x::Type{T}) = 1
+cardinality(x::Type{T}) where {T <: Number} = 1
 
 #=
 We need to track the current OpenGL context.
@@ -70,7 +70,7 @@ begin
     end
 end
 
-immutable Shader
+struct Shader
     name::Symbol
     source::Vector{UInt8}
     typ::GLenum
@@ -99,10 +99,10 @@ end
 function Base.show(io::IO, shader::Shader)
     println(io, GLENUM(shader.typ).name, " shader: $(shader.name))")
     println(io, "source:")
-    print_with_lines(io, Compat.String(shader.source))
+    print_with_lines(io, String(shader.source))
 end
 
-type GLProgram
+mutable struct GLProgram
     id          ::GLuint
     shader      ::Vector{Shader}
     nametype    ::Dict{Symbol, GLenum}
@@ -130,7 +130,7 @@ end
 ############################################
 # Framebuffers and the like
 
-immutable RenderBuffer
+struct RenderBuffer
     id      ::GLuint
     format  ::GLenum
     context ::GLContext
@@ -151,7 +151,7 @@ function resize!(rb::RenderBuffer, newsize::AbstractArray)
     glRenderbufferStorage(GL_RENDERBUFFER, rb.format, newsize...)
 end
 
-immutable FrameBuffer{T}
+struct FrameBuffer{T}
     id          ::GLuint
     attachments ::Vector{Any}
     context     ::GLContext
@@ -178,9 +178,9 @@ const GLArrayEltypes = Union{StaticVector, Real, Colorant}
 """
 Transform julia datatypes to opengl enum type
 """
-julia2glenum{T <: FixedPoint}(x::Type{T}) = julia2glenum(FixedPointNumbers.rawtype(x))
-julia2glenum{O, T}(x::Type{OffsetInteger{O, T}}) = julia2glenum(T)
-julia2glenum{T <: Union{StaticVector, Colorant}}(x::Union{Type{T}, T}) = julia2glenum(eltype(x))
+julia2glenum(x::Type{T}) where {T <: FixedPoint} = julia2glenum(FixedPointNumbers.rawtype(x))
+julia2glenum(x::Type{OffsetInteger{O, T}}) where {O, T} = julia2glenum(T)
+julia2glenum(x::Union{Type{T}, T}) where {T <: Union{StaticVector, Colorant}} = julia2glenum(eltype(x))
 julia2glenum(x::Type{GLubyte})  = GL_UNSIGNED_BYTE
 julia2glenum(x::Type{GLbyte})   = GL_BYTE
 julia2glenum(x::Type{GLuint})   = GL_UNSIGNED_INT
@@ -206,11 +206,11 @@ Can be created from a dict of buffers and an opengl Program.
 Keys with the name `indices` will get special treatment and will be used as
 the indexbuffer.
 """
-type GLVertexArray{T}
+mutable struct GLVertexArray{T}
     program      ::GLProgram
     id           ::GLuint
     bufferlength ::Int
-    buffers      ::Dict{Compat.String, GLBuffer}
+    buffers      ::Dict{String, GLBuffer}
     indices      ::T
     context      ::GLContext
 
@@ -232,7 +232,7 @@ function GLVertexArray(bufferdict::Dict, program::GLProgram)
     id  = glGenVertexArrays()
     glBindVertexArray(id)
     lenbuffer = 0
-    buffers = Dict{Compat.String, GLBuffer}()
+    buffers = Dict{String, GLBuffer}()
     for (name, buffer) in bufferdict
         if isa(buffer, GLBuffer) && buffer.buffertype == GL_ELEMENT_ARRAY_BUFFER
             bind(buffer)
@@ -249,6 +249,7 @@ function GLVertexArray(bufferdict::Dict, program::GLProgram)
             )
             bind(buffer)
             attribLocation = get_attribute_location(program.id, attribute)
+            (attribLocation == -1) && continue
             glVertexAttribPointer(attribLocation, cardinality(buffer), julia2glenum(eltype(buffer)), GL_FALSE, 0, C_NULL)
             glEnableVertexAttribArray(attribLocation)
             buffers[attribute] = buffer
@@ -273,7 +274,7 @@ end
 
 RENDER_OBJECT_ID_COUNTER = zero(GLushort)
 
-type RenderObject{Pre} <: Composable{DeviceUnit}
+mutable struct RenderObject{Pre} <: Composable{DeviceUnit}
     main                 # main object
     uniforms            ::Dict{Symbol, Any}
     vertexarray         ::GLVertexArray
@@ -297,12 +298,12 @@ type RenderObject{Pre} <: Composable{DeviceUnit}
 end
 
 
-function RenderObject{Pre}(
+function RenderObject(
         data::Dict{Symbol, Any}, program,
         pre::Pre, post,
         bbs=Signal(AABB{Float32}(Vec3f0(0),Vec3f0(1))),
         main=nothing
-    )
+    ) where Pre
     targets = get(data, :gl_convert_targets, Dict())
     delete!(data, :gl_convert_targets)
     passthrough = Dict{Symbol, Any}() # we also save a few non opengl related values in data

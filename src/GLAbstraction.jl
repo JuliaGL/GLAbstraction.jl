@@ -9,7 +9,6 @@ using ModernGL
 using Reactive
 using FixedPointNumbers
 using ColorTypes
-using Compat
 using FileIO
 using GLFW
 

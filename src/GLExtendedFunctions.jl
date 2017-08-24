@@ -13,7 +13,7 @@ function glShaderSource(shaderID::GLuint, shadercode::Vector{UInt8})
     len              = Ref{GLint}(length(shadercode))
     glShaderSource(shaderID, 1, shader_code_ptrs, len)
 end
-glShaderSource(shaderID::GLuint, shadercode::Compat.UTF8String) = glShaderSource(shaderID, shadercode.data)
+glShaderSource(shaderID::GLuint, shadercode::String) = glShaderSource(shaderID, Vector{UInt8}(shadercode))
 function glGetAttachedShaders(program::GLuint)
     shader_count   = glGetProgramiv(program, GL_ATTACHED_SHADERS)
     length_written = GLsizei[0]
@@ -25,10 +25,10 @@ end
 
 get_attribute_location(program::GLuint, name) = get_uniform_location(program, ascii(name))
 get_attribute_location(program::GLuint, name::Symbol) = get_attribute_location(program, string(name))
-function get_attribute_location(program::GLuint, name::Compat.ASCIIString)
+function get_attribute_location(program::GLuint, name::String)
     const location::GLint = glGetAttribLocation(program, name)
     if location == -1
-        error(
+        warn(
             "Named attribute (:$(name)) is not an active attribute in the specified program object or\n
             the name starts with the reserved prefix gl_\n"
         )
@@ -43,7 +43,7 @@ function get_attribute_location(program::GLuint, name::Compat.ASCIIString)
 end
 get_uniform_location(program::GLuint, name) = get_uniform_location(program, ascii(name))
 get_uniform_location(program::GLuint, name::Symbol) = get_uniform_location(program, string(name))
-function get_uniform_location(program::GLuint, name::Compat.ASCIIString)
+function get_uniform_location(program::GLuint, name::String)
     const location = glGetUniformLocation(program, name)::GLint
     if location == -1
         error(

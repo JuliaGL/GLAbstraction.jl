@@ -1,4 +1,4 @@
-immutable TextureParameters{NDim}
+struct TextureParameters{NDim}
     minfilter::Symbol
     magfilter::Symbol # magnification
     repeat   ::NTuple{NDim, Symbol}
@@ -57,14 +57,14 @@ function set_packing_alignment(a) # at some point we should specialize to array/
 end
 
 
-function Texture{T, NDim}(
+function Texture(
         data::Ptr{T}, dims::NTuple{NDim, Int};
         internalformat::GLenum = default_internalcolorformat(T),
         texturetype   ::GLenum = default_texturetype(NDim),
         format        ::GLenum = default_colorformat(T),
         mipmap = false,
         parameters... # rest should be texture parameters
-    )
+    ) where {T, NDim}
     texparams = TextureParameters(T, NDim; parameters...)
     id = glGenTextures()
     glBindTexture(texturetype, id)
@@ -81,7 +81,7 @@ function Texture{T, NDim}(
     texture
 end
 export resize_nocopy!
-function resize_nocopy!{T, ND}(t::Texture{T, ND}, newdims::NTuple{ND, Int})
+function resize_nocopy!(t::Texture{T, ND}, newdims::NTuple{ND, Int}) where {T, ND}
     bind(t)
     glTexImage(t.texturetype, 0, t.internalformat, newdims..., 0, t.format, t.pixeltype, C_NULL)
     t.size = newdims
@@ -103,19 +103,19 @@ So Array{Real, 2} == Texture2D with 1D Colorant dimension
 Array{Vec1/2/3/4, 2} == Texture2D with 1/2/3/4D Colorant dimension
 Colors from Colors.jl should mostly work as well
 """
-Texture{T <: GLArrayEltypes, NDim}(image::Array{T, NDim}; kw_args...) =
+Texture(image::Array{T, NDim}; kw_args...) where {T <: GLArrayEltypes, NDim} =
     Texture(pointer(image), size(image); kw_args...)
 
 """
 Constructor for Array Texture
 """
-function Texture{T <: GLArrayEltypes}(
+function Texture(
         data::Vector{Array{T, 2}};
         internalformat::GLenum = default_internalcolorformat(T),
         texturetype::GLenum    = GL_TEXTURE_2D_ARRAY,
         format::GLenum         = default_colorformat(T),
         parameters...
-    )
+    ) where T <: GLArrayEltypes
     texparams = TextureParameters(T, 2; parameters...)
     id = glGenTextures()
 
@@ -364,12 +364,11 @@ function default_colorformat_sym(colordim::Integer, isinteger::Bool, colororder:
     sym *= color * integer
     return Symbol(sym)
 end
-using Compat.TypeUtils
 
-default_colorformat_sym{T <: Real}(::Type{T})           = default_colorformat_sym(1, T <: Integer, "RED")
-default_colorformat_sym{T <: AbstractArray}(::Type{T})  = default_colorformat_sym(cardinality(T), eltype(T) <: Integer, "RGBA")
-default_colorformat_sym{T <: StaticVector}(::Type{T})    = default_colorformat_sym(cardinality(T), eltype(T) <: Integer, "RGBA")
-default_colorformat_sym{T <: Colorant}(::Type{T})       = default_colorformat_sym(cardinality(T), eltype(T) <: Integer, string(typename(T).name))
+default_colorformat_sym{T <: Real}(::Type{T}) = default_colorformat_sym(1, T <: Integer, "RED")
+default_colorformat_sym{T <: AbstractArray}(::Type{T}) = default_colorformat_sym(cardinality(T), eltype(T) <: Integer, "RGBA")
+default_colorformat_sym{T <: StaticVector}(::Type{T}) = default_colorformat_sym(cardinality(T), eltype(T) <: Integer, "RGBA")
+default_colorformat_sym{T <: Colorant}(::Type{T}) = default_colorformat_sym(cardinality(T), eltype(T) <: Integer, string(Base.typename(T).name))
 
 @generated function default_internalcolorformat{T}(::Type{T})
     sym = default_internalcolorformat_sym(T)
@@ -425,7 +424,7 @@ const TEXTURE_PARAMETER_MAPPING = Dict(
     :nearest_mipmap_linear  => GL_NEAREST_MIPMAP_LINEAR, #Chooses the two mipmaps that most closely match the size of the pixel being textured and uses the GL_NEAREST criterion (the texture element nearest to the center of the pixel) to produce a texture value from each mipmap. The final texture value is a weighted average of those two values.
     :linear_mipmap_linear   => GL_LINEAR_MIPMAP_LINEAR, #Chooses the two mipmaps that most closely match the size of the pixel being textured and uses the GL_LINEAR criterion (a weighted average of the four texture elements that are closest to the center of the pixel) to produce a texture value from each mipmap. The final texture value is a weighted average of those two values.
 )
-map_texture_paramers{N}(s::NTuple{N, Symbol}) = map(map_texture_paramers, s)
+map_texture_paramers(s::NTuple{N, Symbol}) where {N} = map(map_texture_paramers, s)
 function map_texture_paramers(s::Symbol, mapping=TEXTURE_PARAMETER_MAPPING)
     haskey(mapping, s) && return mapping[s]
     error("$s is not a valid texture parameter. Only $(keys(mapping)) are valid")
@@ -454,12 +453,12 @@ function TextureParameters(T, NDim;
         anisotropic, swizzle_mask
     )
 end
-function TextureParameters{T, NDim}(t::Texture{T, NDim}; kw_args...)
+function TextureParameters(t::Texture{T, NDim}; kw_args...) where {T, NDim}
     TextureParameters(T, NDim; kw_args...)
 end
 const GL_TEXTURE_MAX_ANISOTROPY_EXT = GLenum(0x84FE)
 
-function set_parameters{T, N}(t::Texture{T, N}, params::TextureParameters=t.parameters)
+function set_parameters(t::Texture{T, N}, params::TextureParameters=t.parameters) where {T, N}
     fnames    = (:minfilter, :magfilter, :repeat)
     data      = Dict([(name, map_texture_paramers(getfield(params, name))) for name in fnames])
     result    = Tuple{GLenum, Any}[]

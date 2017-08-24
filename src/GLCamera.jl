@@ -1,14 +1,14 @@
 abstract type Camera{T} end
 const Q = Quaternions # save some writing!
 
-type OrthographicCamera{T} <: Camera{T}
+mutable struct OrthographicCamera{T} <: Camera{T}
     window_size     ::Signal{SimpleRectangle{Int}}
     view            ::Signal{Mat4{T}}
     projection      ::Signal{Mat4{T}}
     projectionview  ::Signal{Mat4{T}}
 end
 
-type PerspectiveCamera{T} <: Camera{T}
+mutable struct PerspectiveCamera{T} <: Camera{T}
     window_size     ::Signal{SimpleRectangle{Int}}
     nearclip        ::Signal{T}
     farclip         ::Signal{T}
@@ -24,7 +24,7 @@ type PerspectiveCamera{T} <: Camera{T}
     projectiontype  ::Signal{Projection}
 end
 
-type DummyCamera{T, IT} <: Camera{T}
+mutable struct DummyCamera{T, IT} <: Camera{T}
     window_size     ::Signal{SimpleRectangle{IT}}
     view            ::Signal{Mat4{T}}
     projection      ::Signal{Mat4{T}}
@@ -230,7 +230,7 @@ end
 
 export doubleclick
 function default_camera_control(
-        inputs, rotation_speed, translation_speed, keep=Signal(true)
+        inputs, rotation_speed, translation_speed, keep = Signal(true)
     )
     @materialize mouseposition, mouse_buttons_pressed, scroll = inputs
 
@@ -283,11 +283,12 @@ inputs: Dict of signals, looking like this:
 eyeposition: Position of the camera
 lookatvec: Point the camera looks at
 """
-function PerspectiveCamera{T}(
+function PerspectiveCamera(
         inputs::Dict{Symbol,Any},
         eyeposition::Vec{3, T}, lookatvec::Vec{3, T};
+        upvector = Vec3f0(0, 0, 1),
         keep=Signal(true), theta=nothing, trans=nothing
-    )
+    ) where T
     lookat, eyepos = Signal(lookatvec), Signal(eyeposition)
     # TODO make this more elegant!
     _theta, _trans = default_camera_control(
@@ -306,17 +307,17 @@ function PerspectiveCamera{T}(
         trans,
         lookat,
         eyepos,
-        Signal(Vec3f0(0,0,1)),
+        Signal(upvector),
         inputs[:window_area],
         Signal(41f0), # Field of View
         Signal(0.001f0),  # Min distance (clip distance)
         farclip # Max distance (clip distance)
     )
 end
-function PerspectiveCamera{T}(
+function PerspectiveCamera(
         area,
         eyeposition::Signal{Vec{3, T}}, lookatvec::Signal{Vec{3, T}}, upvector
-    )
+    ) where T
     PerspectiveCamera(
         Signal(Vec3f0(0)),
         Signal(Vec3f0(0)),
@@ -331,11 +332,11 @@ function PerspectiveCamera{T}(
 end
 
 
-function projection_switch{T<:Real}(
+function projection_switch(
         wh::SimpleRectangle,
         fov::T, near::T, far::T,
         projection::Projection, zoom::T
-    )
+    ) where T<:Real
     aspect = T(wh.w/wh.h)
     h      = T(tan(fov / 360.0 * pi) * near)
     w      = T(h * aspect)
@@ -398,10 +399,10 @@ function translate_cam(
     nothing
 end
 
-function rotate_cam{T}(
+function rotate_cam(
         theta::Vec{3, T},
         cam_right::Vec{3,T}, cam_up::Vec{3,T}, cam_dir::Vec{3, T}
-    )
+    ) where T
     rotation = one(Q.Quaternion{T})
     # first the rotation around up axis, since the other rotation should be relative to that rotation
     if theta[1] != 0
@@ -431,7 +432,7 @@ farclip: Far clip plane
 `lookatposition`: point the camera looks at
 `eyeposition`: the actual position of the camera (the lense, the \"eye\")
 """
-function PerspectiveCamera{T<:Vec3}(
+function PerspectiveCamera(
         theta,
         trans::Signal{T},
         lookatposition::Signal{T},
@@ -442,7 +443,7 @@ function PerspectiveCamera{T<:Vec3}(
         nearclip,
         farclip,
         projectiontype = Signal(PERSPECTIVE)
-    )
+    ) where T<:Vec3
     # we have three ways to manipulate the camera: rotation, lookat/eyeposition and translation
     positions = (eyeposition, lookatposition, upvector)
 
@@ -466,7 +467,7 @@ function PerspectiveCamera{T<:Vec3}(
         theta_v == Vec3f0(0) && return nothing #nothing to do!
         eyepos_v, lookat_v, up_v = map(value, positions)
 
-        dir = normalize(eyepos_v-lookat_v)
+        dir = normalize(eyepos_v - lookat_v)
         right_v = normalize(cross(up_v, dir))
         up_v  = normalize(cross(dir, right_v))
 
@@ -544,14 +545,15 @@ function center!(camera::PerspectiveCamera, bb::AABB)
         push!(camera.eyeposition, Vec3f0(x, y, maximum(zoom)))
         push!(camera.lookat, Vec3f0(x, y, 0))
         push!(camera.up, Vec3f0(0,1,0))
-        #push!(camera.nearclip, 1)
-        #push!(camera.farclip, 50f0)
     else
         push!(camera.lookat, middle)
         neweyepos = middle + (width*1.2f0)
         push!(camera.eyeposition, neweyepos)
         push!(camera.up, Vec3f0(0,0,1))
+        push!(camera.nearclip, 0.1f0 * norm(widths(bb)))
+        push!(camera.farclip, 3f0 * norm(widths(bb)))
     end
+    return
 end
 function robj_from_camera() end
 function renderlist() end
