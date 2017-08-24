@@ -162,7 +162,7 @@ julia2glenum(x::Type{GLint})    = GL_INT
 julia2glenum(x::Type{GLfloat})  = GL_FLOAT
 julia2glenum(x::Type{GLdouble}) = GL_DOUBLE
 julia2glenum(x::Type{Float16})  = GL_HALF_FLOAT
-function julia2glenum{T}(::Type{T})
+function julia2glenum(::Type{T}) where T
     error("Type: $T not supported as opengl number datatype")
 end
 

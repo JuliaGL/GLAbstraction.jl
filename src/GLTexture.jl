@@ -55,8 +55,8 @@ bind(t::Texture, id) = glBindTexture(t.texturetype, id)
 is_texturearray(t::Texture) = t.texturetype == GL_TEXTURE_2D_ARRAY
 is_texturebuffer(t::Texture) = t.texturetype == GL_TEXTURE_BUFFER
 
-colordim{T}(::Type{T}) = cardinality(T)
-colordim{T <: Real}(::Type{T}) = 1
+colordim(::Type{T}) where {T} = cardinality(T)
+colordim(::Type{T}) where {T <: Real} = 1
 
 function set_packing_alignment(a) # at some point we should specialize to array/ptr a
     glPixelStorei(GL_UNPACK_ALIGNMENT, 1)
@@ -103,7 +103,7 @@ Constructor for empty initialization with NULL pointer instead of an array with 
 You just need to pass the wanted color/vector type and the dimensions.
 To which values the texture gets initialized is driver dependent
 """
-Texture{T <: GLArrayEltypes, N}(::Type{T}, dims::NTuple{N, Int}; kw_args...) =
+Texture(::Type{T}, dims::NTuple{N, Int}; kw_args...) where {T <: GLArrayEltypes, N} =
     Texture(convert(Ptr{T}, C_NULL), dims; kw_args...)
 
 """
@@ -367,7 +367,7 @@ function Base.done(t::TextureBuffer{T}, state::Tuple{Ptr{T}, Int}) where T
     isdone
 end
 
-@generated function default_colorformat{T}(::Type{T})
+@generated function default_colorformat(::Type{T}) where T
     sym = default_colorformat_sym(T)
     if !isdefined(ModernGL, sym)
         error("$T doesn't have a propper mapping to an OpenGL format")
@@ -386,19 +386,19 @@ function default_colorformat_sym(colordim::Integer, isinteger::Bool, colororder:
     return Symbol(sym)
 end
 
-default_colorformat_sym{T <: Real}(::Type{T}) = default_colorformat_sym(1, T <: Integer, "RED")
-default_colorformat_sym{T <: AbstractArray}(::Type{T}) = default_colorformat_sym(cardinality(T), eltype(T) <: Integer, "RGBA")
-default_colorformat_sym{T <: StaticVector}(::Type{T}) = default_colorformat_sym(cardinality(T), eltype(T) <: Integer, "RGBA")
-default_colorformat_sym{T <: Colorant}(::Type{T}) = default_colorformat_sym(cardinality(T), eltype(T) <: Integer, string(Base.typename(T).name))
+default_colorformat_sym(::Type{T}) where {T <: Real} = default_colorformat_sym(1, T <: Integer, "RED")
+default_colorformat_sym(::Type{T}) where {T <: AbstractArray} = default_colorformat_sym(cardinality(T), eltype(T) <: Integer, "RGBA")
+default_colorformat_sym(::Type{T}) where {T <: StaticVector} = default_colorformat_sym(cardinality(T), eltype(T) <: Integer, "RGBA")
+default_colorformat_sym(::Type{T}) where {T <: Colorant} = default_colorformat_sym(cardinality(T), eltype(T) <: Integer, string(Base.typename(T).name))
 
-@generated function default_internalcolorformat{T}(::Type{T})
+@generated function default_internalcolorformat(::Type{T}) where T
     sym = default_internalcolorformat_sym(T)
     if !isdefined(ModernGL, sym)
         error("$T doesn't have a propper mapping to an OpenGL format")
     end
     :($sym)
 end
-function default_internalcolorformat_sym{T}(::Type{T})
+function default_internalcolorformat_sym(::Type{T}) where T
     cdim = colordim(T)
     if cdim > 4 || cdim < 1
         error("$(cdim)-dimensional colors not supported")

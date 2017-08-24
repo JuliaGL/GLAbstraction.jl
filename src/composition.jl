@@ -89,7 +89,7 @@ function transformation(c::Composable, model)
     c
 end
 
-convert!{unit <: Unit}(::Type{unit}, x::Composable) = x # We don't do units just yet
+convert!(::Type{unit}, x::Composable) where {unit <: Unit} = x # We don't do units just yet
 
 function Base.append!(context::Context{unit}, x::Union{Vector{Composable}, NTuple{N, Composable}}) where {unit <: Unit, N}
     for elem in x

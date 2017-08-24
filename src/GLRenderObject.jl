@@ -113,8 +113,8 @@ function std_renderobject(data, program, bb = Signal(AABB(Vec3f0(0), Vec3f0(1)))
     robj
 end
 
-prerendertype{Pre}(::Type{RenderObject{Pre}}) = Pre
-prerendertype{Pre}(::RenderObject{Pre}) = Pre
+prerendertype(::Type{RenderObject{Pre}}) where {Pre} = Pre
+prerendertype(::RenderObject{Pre}) where {Pre} = Pre
 
 extract_renderable(context::Vector{RenderObject}) = context
 extract_renderable(context::RenderObject) = RenderObject[context]
