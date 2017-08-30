@@ -47,13 +47,13 @@ end
 
 cardinality{T}(::GLBuffer{T}) = cardinality(T)
 
-#Function to deal with any Immutable type with Real as Subtype
-function GLBuffer{T}(
+function GLBuffer(
         buffer::DenseVector{T};
         buffertype::GLenum = GL_ARRAY_BUFFER, usage::GLenum = GL_STATIC_DRAW
-    ) where T <: GLArrayEltypes
+    ) where T
     GLBuffer{T}(pointer(buffer), length(buffer), buffertype, usage)
 end
+
 function GLBuffer{T <: GLArrayEltypes}(
         ::Type{T}, len::Int;
         buffertype::GLenum = GL_ARRAY_BUFFER, usage::GLenum = GL_STATIC_DRAW
