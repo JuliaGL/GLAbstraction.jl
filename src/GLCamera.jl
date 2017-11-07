@@ -392,12 +392,16 @@ function imagespace(pos, camera)
     Point2f0(pos[1], pos[2]) / pos[4]
 end
 
-
-
 function translate_cam(
-        translate, proj, view, window_size, prj_type,
-        eyepos_s, lookat_s, up_s,
-    )
+        translate::T,
+        proj::Mat4{Float32},
+        view::Mat4{Float32},
+        window_size::SimpleRectangle{Int},
+        prj_type::Projection,
+        eyepos_s::T,
+        lookat_s::T,
+        up_s::T,
+    ) where T<:Vec3
     translate == Vec3f0(0) && return nothing # nothing to do
 
     lookat, eyepos, up, prjt = map(value, (lookat_s, eyepos_s, up_s, prj_type))
@@ -480,9 +484,8 @@ function PerspectiveCamera(
     projectionview = map(*, projectionmatrix, viewmatrix)
 
     preserve(map(translate_cam,
-       trans, Signal(projectionmatrix), Signal(viewmatrix), Signal(window_size),
-       Signal(projectiontype),  Signal(eyeposition), Signal(lookatposition),
-       Signal(upvector)
+       trans, projectionmatrix, viewmatrix, window_size,
+       projectiontype,  eyeposition, lookatposition, upvector
     ))
 
     preserve(map(theta) do theta_v
