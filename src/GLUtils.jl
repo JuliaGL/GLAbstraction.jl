@@ -21,7 +21,7 @@ macro gputime(codeblock)
 end
 
 struct IterOrScalar{T}
-  val::T
+    val::T
 end
 
 minlenght(a::Tuple{Vararg{IterOrScalar}}) = foldl(typemax(Int), a) do len, elem

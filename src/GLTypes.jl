@@ -29,17 +29,16 @@ Since we can't do this via pointer identity  (OpenGL may reuse the same pointers
 We go for this slightly ugly version.
 In the future, this should probably be part of GLWindow.
 =#
-begin
-    local const context = Ref(:none)
-    function current_context()
-        context[]
-    end
-    function is_current_context(x)
-        x == context[]
-    end
-    function new_context()
-        context[] = gensym()
-    end
+const context = Base.RefValue{GLContext}(:none)
+
+function current_context()
+    context[]
+end
+function is_current_context(x)
+    x == context[]
+end
+function new_context()
+    context[] = gensym()
 end
 
 struct Shader
@@ -244,7 +243,7 @@ end
 
 ##################################################################################
 
-RENDER_OBJECT_ID_COUNTER = zero(GLushort)
+const RENDER_OBJECT_ID_COUNTER = Ref(zero(GLushort))
 
 mutable struct RenderObject{Pre} <: Composable{DeviceUnit}
     main                 # main object
@@ -259,12 +258,11 @@ mutable struct RenderObject{Pre} <: Composable{DeviceUnit}
             prerenderfunctions, postrenderfunctions,
             boundingbox
         ) where Pre
-        global RENDER_OBJECT_ID_COUNTER
-        RENDER_OBJECT_ID_COUNTER += one(GLushort)
+        RENDER_OBJECT_ID_COUNTER[] += one(GLushort)
         new(
             main, uniforms, vertexarray,
             prerenderfunctions, postrenderfunctions,
-            RENDER_OBJECT_ID_COUNTER, boundingbox
+            RENDER_OBJECT_ID_COUNTER[], boundingbox
         )
     end
 end

@@ -41,10 +41,11 @@ function get_attribute_location(program::GLuint, name::String)
     end
     location
 end
-get_uniform_location(program::GLuint, name) = get_uniform_location(program, ascii(name))
-get_uniform_location(program::GLuint, name::Symbol) = get_uniform_location(program, string(name))
+
+
+get_uniform_location(program::GLuint, name::Symbol) = get_uniform_location(program, String(name))
 function get_uniform_location(program::GLuint, name::String)
-    const location = glGetUniformLocation(program, name)::GLint
+    location = glGetUniformLocation(program, name)
     if location == -1
         error(
             """Named uniform (:$(name)) is not an active attribute in the specified program object or
@@ -104,7 +105,7 @@ end
 
 
 function glGenBuffers(n=1)
-    const result = GLuint[0]
+    result = GLuint[0]
     glGenBuffers(1, result)
     id = result[]
     if id <= 0
@@ -113,7 +114,7 @@ function glGenBuffers(n=1)
     id
 end
 function glGenVertexArrays()
-    const result = GLuint[0]
+    result = GLuint[0]
     glGenVertexArrays(1, result)
     id = result[1]
     if id <=0
@@ -122,7 +123,7 @@ function glGenVertexArrays()
     id
 end
 function glGenTextures()
-    const result = GLuint[0]
+    result = GLuint[0]
     glGenTextures(1, result)
     id = result[1]
     if id <= 0
@@ -131,7 +132,7 @@ function glGenTextures()
     id
 end
 function glGenFramebuffers()
-    const result = GLuint[0]
+    result = GLuint[0]
     glGenFramebuffers(1, result)
     id = result[1]
     if id <= 0

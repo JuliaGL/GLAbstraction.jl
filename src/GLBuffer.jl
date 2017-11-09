@@ -8,6 +8,8 @@ mutable struct GLBuffer{T} <: GPUArray{T, 1}
     function GLBuffer{T}(ptr::Ptr{T}, buff_length::Int, buffertype::GLenum, usage::GLenum) where T
         id = glGenBuffers()
         glBindBuffer(buffertype, id)
+        # size of 0 can segfault it seems
+        buff_length = buff_length == 0 ? 1 : buff_length
         glBufferData(buffertype, buff_length * sizeof(T), ptr, usage)
         glBindBuffer(buffertype, 0)
 

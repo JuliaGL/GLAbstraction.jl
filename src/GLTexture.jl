@@ -366,15 +366,6 @@ function Base.done(t::TextureBuffer{T}, state::Tuple{Ptr{T}, Int}) where T
     end
     isdone
 end
-
-@generated function default_colorformat(::Type{T}) where T
-    sym = default_colorformat_sym(T)
-    if !isdefined(ModernGL, sym)
-        error("$T doesn't have a propper mapping to an OpenGL format")
-    end
-    :($sym)
-end
-
 function default_colorformat_sym(colordim::Integer, isinteger::Bool, colororder::AbstractString)
     colordim > 4 && error("no colors with dimension > 4 allowed. Dimension given: ", colordim)
     sym = "GL_"
@@ -391,13 +382,14 @@ default_colorformat_sym(::Type{T}) where {T <: AbstractArray} = default_colorfor
 default_colorformat_sym(::Type{T}) where {T <: StaticVector} = default_colorformat_sym(cardinality(T), eltype(T) <: Integer, "RGBA")
 default_colorformat_sym(::Type{T}) where {T <: Colorant} = default_colorformat_sym(cardinality(T), eltype(T) <: Integer, string(Base.typename(T).name))
 
-@generated function default_internalcolorformat(::Type{T}) where T
-    sym = default_internalcolorformat_sym(T)
+@generated function default_colorformat(::Type{T}) where T
+    sym = default_colorformat_sym(T)
     if !isdefined(ModernGL, sym)
         error("$T doesn't have a propper mapping to an OpenGL format")
     end
     :($sym)
 end
+
 function default_internalcolorformat_sym(::Type{T}) where T
     cdim = colordim(T)
     if cdim > 4 || cdim < 1
@@ -420,8 +412,15 @@ function default_internalcolorformat_sym(::Type{T}) where T
     Symbol(sym)
 end
 
-
-
+# for I = 1:4
+#     for
+@generated function default_internalcolorformat(::Type{T}) where T
+    sym = default_internalcolorformat_sym(T)
+    if !isdefined(ModernGL, sym)
+        error("$T doesn't have a propper mapping to an OpenGL format")
+    end
+    :($sym)
+end
 
 
 #Supported texture modes/dimensions
@@ -433,24 +432,24 @@ function default_texturetype(ndim::Integer)
 end
 
 
-const TEXTURE_PARAMETER_MAPPING = Dict(
-    :clamp_to_edge          => GL_CLAMP_TO_EDGE,
-    :mirrored_repeat        => GL_MIRRORED_REPEAT,
-    :repeat                 => GL_REPEAT,
-
-    :linear                 => GL_LINEAR, #Returns the value of the texture element that is nearest (in Manhattan distance) to the center of the pixel being textured.
-    :nearest                => GL_NEAREST, #Returns the weighted average of the four texture elements that are closest to the center of the pixel being textured.
-    :nearest_mipmap_nearest => GL_NEAREST_MIPMAP_NEAREST, #Chooses the mipmap that most closely matches the size of the pixel being textured and uses the GL_NEAREST criterion (the texture element nearest to the center of the pixel) to produce a texture value.
-    :linear_mipmap_nearest  => GL_LINEAR_MIPMAP_NEAREST, #Chooses the mipmap that most closely matches the size of the pixel being textured and uses the GL_LINEAR criterion (a weighted average of the four texture elements that are closest to the center of the pixel) to produce a texture value.
-    :nearest_mipmap_linear  => GL_NEAREST_MIPMAP_LINEAR, #Chooses the two mipmaps that most closely match the size of the pixel being textured and uses the GL_NEAREST criterion (the texture element nearest to the center of the pixel) to produce a texture value from each mipmap. The final texture value is a weighted average of those two values.
-    :linear_mipmap_linear   => GL_LINEAR_MIPMAP_LINEAR, #Chooses the two mipmaps that most closely match the size of the pixel being textured and uses the GL_LINEAR criterion (a weighted average of the four texture elements that are closest to the center of the pixel) to produce a texture value from each mipmap. The final texture value is a weighted average of those two values.
-)
 map_texture_paramers(s::NTuple{N, Symbol}) where {N} = map(map_texture_paramers, s)
-function map_texture_paramers(s::Symbol, mapping=TEXTURE_PARAMETER_MAPPING)
+
+function map_texture_paramers(s::Symbol)
+    mapping = Dict(
+        :clamp_to_edge          => GL_CLAMP_TO_EDGE,
+        :mirrored_repeat        => GL_MIRRORED_REPEAT,
+        :repeat                 => GL_REPEAT,
+
+        :linear                 => GL_LINEAR, #Returns the value of the texture element that is nearest (in Manhattan distance) to the center of the pixel being textured.
+        :nearest                => GL_NEAREST, #Returns the weighted average of the four texture elements that are closest to the center of the pixel being textured.
+        :nearest_mipmap_nearest => GL_NEAREST_MIPMAP_NEAREST, #Chooses the mipmap that most closely matches the size of the pixel being textured and uses the GL_NEAREST criterion (the texture element nearest to the center of the pixel) to produce a texture value.
+        :linear_mipmap_nearest  => GL_LINEAR_MIPMAP_NEAREST, #Chooses the mipmap that most closely matches the size of the pixel being textured and uses the GL_LINEAR criterion (a weighted average of the four texture elements that are closest to the center of the pixel) to produce a texture value.
+        :nearest_mipmap_linear  => GL_NEAREST_MIPMAP_LINEAR, #Chooses the two mipmaps that most closely match the size of the pixel being textured and uses the GL_NEAREST criterion (the texture element nearest to the center of the pixel) to produce a texture value from each mipmap. The final texture value is a weighted average of those two values.
+        :linear_mipmap_linear   => GL_LINEAR_MIPMAP_LINEAR, #Chooses the two mipmaps that most closely match the size of the pixel being textured and uses the GL_LINEAR criterion (a weighted average of the four texture elements that are closest to the center of the pixel) to produce a texture value from each mipmap. The final texture value is a weighted average of those two values.
+    )
     haskey(mapping, s) && return mapping[s]
     error("$s is not a valid texture parameter. Only $(keys(mapping)) are valid")
 end
-
 
 function TextureParameters(T, NDim;
         minfilter = T <: Integer ? :nearest : :linear,
@@ -477,6 +476,7 @@ end
 function TextureParameters(t::Texture{T, NDim}; kw_args...) where {T, NDim}
     TextureParameters(T, NDim; kw_args...)
 end
+
 const GL_TEXTURE_MAX_ANISOTROPY_EXT = GLenum(0x84FE)
 
 function set_parameters(t::Texture{T, N}, params::TextureParameters=t.parameters) where {T, N}

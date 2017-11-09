@@ -3,7 +3,7 @@
 # here is my approach, to handle all of the uniforms with one function, namely gluniform
 # For uniforms, the Vector and Matrix types from ImmutableArrays should be used, as they map the relation almost 1:1
 
-GLSL_COMPATIBLE_NUMBER_TYPES = (GLfloat, GLint, GLuint, GLdouble)
+const GLSL_COMPATIBLE_NUMBER_TYPES = (GLfloat, GLint, GLuint, GLdouble)
 const NATIVE_TYPES = Union{
     StaticArray, GLSL_COMPATIBLE_NUMBER_TYPES...,
     ZeroIndex{GLint}, ZeroIndex{GLuint},
@@ -16,7 +16,7 @@ opengl_postfix(T) = error("Object $T is not a supported uniform element type")
 
 opengl_prefix(x::Type{T}) where {T <: Union{FixedPoint, Float32, Float16}} = ""
 opengl_prefix(x::Type{T}) where {T <: Float64} = "d"
-opengl_prefix(x::Type{Cint})                                = "i"
+opengl_prefix(x::Type{Cint}) = "i"
 opengl_prefix(x::Type{T}) where {T <: Union{Cuint, UInt8, UInt16}} = "u"
 
 opengl_postfix(x::Type{Float64}) = "dv"
