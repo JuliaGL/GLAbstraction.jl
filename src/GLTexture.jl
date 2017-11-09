@@ -87,7 +87,7 @@ function Texture(
         dims
     )
     set_parameters(texture)
-    texture
+    texture::Texture{T, NDim}
 end
 export resize_nocopy!
 function resize_nocopy!(t::Texture{T, ND}, newdims::NTuple{ND, Int}) where {T, ND}
@@ -104,7 +104,7 @@ You just need to pass the wanted color/vector type and the dimensions.
 To which values the texture gets initialized is driver dependent
 """
 Texture(::Type{T}, dims::NTuple{N, Int}; kw_args...) where {T <: GLArrayEltypes, N} =
-    Texture(convert(Ptr{T}, C_NULL), dims; kw_args...)
+    Texture(convert(Ptr{T}, C_NULL), dims; kw_args...)::Texture{T, N}
 
 """
 Constructor for a normal array, with color or Abstract Arrays as elements.
@@ -113,7 +113,7 @@ Array{Vec1/2/3/4, 2} == Texture2D with 1/2/3/4D Colorant dimension
 Colors from Colors.jl should mostly work as well
 """
 Texture(image::Array{T, NDim}; kw_args...) where {T <: GLArrayEltypes, NDim} =
-    Texture(pointer(image), size(image); kw_args...)
+    Texture(pointer(image), size(image); kw_args...)::Texture{T, NDim}
 
 """
 Constructor for Array Texture
