@@ -47,7 +47,6 @@ function iscompiled(shader::GLuint)
     glGetShaderiv(shader, GL_COMPILE_STATUS, success)
     return first(success) == GL_TRUE
 end
-
 islinked(program::GLuint) = glGetProgramiv(program, GL_LINK_STATUS) == GL_TRUE
 
 function createshader(shadertype::GLenum)
@@ -55,7 +54,6 @@ function createshader(shadertype::GLenum)
     @assert shaderid > 0 "opengl context is not active or shader type not accepted. Shadertype: $(GLENUM(shadertype).name)"
     shaderid::GLuint
 end
-
 function createprogram()
     program = glCreateProgram()
     @assert program > 0 "couldn't create program. Most likely, opengl context is not active"
@@ -63,11 +61,9 @@ function createprogram()
 end
 
 shadertype(s::Shader) = s.typ
-
 function shadertype(f::File{format"GLSLShader"})
     shadertype(file_extension(f))
 end
-
 function shadertype(ext::AbstractString)
     ext == ".comp" && return GL_COMPUTE_SHADER
     ext == ".vert" && return GL_VERTEX_SHADER
@@ -89,11 +85,11 @@ function save(f::File{format"GLSLShader"}, data::Shader)
 end
 
 function uniformlocations(nametypedict::Dict{Symbol, GLenum}, program)
-    isempty(nametypedict) && return Dict{Symbol,Tuple}()
-    texturetarget = -1 # start -1, as texture samplers start at 0
     result = Dict{Symbol, Tuple}()
+    texturetarget = -1 # start -1, as texture samplers start at 0
     for (name, typ) in nametypedict
         loc = get_uniform_location(program, name)
+        str_name = string(name)
         if istexturesampler(typ)
             texturetarget += 1
             result[name] = (loc, texturetarget)
@@ -101,11 +97,10 @@ function uniformlocations(nametypedict::Dict{Symbol, GLenum}, program)
             result[name] = (loc,)
         end
     end
-    result
+    return result
 end
 
 abstract type AbstractLazyShader end
-
 struct LazyShader <: AbstractLazyShader
     paths::Tuple
     kw_args::Dict{Symbol, Any}
@@ -118,6 +113,26 @@ end
 
 gl_convert(shader::GLProgram, data) = shader
 
+
+
+
+# caching templated shaders is a pain -.-
+
+# cache for template keys per file
+# path --> template keys
+const _template_cache = Dict{String, Vector{String}}()
+# path --> Dict{template_replacements --> Shader)
+const _shader_cache = Dict{String, Dict{Any, Shader}}()
+const _program_cache = Dict{Any, GLProgram}()
+
+
+function empty_shader_cache!()
+    empty!(_template_cache)
+    empty!(_shader_cache)
+    empty!(_program_cache)
+end
+
+# TODO remove this silly constructor
 function compile_shader(source::Vector{UInt8}, typ, name)
     shaderid = GLAbstraction.createshader(typ)
     glShaderSource(shaderid, source)
@@ -138,16 +153,30 @@ end
 
 function get_shader!(path, template_replacement, view, attributes)
     # this should always be in here, since we already have the template keys
-    template_source = readstring(path)
-    source = mustache_replace(template_replacement, template_source)
-    compile_shader(path, source)::Shader
+    shader_dict = _shader_cache[path]
+    get!(shader_dict, template_replacement) do
+        template_source = readstring(path)
+        source = mustache_replace(template_replacement, template_source)
+        compile_shader(path, source)::Shader
+    end::Shader
 end
-
 function get_template!(path, view, attributes)
-    s = compile_shader(path, source)
-    template_keys = collect(keys(replacements))
-    template_replacements = collect(values(replacements))
-    template_keys
+    get!(_template_cache, path) do
+        _, ext = splitext(path)
+
+        typ = shadertype(ext)
+        template_source = readstring(path)
+        source, replacements = template2source(
+            template_source, view, attributes
+        )
+        s = compile_shader(path, source)
+        template_keys = collect(keys(replacements))
+        template_replacements = collect(values(replacements))
+        # can't yet be in here, since we didn't even have template keys
+        _shader_cache[path] = Dict(template_replacements => s)
+
+        template_keys
+    end
 end
 
 
@@ -198,6 +227,7 @@ function gl_convert(lazyshader::AbstractLazyShader, data)
     end
     v = get_view(kw_dict)
     fragdatalocation = get(kw_dict, :fragdatalocation, Tuple{Int, String}[])
+
     # Tuple(Source, ShaderType)
     if all(paths) do x
             isa(x, Tuple) && length(x) == 2 &&
@@ -217,17 +247,23 @@ function gl_convert(lazyshader::AbstractLazyShader, data)
             Found: $paths"
         )
     end
-    shaders = Vector{Shader}(length(paths))
+    template_keys = Vector{Vector{String}}(length(paths))
+    replacements = Vector{Vector{String}}(length(paths))
     for (i, path) in enumerate(paths)
-        _, ext = splitext(path)
-        typ = shadertype(ext)
-        template_source = readstring(path)
-        source, replacements = template2source(
-            template_source, v, data
-        )
-        shaders[i] = compile_shader(Vector{UInt8}(source), typ, Symbol(path))
+        template = get_template!(path, v, data)
+        template_keys[i] = template
+        replacements[i] = String[mustache2replacement(t, v, data) for t in template]
     end
-    compile_program(shaders, fragdatalocation)
+    program = get!(_program_cache, (paths, replacements)) do
+        # when we're here, this means there were uncached shaders, meaning we definitely have
+        # to compile a new program
+        shaders = Vector{Shader}(length(paths))
+        for (i, path) in enumerate(paths)
+            tr = Dict(zip(template_keys[i], replacements[i]))
+            shaders[i] = get_shader!(path, tr, v, data)
+        end
+        compile_program(shaders, fragdatalocation)
+    end
 end
 
 
@@ -242,7 +278,6 @@ function insert_from_view(io, replace_view::Dict, keyword::AbstractString)
     end
     nothing
 end
-
 """
 Replaces
 {{keyword}} with the key in `replace_view`, or replace_view(key)
@@ -255,9 +290,9 @@ function mustache_replace(replace_view::Union{Dict, Function}, string)
     closed_mustaches = 0
     i = 0
     replace_begin = i
-    last_char = string[1]
+    last_char = SubString(string, 1, 1)
     len = endof(string)
-    while true
+    while i <= len
         i = nextind(string, i)
         i > len && break
         char = string[i]
