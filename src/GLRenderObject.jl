@@ -148,12 +148,12 @@ function translate!(c::Composable, vec::TOrSignal{T}) where T <: Vec{3}
 end
 function _boundingbox(c::RenderObject)
     bb = Reactive.value(c[:boundingbox])
-    bb == nothing && return AABB(Vec3f0(0), Vec3f0(0))
+    bb == nothing && return AABB()
     Reactive.value(c[:model]) * bb
 end
 function _boundingbox(c::Composable)
     robjs = extract_renderable(c)
-    isempty(robjs) && return AABB(Vec3f0(NaN), Vec3f0(0))
+    isempty(robjs) && return AABB()
     mapreduce(_boundingbox, union, robjs)
 end
 """

@@ -52,7 +52,7 @@ function rotationmatrix_z(angle::T) where T
         T0, T0, T0, T1
     )
 end
-#=
+"""
     Create view frustum
 
     Parameters
@@ -74,7 +74,7 @@ end
     -------
         M : array
          View frustum matrix (4x4).
-=#
+"""
 function frustum(left::T, right::T, bottom::T, top::T, znear::T, zfar::T) where T
     (right == left || bottom == top || znear == zfar) && return eye(Mat{4,4,T})
     T0, T1, T2 = zero(T), one(T), T(2)

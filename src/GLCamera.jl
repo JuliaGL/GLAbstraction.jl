@@ -493,7 +493,7 @@ function PerspectiveCamera(
         right_v = normalize(cross(up_v, dir))
         up_v  = normalize(cross(dir, right_v))
 
-        rotation = rotate_cam(theta_v, right_v, Vec3f0(0,0,1), dir)
+        rotation = rotate_cam(theta_v, right_v, Vec3f0(0, 0, sign(up_v[3])), dir)
         r_eyepos = lookat_v + rotation*(eyepos_v - lookat_v)
         r_up = normalize(rotation*up_v)
         push!(eyeposition, r_eyepos)
@@ -528,7 +528,7 @@ Calculates union boundingbox of all elements in renderlist
 (Can't do ::Vector{RenderObject{T}}, because t is not always the same)
 """
 function renderlist_boundingbox(renderlist::Vector)
-    renderlist = filter(x->x!=nothing, renderlist)
+    renderlist = filter(x-> x != nothing, renderlist)
     isempty(renderlist) && return AABB(Vec3f0(NaN), Vec3f0(0)) # nothing to do here
     robj1 = first(renderlist)
     bb = Reactive.value(robj1[:model])*signal_boundingbox(robj1)

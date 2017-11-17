@@ -82,12 +82,25 @@ end
 Renders a vertexarray, which consists of the usual buffers plus a vector of
 unitranges which defines the segments of the buffers to be rendered
 """
-function render(vao::GLVertexArray{T}, mode::GLenum=GL_TRIANGLES) where T <: VecOrSignal{UnitRange{Int}}
+function render(vao::GLVertexArray{T}, mode::GLenum = GL_TRIANGLES) where T <: VecOrSignal{UnitRange{Int}}
     for elem in Reactive.value(vao.indices)
         glDrawArrays(mode, max(first(elem)-1, 0), length(elem)+1)
     end
      return nothing
 end
+
+function render(vao::GLVertexArray{T}, mode::GLenum = GL_TRIANGLES) where T <: TOrSignal{UnitRange{Int}}
+    r = Reactive.value(vao.indices)
+    glDrawArrays(mode, max(first(r)-1, 0), length(r)+1)
+    return nothing
+end
+function render(vao::GLVertexArray{T}, mode::GLenum = GL_TRIANGLES) where T <: TOrSignal{Int}
+    r = Reactive.value(vao.indices)
+    glDrawArrays(mode, 0, r)
+    return nothing
+end
+
+
 
 """
 Renders a vertex array which supplies an indexbuffer

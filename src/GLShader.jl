@@ -85,19 +85,19 @@ function save(f::File{format"GLSLShader"}, data::Shader)
 end
 
 function uniformlocations(nametypedict::Dict{Symbol, GLenum}, program)
-    isempty(nametypedict) && return Dict{Symbol,Tuple}()
+    result = Dict{Symbol, Tuple}()
     texturetarget = -1 # start -1, as texture samplers start at 0
-    return Dict{Symbol, Tuple}(map(nametypedict) do name_type
-        name, typ = name_type
+    for (name, typ) in nametypedict
         loc = get_uniform_location(program, name)
         str_name = string(name)
         if istexturesampler(typ)
             texturetarget += 1
-            return name => (loc, texturetarget)
+            result[name] = (loc, texturetarget)
         else
-            return name => (loc,)
+            result[name] = (loc,)
         end
-    end)
+    end
+    return result
 end
 
 abstract type AbstractLazyShader end
@@ -125,16 +125,11 @@ const _template_cache = Dict{String, Vector{String}}()
 const _shader_cache = Dict{String, Dict{Any, Shader}}()
 const _program_cache = Dict{Any, GLProgram}()
 
+
 function empty_shader_cache!()
     empty!(_template_cache)
     empty!(_shader_cache)
     empty!(_program_cache)
-end
-
-function __init__()
-    Base.rehash!(_template_cache)
-    Base.rehash!(_shader_cache)
-    Base.rehash!(_program_cache)
 end
 
 # TODO remove this silly constructor
@@ -299,10 +294,11 @@ function mustache_replace(replace_view::Union{Dict, Function}, string)
     len = endof(string)
     while i <= len
         i = nextind(string, i)
-        char = SubString(string, i, i)
+        i > len && break
+        char = string[i]
         if replace_started
             # ignore, or wait for }
-            if char == "}"
+            if char == '}'
                 closed_mustaches += 1
                 if closed_mustaches == 2 # we found a complete mustache!
                     insert_from_view(io, replace_view, SubString(string, replace_begin+1, i-2))
@@ -314,7 +310,7 @@ function mustache_replace(replace_view::Union{Dict, Function}, string)
                 closed_mustaches = 0
                 continue
             end
-        elseif char == "{"
+        elseif char == '{'
             open_mustaches += 1
             if open_mustaches == 2
                 replace_begin = i

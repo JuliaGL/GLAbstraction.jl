@@ -45,12 +45,13 @@ function checkdimensions(value::Array, ranges::Union{Integer, UnitRange}...)
     (array_size != indexes_size) && throw(DimensionMismatch("asigning a $array_size to a $(indexes_size) location"))
     true
 end
-to_range(index) = map(index) do val
-    isa(val, Integer) && return val:val
-    isa(val, Range) && return val
-    error("Indexing only defined for integers or ranges. Found: $val")
+function to_range(index)
+    map(index) do val
+        isa(val, Integer) && return val:val
+        isa(val, Range) && return val
+        error("Indexing only defined for integers or ranges. Found: $val")
+    end
 end
-
 setindex!(A::GPUArray{T, N}, value::Union{T, Array{T, N}}) where {T, N} = (A[1] = value)
 
 function setindex!(A::GPUArray{T, N}, value, indexes...) where {T, N}
