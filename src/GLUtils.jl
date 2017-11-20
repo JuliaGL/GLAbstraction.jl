@@ -283,12 +283,15 @@ function (MT::Type{NativeMesh{T}})(m::Signal{T}) where T <: HomogenousMesh
             result[field] = Texture(val)
         end
     end
-    preserve(map(m) do mesh
+    foreach(m) do mesh
         for (field, val) in attributes(mesh)
+            if field == :color
+                field = :vertex_color
+            end
             if haskey(result, field)
                 update!(result[field], val)
             end
         end
-    end)
+    end
     MT(result)
 end
