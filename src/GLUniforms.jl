@@ -61,7 +61,7 @@ end
 #Some additional uniform functions, not related to Imutable Arrays
 gluniform(location::Integer, target::Integer, t::Texture)   = gluniform(GLint(location), GLint(target), t)
 gluniform(location::Integer, target::Integer, t::GPUVector) = gluniform(GLint(location), GLint(target), t.buffer)
-gluniform(location::Integer, target::Integer, t::Signal)    = gluniform(GLint(location), GLint(target), t.value)
+gluniform(location::Integer, target::Integer, t::Signal)    = gluniform(GLint(location), GLint(target), Reactive.value(t))
 gluniform(location::Integer, target::Integer, t::TextureBuffer) = gluniform(GLint(location), GLint(target), t.texture)
 function gluniform(location::GLint, target::GLint, t::Texture)
     activeTarget = GL_TEXTURE0 + UInt32(target)
@@ -225,13 +225,15 @@ end
 gl_convert(a::T) where {T <: NATIVE_TYPES} = a
 
 gl_convert(s::Signal{T}) where {T <: NATIVE_TYPES} = s
-gl_convert(s::Signal{T}) where {T} = const_lift(gl_convert, s)
+gl_convert(s::Signal{T}) where T = const_lift(gl_convert, s)
 
 gl_convert(x::StaticVector{N, T}) where {N, T} = map(gl_promote(T), x)
 gl_convert(x::SMatrix{N, M, T}) where {N, M, T} = map(gl_promote(T), x)
 
 
 gl_convert(a::Vector{T}) where {T <: Face} = indexbuffer(s)
+gl_convert(a::Vector{T}) where T = convert(Vector{gl_promote(T)}, a)
+
 gl_convert(::Type{T}, a::NATIVE_TYPES; kw_args...) where {T <: NATIVE_TYPES} = a
 function gl_convert(::Type{T}, a::Array{X, N}; kw_args...) where {T <: GPUArray, X, N}
     T(map(gl_promote(X), a); kw_args...)
