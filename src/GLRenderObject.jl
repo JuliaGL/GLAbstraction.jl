@@ -73,9 +73,11 @@ function (::StandardPrerender)()
     glEnable(GL_DEPTH_TEST)
     glDepthMask(GL_TRUE)
     glDepthFunc(GL_LEQUAL)
-    glDisable(GL_CULL_FACE)
+    glEnable(GL_CULL_FACE)
+    glCullFace(GL_BACK)
     enabletransparency()
 end
+
 struct StandardPostrender
     vao::GLVertexArray
     primitive::GLenum
