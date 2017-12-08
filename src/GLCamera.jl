@@ -584,7 +584,7 @@ export renderlist, robj_from_camera
 """
 Centers the camera(=:perspective) on all render objects in `window`
 """
-function center!(window, camera::Symbol=:perspective; border = 0)
+function center!(window, camera::Symbol = :perspective; border = 0)
     rl = robj_from_camera(window, camera)
     center!(window.cameras[camera], rl, border = border)
 end
