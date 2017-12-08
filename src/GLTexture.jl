@@ -435,20 +435,19 @@ end
 map_texture_paramers(s::NTuple{N, Symbol}) where {N} = map(map_texture_paramers, s)
 
 function map_texture_paramers(s::Symbol)
-    mapping = Dict(
-        :clamp_to_edge          => GL_CLAMP_TO_EDGE,
-        :mirrored_repeat        => GL_MIRRORED_REPEAT,
-        :repeat                 => GL_REPEAT,
+    
+    s == :clamp_to_edge && return GL_CLAMP_TO_EDGE
+    s == :mirrored_repeat && return GL_MIRRORED_REPEAT
+    s == :repeat && return GL_REPEAT
 
-        :linear                 => GL_LINEAR, #Returns the value of the texture element that is nearest (in Manhattan distance) to the center of the pixel being textured.
-        :nearest                => GL_NEAREST, #Returns the weighted average of the four texture elements that are closest to the center of the pixel being textured.
-        :nearest_mipmap_nearest => GL_NEAREST_MIPMAP_NEAREST, #Chooses the mipmap that most closely matches the size of the pixel being textured and uses the GL_NEAREST criterion (the texture element nearest to the center of the pixel) to produce a texture value.
-        :linear_mipmap_nearest  => GL_LINEAR_MIPMAP_NEAREST, #Chooses the mipmap that most closely matches the size of the pixel being textured and uses the GL_LINEAR criterion (a weighted average of the four texture elements that are closest to the center of the pixel) to produce a texture value.
-        :nearest_mipmap_linear  => GL_NEAREST_MIPMAP_LINEAR, #Chooses the two mipmaps that most closely match the size of the pixel being textured and uses the GL_NEAREST criterion (the texture element nearest to the center of the pixel) to produce a texture value from each mipmap. The final texture value is a weighted average of those two values.
-        :linear_mipmap_linear   => GL_LINEAR_MIPMAP_LINEAR, #Chooses the two mipmaps that most closely match the size of the pixel being textured and uses the GL_LINEAR criterion (a weighted average of the four texture elements that are closest to the center of the pixel) to produce a texture value from each mipmap. The final texture value is a weighted average of those two values.
-    )
-    haskey(mapping, s) && return mapping[s]
-    error("$s is not a valid texture parameter. Only $(keys(mapping)) are valid")
+    s == :linear && return GL_LINEAR
+    s == :nearest && return GL_NEAREST
+    s == :nearest_mipmap_nearest && return GL_NEAREST_MIPMAP_NEAREST
+    s == :linear_mipmap_nearest && return GL_LINEAR_MIPMAP_NEAREST
+    s == :nearest_mipmap_linear && return GL_NEAREST_MIPMAP_LINEAR
+    s == :linear_mipmap_linear && return GL_LINEAR_MIPMAP_LINEAR
+
+    error("$s is not a valid texture parameter")
 end
 
 function TextureParameters(T, NDim;
