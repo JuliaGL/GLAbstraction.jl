@@ -73,8 +73,9 @@ function (::StandardPrerender)()
     glEnable(GL_DEPTH_TEST)
     glDepthMask(GL_TRUE)
     glDepthFunc(GL_LEQUAL)
-    glEnable(GL_CULL_FACE)
-    glCullFace(GL_BACK)
+    # Disable cullface for now, untill all rendering code is corrected!
+    glDisable(GL_CULL_FACE)
+    # glCullFace(GL_BACK)
     enabletransparency()
 end
 
