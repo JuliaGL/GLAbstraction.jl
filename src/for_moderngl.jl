@@ -251,8 +251,6 @@ function createprogram()
     program
 end
 
-
-
 function compile_program(shaders::GLuint...)
     program = createprogram()
     #attach new ones
@@ -263,7 +261,6 @@ function compile_program(shaders::GLuint...)
     glLinkProgram(program)
     program
 end
-
 
 function glsl_version_string()
     glsl = split(unsafe_string(glGetString(GL_SHADING_LANGUAGE_VERSION)), ['.', ' '])

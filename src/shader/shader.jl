@@ -15,7 +15,7 @@ function Shader(source::Vector{UInt8}, typ, name)
     glCompileShader(shaderid)
     if !iscompiled(shaderid)
         print_with_lines(String(source))
-        warn("shader $(name) didn't compile. \n$(GLAbstraction.getinfolog(shaderid))")
+        error("shader $(name) didn't compile. \n$(GLAbstraction.getinfolog(shaderid))")
     end
     Shader(name, source, typ, shaderid)
 end

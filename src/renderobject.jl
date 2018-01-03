@@ -18,7 +18,7 @@ function (p::RenderObject{Vertex, N, Args}){Vertex, N, Args}(vertexarray::Vertex
             glBindBufferBase(GL_UNIFORM_BUFFER, blockid, uniform.buffer.id)
             blockid += 1
         elseif isa(uniform, Texture)
-            GLAbstraction.gluniform(uniform_idx, blockid, uniform)
+            gluniform(uniform_idx, blockid, uniform)
         end
     end
     glBindVertexArray(vertexarray.id)
@@ -51,6 +51,7 @@ function RenderObject{T}(
         kw_args...
     )
 end
+
 function RenderObject(
         window::GLContext,
         vertexarray::VertexArray,
@@ -110,3 +111,9 @@ function RenderObject(
 end
 
 export RenderObject
+
+
+function fullscreen_pass(fragment_shader, frag_args...)
+    RenderObject(fragment_shader, fullscreen_vert, frag_args)
+
+pass1 = RenderObject(pass1_frag, )

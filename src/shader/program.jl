@@ -68,7 +68,8 @@ function compile_program(shaders, fragdatalocation)
         )
     end
     # Can be deleted, as they will still be linked to Program and released after program gets released
-    #foreach(glDeleteShader, shader_ids)
+    # foreach(glDeleteShader, shader_ids)
+    
     # generate the link locations
     nametypedict = uniform_name_type(program)
     uniformlocationdict = uniformlocations(nametypedict, program)
