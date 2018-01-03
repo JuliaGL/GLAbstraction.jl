@@ -40,31 +40,18 @@ mutable struct Texture{T <: GLArrayEltypes, NDIM} <: OpenglTexture{T, NDIM}
         tex
     end
 end
-
-# for bufferSampler, aka Texture Buffer
-mutable struct TextureBuffer{T <: GLArrayEltypes} <: OpenglTexture{T, 1}
-    texture::Texture{T, 1}
-    buffer::GLBuffer{T}
+function free(x::Texture)
+    if !is_current_context(x.context)
+        return # don't free from other context
+    end
+    id = [x.id]
+    try
+        glDeleteTextures(x.id)
+    catch e
+        free_handle_error(e)
+    end
+    return
 end
-Base.size(t::TextureBuffer) = size(t.buffer)
-Base.size(t::TextureBuffer, i::Integer) = size(t.buffer, i)
-Base.length(t::TextureBuffer) = length(t.buffer)
-bind(t::Texture) = glBindTexture(t.texturetype, t.id)
-bind(t::Texture, id) = glBindTexture(t.texturetype, id)
-
-is_texturearray(t::Texture) = t.texturetype == GL_TEXTURE_2D_ARRAY
-is_texturebuffer(t::Texture) = t.texturetype == GL_TEXTURE_BUFFER
-
-colordim(::Type{T}) where {T} = cardinality(T)
-colordim(::Type{T}) where {T <: Real} = 1
-
-function set_packing_alignment(a) # at some point we should specialize to array/ptr a
-    glPixelStorei(GL_UNPACK_ALIGNMENT, 1)
-    glPixelStorei(GL_UNPACK_ROW_LENGTH, 0)
-    glPixelStorei(GL_UNPACK_SKIP_PIXELS, 0)
-    glPixelStorei(GL_UNPACK_SKIP_ROWS, 0)
-end
-
 
 function Texture(
         data::Ptr{T}, dims::NTuple{NDim, Int};
@@ -89,7 +76,25 @@ function Texture(
     set_parameters(texture)
     texture::Texture{T, NDim}
 end
-export resize_nocopy!
+
+# for bufferSampler, aka Texture Buffer
+mutable struct TextureBuffer{T <: GLArrayEltypes} <: OpenglTexture{T, 1}
+    texture::Texture{T, 1}
+    buffer::GLBuffer{T}
+end
+Base.size(t::TextureBuffer) = size(t.buffer)
+Base.size(t::TextureBuffer, i::Integer) = size(t.buffer, i)
+Base.length(t::TextureBuffer) = length(t.buffer)
+bind(t::Texture) = glBindTexture(t.texturetype, t.id)
+bind(t::Texture, id) = glBindTexture(t.texturetype, id)
+
+is_texturearray(t::Texture) = t.texturetype == GL_TEXTURE_2D_ARRAY
+is_texturebuffer(t::Texture) = t.texturetype == GL_TEXTURE_BUFFER
+
+colordim(::Type{T}) where {T} = cardinality(T)
+colordim(::Type{T}) where {T <: Real} = 1
+
+
 function resize_nocopy!(t::Texture{T, ND}, newdims::NTuple{ND, Int}) where {T, ND}
     bind(t)
     glTexImage(t.texturetype, 0, t.internalformat, newdims..., 0, t.format, t.pixeltype, C_NULL)
@@ -173,12 +178,6 @@ end
 function TextureBuffer(buffer::Vector{T}) where T <: GLArrayEltypes
     buff = GLBuffer(buffer, buffertype = GL_TEXTURE_BUFFER, usage = GL_DYNAMIC_DRAW)
     TextureBuffer(buff)
-end
-
-function TextureBuffer(s::Signal{Vector{T}}) where T <: GLArrayEltypes
-    tb = TextureBuffer(Reactive.value(s))
-    Reactive.preserve(const_lift(update!, tb, s))
-    tb
 end
 
 #=
@@ -274,15 +273,7 @@ end
 
 
 
-#=
-function gpu_setindex!{T}(target::Texture{T, 2}, source::Texture{T, 2}, fbo=glGenFramebuffers())
-    w, h = map(minimum, zip(size(target), size(source)))
-    glCopyImageSubData( source.id, source.texturetype,
-    0,0,0,0,
-    target.id, target.texturetype,
-    0,0,0,0, w,h,0);
-end
-=#
+
 # Implementing the GPUArray interface
 function gpu_data(t::Texture{T, ND}) where {T, ND}
     result = Array{T, ND}(size(t))
@@ -435,7 +426,7 @@ end
 map_texture_paramers(s::NTuple{N, Symbol}) where {N} = map(map_texture_paramers, s)
 
 function map_texture_paramers(s::Symbol)
-    
+
     s == :clamp_to_edge && return GL_CLAMP_TO_EDGE
     s == :mirrored_repeat && return GL_MIRRORED_REPEAT
     s == :repeat && return GL_REPEAT

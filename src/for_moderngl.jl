@@ -2,6 +2,11 @@
 This is the place, where I put functions, which are so annoying in OpenGL, that I felt the need to wrap them and make them more "Julian"
 Its also to do some more complex error handling, not handled by the debug callback
 =#
+getnames(check_function::Function) = filter(check_function, uint32(0:65534))
+# gets all the names currently boundo to programs
+getProgramNames() = getnames(glIsProgram)
+getShaderNames() = getnames(glIsShader)
+getVertexArrayNames() = getnames(glIsVertexArray)
 
 function glGetShaderiv(shaderID::GLuint, variable::GLenum)
     result = Ref{GLint}(-1)
@@ -10,7 +15,7 @@ function glGetShaderiv(shaderID::GLuint, variable::GLenum)
 end
 function glShaderSource(shaderID::GLuint, shadercode::Vector{UInt8})
     shader_code_ptrs = Ptr{UInt8}[pointer(shadercode)]
-    len              = Ref{GLint}(length(shadercode))
+    len = Ref{GLint}(length(shadercode))
     glShaderSource(shaderID, 1, shader_code_ptrs, len)
 end
 glShaderSource(shaderID::GLuint, shadercode::String) = glShaderSource(shaderID, Vector{UInt8}(shadercode))
@@ -26,7 +31,7 @@ end
 get_attribute_location(program::GLuint, name) = get_attribute_location(program, ascii(name))
 get_attribute_location(program::GLuint, name::Symbol) = get_attribute_location(program, string(name))
 function get_attribute_location(program::GLuint, name::String)
-    const location::GLint = glGetAttribLocation(program, name)
+    location = glGetAttribLocation(program, name)
     if location == -1
         warn(
             "Named attribute (:$(name)) is not an active attribute in the specified program object or\n
@@ -101,9 +106,6 @@ function glGetIntegerv(variable::GLenum)
     result[]
 end
 
-
-
-
 function glGenBuffers(n=1)
     result = GLuint[0]
     glGenBuffers(1, result)
@@ -117,7 +119,7 @@ function glGenVertexArrays()
     result = GLuint[0]
     glGenVertexArrays(1, result)
     id = result[1]
-    if id <=0
+    if id <= 0
         error("glGenVertexArrays returned invalid id. OpenGL Context active?")
     end
     id
@@ -162,7 +164,6 @@ end
 
 glViewport(x::SimpleRectangle) = glViewport(x.x, x.y, x.w, x.h)
 glScissor(x::SimpleRectangle) = glScissor(x.x, x.y, x.w, x.h)
-
 
 function glGenRenderbuffers(format::GLenum, attachment::GLenum, dimensions)
     renderbuffer = GLuint[0]
@@ -228,4 +229,50 @@ function glTexImage(ttype::GLenum, level::Integer, internalFormat::GLenum, w::In
         end
     end
     glTexImage1D(ttype, level, internalFormat, w, border, format, datatype, data)
+end
+
+function iscompiled(shader::GLuint)
+    success = Ref{GLint}(0)
+    glGetShaderiv(shader, GL_COMPILE_STATUS, success)
+    return success[] == GL_TRUE
+end
+
+function createshader(shadertype::GLenum)
+    shaderid = glCreateShader(shadertype)
+    @assert shaderid > 0 "opengl context is not active or shader type not accepted. Shadertype: $(GLENUM(shadertype).name)"
+    shaderid
+end
+
+islinked(program::GLuint) = glGetProgramiv(program, GL_LINK_STATUS) == GL_TRUE
+
+function createprogram()
+    program = glCreateProgram()
+    @assert program > 0 "couldn't create program. Most likely, opengl context is not active"
+    program
+end
+
+
+
+function compile_program(shaders::GLuint...)
+    program = createprogram()
+    #attach new ones
+    foreach(shaders) do shader
+        glAttachShader(program, shader.id)
+    end
+    #link program
+    glLinkProgram(program)
+    program
+end
+
+
+function glsl_version_string()
+    glsl = split(unsafe_string(glGetString(GL_SHADING_LANGUAGE_VERSION)), ['.', ' '])
+    if length(glsl) >= 2
+        glsl = VersionNumber(parse(Int, glsl[1]), parse(Int, glsl[2]))
+        glsl.major == 1 && glsl.minor <= 2 && error("OpenGL shading Language version too low. Try updating graphic driver!")
+        glsl_version = string(glsl.major) * rpad(string(glsl.minor),2,"0")
+        return "#version $(glsl_version)\n"
+    else
+        error("could not parse GLSL version: $glsl")
+    end
 end

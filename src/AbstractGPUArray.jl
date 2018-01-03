@@ -19,29 +19,16 @@ import GeometryTypes.SimpleRectangle
 
 abstract type GPUArray{T, NDim} <: AbstractArray{T, NDim} end
 
-#=
-immutable GPUArray{T, NDim, GPUBuff <: GPUBuffer} <: DenseArray{T, NDim}
-    buff::GPUBuff{T, NDim}
-    size::NTuple{Int, NDim}
-end
-
-immutable BufferedGPUArray{GPUArr <: GPUArray}
-    buff::GPUBuff{T, NDim}
-    ram::Array{T, NDim}
-end
-=#
-
-length(A::GPUArray)                                     = prod(size(A))
+length(A::GPUArray) = prod(size(A))
 eltype(b::GPUArray{T, NDim}) where {T, NDim} = T
-endof(A::GPUArray)                                      = length(A)
+endof(A::GPUArray) = length(A)
 ndims(A::GPUArray{T, NDim}) where {T, NDim} = NDim
-size(A::GPUArray)                                       = A.size
-size(A::GPUArray, i::Integer)                           = i <= ndims(A) ? A.size[i] : 1
+size(A::GPUArray) = A.size
+size(A::GPUArray, i::Integer) = i <= ndims(A) ? A.size[i] : 1
 
 function checkdimensions(value::Array, ranges::Union{Integer, UnitRange}...)
     array_size   = size(value)
     indexes_size = map(length, ranges)
-
     (array_size != indexes_size) && throw(DimensionMismatch("asigning a $array_size to a $(indexes_size) location"))
     true
 end
@@ -212,18 +199,12 @@ function _copy!(a::Union{Vector, GPUArray}, a_offset::Int, b::Union{Vector, GPUA
 end
 
 # Interface:
-gpu_data(t)      = error("gpu_data not implemented for: $(typeof(t)). This happens, when you call data on an array, without implementing the GPUArray interface")
-gpu_resize!(t)   = error("gpu_resize! not implemented for: $(typeof(t)). This happens, when you call resize! on an array, without implementing the GPUArray interface")
-gpu_getindex(t)  = error("gpu_getindex not implemented for: $(typeof(t)). This happens, when you call getindex on an array, without implementing the GPUArray interface")
+gpu_data(t) = error("gpu_data not implemented for: $(typeof(t)). This happens, when you call data on an array, without implementing the GPUArray interface")
+gpu_resize!(t) = error("gpu_resize! not implemented for: $(typeof(t)). This happens, when you call resize! on an array, without implementing the GPUArray interface")
+gpu_getindex(t) = error("gpu_getindex not implemented for: $(typeof(t)). This happens, when you call getindex on an array, without implementing the GPUArray interface")
 gpu_setindex!(t) = error("gpu_setindex! not implemented for: $(typeof(t)). This happens, when you call setindex! on an array, without implementing the GPUArray interface")
-max_dim(t)       = error("max_dim not implemented for: $(typeof(t)). This happens, when you call setindex! on an array, without implementing the GPUArray interface")
+max_dim(t) = error("max_dim not implemented for: $(typeof(t)). This happens, when you call setindex! on an array, without implementing the GPUArray interface")
 
-
-function (::Type{T})(x::Signal) where T <: GPUArray
-    gpu_mem = T(Reactive.value(x))
-    preserve(const_lift(update!, gpu_mem, x))
-    gpu_mem
-end
 
 const BaseSerializer = if isdefined(Base, :AbstractSerializer)
     Base.AbstractSerializer

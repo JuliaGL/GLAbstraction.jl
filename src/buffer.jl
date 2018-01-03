@@ -4,7 +4,6 @@ mutable struct GLBuffer{T} <: GPUArray{T, 1}
     buffertype  ::GLenum
     usage       ::GLenum
     context     ::GLContext
-
     function GLBuffer{T}(ptr::Ptr{T}, buff_length::Int, buffertype::GLenum, usage::GLenum) where T
         id = glGenBuffers()
         glBindBuffer(buffertype, id)
@@ -173,3 +172,24 @@ function gpu_getindex(b::GLBuffer{T}, range::UnitRange) where T
     bind(b, 0)
     value
 end
+
+####################################################################################
+# freeing
+
+# OpenGL has the annoying habit of reusing id's when creating a new context
+# We need to make sure to only free the current one
+
+function free(x::GLBuffer)
+    if !is_current_context(x.context)
+        return # don't free from other context
+    end
+    id = [x.id]
+    try
+        glDeleteBuffers(1, id)
+    catch e
+        free_handle_error(e)
+    end
+    return
+end
+
+#Question: GLvisualize has a uniform buffer, should that be here too?
