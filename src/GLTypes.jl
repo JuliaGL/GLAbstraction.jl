@@ -14,7 +14,10 @@ const VolumeTypes{T} = ArrayTypes{T, 3}
 @enum Projection PERSPECTIVE ORTHOGRAPHIC
 @enum MouseButton MOUSE_LEFT MOUSE_MIDDLE MOUSE_RIGHT
 
-const GLContext = Symbol
+struct GLContext
+    context
+end
+Base.:(==)(a::GLContext, b::GLContext) = a.context == b.context
 
 """
 Returns the cardinality of a type. falls back to length
@@ -29,7 +32,8 @@ Since we can't do this via pointer identity  (OpenGL may reuse the same pointers
 We go for this slightly ugly version.
 In the future, this should probably be part of GLWindow.
 =#
-const context = Base.RefValue{GLContext}(:none)
+const context = Base.RefValue{GLContext}()
+
 
 function current_context()
     context[]
@@ -37,8 +41,13 @@ end
 function is_current_context(x)
     x == context[]
 end
-function new_context()
-    context[] = gensym()
+function new_context(glcontext)
+    context[] = GLContext(glcontext)
+    context[]
+end
+
+function make_context_current(glcontext)
+    context[] = GLContext(glcontext)
 end
 
 struct Shader
