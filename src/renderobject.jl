@@ -27,7 +27,7 @@ function (p::RenderObject{Vertex, N, Args}){Vertex, N, Args}(vertexarray::Vertex
 end
 
 function RenderObject{T}(
-        window::GLContext,
+        window::Context,
         vertexarray::AbstractArray{T},
         uniforms::Tuple,
         vertexshader::Function,
@@ -53,7 +53,7 @@ function RenderObject{T}(
 end
 
 function RenderObject(
-        window::GLContext,
+        window::Context,
         vertexarray::VertexArray,
         uniforms::T,
         vertexshader::Function,
@@ -96,7 +96,7 @@ function RenderObject(
     block_idx = 0
     uniform_locations = ntuple(N) do i
         if isa(uniforms[i], Texture)
-            GLAbstraction.get_uniform_location(program, "intensities")
+            get_uniform_location(program, "intensities")
         else
             idx = glGetUniformBlockIndex(program, glsl_gensym("UniformArg$i"))
             glUniformBlockBinding(program, idx, block_idx)

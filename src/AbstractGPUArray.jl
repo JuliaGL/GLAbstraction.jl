@@ -15,8 +15,6 @@ import Base: start
 import Base: next
 import Base: done
 
-import GeometryTypes.SimpleRectangle
-
 abstract type GPUArray{T, NDim} <: AbstractArray{T, NDim} end
 
 length(A::GPUArray) = prod(size(A))
@@ -60,7 +58,7 @@ end
 
 function update!(A::GPUArray{T, N}, value::Array{T, N}) where {T, N}
     if length(A) != length(value)
-        if isa(A, GLBuffer)
+        if isa(A, Buffer)
             resize!(A, length(value))
         elseif isa(A, Texture) && ndims(A) == 2
             resize_nocopy!(A, size(value))
@@ -82,14 +80,6 @@ function getindex(A::GPUArray{T, N}, ranges::UnitRange...) where {T, N}
     gpu_getindex(A, ranges...)
 end
 
-function getindex(A::GPUArray{T, N}, rect::SimpleRectangle) where {T, N}
-    A[rect.x+1:rect.x+rect.w, rect.y+1:rect.y+rect.h]
-end
-function setindex!(A::GPUArray{T, N}, value::Array{T, N}, rect::SimpleRectangle) where {T, N}
-    A[rect.x+1:rect.x+rect.w, rect.y+1:rect.y+rect.h] = value
-end
-
-
 mutable struct GPUVector{T} <: GPUArray{T, 1}
     buffer
     size
@@ -98,7 +88,7 @@ end
 GPUVector(x::GPUArray) = GPUVector{eltype(x)}(x, size(x), length(x))
 
 function update!(A::GPUVector{T}, value::Vector{T}) where T
-    if isa(A, GLBuffer) && (length(A) != length(value))
+    if isa(A, Buffer) && (length(A) != length(value))
         resize!(A, length(value))
     end
     dims = map(x->1:x, size(A))

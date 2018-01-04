@@ -3,10 +3,9 @@ mutable struct GLProgram
     shader      ::Vector{Shader}
     nametype    ::Dict{Symbol, GLenum}
     uniformloc  ::Dict{Symbol, Tuple}
-    context     ::GLContext
+    context     ::Context
     function GLProgram(id::GLuint, shader::Vector{Shader}, nametype::Dict{Symbol, GLenum}, uniformloc::Dict{Symbol, Tuple})
         obj = new(id, shader, nametype, uniformloc, current_context())
-        finalizer(obj, free)
         obj
     end
 end

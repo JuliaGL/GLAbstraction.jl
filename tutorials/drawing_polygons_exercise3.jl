@@ -49,8 +49,8 @@ void main()
 
 # Link everything together, using the corresponding shader variable as
 # the Dict key
-bufferdict = Dict(:position=>GLBuffer(vertex_positions),
-                  :gray=>GLBuffer(vertex_gray))
+bufferdict = Dict(:position=>Buffer(vertex_positions),
+                  :gray=>Buffer(vertex_gray))
 
 ro = std_renderobject(bufferdict,
                       LazyShader(vertex_shader, fragment_shader))

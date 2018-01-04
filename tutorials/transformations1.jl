@@ -55,8 +55,8 @@ trans = Signal(rotate(0f0, Vec((0,0,1f0))))
 
 # Link everything together, using the corresponding shader variable as
 # the Dict key
-bufferdict = Dict(:position=>GLBuffer(vertex_positions),
-                  :texcoord=>GLBuffer(vertex_texcoords),
+bufferdict = Dict(:position=>Buffer(vertex_positions),
+                  :texcoord=>Buffer(vertex_texcoords),
                   :texKitten=>Texture(kitten'),
                   :texPuppy=>Texture(puppy'),
                   :trans=>trans,

@@ -21,7 +21,7 @@ vertices = Point2f0[(0, 0.5), (0.5, -0.5), (-0.5, -0.5)] # note Float32
 vbo = Ref(GLuint(0))   # initial value is irrelevant, just allocate space
 glGenBuffers(1, vbo)
 glBindBuffer(GL_ARRAY_BUFFER, vbo[])
-glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW)
+BufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW)
 
 # The shaders. Here we do everything manually, but life will get
 # easier with GLAbstraction. See drawing_polygons5.jl for such an

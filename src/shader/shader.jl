@@ -3,7 +3,7 @@ struct Shader
     source::Vector{UInt8}
     typ::GLenum
     id::GLuint
-    context::GLContext
+    context::Context
     function Shader(name, source, typ, id)
         new(name, source, typ, id, current_context())
     end
@@ -15,12 +15,12 @@ function Shader(source::Vector{UInt8}, typ, name)
     glCompileShader(shaderid)
     if !iscompiled(shaderid)
         print_with_lines(String(source))
-        error("shader $(name) didn't compile. \n$(GLAbstraction.getinfolog(shaderid))")
+        error("shader $(name) didn't compile. \n$(getinfolog(shaderid))")
     end
     Shader(name, source, typ, shaderid)
 end
 function Shader(path, source_str::AbstractString)
-    typ = GLAbstraction.shadertype(query(path))
+    typ = shadertype(query(path))
     source = Vector{UInt8}(source_str)
     name = Symbol(path)
     Shader(source, typ, name)

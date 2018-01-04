@@ -71,11 +71,11 @@ function collect_for_gl(m::T) where T <: HomogenousMesh
     result = Dict{Symbol, Any}()
     attribs = attributes(m)
     @materialize! vertices, faces = attribs
-    result[:vertices]   = GLBuffer(vertices)
+    result[:vertices]   = Buffer(vertices)
     result[:faces]      = indexbuffer(faces)
     for (field, val) in attribs
         if field in [:texturecoordinates, :normals, :attribute_id]
-            result[field] = GLBuffer(val)
+            result[field] = Buffer(val)
         else
             result[field] = Texture(val)
         end

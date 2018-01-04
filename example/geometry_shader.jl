@@ -55,7 +55,7 @@ const window = GLWindow.create_glcontext("Geometry Shader")
 const b = Point2f0[(-0.5,0),(0.0, 0.0),(0.4, 0.3)]
 
 data = Dict{Symbol, Any}(
-    :pos => GLBuffer(b),
+    :pos => Buffer(b),
 )
 
 program = GLAbstraction.LazyShader(vert, geom, frag)

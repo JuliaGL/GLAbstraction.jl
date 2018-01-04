@@ -1,10 +1,10 @@
-mutable struct GLBuffer{T} <: GPUArray{T, 1}
+mutable struct Buffer{T} <: GPUArray{T, 1}
     id          ::GLuint
     size        ::NTuple{1, Int}
     buffertype  ::GLenum
     usage       ::GLenum
     context     ::GLContext
-    function GLBuffer{T}(ptr::Ptr{T}, buff_length::Int, buffertype::GLenum, usage::GLenum) where T
+    function Buffer{T}(ptr::Ptr{T}, buff_length::Int, buffertype::GLenum, usage::GLenum) where T
         id = glGenBuffers()
         glBindBuffer(buffertype, id)
         # size of 0 can segfault it seems
@@ -17,39 +17,39 @@ mutable struct GLBuffer{T} <: GPUArray{T, 1}
         obj
     end
 end
-bind(buffer::GLBuffer) = glBindBuffer(buffer.buffertype, buffer.id)
-#used to reset buffer target
-bind(buffer::GLBuffer, other_target) = glBindBuffer(buffer.buffertype, other_target)
-
-function similar(x::GLBuffer{T}, buff_length::Int) where T
-    GLBuffer{T}(Ptr{T}(C_NULL), buff_length, x.buffertype, x.usage)
-end
-
-cardinality(::GLBuffer{T}) where {T} = cardinality(T)
-
 #Function to deal with any Immutable type with Real as Subtype
-function GLBuffer(
+function Buffer(
         buffer::DenseVector{T};
         buffertype::GLenum = GL_ARRAY_BUFFER, usage::GLenum = GL_STATIC_DRAW
     ) where T <: GLArrayEltypes
     GLBuffer{T}(pointer(buffer), length(buffer), buffertype, usage)
 end
-function GLBuffer(
+function Buffer(
         ::Type{T}, len::Int;
         buffertype::GLenum = GL_ARRAY_BUFFER, usage::GLenum = GL_STATIC_DRAW
     ) where T <: GLArrayEltypes
     GLBuffer{T}(Ptr{T}(C_NULL), len, buffertype, usage)
 end
 
-
 function indexbuffer(
         buffer::Vector{T};
         usage::GLenum = GL_STATIC_DRAW
     ) where T<:GLArrayEltypes
-    GLBuffer(buffer, buffertype = GL_ELEMENT_ARRAY_BUFFER, usage=usage)
+    Buffer(buffer, buffertype = GL_ELEMENT_ARRAY_BUFFER, usage=usage)
 end
+
+bind(buffer::Buffer) = glBindBuffer(buffer.buffertype, buffer.id)
+#used to reset buffer target
+bind(buffer::Buffer, other_target) = glBindBuffer(buffer.buffertype, other_target)
+
+function similar(x::Buffer{T}, buff_length::Int) where T
+    Buffer{T}(Ptr{T}(C_NULL), buff_length, x.buffertype, x.usage)
+end
+
+cardinality(::Buffer{T}) where {T} = cardinality(T)
+
 # GPUArray interface
-function gpu_data(b::GLBuffer{T}) where T
+function gpu_data(b::Buffer{T}) where T
     data = Vector{T}(length(b))
     bind(b)
     glGetBufferSubData(b.buffertype, 0, sizeof(data), data)
@@ -57,9 +57,8 @@ function gpu_data(b::GLBuffer{T}) where T
     data
 end
 
-
 # Resize buffer
-function gpu_resize!(buffer::GLBuffer{T}, newdims::NTuple{1, Int}) where T
+function gpu_resize!(buffer::Buffer{T}, newdims::NTuple{1, Int}) where T
     #TODO make this safe!
     newlength = newdims[1]
     oldlen    = length(buffer)
@@ -82,15 +81,13 @@ function gpu_resize!(buffer::GLBuffer{T}, newdims::NTuple{1, Int}) where T
     nothing
 end
 
-
-
-function gpu_setindex!(b::GLBuffer{T}, value::Vector{T}, offset::Integer) where T
+function gpu_setindex!(b::Buffer{T}, value::Vector{T}, offset::Integer) where T
     multiplicator = sizeof(T)
     bind(b)
     glBufferSubData(b.buffertype, multiplicator*offset-1, sizeof(value), value)
     bind(b, 0)
 end
-function gpu_setindex!(b::GLBuffer{T}, value::Vector{T}, offset::UnitRange{Int}) where T
+function gpu_setindex!(b::Buffer{T}, value::Vector{T}, offset::UnitRange{Int}) where T
     multiplicator = sizeof(T)
     bind(b)
     glBufferSubData(b.buffertype, multiplicator*(first(offset)-1), sizeof(value), value)
@@ -98,9 +95,26 @@ function gpu_setindex!(b::GLBuffer{T}, value::Vector{T}, offset::UnitRange{Int})
     return nothing
 end
 
+function Base.start(buffer::Buffer{T}) where T
+    glBindBuffer(buffer.buffertype, buffer.id)
+    ptr = Ptr{T}(glMapBuffer(buffer.buffertype, GL_READ_WRITE))
+    (ptr, 1)
+end
+function Base.next(buffer::Buffer{T}, state::Tuple{Ptr{T}, Int}) where T
+    ptr, i = state
+    val = unsafe_load(ptr, i)
+    (val, (ptr, i+1))
+end
+function Base.done(buffer::Buffer{T}, state::Tuple{Ptr{T}, Int}) where T
+    ptr, i = state
+    isdone = length(buffer) < i
+    isdone && glUnmapBuffer(buffer.buffertype)
+    isdone
+end
+
 # copy between two buffers
 # could be a setindex! operation, with subarrays for buffers
-function Base.unsafe_copy!(a::GLBuffer{T}, readoffset::Int, b::GLBuffer{T}, writeoffset::Int, len::Int) where T
+function Base.unsafe_copy!(a::Buffer{T}, readoffset::Int, b::Buffer{T}, writeoffset::Int, len::Int) where T
     multiplicator = sizeof(T)
     glBindBuffer(GL_COPY_READ_BUFFER, a.id)
     glBindBuffer(GL_COPY_WRITE_BUFFER, b.id)
@@ -114,26 +128,8 @@ function Base.unsafe_copy!(a::GLBuffer{T}, readoffset::Int, b::GLBuffer{T}, writ
     glBindBuffer(GL_COPY_WRITE_BUFFER, 0)
     return nothing
 end
-
-function Base.start(buffer::GLBuffer{T}) where T
-    glBindBuffer(buffer.buffertype, buffer.id)
-    ptr = Ptr{T}(glMapBuffer(buffer.buffertype, GL_READ_WRITE))
-    (ptr, 1)
-end
-function Base.next(buffer::GLBuffer{T}, state::Tuple{Ptr{T}, Int}) where T
-    ptr, i = state
-    val = unsafe_load(ptr, i)
-    (val, (ptr, i+1))
-end
-function Base.done(buffer::GLBuffer{T}, state::Tuple{Ptr{T}, Int}) where T
-    ptr, i = state
-    isdone = length(buffer) < i
-    isdone && glUnmapBuffer(buffer.buffertype)
-    isdone
-end
-
 #copy inside one buffer
-function Base.unsafe_copy!(buffer::GLBuffer{T}, readoffset::Int, writeoffset::Int, len::Int) where T
+function Base.unsafe_copy!(buffer::Buffer{T}, readoffset::Int, writeoffset::Int, len::Int) where T
     len <= 0 && return nothing
     bind(buffer)
     ptr = Ptr{T}(glMapBuffer(buffer.buffertype, GL_READ_WRITE))
@@ -144,7 +140,7 @@ function Base.unsafe_copy!(buffer::GLBuffer{T}, readoffset::Int, writeoffset::In
     bind(buffer,0)
     return nothing
 end
-function Base.unsafe_copy!(a::Vector{T}, readoffset::Int, b::GLBuffer{T}, writeoffset::Int, len::Int) where T
+function Base.unsafe_copy!(a::Vector{T}, readoffset::Int, b::Buffer{T}, writeoffset::Int, len::Int) where T
     bind(b)
     ptr = Ptr{T}(glMapBuffer(b.buffertype, GL_WRITE_ONLY))
     for i=1:len
@@ -153,7 +149,7 @@ function Base.unsafe_copy!(a::Vector{T}, readoffset::Int, b::GLBuffer{T}, writeo
     glUnmapBuffer(b.buffertype)
     bind(b,0)
 end
-function Base.unsafe_copy!(a::GLBuffer{T}, readoffset::Int, b::Vector{T}, writeoffset::Int, len::Int) where T
+function Base.unsafe_copy!(a::Buffer{T}, readoffset::Int, b::Vector{T}, writeoffset::Int, len::Int) where T
     bind(a)
     ptr = Ptr{T}(glMapBuffer(a.buffertype, GL_READ_ONLY))
     for i=1:len
@@ -163,7 +159,7 @@ function Base.unsafe_copy!(a::GLBuffer{T}, readoffset::Int, b::Vector{T}, writeo
     bind(a,0)
 end
 
-function gpu_getindex(b::GLBuffer{T}, range::UnitRange) where T
+function gpu_getindex(b::Buffer{T}, range::UnitRange) where T
     multiplicator = sizeof(T)
     offset        = first(range)-1
     value         = Vector{T}(length(range))
@@ -179,7 +175,7 @@ end
 # OpenGL has the annoying habit of reusing id's when creating a new context
 # We need to make sure to only free the current one
 
-function free(x::GLBuffer)
+function free(x::Buffer)
     if !is_current_context(x.context)
         return # don't free from other context
     end
@@ -191,5 +187,3 @@ function free(x::GLBuffer)
     end
     return
 end
-
-#Question: GLvisualize has a uniform buffer, should that be here too?

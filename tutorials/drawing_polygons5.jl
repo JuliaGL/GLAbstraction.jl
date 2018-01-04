@@ -65,8 +65,8 @@ void main()
 
 # Link everything together, using the corresponding shader variable as
 # the Dict key
-bufferdict = Dict(:position=>GLBuffer(vertex_positions),
-                  :color=>GLBuffer(vertex_colors),
+bufferdict = Dict(:position=>Buffer(vertex_positions),
+                  :color=>Buffer(vertex_colors),
                   :indexes=>indexbuffer(elements)) # special for element buffers
 
 ro = std_renderobject(bufferdict,

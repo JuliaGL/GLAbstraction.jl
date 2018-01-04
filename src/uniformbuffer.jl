@@ -1,36 +1,29 @@
-"""
-Statically sized uniform buffer.
-Supports push!, but with fixed memory, so it will error after reaching
-it's preallocated length.
-"""
-type UniformBuffer{T, N}
-    buffer::GLBuffer{T}
-    offsets::NTuple{N, Int}
-    elementsize::Int
-    length::Int
-end
 const GLSLScalarTypes = Union{Float32, Int32, UInt32}
-Base.eltype{T, N}(::UniformBuffer{T, N}) = T
 
+"""
+Returns the alignment of the `Type` of T as assumed in https://khronos.org/registry/OpenGL/specs/gl/glspec45.core.pdf#page=159,
+returning a tuple with the first element being the 'base' alignment, and the second the total size inside memory.
+""" 
 function glsl_alignement_size(T)
+    function ceil4(i)
+        while i%4 != 0
+            i += 1
+        end
+        return i
+    end
     T <: Bool && return sizeof(Int32), sizeof(Int32)
     N = sizeof(T)
     T <: GLSLScalarTypes && return N, N
     T <: Function && return sizeof(Vec4f0), sizeof(Vec4f0) # sizeof(EmptyStruct) padded to Vec4f0
     ET = eltype(T)
-    if T <: Mat4f0
-        a, s = glsl_alignement_size(Vec4f0)
-        return a, 4s
+    N  = sizeof(ET)
+    if T <: Matrix
+        nrows, ncols = size(T)
+        ncols        = ceil4(ncols)
+        return div(ncols, 4) * N, ncols * nrows * N
     end
-    N = sizeof(ET)
-    if T <: Vec2f0
-        return 2N, 2N
-    end
-    if T <: Vec4f0
-        return 4N, 4N
-    end
-    if T <: Vec3f0
-        return 4N, 3N
+    if T <: Vector
+        return ceil4(length(T)) * N, length(T) * N
     end
     error("Struct $T not supported yet. Please help by implementing all rules from https://khronos.org/registry/OpenGL/specs/gl/glspec45.core.pdf#page=159")
 end
@@ -59,27 +52,60 @@ function std140_offsets{T}(::Type{T})
 end
 
 """
+Statically sized uniform buffer.
+Supports push!, but with fixed memory, so it will error after reaching
+it's preallocated length.
+"""
+type UniformBuffer{T, N}
+    buffer::Buffer{T}
+    offsets::NTuple{N, Int}
+    elementsize::Int
+    length::Int
+end
+"""
     Pre allocates an empty buffer with `max_batch_size` size
     which can be used to store multiple uniform blocks of type T
 """
 function UniformBuffer{T}(::Type{T}, max_batch_size = 1024, mode = GL_STATIC_DRAW)
     offsets, elementsize = std140_offsets(T)
-    buffer = GLBuffer{T}(
+    buffer = Buffer{T}(
         max_batch_size,
         elementsize * max_batch_size,
         GL_UNIFORM_BUFFER, mode
     )
     UniformBuffer(buffer, offsets, elementsize, 0)
 end
-Base.convert(::Type{UniformBuffer}, x) = UniformBuffer(x)
-Base.convert(::Type{UniformBuffer}, x::UniformBuffer) = x
-
 """
     Creates an Uniform buffer with the contents of `data`
 """
 function UniformBuffer{T}(data::T, mode = GL_STATIC_DRAW)
     buffer = UniformBuffer(T, 1, mode)
     push!(buffer, data)
+    buffer
+end
+
+Base.convert(::Type{UniformBuffer}, x) = UniformBuffer(x)
+Base.convert(::Type{UniformBuffer}, x::UniformBuffer) = x
+Base.eltype{T, N}(::UniformBuffer{T, N}) = T
+
+function Base.setindex!{T, N}(buffer::UniformBuffer{T, N}, element::T, idx::Integer)
+    if idx > length(buffer.buffer)
+        throw(BoundsError(buffer, idx))
+    end
+    buff = buffer.buffer
+    glBindBuffer(buff.buffertype, buff.id)
+    dptr = Ptr{UInt8}(glMapBuffer(buff.buffertype, GL_WRITE_ONLY))
+    for (offset, ptr, size) in iterate_fields(buffer, element, idx)
+        unsafe_copy!(dptr + offset, ptr, size)
+    end
+    glUnmapBuffer(buff.buffertype)
+    bind(buff, 0)
+    element
+end
+
+function Base.push!{T, N}(buffer::UniformBuffer{T, N}, element::T)
+    buffer.length += 1
+    buffer[buffer.length] = element
     buffer
 end
 
@@ -106,20 +132,6 @@ function iterate_fields{T, N}(buffer::UniformBuffer{T, N}, x, index)
     end
 end
 
-function Base.setindex!{T, N}(buffer::UniformBuffer{T, N}, element::T, idx::Integer)
-    if idx > length(buffer.buffer)
-        throw(BoundsError(buffer, idx))
-    end
-    buff = buffer.buffer
-    glBindBuffer(buff.buffertype, buff.id)
-    dptr = Ptr{UInt8}(glMapBuffer(buff.buffertype, GL_WRITE_ONLY))
-    for (offset, ptr, size) in iterate_fields(buffer, element, idx)
-        unsafe_copy!(dptr + offset, ptr, size)
-    end
-    glUnmapBuffer(buff.buffertype)
-    GLAbstraction.bind(buff, 0)
-    element
-end
 extract_val(::Val{X}) where X = X
 
 # function Base.setindex!{T <: Composable, N, TF}(x::UniformBuffer{T, N}, val::TF, field::Type{<: Field})
@@ -136,8 +148,8 @@ extract_val(::Val{X}) where X = X
 #         pointer_from_objref(val)
 #     end
 #     buff = x.buffer
-#     GLAbstraction.bind(buff) do
-#         glBufferSubData(buff.buffertype, x.offsets[index], sizeof(val_conv), val_ref)
+#     bind(buff) do
+#         BufferSubData(buff.buffertype, x.offsets[index], sizeof(val_conv), val_ref)
 #     end
 #     x
 # end
@@ -149,14 +161,8 @@ extract_val(::Val{X}) where X = X
 #     end
 #     ET = fieldtype(T, index)
 #     val_ref = Ref{ET}()
-#     GLAbstraction.bind(x.buffer) do
+#     bind(x.buffer) do
 #         glGetBufferSubData(x.buffer.buffertype, x.offsets[index], sizeof(ET), val_ref)
 #     end
 #     val_ref[]
 # end
-
-function Base.push!{T, N}(buffer::UniformBuffer{T, N}, element::T)
-    buffer.length += 1
-    buffer[buffer.length] = element
-    buffer
-end

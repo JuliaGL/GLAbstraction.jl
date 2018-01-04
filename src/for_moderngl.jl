@@ -162,9 +162,6 @@ function glGetTexLevelParameteriv(target::GLenum, level, name::GLenum)
   result[1]
 end
 
-glViewport(x::SimpleRectangle) = glViewport(x.x, x.y, x.w, x.h)
-glScissor(x::SimpleRectangle) = glScissor(x.x, x.y, x.w, x.h)
-
 function glGenRenderbuffers(format::GLenum, attachment::GLenum, dimensions)
     renderbuffer = GLuint[0]
     glGenRenderbuffers(1, renderbuffer)
@@ -173,7 +170,6 @@ function glGenRenderbuffers(format::GLenum, attachment::GLenum, dimensions)
     glFramebufferRenderbuffer(GL_FRAMEBUFFER, attachment, GL_RENDERBUFFER, renderbuffer[1])
     renderbuffer[1]
 end
-
 
 function glTexImage(ttype::GLenum, level::Integer, internalFormat::GLenum, w::Integer, h::Integer, d::Integer, border::Integer, format::GLenum, datatype::GLenum, data)
     glTexImage3D(GL_PROXY_TEXTURE_3D, level, internalFormat, w, h, d, border, format, datatype, C_NULL)

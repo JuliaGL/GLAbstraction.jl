@@ -56,8 +56,8 @@ proj = perspectiveprojection(Float32, 45, 800/600, 1, 10)
 
 # Link everything together, using the corresponding shader variable as
 # the Dict key
-bufferdict = Dict(:position=>GLBuffer(vertex_positions),
-                  :texcoord=>GLBuffer(vertex_texcoords),
+bufferdict = Dict(:position=>Buffer(vertex_positions),
+                  :texcoord=>Buffer(vertex_texcoords),
                   :texKitten=>Texture(data(kitten)),
                   :texPuppy=>Texture(data(puppy)),
                   :model=>model,

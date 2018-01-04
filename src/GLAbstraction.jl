@@ -2,7 +2,6 @@ VERSION >= v"0.4.0-dev+6521" && __precompile__(true)
 module GLAbstraction
 
 using StaticArrays
-using GeometryTypes
 using ModernGL
 using FixedPointNumbers
 using ColorTypes
@@ -76,7 +75,7 @@ export std_renderobject            # creates a renderobject with standard parame
 export instanced_renderobject    # simplification for creating a RenderObject which renders instances
 export set_arg!
 export GLVertexArray            # VertexArray wrapper object
-export GLBuffer                 # OpenGL Buffer object wrapper
+export Buffer                 # OpenGL Buffer object wrapper
 export indexbuffer              # Shortcut to create an OpenGL Buffer object for indexes (1D, cardinality of one and GL_ELEMENT_ARRAY_BUFFER set)
 export opengl_compatible        # infers if a type is opengl compatible and returns stats like cardinality and eltype (will be deprecated)
 export cardinality              # returns the cardinality of the elements of a buffer
