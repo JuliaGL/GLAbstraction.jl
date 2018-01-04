@@ -113,7 +113,7 @@ end
 export RenderObject
 
 
-function fullscreen_pass(fragment_shader, frag_args...)
-    RenderObject(fragment_shader, fullscreen_vert, frag_args)
+# function fullscreen_pass(fragment_shader, frag_args...)
+#     RenderObject(fragment_shader, fullscreen_vert, frag_args)
 
-pass1 = RenderObject(pass1_frag, )
+# pass1 = RenderObject(pass1_frag, )

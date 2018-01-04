@@ -94,9 +94,7 @@ function TextureParameters(T, NDim;
         anisotropic, swizzle_mask
     )
 end
-function TextureParameters(t::Texture{T, NDim}; kw_args...) where {T, NDim}
-    TextureParameters(T, NDim; kw_args...)
-end
+
 
 map_texture_paramers(s::NTuple{N, Symbol}) where {N} = map(map_texture_paramers, s)
 
@@ -355,6 +353,10 @@ texsubimage(t::Texture{T, 3}, newvalue::Array{T, 3}, xrange::UnitRange, yrange::
     first(xrange)-1, first(yrange)-1, first(zrange)-1, length(xrange), length(yrange), length(zrange),
     t.format, t.pixeltype, newvalue
 )
+
+function TextureParameters(t::Texture{T, NDim}; kw_args...) where {T, NDim}
+    TextureParameters(T, NDim; kw_args...)
+end
 
 function set_parameters(t::Texture{T, N}, params::TextureParameters=t.parameters) where {T, N}
     fnames    = (:minfilter, :magfilter, :repeat)

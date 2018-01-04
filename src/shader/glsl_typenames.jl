@@ -2,7 +2,6 @@
 const GLSL_COMPATIBLE_NUMBER_TYPES = (GLfloat, GLint, GLuint, GLdouble)
 const NATIVE_TYPES = Union{
     StaticArray, GLSL_COMPATIBLE_NUMBER_TYPES...,
-    ZeroIndex{GLint}, ZeroIndex{GLuint},
     Buffer, GPUArray, Shader, GLProgram
 }
 

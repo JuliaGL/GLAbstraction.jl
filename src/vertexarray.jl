@@ -1,3 +1,5 @@
+using GeometryTypes: Face
+
 mutable struct VertexArray{Vertex, Face, IT}
     id::GLuint
     length::Int

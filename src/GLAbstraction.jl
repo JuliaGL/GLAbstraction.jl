@@ -42,7 +42,6 @@ import ModernGL.glScissor
 
 include("utils.jl")
 export @gputime # measures the time an OpenGL call takes on the GPU (usually OpenGL calls return immidiately)
-
 include("buffer.jl")
 include("texture.jl")
 include("vertexarray.jl")

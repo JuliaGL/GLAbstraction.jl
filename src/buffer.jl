@@ -3,7 +3,7 @@ mutable struct Buffer{T} <: GPUArray{T, 1}
     size        ::NTuple{1, Int}
     buffertype  ::GLenum
     usage       ::GLenum
-    context     ::GLContext
+    context     ::Context
     function Buffer{T}(ptr::Ptr{T}, buff_length::Int, buffertype::GLenum, usage::GLenum) where T
         id = glGenBuffers()
         glBindBuffer(buffertype, id)
@@ -13,7 +13,6 @@ mutable struct Buffer{T} <: GPUArray{T, 1}
         glBindBuffer(buffertype, 0)
 
         obj = new(id, (buff_length,), buffertype, usage, current_context())
-        finalizer(obj, free)
         obj
     end
 end
