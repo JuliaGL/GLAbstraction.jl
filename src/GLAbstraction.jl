@@ -52,6 +52,7 @@ include("shader/shader.jl")
 include("shader/program.jl")
 include("shader/glsl_typenames.jl")
 include("shader/info.jl")
+include("conversions.jl")
 export gluniform                # wrapper of all the OpenGL gluniform functions, which call the correct gluniform function via multiple dispatch. Example: gluniform(location, x::Matrix4x4) = gluniformMatrix4fv(location, x)
 export toglsltype_string        # infers a glsl type string from a julia type. Example: Matrix4x4 -> uniform mat4
 # Also exports Macro generated GLSL alike aliases for Float32 Matrices and Vectors
@@ -85,6 +86,8 @@ export @comp_str #string macro for the different shader types.
 export @frag_str # with them you can write frag""" ..... """, returning shader object
 export @vert_str
 export @geom_str
+
+include("framebuffer.jl")
 
 dir(dirs...) = joinpath(dirname(@__FILE__), "..", dirs...)
 
