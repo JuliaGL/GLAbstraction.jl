@@ -1,10 +1,10 @@
 #came from GLInfo.jl
+
 const GLSL_COMPATIBLE_NUMBER_TYPES = (GLfloat, GLint, GLuint, GLdouble)
 const NATIVE_TYPES = Union{
     StaticArray, GLSL_COMPATIBLE_NUMBER_TYPES...,
     Buffer, GPUArray, Shader, GLProgram
 }
-
 isa_gl_struct(x::NATIVE_TYPES) = false
 
 

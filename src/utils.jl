@@ -1,4 +1,4 @@
-const GLArrayEltypes = Union{StaticVector, Real}
+const GLArrayEltypes = Union{Colorant, FixedPoint, StaticVector, Real}
 
 macro gputime(codeblock)
     quote

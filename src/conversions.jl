@@ -1,12 +1,12 @@
+
+
 ########################################################################################
 # OpenGL Arrays
-
-
 """
 Transform julia datatypes to opengl enum type
 """
 julia2glenum(x::Type{T}) where {T <: FixedPoint} = julia2glenum(FixedPointNumbers.rawtype(x))
-julia2glenum(x::Type{OffsetInteger{O, T}}) where {O, T} = julia2glenum(T)
+# julia2glenum(x::Type{OffsetInteger{O, T}}) where {O, T} = julia2glenum(T)
 julia2glenum(x::Union{Type{T}, T}) where {T <: Union{StaticVector, Colorant}} = julia2glenum(eltype(x))
 julia2glenum(x::Type{GLubyte})  = GL_UNSIGNED_BYTE
 julia2glenum(x::Type{GLbyte})   = GL_BYTE
@@ -56,11 +56,9 @@ gl_promote(x::Type{T}) where {T <: StaticVector} = similar_type(T, gl_promote(el
 gl_convert(x::T) where {T <: Number} = gl_promote(T)(x)
 gl_convert(x::T) where {T <: Colorant} = gl_promote(T)(x)
 gl_convert(s::Vector{Matrix{T}}) where {T<:Colorant} = Texture(s)
-gl_convert(s::AABB) = s
 gl_convert(s::Void) = s
 
 isa_gl_struct(x::Array) = false
-isa_gl_struct(x::NATIVE_TYPES) = false
 isa_gl_struct(x::Colorant) = false
 function isa_gl_struct(x::T) where T
     !isleaftype(T) && return false
@@ -81,9 +79,7 @@ function gl_convert_struct(x::T, uniform_name::Symbol) where T
 end
 
 
-# native types don't need convert!
-gl_convert(a::T) where {T <: NATIVE_TYPES} = a
-
+#i get a warning redefinition because of the NativeTypes inclusion of StaticArrays, whats that about?
 gl_convert(x::StaticVector{N, T}) where {N, T} = map(gl_promote(T), x)
 gl_convert(x::SMatrix{N, M, T}) where {N, M, T} = map(gl_promote(T), x)
 
