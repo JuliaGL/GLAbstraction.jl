@@ -100,7 +100,7 @@ function FrameBuffer(fb_size::Tuple{<: Integer, <: Integer}, texture_types::NTup
         error("The length of texture types exceeds the maximum amount of framebuffer color attachments! Found: $N, allowed: $max_ca")
     end
     if length(filter(x-> x <: DepthFormat, texture_types)) > 1
-        error("The amount of DepthFormat types in texture types exceeds the maximum of 1."
+        error("The amount of DepthFormat types in texture types exceeds the maximum of 1.")
     end
 
     _attachments = []

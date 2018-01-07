@@ -13,7 +13,6 @@ import FileIO: load, save
 import FixedPointNumbers: N0f8, N0f16, N0f8, Normed
 
 import Base: merge, resize!, unsafe_copy!, similar, length, getindex, setindex!
-import Reactive: value
 
 include("context.jl")
 
