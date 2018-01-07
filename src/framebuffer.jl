@@ -1,11 +1,41 @@
 gl_color_attachment(i) = GLuint(GL_COLOR_ATTACHMENT0 + i)
 
-@enum DepthFormat depth16 depth24 depth32 depth32f
-@enum DepthStencilFormat depth_stencil32 depth_stencil40
+abstract type DepthFormat end
 
-gl_internal_format(d::DepthFormat)        = d == depth32f ? GL_DEPTH_COMPONENT32F : GLuint(GL_DEPTH_COMPONENT16 + Int(d))
-gl_internal_format(d::DepthStencilFormat) = d == depth_stencil32 ? GL_DEPTH24_STENCIL8 : GL_DEPTH32F_STENCIL8
+struct Depth{DT} <: DepthFormat
+    depth::DT
+end
+# TODO maybe we should implement this as a 32 bit wide primitive type
+# and overload getproperty (getfield on 0.7) to implement depthstencil.depth with masking
+# since you almost always want to have depthstencil.depth::Float32
+struct DepthStencil{DT, ST} <: DepthFormat
+    depth::DT
+    stencil::ST
+end
+Base.getproperty(x::DepthStencil, field::Symbol) = field == :depth ? Float32(x.depth) : x.stencil
 
+
+"""
+Float24 storage type for depth
+"""
+primitive type Float24 <: AbstractFloat 24 end
+
+gl_internal_format(d::Depth{Float32}) = GL_DEPTH_COMPONENT32F
+gl_internal_format(d::DepthStencil{Float24, N0f8}) = GL_DEPTH24_STENCIL8
+
+function gl_internal_format(::T) where T
+    error("$T doesn't have a valid mapping to an OpenGL internal format enum. Please use DepthStencil/Depth/Color, or overload `gl_internal_format(x::$T)`
+    to return the correct OpenGL format enum.
+    ")
+end
+
+gl_attachment(::Depth) = GL_DEPTH_ATTACHMENT
+gl_attachment(::DepthStencil) = GL_DEPTH_STENCIL_ATTACHMENT
+function gl_attachment(::T) where T
+    error("$T doesn't have a valid mapping to an OpenGL attachment enum. Please use DepthStencil/Depth, or overload `gl_attachment(x::$T)`
+    to return the correct OpenGL depth attachment.
+    ")
+end
 #TODO talk about Contexts!
 """
 Holds the id, format and attachment of an OpenGL RenderBuffer.
@@ -15,68 +45,60 @@ struct RenderBuffer
     id        ::GLuint
     format    ::GLenum
     attachment::GLenum
-    # context ::GLContext
+    context   ::GLContext
     function RenderBuffer(format::GLenum, attachment::GLenum, dimensions)
         @assert length(dimensions) == 2
         id = glGenRenderbuffers(format, attachment, dimensions)
-        new(id, format, attachment)
+        new(id, format, attachment, current_context())
     end
 end
 
 "Creates a `RenderBuffer` with purpose for the `depth` component of a `FrameBuffer`."
-function RenderBuffer(depth_format::Union{DepthFormat, DepthStencilFormat}, dimensions)
-    if typeof(depth_format) == DepthFormat
-        return RenderBuffer(gl_internal_format(depth_format), GL_DEPTH_ATTACHMENT, dimensions)
-    elseif typeof(depth_format) == DepthStencilFormat
-        return RenderBuffer(gl_internal_format(depth_format), GL_DEPTH_STENCIL_ATTACHMENT, dimensions)
-    else
-        error("depth format not recognized.")
-    end
+function RenderBuffer(depth_format, dimensions)
+    return RenderBuffer(gl_internal_format(depth_format), gl_attachment(depth_format), dimensions)
 end
 
 function bind(b::RenderBuffer)
     glBindRenderbuffer(GL_RENDERBUFFER, b.id)
 end
 
-function Base.resize!(b::RenderBuffer, dimensions) 
+function Base.resize!(b::RenderBuffer, dimensions)
     bind(b)
     glRenderbufferStorage(GL_RENDERBUFFER, b.format, dimensions...)
 end
 
 
 """
-A FrameBuffer holds all the data related to the usual OpenGL FrameBufferObjects. 
-The `textures` field gets mappend to the different possible GL_COLOR_ATTACHMENTs, which is bound by GL_MAX_COLOR_ATTACHMENTS. 
+A FrameBuffer holds all the data related to the usual OpenGL FrameBufferObjects.
+The `textures` field gets mappend to the different possible GL_COLOR_ATTACHMENTs, which is bound by GL_MAX_COLOR_ATTACHMENTS.
 """
-struct FrameBuffer{N}
-    id       ::GLuint
-    textures ::NTuple{N, Texture}
-    depth    ::RenderBuffer
+struct FrameBuffer{ElementTypes, Internal}
+    id::GLuint
+    attachments::Internal
 end
-function FrameBuffer(fb_size, texture_types, depth_format = depth_stencil32)
-    dimensions = tuple(fb_size...)
-    
+FrameBuffer(fb_size::Tuple{<: Integer, <: Integer}, texture_types...) = FrameBuffer(fb_size, texture_types)
+
+create_attachment(T, dimensions) = Texture(T, dimensions, minfilter = :nearest, x_repeat = :clamp_to_edge)
+create_attachment(::Type{T}, dimensions) where T <: DepthFormat = RenderBuffer(T, dimensions)
+
+function FrameBuffer(fb_size::Tuple{<: Integer, <: Integer}, texture_types::NTuple{N, Any}) where N
+    dimensions = Int.(fb_size)
+
     framebuffer = glGenFramebuffers()
     glBindFramebuffer(GL_FRAMEBUFFER, framebuffer)
-   
-    if length(texture_types) > glGetIntegerv(GL_MAX_COLOR_ATTACHMENTS) 
-        error("The length of texture types exceeds the maximum amount of framebuffer color attachments!") 
+    max_ca = glGetIntegerv(GL_MAX_COLOR_ATTACHMENTS)
+    if N > max_ca
+        error("The length of texture types exceeds the maximum amount of framebuffer color attachments! Found: $N, allowed: $max_ca")
     end
+    attachments = (map(enumerate(texture_types)) do (i, T) # new 0.7 destructure of tuples in args
+        attachment = create_attachment(T, dimensions)
+        attach2_framebuffer(attachment, gl_color_attachment(i))
+        attachment
+    end...,)
 
-    textures = Texture[]
-    for (i, tex_type) in enumerate(texture_types)
-        texture = Texture(tex_type, dimensions, minfilter=:nearest, x_repeat=:clamp_to_edge) 
-        attach2_framebuffer(texture, gl_color_attachment(i))
-        push!(textures, texture)
-    end
-
-    #i think you can actually also just use  a texture for depth... 
-    depth = RenderBuffer(depth_format, dimensions)
     @assert glCheckFramebufferStatus(GL_FRAMEBUFFER) == GL_FRAMEBUFFER_COMPLETE
-
     glBindFramebuffer(GL_FRAMEBUFFER, 0)
-
-    return FrameBuffer{length(textures)}(framebuffer, tuple(textures...), depth)
+    return FrameBuffer{Tuple{texture_types...}, typeof(attachments)}(framebuffer, attachments)
 end
 
 function attach2_framebuffer(t::Texture{T, 2}, attachment) where T
@@ -89,10 +111,9 @@ function Base.resize!(fb::FrameBuffer, dimensions)
     ws = dimensions[1], dimensions[2]
     if ws != size(fb) && all(x -> x > 0, dimensions)
         dimensions = tuple(dimensions...)
-        for texture in fb.textures
-            resize_nocopy!(texture, dimensions)
+        for attachment in fb.attachments
+            resize_nocopy!(attachment, dimensions)
         end
-        resize!(fb.depth, dimensions)
     end
     nothing
 end
