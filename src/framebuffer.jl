@@ -5,6 +5,7 @@ abstract type DepthFormat end
 struct Depth{DT} <: DepthFormat
     depth::DT
 end
+
 # TODO maybe we should implement this as a 32 bit wide primitive type
 # and overload getproperty (getfield on 0.7) to implement depthstencil.depth with masking
 # since you almost always want to have depthstencil.depth::Float32
@@ -13,7 +14,6 @@ struct DepthStencil{DT, ST} <: DepthFormat
     stencil::ST
 end
 Base.getproperty(x::DepthStencil, field::Symbol) = field == :depth ? Float32(x.depth) : x.stencil
-
 
 """
 Float24 storage type for depth
@@ -58,11 +58,12 @@ function RenderBuffer(depth_format, dimensions)
     return RenderBuffer(gl_internal_format(depth_format), gl_attachment(depth_format), dimensions)
 end
 
+
 function bind(b::RenderBuffer)
     glBindRenderbuffer(GL_RENDERBUFFER, b.id)
 end
 
-function Base.resize!(b::RenderBuffer, dimensions)
+function resize_nocopy!(b::RenderBuffer, dimensions)
     bind(b)
     glRenderbufferStorage(GL_RENDERBUFFER, b.format, dimensions...)
 end
@@ -78,8 +79,12 @@ struct FrameBuffer{ElementTypes, Internal}
 end
 FrameBuffer(fb_size::Tuple{<: Integer, <: Integer}, texture_types...) = FrameBuffer(fb_size, texture_types)
 
-create_attachment(T, dimensions) = Texture(T, dimensions, minfilter = :nearest, x_repeat = :clamp_to_edge)
-create_attachment(::Type{T}, dimensions) where T <: DepthFormat = RenderBuffer(T, dimensions)
+function create_attachment(T, dimensions, lastcolor)
+    tex = Texture(T, dimensions, minfilter = :nearest, x_repeat = :clamp_to_edge)
+    # textures will be color attachments right now. Otherwise we'd need to check for detph attachments
+    lastcolor + 1
+end
+create_attachment(::Type{T}, dimensions, lastcolor) where T <: DepthFormat = (RenderBuffer(T, dimensions), lastcolor)
 
 function FrameBuffer(fb_size::Tuple{<: Integer, <: Integer}, texture_types::NTuple{N, Any}) where N
     dimensions = Int.(fb_size)
@@ -90,19 +95,26 @@ function FrameBuffer(fb_size::Tuple{<: Integer, <: Integer}, texture_types::NTup
     if N > max_ca
         error("The length of texture types exceeds the maximum amount of framebuffer color attachments! Found: $N, allowed: $max_ca")
     end
-    attachments = (map(enumerate(texture_types)) do (i, T) # new 0.7 destructure of tuples in args
-        attachment = create_attachment(T, dimensions)
-        attach2_framebuffer(attachment, gl_color_attachment(i))
-        attachment
-    end...,)
+    _attachments = []
+    i = 1
+    for T in texture_types
+        attachment, color_id = create_attachment(T, dimensions)
+        attach2framebuffer(attachment, gl_color_attachment(color_id))
+        push!(_attachments, attachment)
+    end
+
+    attachments = (_attachments...,)
 
     @assert glCheckFramebufferStatus(GL_FRAMEBUFFER) == GL_FRAMEBUFFER_COMPLETE
     glBindFramebuffer(GL_FRAMEBUFFER, 0)
     return FrameBuffer{Tuple{texture_types...}, typeof(attachments)}(framebuffer, attachments)
 end
 
-function attach2_framebuffer(t::Texture{T, 2}, attachment) where T
+function attach2framebuffer(t::Texture{T, 2}, attachment) where T
     glFramebufferTexture2D(GL_FRAMEBUFFER, attachment, GL_TEXTURE_2D, t.id, 0)
+end
+function attach2framebuffer(x::RenderBuffer, attachment)
+    glFramebufferRenderbuffer(GL_FRAMEBUFFER, x.attachment, GL_RENDERBUFFER, x.id)
 end
 
 Base.size(fb::FrameBuffer) = size(fb.textures[1]) # it's guaranteed that they all have the same size
