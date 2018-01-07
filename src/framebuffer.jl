@@ -45,7 +45,7 @@ struct RenderBuffer
     id        ::GLuint
     format    ::GLenum
     attachment::GLenum
-    context   ::GLContext
+    context   ::Context
     function RenderBuffer(format::GLenum, attachment::GLenum, dimensions)
         @assert length(dimensions) == 2
         id = glGenRenderbuffers(format, attachment, dimensions)
@@ -71,7 +71,8 @@ end
 
 """
 A FrameBuffer holds all the data related to the usual OpenGL FrameBufferObjects.
-The `textures` field gets mappend to the different possible GL_COLOR_ATTACHMENTs, which is bound by GL_MAX_COLOR_ATTACHMENTS.
+The `attachments` field gets mapped to the different possible GL_COLOR_ATTACHMENTs, which is bound by GL_MAX_COLOR_ATTACHMENTS,
+and to one of either a GL_DEPTH_ATTACHMENT or GL_DEPTH_STENCIL_ATTACHMENT.
 """
 struct FrameBuffer{ElementTypes, Internal}
     id::GLuint
@@ -92,9 +93,16 @@ function FrameBuffer(fb_size::Tuple{<: Integer, <: Integer}, texture_types::NTup
     framebuffer = glGenFramebuffers()
     glBindFramebuffer(GL_FRAMEBUFFER, framebuffer)
     max_ca = glGetIntegerv(GL_MAX_COLOR_ATTACHMENTS)
+
+    invalid_types = filter(x -> !(x <: DepthFormat || x <: GLArrayEltypes), texture_types)
+    @assert length(invalid_types) "Types $invalid_types are not valid, supported types are:\n  $GLArrayEltypes\n  DepthFormat."
     if N > max_ca
         error("The length of texture types exceeds the maximum amount of framebuffer color attachments! Found: $N, allowed: $max_ca")
     end
+    if length(filter(x-> x <: DepthFormat, texture_types)) > 1
+        error("The amount of DepthFormat types in texture types exceeds the maximum of 1."
+    end
+
     _attachments = []
     i = 1
     for T in texture_types
