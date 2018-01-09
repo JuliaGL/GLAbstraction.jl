@@ -8,7 +8,7 @@ const vsh = vert"""
 in vec2 position;
 
 void main(){
-	gl_Position = vec4(position, 0, 1.0);
+    gl_Position = vec4(position, 0, 1.0);
 }
 """
 
@@ -17,25 +17,23 @@ const fsh = frag"""
 out vec4 outColor;
 
 void main() {
-	outColor = vec4(1.0, 1.0, 1.0, 1.0);
+    outColor = vec4(1.0, 1.0, 1.0, 1.0);
 }
 """
 
 const triangle = std_renderobject(
-	Dict{Symbol, Any}(
+    Dict{Symbol, Any}(
         :position => GLBuffer(Point2f0[(0.0, 0.5), (0.5, -0.5), (-0.5,-0.5)]),
     ),
-	LazyShader(vsh, fsh)
+    LazyShader(vsh, fsh)
 )
 
 glClearColor(0, 0, 0, 1)
 
-
 while isopen(window)
-  	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
-
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
     render(triangle)
-
-  	swapbuffers(window)
-  	poll_glfw()
+    swapbuffers(window)
+    poll_glfw()
 end
+GLFW.DestroyWindow(window)

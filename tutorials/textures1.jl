@@ -1,7 +1,7 @@
 using ModernGL, GeometryTypes, GLAbstraction, GLWindow, Images
 
 # Load our texture. See "downloads.jl" to get the images.
-img = load(Pkg.dir("GLAbstraction", "tutorials", "images", "kitten.png"))
+img = load(GLAbstraction.dir("tutorials", "images", "kitten.png"))
 
 # Create the window. This sets all the hints and makes the context current.
 window = create_glcontext("Textures 1", resolution=(800,600))
@@ -77,7 +77,7 @@ void main()
 bufferdict = Dict(:position=>GLBuffer(vertex_positions),
                   :color=>GLBuffer(vertex_colors),
                   :texcoord=>GLBuffer(vertex_texcoords),
-                  :tex=>Texture(data(img)),
+                  :tex=>Texture(img'),
                   :indexes=>indexbuffer(elements)) # special for element buffers
 
 ro = std_renderobject(bufferdict,

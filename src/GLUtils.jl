@@ -5,7 +5,7 @@ macro gputime(codeblock)
         local const done         = GLint[0]
         glGenQueries(1, query)
         glBeginQuery(GL_TIME_ELAPSED, query[1])
-        value = $(esc(codeblock))
+        $(esc(codeblock))
         glEndQuery(GL_TIME_ELAPSED)
 
         while (done[1] != 1)
@@ -20,15 +20,15 @@ macro gputime(codeblock)
     end
 end
 
-immutable IterOrScalar{T}
-  val::T
+struct IterOrScalar{T}
+    val::T
 end
 
 minlenght(a::Tuple{Vararg{IterOrScalar}}) = foldl(typemax(Int), a) do len, elem
     isa(elem.val, AbstractArray) && len > length(elem.val) && return length(elem.val)
     len
 end
-getindex{T<:AbstractArray}(A::IterOrScalar{T}, i::Integer) = A.val[i]
+getindex(A::IterOrScalar{T}, i::Integer) where {T<:AbstractArray} = A.val[i]
 getindex(A::IterOrScalar, i::Integer) = A.val
 
 #Some mapping functions for dictionaries
@@ -38,14 +38,13 @@ end
 function mapkeys(func, collection::Dict)
     Dict([(func(key), value) for (key, value) in collection])
 end
-Base.get{KT, VT}(a::Dict{KT, VT}, keys::Vector{KT}) = [a[key] for key in keys]
 
 function print_with_lines(out::IO, text::AbstractString)
     io = IOBuffer()
     for (i,line) in enumerate(split(text, "\n"))
         println(io, @sprintf("%-4d: %s", i, line))
     end
-    println(out, takebuf_string(io))
+    write(out, take!(io))
 end
 print_with_lines(text::AbstractString) = print_with_lines(STDOUT, text)
 
@@ -56,11 +55,11 @@ Usage pattern:
 visualize(::Style{:Default}, ...)           = do something
 visualize(::Style{:MyAwesomeNewStyle}, ...) = do something different
 """
-immutable Style{StyleValue}
+struct Style{StyleValue}
 end
 Style(x::Symbol) = Style{x}()
 Style() = Style{:Default}()
-mergedefault!{S}(style::Style{S}, styles, customdata) = merge!(copy(styles[S]), Dict{Symbol, Any}(customdata))
+mergedefault!(style::Style{S}, styles, customdata) where {S} = merge!(copy(styles[S]), Dict{Symbol, Any}(customdata))
 macro style_str(string)
     Style{Symbol(string)}
 end
@@ -103,15 +102,15 @@ Needed to match the lazy gl_convert exceptions.
     `Target`: targeted OpenGL type
     `x`: the variable that gets matched
 """
-matches_target{Target, T}(::Type{Target}, x::T) = applicable(gl_convert, Target, x) || T <: Target  # it can be either converted to Target, or it's already the target
-matches_target{Target, T}(::Type{Target}, x::Signal{T}) = applicable(gl_convert, Target, x)  || T <: Target
+matches_target(::Type{Target}, x::T) where {Target, T} = applicable(gl_convert, Target, x) || T <: Target  # it can be either converted to Target, or it's already the target
+matches_target(::Type{Target}, x::Signal{T}) where {Target, T} = applicable(gl_convert, Target, x)  || T <: Target
 matches_target(::Function, x) = true
 matches_target(::Function, x::Void) = false
 export matches_target
 
 
 signal_convert(T, y) = convert(T, y)
-signal_convert{T2<:Signal}(T1, y::T2) = map(convert, Signal(T1), y)
+signal_convert(T1, y::T2) where {T2<:Signal} = map(convert, Signal(T1), y)
 """
 Takes a dict and inserts defaults, if not already available.
 The variables are made accessible in local scope, so things like this are possible:
@@ -139,8 +138,11 @@ macro gen_defaults!(dict, args)
     push!(return_expression.args, :(gl_convert_targets = get!($dictsym, :gl_convert_targets, Dict{Symbol, Any}()))) # exceptions for glconvert.
     push!(return_expression.args, :(doc_strings = get!($dictsym, :doc_string, Dict{Symbol, Any}()))) # exceptions for glconvert.
     # @gen_defaults can be used multiple times, so we need to reuse gl_convert_targets if already in here
-    for (i,elem) in enumerate(tuple_list)
-        elem.head == :line && continue
+    for (i, elem) in enumerate(tuple_list)
+        if Base.is_linenumber(elem)
+            push!(return_expression.args, elem)
+            continue
+        end
         opengl_convert_target = :() # is optional, so first is an empty expression
         convert_target        = :() # is optional, so first is an empty expression
         doc_strings           = :()
@@ -153,9 +155,8 @@ macro gen_defaults!(dict, args)
                 convert_target = :($key_name)
             end
             key_sym = Expr(:quote, key_name)
-            if isa(value_expr, Expr) && value_expr.head == :(=>)  # we might need to insert a convert target
-
-                value_expr, target = value_expr.args
+            if isa(value_expr, Expr) && value_expr.head == :call && value_expr.args[1] == :(=>)  # we might need to insert a convert target
+                value_expr, target = value_expr.args[2:end]
                 undecided = []
                 if isa(target, Expr)
                     undecided = target.args
@@ -196,13 +197,10 @@ macro gen_defaults!(dict, args)
 end
 export @gen_defaults!
 
-
-value(any) = any # add this, to make it easier to work with a combination of signals and constants
-
 makesignal(s::Signal) = s
-makesignal(v)         = Signal(v)
+makesignal(v) = Signal(v)
 
-@inline const_lift(f::Union{DataType, Function}, inputs...) = map(f, map(makesignal, inputs)...)
+@inline const_lift(f::Union{DataType, Type, Function}, inputs...) = map(f, map(makesignal, inputs)...)
 export const_lift
 
 function close_to_square(n::Real)
@@ -236,21 +234,16 @@ isnotempty(x) = !isempty(x)
 AND(a,b) = a&&b
 OR(a,b) = a||b
 
-
-#Uhm I should remove this. Needed for smooth transition between FixedSizeArrays and Number, though
-Base.length{T <: Number}(::Type{T}) = 1
-
-
 #Meshtype holding native OpenGL data.
-immutable NativeMesh{MeshType <: HomogenousMesh}
+struct NativeMesh{MeshType <: HomogenousMesh}
     data::Dict{Symbol, Any}
 end
 export NativeMesh
 
-@compat (::Type{NativeMesh}){T <: HomogenousMesh}(m::T) = NativeMesh{T}(m)
+NativeMesh(m::T) where {T <: HomogenousMesh} = NativeMesh{T}(m)
 
 
-@compat function (MT::Type{NativeMesh{T}}){T <: HomogenousMesh}(m::T)
+function (MT::Type{NativeMesh{T}})(m::T) where T <: HomogenousMesh
     result = Dict{Symbol, Any}()
     attribs = attributes(m)
     @materialize! vertices, faces = attribs
@@ -271,15 +264,18 @@ export NativeMesh
     MT(result)
 end
 
-@compat function (MT::Type{NativeMesh{T}}){T <: HomogenousMesh}(m::Signal{T})
+function (MT::Type{NativeMesh{T}})(m::Signal{T}) where T <: HomogenousMesh
     result = Dict{Symbol, Any}()
-    mv = value(m)
+    mv = Reactive.value(m)
     attribs = attributes(mv)
     @materialize! vertices, faces = attribs
     result[:vertices] = GLBuffer(vertices)
     result[:faces]    = indexbuffer(faces)
     for (field, val) in attribs
         if field in (:texturecoordinates, :normals, :attribute_id, :color)
+            if field == :color
+                field = :vertex_color
+            end
             if isa(val, Vector)
                 result[field] = GLBuffer(val)
             end
@@ -287,12 +283,15 @@ end
             result[field] = Texture(val)
         end
     end
-    preserve(map(m) do mesh
+    foreach(m) do mesh
         for (field, val) in attributes(mesh)
+            if field == :color
+                field = :vertex_color
+            end
             if haskey(result, field)
                 update!(result[field], val)
             end
         end
-    end)
+    end
     MT(result)
 end

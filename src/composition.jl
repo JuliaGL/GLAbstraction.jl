@@ -1,10 +1,10 @@
 
-abstract Unit
-abstract Composable{unit}
+abstract type Unit end
+abstract type Composable{unit} end
 
-immutable DeviceUnit <: Unit end
+struct DeviceUnit <: Unit end
 
-type Context{Unit} <: Composable{Unit}
+mutable struct Context{Unit} <: Composable{Unit}
     children
     boundingbox
     transformation
@@ -21,10 +21,10 @@ end
 function translationmatrix(b)
     s,t = scale_trans(b)
     Mat4f0( # always return float32 matrix
-        (s[1], 0   , 0 , 0),
-        (0   , s[2], 0 , 0),
-        (0   , 0   , s[3], 0),
-        (t[1], t[2], t[3], 1),
+        s[1], 0   , 0 , 0,
+        0   , s[2], 0 , 0,
+        0   , 0   , s[3], 0,
+        t[1], t[2], t[3], 1,
     )
 end
 function inversetransformation(b)
@@ -32,10 +32,10 @@ function inversetransformation(b)
     s = 1f0/s
     t = -t
     Mat4f0( # always return float32 matrix
-        (s[1], 0   , 0 , 0),
-        (0   , s[2], 0 , 0),
-        (0   , 0   , s[3], 0),
-        (t[1], t[2], t[3], 1),
+        s[1], 0   , 0 , 0,
+        0   , s[2], 0 , 0,
+        0   , 0   , s[3], 0,
+        t[1], t[2], t[3], 1,
     )
 end
 layout!(b, c) =  layout!(b, (c,))[1]
@@ -47,10 +47,10 @@ function combine_s_t(scale_trans1, scale_trans2)
     t2 = -t2
     s,t = s1.*s2, t1+t2
     Mat4f0( # always return float32 matrix
-        (s[1], 0   , 0 , 0),
-        (0   , s[2], 0 , 0),
-        (0   , 0   , s[3], 0),
-        (t[1], t[2], t[3], 1),
+        s[1], 0   , 0 , 0,
+        0   , s[2], 0 , 0,
+        0   , 0   , s[3], 0,
+        t[1], t[2], t[3], 1,
     )
 end
 function layout!(b, composables::Union{Tuple, Vector})
@@ -63,13 +63,6 @@ function layout!(b, composables::Union{Tuple, Vector})
 end
 
 export layout!
-
-# layout(HyperRectangle(0,0,50,500), layout([
-#     "hello",
-#     slider(1:10),
-#     RGBA{Float32}(0,0,0,1)
-# ], gap=Vec3f0(0)))
-
 
 
 Context() = Context{DeviceUnit}(Composable[], Signal(AABB{Float32}(Vec3f0(0), Vec3f0(0))), Signal(eye(Mat{4,4, Float32})))
@@ -96,16 +89,16 @@ function transformation(c::Composable, model)
     c
 end
 
-convert!{unit <: Unit}(::Type{unit}, x::Composable) = x # We don't do units just yet
+convert!(::Type{unit}, x::Composable) where {unit <: Unit} = x # We don't do units just yet
 
-function Base.append!{unit <: Unit, N}(context::Context{unit}, x::Union{Vector{Composable}, NTuple{N, Composable}})
+function Base.append!(context::Context{unit}, x::Union{Vector{Composable}, NTuple{N, Composable}}) where {unit <: Unit, N}
     for elem in x
         push!(context, elem)
     end
     context
 end
 
-function Base.push!{unit <: Unit}(context::Context{unit}, x::Composable)
+function Base.push!(context::Context{unit}, x::Composable) where unit <: Unit
     x = convert!(unit, x)
     context.boundingbox = const_lift(transformation(x), transformation(context), boundingbox(x), boundingbox(context)) do transa, transb, a,b
         a = transa*a

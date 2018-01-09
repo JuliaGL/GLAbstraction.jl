@@ -1,21 +1,21 @@
-abstract Camera{T}
+abstract type Camera{T} end
 const Q = Quaternions # save some writing!
 
-type OrthographicCamera{T} <: Camera{T}
+mutable struct OrthographicCamera{T} <: Camera{T}
     window_size     ::Signal{SimpleRectangle{Int}}
-    view            ::Signal{Mat{4,4,T}}
-    projection      ::Signal{Mat{4,4,T}}
-    projectionview  ::Signal{Mat{4,4,T}}
+    view            ::Signal{Mat4{T}}
+    projection      ::Signal{Mat4{T}}
+    projectionview  ::Signal{Mat4{T}}
 end
 
-type PerspectiveCamera{T} <: Camera{T}
+mutable struct PerspectiveCamera{T} <: Camera{T}
     window_size     ::Signal{SimpleRectangle{Int}}
     nearclip        ::Signal{T}
     farclip         ::Signal{T}
     fov             ::Signal{T}
-    view            ::Signal{Mat{4,4,T}}
-    projection      ::Signal{Mat{4,4,T}}
-    projectionview  ::Signal{Mat{4,4,T}}
+    view            ::Signal{Mat4{T}}
+    projection      ::Signal{Mat4{T}}
+    projectionview  ::Signal{Mat4{T}}
     eyeposition     ::Signal{Vec{3, T}}
     lookat          ::Signal{Vec{3, T}}
     up              ::Signal{Vec{3, T}}
@@ -24,22 +24,22 @@ type PerspectiveCamera{T} <: Camera{T}
     projectiontype  ::Signal{Projection}
 end
 
-type DummyCamera{T} <: Camera{T}
-    window_size     ::Signal{SimpleRectangle{Int}}
-    view            ::Signal{Mat{4,4,T}}
-    projection      ::Signal{Mat{4,4,T}}
-    projectionview  ::Signal{Mat{4,4,T}}
+mutable struct DummyCamera{T, IT} <: Camera{T}
+    window_size     ::Signal{SimpleRectangle{IT}}
+    view            ::Signal{Mat4{T}}
+    projection      ::Signal{Mat4{T}}
+    projectionview  ::Signal{Mat4{T}}
 end
 
 function DummyCamera(;
         window_size    = Signal(SimpleRectangle(-1, -1, 1, 1)),
-        view           = Signal(eye(Mat{4,4, Float32})),
+        view           = Signal(eye(Mat4f0)),
         nearclip       = Signal(-10_000f0),
         farclip        = Signal(10_000f0),
         projection     = const_lift(orthographicprojection, window_size, nearclip, farclip),
         projectionview = const_lift(*, projection, view)
     )
-    DummyCamera{Float32}(window_size, view, projection, projectionview)
+    DummyCamera(window_size, view, projection, projectionview)
 end
 
 function Base.collect(camera::Camera, collected = Dict{Symbol, Any}())
@@ -88,18 +88,18 @@ end
 function OrthographicPixelCamera(
         theta, trans, up, fov_s, near_s, area_s
     )
-    fov, near = value(fov_s), value(near_s)
+    fov, near = Reactive.value(fov_s), Reactive.value(near_s)
 
     # lets calculate how we need to adjust the camera, so that it mapps to
     # the pixel of the window (area)
-    area = value(area_s)
+    area = Reactive.value(area_s)
     h = Float32(tan(fov / 360.0 * pi) * near)
     w_, h_ = area.w / 2f0, area.h / 2f0
     zoom = min(h_, w_) / h
     x, y = w_, h_
     eyeposition = Signal(Vec3f0(x, y, zoom))
     lookatvec   = Signal(Vec3f0(x, y, 0))
-    far         = Signal(zoom * 10.0f0) # this should probably be not calculated
+    far         = Signal(zoom * 10f0) # this should probably be not calculated
     # since there is no scene independant, well working far clip
 
     PerspectiveCamera(
@@ -144,13 +144,13 @@ function mouse_dragg_diff(
     (false, ispressed, Vec2f0(0), Vec2f0(0))
 end
 
-function dragged(mouseposition, key_pressed, start_condition=true)
+function dragged(mouseposition, key_pressed, start_condition = true)
     v0 = (false, false, Vec2f0(0), Vec2f0(0))
     args = const_lift(tuple, key_pressed, mouseposition, start_condition)
     dragg_sig = foldp(mouse_dragg, v0, args)
     is_dragg = map(first, dragg_sig)
     dragg = map(last, dragg_sig)
-    dragg_diff = filterwhen(is_dragg, value(dragg), dragg)
+    dragg_diff = filterwhen(is_dragg, Reactive.value(dragg), dragg)
     dragg_diff
 end
 function dragged_diff(mouseposition, key_pressed, start_condition=true)
@@ -214,7 +214,7 @@ end
 returns a signal which becomes true whenever there is a doublecklick
 """
 function doubleclick(mouseclick, threshold::Real)
-    ddclick = foldp((time(), value(mouseclick), false), mouseclick) do v0, mclicked
+    ddclick = foldp((time(), Reactive.value(mouseclick), false), mouseclick) do v0, mclicked
         t0, lastc, _ = v0
         t1 = time()
         isclicked = (length(mclicked) == 1 &&
@@ -230,7 +230,7 @@ end
 
 export doubleclick
 function default_camera_control(
-        inputs, rotation_speed, translation_speed, keep=Signal(true)
+        inputs, rotation_speed, translation_speed, keep = Signal(true)
     )
     @materialize mouseposition, mouse_buttons_pressed, scroll = inputs
 
@@ -283,11 +283,12 @@ inputs: Dict of signals, looking like this:
 eyeposition: Position of the camera
 lookatvec: Point the camera looks at
 """
-function PerspectiveCamera{T}(
+function PerspectiveCamera(
         inputs::Dict{Symbol,Any},
         eyeposition::Vec{3, T}, lookatvec::Vec{3, T};
+        upvector = Vec3f0(0, 0, 1),
         keep=Signal(true), theta=nothing, trans=nothing
-    )
+    ) where T
     lookat, eyepos = Signal(lookatvec), Signal(eyeposition)
     # TODO make this more elegant!
     _theta, _trans = default_camera_control(
@@ -306,17 +307,17 @@ function PerspectiveCamera{T}(
         trans,
         lookat,
         eyepos,
-        Signal(Vec3f0(0,0,1)),
+        Signal(upvector),
         inputs[:window_area],
         Signal(41f0), # Field of View
         Signal(0.001f0),  # Min distance (clip distance)
         farclip # Max distance (clip distance)
     )
 end
-function PerspectiveCamera{T}(
+function PerspectiveCamera(
         area,
         eyeposition::Signal{Vec{3, T}}, lookatvec::Signal{Vec{3, T}}, upvector
-    )
+    ) where T
     PerspectiveCamera(
         Signal(Vec3f0(0)),
         Signal(Vec3f0(0)),
@@ -331,11 +332,11 @@ function PerspectiveCamera{T}(
 end
 
 
-function projection_switch{T<:Real}(
+function projection_switch(
         wh::SimpleRectangle,
         fov::T, near::T, far::T,
         projection::Projection, zoom::T
-    )
+    ) where T<:Real
     aspect = T(wh.w/wh.h)
     h      = T(tan(fov / 360.0 * pi) * near)
     w      = T(h * aspect)
@@ -344,24 +345,24 @@ function projection_switch{T<:Real}(
     orthographicprojection(-w, w, -h, h, near, far)
 end
 
-w_component{N, T}(::Point{N, T}) = T(1)
-w_component{N, T}(::Vec{N, T}) = T(0)
+w_component(::Point{N, T}) where {N, T} = T(1)
+w_component(::Vec{N, T}) where {N, T} = T(0)
 
-function to_worldspace{T<:FixedVector{2}}(point::T, cam)
+function to_worldspace(point::T, cam) where T <: StaticVector
     to_worldspace(
         point,
-        value(cam.projection) * value(cam.view),
-        T(widths(value(cam.window_size)))
+        Reactive.value(cam.projection) * Reactive.value(cam.view),
+        T(widths(Reactive.value(cam.window_size)))
     )
 end
-function to_worldspace{T}(
-        p::FixedVector{2, T},
+function to_worldspace(
+        p::StaticVector{N, T},
         projectionview::Mat4,
-        cam_res::FixedVector
-    )
+        cam_res::StaticVector
+    ) where {N, T}
     VT = typeof(p)
     prj_view_inv = inv(projectionview)
-    clip_space = 4 * (VT(p) ./ VT(cam_res))
+    clip_space = T(4) * (VT(p) ./ VT(cam_res))
     pix_space = Vec{4, T}(
         clip_space[1],
         clip_space[2],
@@ -376,9 +377,9 @@ Takes a point and a camera and transforms it from mouse (imagespace) to world sp
 """
 function imagespace(pos, camera)
     # Setup transformation matrix
-    pv = value(camera.projection) * value(camera.view)
+    pv = Reactive.value(camera.projection) * Reactive.value(camera.view)
     inv_pv = inv(pv)
-    width, height = widths(value(camera.window_size)) # get pixel resolution
+    width, height = widths(Reactive.value(camera.window_size)) # get pixel resolution
     x, y = pos
     # transform to normalized device coordinates [-1, 1]
     device_space = Vec4f0(
@@ -402,12 +403,12 @@ function translate_cam(
     lookat, eyepos, up, prjt = map(value, (lookat_s, eyepos_s, up_s, prj_type))
     dir = eyepos - lookat
     dir_len = norm(dir)
-    cam_res = Vec2f0(widths(value(window_size)))
+    cam_res = Vec2f0(widths(Reactive.value(window_size)))
 
     zoom, x, y = translate
     zoom *= 0.1f0 * dir_len
     if prjt != PERSPECTIVE
-        x, y = to_worldspace(Vec2f0(x, y), value(proj) * value(view), cam_res)
+        x, y = to_worldspace(Vec2f0(x, y), Reactive.value(proj) * Reactive.value(view), cam_res)
     else
         x, y = (Vec2f0(x, y) ./ cam_res) .* dir_len
     end
@@ -420,10 +421,10 @@ function translate_cam(
     nothing
 end
 
-function rotate_cam{T}(
+function rotate_cam(
         theta::Vec{3, T},
         cam_right::Vec{3,T}, cam_up::Vec{3,T}, cam_dir::Vec{3, T}
-    )
+    ) where T
     rotation = one(Q.Quaternion{T})
     # first the rotation around up axis, since the other rotation should be relative to that rotation
     if theta[1] != 0
@@ -453,7 +454,7 @@ farclip: Far clip plane
 `lookatposition`: point the camera looks at
 `eyeposition`: the actual position of the camera (the lense, the \"eye\")
 """
-function PerspectiveCamera{T<:Vec3}(
+function PerspectiveCamera(
         theta,
         trans::Signal{T},
         lookatposition::Signal{T},
@@ -464,7 +465,7 @@ function PerspectiveCamera{T<:Vec3}(
         nearclip,
         farclip,
         projectiontype = Signal(PERSPECTIVE)
-    )
+    ) where T<:Vec3
     # we have three ways to manipulate the camera: rotation, lookat/eyeposition and translation
     positions = (eyeposition, lookatposition, upvector)
 
@@ -488,11 +489,11 @@ function PerspectiveCamera{T<:Vec3}(
         theta_v == Vec3f0(0) && return nothing #nothing to do!
         eyepos_v, lookat_v, up_v = map(value, positions)
 
-        dir = normalize(eyepos_v-lookat_v)
+        dir = normalize(eyepos_v - lookat_v)
         right_v = normalize(cross(up_v, dir))
         up_v  = normalize(cross(dir, right_v))
 
-        rotation = rotate_cam(theta_v, right_v, Vec3f0(0,0,1), dir)
+        rotation = rotate_cam(theta_v, right_v, Vec3f0(0, 0, sign(up_v[3])), dir)
         r_eyepos = lookat_v + rotation*(eyepos_v - lookat_v)
         r_up = normalize(rotation*up_v)
         push!(eyeposition, r_eyepos)
@@ -519,7 +520,7 @@ end
 get's the boundingbox of a render object.
 needs value, because boundingbox will always return a boundingbox signal
 """
-signal_boundingbox(robj) = value(boundingbox(robj))
+signal_boundingbox(robj) = Reactive.value(boundingbox(robj))
 
 
 """
@@ -527,12 +528,12 @@ Calculates union boundingbox of all elements in renderlist
 (Can't do ::Vector{RenderObject{T}}, because t is not always the same)
 """
 function renderlist_boundingbox(renderlist::Vector)
-    renderlist = filter(x->x!=nothing, renderlist)
+    renderlist = filter(x-> x != nothing, renderlist)
     isempty(renderlist) && return AABB(Vec3f0(NaN), Vec3f0(0)) # nothing to do here
     robj1 = first(renderlist)
-    bb = value(robj1[:model])*signal_boundingbox(robj1)
+    bb = Reactive.value(robj1[:model])*signal_boundingbox(robj1)
     for elem in renderlist[2:end]
-        bb = union(value(elem[:model])*signal_boundingbox(elem), bb)
+        bb = union(Reactive.value(elem[:model])*signal_boundingbox(elem), bb)
     end
     bb
 end
@@ -553,7 +554,7 @@ function center!(camera::PerspectiveCamera, bb::AABB)
     half_width   = width/2f0
     lower_corner = minimum(bb)
     middle       = maximum(bb) - half_width
-    if value(camera.projectiontype) == ORTHOGRAPHIC
+    if Reactive.value(camera.projectiontype) == ORTHOGRAPHIC
         area, fov, near, far = map(value,
             (camera.window_size, camera.fov, camera.nearclip, camera.farclip)
         )
@@ -566,14 +567,15 @@ function center!(camera::PerspectiveCamera, bb::AABB)
         push!(camera.eyeposition, Vec3f0(x, y, maximum(zoom)))
         push!(camera.lookat, Vec3f0(x, y, 0))
         push!(camera.up, Vec3f0(0,1,0))
-        #push!(camera.nearclip, 1)
-        #push!(camera.farclip, 50f0)
     else
         push!(camera.lookat, middle)
         neweyepos = middle + (width*1.2f0)
         push!(camera.eyeposition, neweyepos)
         push!(camera.up, Vec3f0(0,0,1))
+        push!(camera.nearclip, 0.1f0 * norm(widths(bb)))
+        push!(camera.farclip, 3f0 * norm(widths(bb)))
     end
+    return
 end
 function robj_from_camera() end
 function renderlist() end
@@ -582,7 +584,7 @@ export renderlist, robj_from_camera
 """
 Centers the camera(=:perspective) on all render objects in `window`
 """
-function center!(window, camera::Symbol=:perspective; border = 0)
+function center!(window, camera::Symbol = :perspective; border = 0)
     rl = robj_from_camera(window, camera)
     center!(window.cameras[camera], rl, border = border)
 end

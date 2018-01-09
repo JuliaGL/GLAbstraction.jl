@@ -1,22 +1,22 @@
 # Different shader string literals- usage: e.g. frag" my shader code"
 macro frag_str(source::AbstractString)
     quote
-        Shader(Symbol(@__FILE__), $(Vector{UInt8}(ascii(source))), GL_FRAGMENT_SHADER)
+        ($source, GL_FRAGMENT_SHADER)
     end
 end
 macro vert_str(source::AbstractString)
     quote
-        Shader(Symbol(@__FILE__), $(Vector{UInt8}(ascii(source))), GL_VERTEX_SHADER)
+        ($source, GL_VERTEX_SHADER)
     end
 end
 macro geom_str(source::AbstractString)
     quote
-        Shader(Symbol(@__FILE__), $(Vector{UInt8}(ascii(source))), GL_GEOMETRY_SHADER)
+        ($source, GL_GEOMETRY_SHADER)
     end
 end
 macro comp_str(source::AbstractString)
     quote
-        Shader(Symbol(@__FILE__), $(Vector{UInt8}(ascii(source))), GL_COMPUTE_SHADER)
+        ($source, GL_COMPUTE_SHADER)
     end
 end
 
@@ -75,7 +75,7 @@ end
 #Implement File IO interface
 function load(f::File{format"GLSLShader"})
     fname = filename(f)
-    source = open(readall, fname)
+    source = open(readstring, fname)
     compile_shader(fname, source)
 end
 function save(f::File{format"GLSLShader"}, data::Shader)
@@ -85,23 +85,23 @@ function save(f::File{format"GLSLShader"}, data::Shader)
 end
 
 function uniformlocations(nametypedict::Dict{Symbol, GLenum}, program)
-    isempty(nametypedict) && return Dict{Symbol,Tuple}()
+    result = Dict{Symbol, Tuple}()
     texturetarget = -1 # start -1, as texture samplers start at 0
-    return Dict{Symbol, Tuple}(map(nametypedict) do name_type
-        name, typ = name_type
+    for (name, typ) in nametypedict
         loc = get_uniform_location(program, name)
         str_name = string(name)
         if istexturesampler(typ)
             texturetarget += 1
-            return name => (loc, texturetarget)
+            result[name] = (loc, texturetarget)
         else
-            return name => (loc,)
+            result[name] = (loc,)
         end
-    end)
+    end
+    return result
 end
 
-abstract AbstractLazyShader
-immutable LazyShader <: AbstractLazyShader
+abstract type AbstractLazyShader end
+struct LazyShader <: AbstractLazyShader
     paths::Tuple
     kw_args::Dict{Symbol, Any}
     function LazyShader(paths...; kw_args...)
@@ -125,16 +125,11 @@ const _template_cache = Dict{String, Vector{String}}()
 const _shader_cache = Dict{String, Dict{Any, Shader}}()
 const _program_cache = Dict{Any, GLProgram}()
 
+
 function empty_shader_cache!()
     empty!(_template_cache)
     empty!(_shader_cache)
     empty!(_program_cache)
-end
-
-function __init__()
-    Base.rehash!(_template_cache)
-    Base.rehash!(_shader_cache)
-    Base.rehash!(_program_cache)
 end
 
 # TODO remove this silly constructor
@@ -143,8 +138,8 @@ function compile_shader(source::Vector{UInt8}, typ, name)
     glShaderSource(shaderid, source)
     glCompileShader(shaderid)
     if !GLAbstraction.iscompiled(shaderid)
-        GLAbstraction.print_with_lines(source_str)
-        warn("shader $(path) didn't compile. \n$(GLAbstraction.getinfolog(shaderid))")
+        GLAbstraction.print_with_lines(String(source))
+        warn("shader $(name) didn't compile. \n$(GLAbstraction.getinfolog(shaderid))")
     end
     Shader(name, source, typ, shaderid)
 end
@@ -230,24 +225,43 @@ function gl_convert(lazyshader::AbstractLazyShader, data)
         fragdatalocation = get(kw_dict, :fragdatalocation, Tuple{Int, String}[])
         return compile_program([paths...], fragdatalocation)
     end
-
     v = get_view(kw_dict)
-    template_keys = Array(Vector{String}, length(paths))
-    replacements = Array(Vector{String}, length(paths))
+    fragdatalocation = get(kw_dict, :fragdatalocation, Tuple{Int, String}[])
+
+    # Tuple(Source, ShaderType)
+    if all(paths) do x
+            isa(x, Tuple) && length(x) == 2 &&
+            isa(first(x), String) &&
+            isa(last(x), GLenum)
+        end
+        # we don't cache view & templates for shader strings!
+        shaders = map(paths) do source_typ
+            source, typ = source_typ
+            src, _ = template2source(source, v, data)
+            compile_shader(Vector{UInt8}(src), typ, :from_string)
+        end
+        return compile_program([shaders...], fragdatalocation)
+    end
+    if !all(x-> isa(x, String), paths)
+        error("Please supply only paths or tuples of (source, typ) for Lazy Shader
+            Found: $paths"
+        )
+    end
+    template_keys = Vector{Vector{String}}(length(paths))
+    replacements = Vector{Vector{String}}(length(paths))
     for (i, path) in enumerate(paths)
         template = get_template!(path, v, data)
         template_keys[i] = template
-        replacements[i] = String[mustache2replacement(k, v, data) for k in template]
+        replacements[i] = String[mustache2replacement(t, v, data) for t in template]
     end
     program = get!(_program_cache, (paths, replacements)) do
         # when we're here, this means there were uncached shaders, meaning we definitely have
         # to compile a new program
-        shaders = Array(Shader, length(paths))
+        shaders = Vector{Shader}(length(paths))
         for (i, path) in enumerate(paths)
             tr = Dict(zip(template_keys[i], replacements[i]))
             shaders[i] = get_shader!(path, tr, v, data)
         end
-        fragdatalocation = get(kw_dict, :fragdatalocation, Tuple{Int, String}[])
         compile_program(shaders, fragdatalocation)
     end
 end
@@ -280,10 +294,11 @@ function mustache_replace(replace_view::Union{Dict, Function}, string)
     len = endof(string)
     while i <= len
         i = nextind(string, i)
-        char = SubString(string, i, i)
+        i > len && break
+        char = string[i]
         if replace_started
             # ignore, or wait for }
-            if char == "}"
+            if char == '}'
                 closed_mustaches += 1
                 if closed_mustaches == 2 # we found a complete mustache!
                     insert_from_view(io, replace_view, SubString(string, replace_begin+1, i-2))
@@ -295,7 +310,7 @@ function mustache_replace(replace_view::Union{Dict, Function}, string)
                 closed_mustaches = 0
                 continue
             end
-        elseif char == "{"
+        elseif char == '{'
             open_mustaches += 1
             if open_mustaches == 2
                 replace_begin = i
@@ -311,7 +326,7 @@ function mustache_replace(replace_view::Union{Dict, Function}, string)
         end
         last_char = char
     end
-    takebuf_string(io)
+    String(take!(io))
 end
 
 
@@ -335,7 +350,7 @@ function mustache2replacement(mustache_key, view, attributes)
 end
 
 # Takes a shader template and renders the template and returns shader source
-template2source(source::Array{UInt8, 1}, view, attributes::Dict{Symbol, Any}) = template2source(Compat.String(source), attributes, view)
+template2source(source::Vector{UInt8}, view, attributes::Dict{Symbol, Any}) = template2source(String(source), attributes, view)
 function template2source(source::AbstractString, view, attributes::Dict{Symbol, Any})
     replacements = Dict{String, String}()
     source = mustache_replace(source) do mustache_key

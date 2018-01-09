@@ -3,17 +3,21 @@
 # here is my approach, to handle all of the uniforms with one function, namely gluniform
 # For uniforms, the Vector and Matrix types from ImmutableArrays should be used, as they map the relation almost 1:1
 
-GLSL_COMPATIBLE_NUMBER_TYPES = (GLfloat, GLint, GLuint, GLdouble)
-const NATIVE_TYPES = Union{FixedArray, GLSL_COMPATIBLE_NUMBER_TYPES..., GLBuffer, GPUArray, Shader, GLProgram, NativeMesh}
+const GLSL_COMPATIBLE_NUMBER_TYPES = (GLfloat, GLint, GLuint, GLdouble)
+const NATIVE_TYPES = Union{
+    StaticArray, GLSL_COMPATIBLE_NUMBER_TYPES...,
+    ZeroIndex{GLint}, ZeroIndex{GLuint},
+    GLBuffer, GPUArray, Shader, GLProgram, NativeMesh
+}
 
 opengl_prefix(T)  = error("Object $T is not a supported uniform element type")
 opengl_postfix(T) = error("Object $T is not a supported uniform element type")
 
 
-opengl_prefix{T <: Union{FixedPoint, Float32, Float16}}(x::Type{T})  = ""
-opengl_prefix{T <: Float64}(x::Type{T})                     = "d"
-opengl_prefix(x::Type{Cint})                                = "i"
-opengl_prefix{T <: Union{Cuint, UInt8, UInt16}}(x::Type{T}) = "u"
+opengl_prefix(x::Type{T}) where {T <: Union{FixedPoint, Float32, Float16}} = ""
+opengl_prefix(x::Type{T}) where {T <: Float64} = "d"
+opengl_prefix(x::Type{Cint}) = "i"
+opengl_prefix(x::Type{T}) where {T <: Union{Cuint, UInt8, UInt16}} = "u"
 
 opengl_postfix(x::Type{Float64}) = "dv"
 opengl_postfix(x::Type{Float32}) = "fv"
@@ -26,24 +30,30 @@ function uniformfunc(typ::DataType, dims::Tuple{Int})
 end
 function uniformfunc(typ::DataType, dims::Tuple{Int, Int})
     M, N = dims
-    Symbol(string("glUniformMatrix", M==N ? "$M":"$(M)x$(N)", opengl_postfix(typ)))
+    Symbol(string("glUniformMatrix", M == N ? "$M":"$(M)x$(N)", opengl_postfix(typ)))
 end
 
-function gluniform{FSA <: Union{FixedArray, Colorant}}(location::Integer, x::FSA)
-    x = [x]
-    gluniform(location, x)
+function gluniform(location::Integer, x::FSA) where FSA <: Union{StaticArray, Colorant}
+    xref = [x]
+    gluniform(location, xref)
 end
 
-Base.size(p::Colorant) = (length(p),)
-Base.size{T <: Colorant}(p::Type{T}) = (length(p),)
-Base.ndims{T <: Colorant}(p::Type{T}) = 1
+_size(p) = size(p)
+_size(p::Colorant) = (length(p),)
+_size(p::Type{T}) where {T <: Colorant} = (length(p),)
+_ndims(p) = ndims(p)
+_ndims(p::Type{T}) where {T <: Colorant} = 1
 
-@generated function gluniform{FSA <: Union{FixedArray, Colorant}}(location::Integer, x::Vector{FSA})
-    func = uniformfunc(eltype(FSA), size(FSA))
-    if ndims(FSA) == 2
-        :($func(location, length(x), GL_FALSE, pointer(x)))
+@generated function gluniform(location::Integer, x::Vector{FSA}) where FSA <: Union{StaticArray, Colorant}
+    func = uniformfunc(eltype(FSA), _size(FSA))
+    callexpr = if _ndims(FSA) == 2
+        :($func(location, length(x), GL_FALSE, xref))
     else
-        :($func(location, length(x), pointer(x)))
+        :($func(location, length(x), xref))
+    end
+    quote
+        xref = reinterpret(eltype(FSA), x)
+        $callexpr
     end
 end
 
@@ -51,7 +61,7 @@ end
 #Some additional uniform functions, not related to Imutable Arrays
 gluniform(location::Integer, target::Integer, t::Texture)   = gluniform(GLint(location), GLint(target), t)
 gluniform(location::Integer, target::Integer, t::GPUVector) = gluniform(GLint(location), GLint(target), t.buffer)
-gluniform(location::Integer, target::Integer, t::Signal)    = gluniform(GLint(location), GLint(target), t.value)
+gluniform(location::Integer, target::Integer, t::Signal)    = gluniform(GLint(location), GLint(target), Reactive.value(t))
 gluniform(location::Integer, target::Integer, t::TextureBuffer) = gluniform(GLint(location), GLint(target), t.texture)
 function gluniform(location::GLint, target::GLint, t::Texture)
     activeTarget = GL_TEXTURE0 + UInt32(target)
@@ -59,58 +69,62 @@ function gluniform(location::GLint, target::GLint, t::Texture)
     glBindTexture(t.texturetype, t.id)
     gluniform(location, target)
 end
-gluniform(location::Integer, x::Enum) 	 						     = gluniform(GLint(location), GLint(x))
-gluniform(location::Integer, x::Signal)                              = gluniform(GLint(location), value(x))
+gluniform(location::Integer, x::Enum) = gluniform(GLint(location), GLint(x))
+
+function gluniform(loc::Integer, x::Signal{T}) where T
+    gluniform(GLint(loc), Reactive.value(x))
+end
+
 gluniform(location::Integer, x::Union{GLubyte, GLushort, GLuint}) 	 = glUniform1ui(GLint(location), x)
 gluniform(location::Integer, x::Union{GLbyte, GLshort, GLint, Bool}) = glUniform1i(GLint(location),  x)
 gluniform(location::Integer, x::GLfloat)                             = glUniform1f(GLint(location),  x)
 gluniform(location::Integer, x::GLdouble)                            = glUniform1d(GLint(location),  x)
 
 #Uniform upload functions for julia arrays...
-gluniform(location::GLint, x::Vector{Float32}) = glUniform1fv(location,  length(x), pointer(x))
-gluniform(location::GLint, x::Vector{GLdouble}) = glUniform1dv(location,  length(x), pointer(x))
-gluniform(location::GLint, x::Vector{GLint})   = glUniform1iv(location,  length(x), pointer(x))
-gluniform(location::GLint, x::Vector{GLuint})  = glUniform1uiv(location, length(x), pointer(x))
+gluniform(location::GLint, x::Vector{Float32}) = glUniform1fv(location,  length(x), x)
+gluniform(location::GLint, x::Vector{GLdouble}) = glUniform1dv(location,  length(x), x)
+gluniform(location::GLint, x::Vector{GLint})   = glUniform1iv(location,  length(x), x)
+gluniform(location::GLint, x::Vector{GLuint})  = glUniform1uiv(location, length(x), x)
 
 
-glsl_typename{T}(x::T)           = glsl_typename(T)
+glsl_typename(x::T) where {T} = glsl_typename(T)
 glsl_typename(t::Type{Void})     = "Nothing"
 glsl_typename(t::Type{GLfloat})  = "float"
 glsl_typename(t::Type{GLdouble}) = "double"
 glsl_typename(t::Type{GLuint})   = "uint"
 glsl_typename(t::Type{GLint})    = "int"
-glsl_typename{T<:Union{FixedVector,Colorant}}(t::Type{T}) = string(opengl_prefix(eltype(t)), "vec", length(t))
-glsl_typename{T}(t::Type{TextureBuffer{T}}) = string(opengl_prefix(eltype(T)), "samplerBuffer")
+glsl_typename(t::Type{T}) where {T <: Union{StaticVector, Colorant}} = string(opengl_prefix(eltype(T)), "vec", length(T))
+glsl_typename(t::Type{TextureBuffer{T}}) where {T} = string(opengl_prefix(eltype(T)), "samplerBuffer")
 
-function glsl_typename{T, D}(t::Texture{T, D})
+function glsl_typename(t::Texture{T, D}) where {T, D}
     str = string(opengl_prefix(eltype(T)), "sampler", D, "D")
     t.texturetype == GL_TEXTURE_2D_ARRAY && (str *= "Array")
     str
 end
-function glsl_typename{T<:FixedMatrix}(t::Type{T})
-    M,N = size(t)
+function glsl_typename(t::Type{T}) where T <: SMatrix
+    M, N = size(t)
     string(opengl_prefix(eltype(t)), "mat", M==N ? M : string(M, "x", N))
 end
 toglsltype_string(t::Signal) = toglsltype_string(t.value)
-toglsltype_string{T<:Union{Real, FixedArray, Texture, Colorant, TextureBuffer, Void}}(x::T) = "uniform $(glsl_typename(x))"
+toglsltype_string(x::T) where {T<:Union{Real, StaticArray, Texture, Colorant, TextureBuffer, Void}} = "uniform $(glsl_typename(x))"
 #Handle GLSL structs, which need to be addressed via single fields
-function toglsltype_string{T}(x::T)
+function toglsltype_string(x::T) where T
     if isa_gl_struct(x)
         string("uniform ", T.name.name)
     else
         error("can't splice $T into an OpenGL shader. Make sure all fields are of a concrete type and isbits(FieldType)-->true")
     end
 end
-toglsltype_string{T}(t::Union{GLBuffer{T}, GPUVector{T}}) = string("in ", glsl_typename(T))
+toglsltype_string(t::Union{GLBuffer{T}, GPUVector{T}}) where {T} = string("in ", glsl_typename(T))
 # Gets used to access a
-function glsl_variable_access{T,D}(keystring, t::Texture{T, D})
+function glsl_variable_access(keystring, t::Texture{T, D}) where {T,D}
     fields = SubString("rgba", 1, length(T))
     if t.texturetype == GL_TEXTURE_BUFFER
         return string("texelFetch(", keystring, "index).", fields, ";")
     end
     return string("getindex(", keystring, "index).", fields, ";")
 end
-function glsl_variable_access(keystring, ::Union{Real, GLBuffer, GPUVector, FixedArray, Colorant})
+function glsl_variable_access(keystring, ::Union{Real, GLBuffer, GPUVector, StaticArray, Colorant})
     string(keystring, ";")
 end
 function glsl_variable_access(keystring, s::Signal)
@@ -146,49 +160,49 @@ function istexturesampler(typ::GLenum)
 end
 
 
-gl_promote{T <: Integer}(x::Type{T})       = Cint
+gl_promote(x::Type{T}) where {T <: Integer} = Cint
 gl_promote(x::Type{Union{Int16, Int8}})    = x
 
-gl_promote{T <: Unsigned}(x::Type{T})      = Cuint
+gl_promote(x::Type{T}) where {T <: Unsigned} = Cuint
 gl_promote(x::Type{Union{UInt16, UInt8}})  = x
 
-gl_promote{T <: AbstractFloat}(x::Type{T}) = Float32
+gl_promote(x::Type{T}) where {T <: AbstractFloat} = Float32
 gl_promote(x::Type{Float16})               = x
 
-gl_promote{T <: UFixed}(x::Type{T})        = UFixed32
-gl_promote(x::Type{UFixed16})              = x
-gl_promote(x::Type{UFixed8})               = x
+gl_promote(x::Type{T}) where {T <: Normed} = N0f32
+gl_promote(x::Type{N0f16})              = x
+gl_promote(x::Type{N0f8})               = x
 
-typealias Color3{T} Colorant{T, 3}
-typealias Color4{T} Colorant{T, 4}
+const Color3{T} = Colorant{T, 3}
+const Color4{T} = Colorant{T, 4}
 
 gl_promote(x::Type{Bool})                  = GLboolean
-gl_promote{T <: Gray}(x::Type{T})          = Gray{gl_promote(eltype(T))}
-gl_promote{T <: Color3}(x::Type{T})        = RGB{gl_promote(eltype(T))}
-gl_promote{T <: Color4}(x::Type{T})        = RGBA{gl_promote(eltype(T))}
-gl_promote{T <: BGRA}(x::Type{T})          = BGRA{gl_promote(eltype(T))}
-gl_promote{T <: BGR}(x::Type{T})           = BGR{gl_promote(eltype(T))}
+gl_promote(x::Type{T}) where {T <: Gray} = Gray{gl_promote(eltype(T))}
+gl_promote(x::Type{T}) where {T <: Color3} = RGB{gl_promote(eltype(T))}
+gl_promote(x::Type{T}) where {T <: Color4} = RGBA{gl_promote(eltype(T))}
+gl_promote(x::Type{T}) where {T <: BGRA} = BGRA{gl_promote(eltype(T))}
+gl_promote(x::Type{T}) where {T <: BGR} = BGR{gl_promote(eltype(T))}
 
 
-gl_promote{T <: FixedVector}(x::Type{T}) = similar_type(T, gl_promote(eltype(T)))
+gl_promote(x::Type{T}) where {T <: StaticVector} = similar_type(T, gl_promote(eltype(T)))
 
-gl_promote{T <: HomogenousMesh}(x::Type{T}) = NativeMesh{T}
+gl_promote(x::Type{T}) where {T <: HomogenousMesh} = NativeMesh{T}
 
 
-gl_convert{T <: Number}(x::T) = gl_promote(T)(x)
-gl_convert{T <: Colorant}(x::T) = gl_promote(T)(x)
-gl_convert{T <: AbstractMesh}(x::T) = gl_convert(convert(GLNormalMesh, x))
-gl_convert{T <: HomogenousMesh}(x::T) = gl_promote(T)(x)
-gl_convert{T <: HomogenousMesh}(x::Signal{T}) = gl_promote(T)(x)
+gl_convert(x::T) where {T <: Number} = gl_promote(T)(x)
+gl_convert(x::T) where {T <: Colorant} = gl_promote(T)(x)
+gl_convert(x::T) where {T <: AbstractMesh} = gl_convert(convert(GLNormalMesh, x))
+gl_convert(x::T) where {T <: HomogenousMesh} = gl_promote(T)(x)
+gl_convert(x::Signal{T}) where {T <: HomogenousMesh} = gl_promote(T)(x)
 
-gl_convert{T<:Colorant}(s::Vector{Matrix{T}}) = Texture(s)
+gl_convert(s::Vector{Matrix{T}}) where {T<:Colorant} = Texture(s)
 gl_convert(s::AABB) = s
 gl_convert(s::Void) = s
 
 isa_gl_struct(x::Array) = false
 isa_gl_struct(x::NATIVE_TYPES) = false
 isa_gl_struct(x::Colorant) = false
-function isa_gl_struct{T}(x::T)
+function isa_gl_struct(x::T) where T
     !isleaftype(T) && return false
     if T <: Tuple
         return false
@@ -196,7 +210,7 @@ function isa_gl_struct{T}(x::T)
     fnames = fieldnames(T)
     !isempty(fnames) && all(name -> isleaftype(fieldtype(T, name)) && isbits(getfield(x, name)), fnames)
 end
-function gl_convert_struct{T}(x::T, uniform_name::Symbol)
+function gl_convert_struct(x::T, uniform_name::Symbol) where T
     if isa_gl_struct(x)
         return Dict{Symbol, Any}(map(fieldnames(x)) do name
             (Symbol("$uniform_name.$name") => gl_convert(getfield(x, name)))
@@ -208,28 +222,27 @@ end
 
 
 # native types don't need convert!
-gl_convert{T <: NATIVE_TYPES}(a::T) = a
+gl_convert(a::T) where {T <: NATIVE_TYPES} = a
 
-gl_convert{T <: NATIVE_TYPES}(s::Signal{T}) = s
-gl_convert{T}(s::Signal{T}) = const_lift(gl_convert, s)
+gl_convert(s::Signal{T}) where {T <: NATIVE_TYPES} = s
+gl_convert(s::Signal{T}) where T = const_lift(gl_convert, s)
 
-for N=1:4
-    @eval gl_convert{T}(x::FixedVector{$N, T}) = map(gl_promote(T), x)
-end
-for N=1:4, M=1:4
-    @eval gl_convert{T}(x::Mat{$N, $M, T}) = map(gl_promote(T), x)
-end
+gl_convert(x::StaticVector{N, T}) where {N, T} = map(gl_promote(T), x)
+gl_convert(x::SMatrix{N, M, T}) where {N, M, T} = map(gl_promote(T), x)
 
-gl_convert{T <: Face}(a::Vector{T}) = indexbuffer(s)
-gl_convert{T <: NATIVE_TYPES}(::Type{T}, a::NATIVE_TYPES; kw_args...) = a
-function gl_convert{T <: GPUArray, X, N}(::Type{T}, a::Array{X, N}; kw_args...)
+
+gl_convert(a::Vector{T}) where {T <: Face} = indexbuffer(s)
+# gl_convert(a::Vector{T}) where T = convert(Vector{gl_promote(T)}, a)
+
+gl_convert(::Type{T}, a::NATIVE_TYPES; kw_args...) where {T <: NATIVE_TYPES} = a
+function gl_convert(::Type{T}, a::Array{X, N}; kw_args...) where {T <: GPUArray, X, N}
     T(map(gl_promote(X), a); kw_args...)
 end
-function gl_convert{T <: Texture, X}(::Type{T}, a::Vector{Array{X, 2}}; kw_args...)
+function gl_convert(::Type{T}, a::Vector{Array{X, 2}}; kw_args...) where {T <: Texture, X}
     T(a; kw_args...)
 end
 
-function gl_convert{T <: GPUArray, X, N}(::Type{T}, a::Signal{Array{X, N}}; kw_args...)
+function gl_convert(::Type{T}, a::Signal{Array{X, N}}; kw_args...) where {T <: GPUArray, X, N}
     TGL = gl_promote(X)
     s = (X == TGL) ? a : const_lift(map, TGL, a)
     T(s; kw_args...)

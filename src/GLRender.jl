@@ -7,7 +7,7 @@ end
 """
 When rendering a specialised list of Renderables, we can do some optimizations
 """
-function render{Pre}(list::Vector{RenderObject{Pre}})
+function render(list::Vector{RenderObject{Pre}}) where Pre
     isempty(list) && return nothing
     first(list).prerenderfunction()
     vertexarray = first(list).vertexarray
@@ -15,7 +15,7 @@ function render{Pre}(list::Vector{RenderObject{Pre}})
     glUseProgram(program.id)
     glBindVertexArray(vertexarray.id)
     for renderobject in list
-        Bool(value(renderobject.uniforms[:visible])) || continue # skip invisible
+        Bool(Reactive.value(renderobject.uniforms[:visible])) || continue # skip invisible
         # make sure we only bind new programs and vertexarray when it is actually
         # different from the previous one
         if renderobject.vertexarray != vertexarray
@@ -55,7 +55,7 @@ So rewriting this function could get us a lot of performance for scenes with
 a lot of objects.
 """
 function render(renderobject::RenderObject, vertexarray=renderobject.vertexarray)
-    if Bool(value(renderobject.uniforms[:visible]))
+    if Bool(Reactive.value(renderobject.uniforms[:visible]))
         renderobject.prerenderfunction()
         program = vertexarray.program
         glUseProgram(program.id)
@@ -77,25 +77,35 @@ function render(renderobject::RenderObject, vertexarray=renderobject.vertexarray
     return
 end
 
-function render_uniforms(robj, uniforms)
-
-end
 
 """
 Renders a vertexarray, which consists of the usual buffers plus a vector of
 unitranges which defines the segments of the buffers to be rendered
 """
-function render{T <: VecOrSignal{UnitRange{Int}}}(vao::GLVertexArray{T}, mode::GLenum=GL_TRIANGLES)
-    for elem in value(vao.indices)
+function render(vao::GLVertexArray{T}, mode::GLenum = GL_TRIANGLES) where T <: VecOrSignal{UnitRange{Int}}
+    for elem in Reactive.value(vao.indices)
         glDrawArrays(mode, max(first(elem)-1, 0), length(elem)+1)
     end
      return nothing
 end
 
+function render(vao::GLVertexArray{T}, mode::GLenum = GL_TRIANGLES) where T <: TOrSignal{UnitRange{Int}}
+    r = Reactive.value(vao.indices)
+    glDrawArrays(mode, max(first(r)-1, 0), length(r)+1)
+    return nothing
+end
+function render(vao::GLVertexArray{T}, mode::GLenum = GL_TRIANGLES) where T <: TOrSignal{Int}
+    r = Reactive.value(vao.indices)
+    glDrawArrays(mode, 0, r)
+    return nothing
+end
+
+
+
 """
 Renders a vertex array which supplies an indexbuffer
 """
-function render{T<:Union{Integer, Face}}(vao::GLVertexArray{GLBuffer{T}}, mode::GLenum=GL_TRIANGLES)
+function render(vao::GLVertexArray{GLBuffer{T}}, mode::GLenum=GL_TRIANGLES) where T<:Union{Integer, Face}
     glDrawElements(
         mode,
         length(vao.indices) * cardinality(vao.indices),
@@ -119,7 +129,7 @@ renderinstanced(vao::GLVertexArray, a, primitive=GL_TRIANGLES) = renderinstanced
 """
 Renders `amount` instances of an indexed geometry
 """
-function renderinstanced{T<:Union{Integer, Face}}(vao::GLVertexArray{GLBuffer{T}}, amount::Integer, primitive=GL_TRIANGLES)
+function renderinstanced(vao::GLVertexArray{GLBuffer{T}}, amount::Integer, primitive=GL_TRIANGLES) where T<:Union{Integer, Face}
     glDrawElementsInstanced(primitive, length(vao.indices)*cardinality(vao.indices), julia2glenum(T), C_NULL, amount)
     return
 end

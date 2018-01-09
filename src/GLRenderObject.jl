@@ -66,35 +66,38 @@ end
 """
 Represents standard sets of function applied before rendering
 """
-immutable StandardPrerender
+struct StandardPrerender
 end
 
-@compat function (::StandardPrerender)()
+function (::StandardPrerender)()
     glEnable(GL_DEPTH_TEST)
     glDepthMask(GL_TRUE)
     glDepthFunc(GL_LEQUAL)
+    # Disable cullface for now, untill all rendering code is corrected!
     glDisable(GL_CULL_FACE)
+    # glCullFace(GL_BACK)
     enabletransparency()
 end
-immutable StandardPostrender
+
+struct StandardPostrender
     vao::GLVertexArray
     primitive::GLenum
 end
-@compat function (sp::StandardPostrender)()
+function (sp::StandardPostrender)()
     render(sp.vao, sp.primitive)
 end
-immutable StandardPostrenderInstanced{T}
+struct StandardPostrenderInstanced{T}
     main::T
     vao::GLVertexArray
     primitive::GLenum
 end
-@compat function (sp::StandardPostrenderInstanced)()
-    renderinstanced(sp.vao, value(sp.main), sp.primitive)
+function (sp::StandardPostrenderInstanced)()
+    renderinstanced(sp.vao, Reactive.value(sp.main), sp.primitive)
 end
 
-immutable EmptyPrerender
+struct EmptyPrerender
 end
-@compat function (sp::EmptyPrerender)()
+function (sp::EmptyPrerender)()
 end
 export EmptyPrerender
 export prerendertype
@@ -113,12 +116,12 @@ function std_renderobject(data, program, bb = Signal(AABB(Vec3f0(0), Vec3f0(1)))
     robj
 end
 
-prerendertype{Pre}(::Type{RenderObject{Pre}}) = Pre
-prerendertype{Pre}(::RenderObject{Pre}) = Pre
+prerendertype(::Type{RenderObject{Pre}}) where {Pre} = Pre
+prerendertype(::RenderObject{Pre}) where {Pre} = Pre
 
 extract_renderable(context::Vector{RenderObject}) = context
 extract_renderable(context::RenderObject) = RenderObject[context]
-extract_renderable{T <: Composable}(context::Vector{T}) = map(extract_renderable, context)
+extract_renderable(context::Vector{T}) where {T <: Composable} = map(extract_renderable, context)
 function extract_renderable(context::Context)
     result = extract_renderable(context.children[1])
     for elem in context.children[2:end]
@@ -127,8 +130,12 @@ function extract_renderable(context::Context)
     result
 end
 transformation(c::RenderObject) = c[:model]
-transformation(c::RenderObject, model) = (c[:model] = const_lift(*, model, c[:model]))
-transform!(c::RenderObject, model) = (c[:model] = const_lift(*, model, c[:model]))
+function transformation(c::RenderObject, model)
+    c[:model] = const_lift(*, model, c[:model])
+end
+function transform!(c::RenderObject, model)
+    c[:model] = const_lift(*, model, c[:model])
+end
 
 function _translate!(c::RenderObject, trans::TOrSignal{Mat4f0})
     c[:model] = const_lift(*, trans, c[:model])
@@ -139,23 +146,23 @@ function _translate!(c::Context, m::TOrSignal{Mat4f0})
     end
 end
 
-function translate!{T<:Vec{3}}(c::Composable, vec::TOrSignal{T})
+function translate!(c::Composable, vec::TOrSignal{T}) where T <: Vec{3}
      _translate!(c, const_lift(translationmatrix, vec))
 end
 function _boundingbox(c::RenderObject)
-    bb = value(c[:boundingbox])
-    bb == nothing && return AABB(Vec3f0(0), Vec3f0(0))
-    value(c[:model]) * bb
+    bb = Reactive.value(c[:boundingbox])
+    bb == nothing && return AABB()
+    Reactive.value(c[:model]) * bb
 end
 function _boundingbox(c::Composable)
     robjs = extract_renderable(c)
-    isempty(robjs) && return AABB(Vec3f0(NaN), Vec3f0(0))
+    isempty(robjs) && return AABB()
     mapreduce(_boundingbox, union, robjs)
 end
 """
 Copy function for a context. We only need to copy the children
 """
-function Base.copy{T}(c::GLAbstraction.Context{T})
+function Base.copy(c::GLAbstraction.Context{T}) where T
     new_children = [copy(child) for child in c.children]
     Context{T}(new_children, c.boundingbox, c.transformation)
 end
@@ -164,7 +171,7 @@ end
 """
 Copy function for a RenderObject. We only copy the uniform dict
 """
-function Base.copy{Pre}(robj::RenderObject{Pre})
+function Base.copy(robj::RenderObject{Pre}) where Pre
     uniforms = Dict{Symbol, Any}([(k,v) for (k,v) in robj.uniforms])
     robj = RenderObject{Pre}(
         robj.main,
