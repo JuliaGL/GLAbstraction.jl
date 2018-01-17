@@ -225,7 +225,7 @@ function GLVertexArray(bufferdict::Dict, program::GLProgram)
             glslType = attributeTypes[Symbol(attribute)]
             (attribLocation == -1) && continue
             if glslType in GLSLTypes
-                glVertexAttribPointer(attribLocation, cardinality(buffer), julia2glenum(eltype(buffer)), GL_FALSE, 0, C_NULL)
+                glVertexAttribPointer(attribLocation, cardinality(buffer), julia2glenum(eltype(buffer)), eltype(buffer) <: FixedPointNumbers.FixedPoint ? GL_TRUE : GL_FALSE, 0, C_NULL)
             else
                 error("Unknown Attribute Type")
             end
