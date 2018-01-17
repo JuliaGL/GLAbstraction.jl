@@ -225,6 +225,7 @@ function GLVertexArray(bufferdict::Dict, program::GLProgram)
             )
             bind(buffer)
             attribLocation = get_attribute_location(program.id, attribute)
+            glslType = attributeTypes[Symbol(attribute)]
             (attribLocation == -1) && continue
             if glslType in GLSLFloatTypes
                 glVertexAttribPointer(attribLocation, cardinality(buffer), julia2glenum(eltype(buffer)), GL_FALSE, 0, C_NULL)
