@@ -224,11 +224,7 @@ function GLVertexArray(bufferdict::Dict, program::GLProgram)
             attribLocation = get_attribute_location(program.id, attribute)
             glslType = attributeTypes[Symbol(attribute)]
             (attribLocation == -1) && continue
-            if glslType in GLSLTypes
-                glVertexAttribPointer(attribLocation, cardinality(buffer), julia2glenum(eltype(buffer)), eltype(buffer) <: FixedPointNumbers.FixedPoint ? GL_TRUE : GL_FALSE, 0, C_NULL)
-            else
-                error("Unknown Attribute Type")
-            end
+            glVertexAttribPointer(attribLocation, cardinality(buffer), julia2glenum(eltype(buffer)), eltype(buffer) <: FixedPointNumbers.FixedPoint ? GL_TRUE : GL_FALSE, 0, C_NULL)
             glEnableVertexAttribArray(attribLocation)
             buffers[attribute] = buffer
             lenbuffer = buffer
