@@ -170,10 +170,7 @@ include("GLTexture.jl")
 
 ########################################################################
 
-# const GLAtrributeTypeFloat = [GL_FLOAT,GL_FLOAT_VEC2]
-
-const GLSLFloatTypes = GLenum[GL_FLOAT,GL_FLOAT_VEC2, GL_FLOAT_VEC3, GL_FLOAT_VEC4, GL_FLOAT_MAT2, GL_FLOAT_MAT3, GL_FLOAT_MAT4, GL_FLOAT_MAT2x3, GL_FLOAT_MAT2x4, GL_FLOAT_MAT3x2, GL_FLOAT_MAT3x4, GL_FLOAT_MAT4x2, GL_FLOAT_MAT4x3]
-const GLSLIntTypes = GLenum[GL_INT, GL_INT_VEC2, GL_INT_VEC3, GL_INT_VEC4, GL_UNSIGNED_INT, GL_UNSIGNED_INT_VEC2, GL_UNSIGNED_INT_VEC3, GL_UNSIGNED_INT_VEC4]
+const GLSLTypes = (GL_FLOAT,GL_FLOAT_VEC2, GL_FLOAT_VEC3, GL_FLOAT_VEC4, GL_FLOAT_MAT2, GL_FLOAT_MAT3, GL_FLOAT_MAT4, GL_FLOAT_MAT2x3, GL_FLOAT_MAT2x4, GL_FLOAT_MAT3x2, GL_FLOAT_MAT3x4, GL_FLOAT_MAT4x2, GL_FLOAT_MAT4x3,GL_INT, GL_INT_VEC2, GL_INT_VEC3, GL_INT_VEC4, GL_UNSIGNED_INT, GL_UNSIGNED_INT_VEC2, GL_UNSIGNED_INT_VEC3, GL_UNSIGNED_INT_VEC4)
 
 """
 Represents an OpenGL vertex array type.
@@ -227,12 +224,8 @@ function GLVertexArray(bufferdict::Dict, program::GLProgram)
             attribLocation = get_attribute_location(program.id, attribute)
             glslType = attributeTypes[Symbol(attribute)]
             (attribLocation == -1) && continue
-            if glslType in GLSLFloatTypes
+            if glslType in GLSLTypes
                 glVertexAttribPointer(attribLocation, cardinality(buffer), julia2glenum(eltype(buffer)), GL_FALSE, 0, C_NULL)
-                # println(GLENUM(glGetError())," ",GLENUM(julia2glenum(eltype(buffer))), " ", GLENUM(glslType))
-            elseif glslType in GLSLIntTypes
-                glVertexAttribIPointer(attribLocation,cardinality(buffer), julia2glenum(eltype(buffer)), 0, C_NULL)
-                # println(GLENUM(glGetError())," ",GLENUM(julia2glenum(eltype(buffer))), " ", GLENUM(glslType))
             else
                 error("Unknown Attribute Type")
             end
