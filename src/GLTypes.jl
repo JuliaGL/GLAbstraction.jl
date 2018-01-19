@@ -149,7 +149,7 @@ const GLArrayEltypes = Union{StaticVector, Real, Colorant}
 """
 Transform julia datatypes to opengl enum type
 """
-julia2glenum(x::Type{T}) where {T <: FixedPoint} = julia2glenum(FixedPointNumbers.rawtype(x))
+julia2glenum(x::Type{T}) where T <: FixedPoint = julia2glenum(FixedPointNumbers.rawtype(x))
 julia2glenum(x::Type{OffsetInteger{O, T}}) where {O, T} = julia2glenum(T)
 julia2glenum(x::Union{Type{T}, T}) where {T <: Union{StaticVector, Colorant}} = julia2glenum(eltype(x))
 julia2glenum(x::Type{GLubyte})  = GL_UNSIGNED_BYTE
@@ -164,13 +164,22 @@ julia2glenum(x::Type{Float16})  = GL_HALF_FLOAT
 function julia2glenum(::Type{T}) where T
     error("Type: $T not supported as opengl number datatype")
 end
+is_normalized(x::Type{T}) where T <: FixedPoint = GL_TRUE
+is_normalized(x::Type{T}) where T <: Union{StaticVector, Colorant} = is_normalized(eltype(x))
+is_normalized(x) = GL_FALSE
 
 include("GLBuffer.jl")
 include("GLTexture.jl")
 
 ########################################################################
 
-const GLSLTypes = (GL_FLOAT,GL_FLOAT_VEC2, GL_FLOAT_VEC3, GL_FLOAT_VEC4, GL_FLOAT_MAT2, GL_FLOAT_MAT3, GL_FLOAT_MAT4, GL_FLOAT_MAT2x3, GL_FLOAT_MAT2x4, GL_FLOAT_MAT3x2, GL_FLOAT_MAT3x4, GL_FLOAT_MAT4x2, GL_FLOAT_MAT4x3,GL_INT, GL_INT_VEC2, GL_INT_VEC3, GL_INT_VEC4, GL_UNSIGNED_INT, GL_UNSIGNED_INT_VEC2, GL_UNSIGNED_INT_VEC3, GL_UNSIGNED_INT_VEC4)
+const GLSLTypes = (
+    GL_FLOAT,GL_FLOAT_VEC2, GL_FLOAT_VEC3, GL_FLOAT_VEC4, GL_FLOAT_MAT2,
+    GL_FLOAT_MAT3, GL_FLOAT_MAT4, GL_FLOAT_MAT2x3, GL_FLOAT_MAT2x4,
+    GL_FLOAT_MAT3x2, GL_FLOAT_MAT3x4, GL_FLOAT_MAT4x2, GL_FLOAT_MAT4x3,
+    GL_INT, GL_INT_VEC2, GL_INT_VEC3, GL_INT_VEC4, GL_UNSIGNED_INT,
+    GL_UNSIGNED_INT_VEC2, GL_UNSIGNED_INT_VEC3, GL_UNSIGNED_INT_VEC4
+)
 
 """
 Represents an OpenGL vertex array type.
@@ -205,7 +214,6 @@ function GLVertexArray(bufferdict::Dict, program::GLProgram)
     glBindVertexArray(id)
     lenbuffer = 0
     buffers = Dict{String, GLBuffer}()
-    attributeTypes = attribute_name_type(program.id)
     for (name, buffer) in bufferdict
         if isa(buffer, GLBuffer) && buffer.buffertype == GL_ELEMENT_ARRAY_BUFFER
             bind(buffer)
@@ -217,14 +225,14 @@ function GLVertexArray(bufferdict::Dict, program::GLProgram)
             len == -1 && (len = length(buffer))
             # TODO: use glVertexAttribDivisor to allow multiples of the longest buffer
             len != length(buffer) && error(
-              "buffer $attribute has not the same length as the other buffers.
-              Has: $(length(buffer)). Should have: $len"
+                "buffer $attribute has not the same length as the other buffers.
+                Has: $(length(buffer)). Should have: $len"
             )
             bind(buffer)
             attribLocation = get_attribute_location(program.id, attribute)
-            glslType = attributeTypes[Symbol(attribute)]
             (attribLocation == -1) && continue
-            glVertexAttribPointer(attribLocation, cardinality(buffer), julia2glenum(eltype(buffer)), eltype(buffer) <: FixedPointNumbers.FixedPoint ? GL_TRUE : GL_FALSE, 0, C_NULL)
+            ET = eltype(buffer)
+            glVertexAttribPointer(attribLocation, cardinality(buffer), julia2glenum(ET), is_normalized(ET), 0, C_NULL)
             glEnableVertexAttribArray(attribLocation)
             buffers[attribute] = buffer
             lenbuffer = buffer
