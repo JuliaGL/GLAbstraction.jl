@@ -1,5 +1,6 @@
-const Context = Symbol
+# abstract type AbstractContext end
 
+const Context = Symbol
 #=
 We need to track the current OpenGL context.
 Since we can't do this via pointer identity  (OpenGL may reuse the same pointers)
@@ -17,3 +18,7 @@ end
 function new_context()
     context[] = gensym()
 end
+#this should remain here, maybe, it uses a glframebuffer
+# mutable struct Context <: AbstractContext
+#     context
+# end
