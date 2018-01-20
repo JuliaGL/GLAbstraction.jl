@@ -20,8 +20,8 @@ Float24 storage type for depth
 """
 primitive type Float24 <: AbstractFloat 24 end
 
-gl_internal_format(d::Depth{Float32}) = GL_DEPTH_COMPONENT32F
-gl_internal_format(d::DepthStencil{Float24, N0f8}) = GL_DEPTH24_STENCIL8
+gl_internal_format(::Type{Depth{Float32}}) = GL_DEPTH_COMPONENT32F
+gl_internal_format(::Type{DepthStencil{Float24, N0f8}}) = GL_DEPTH24_STENCIL8
 
 function gl_internal_format(::T) where T
     error("$T doesn't have a valid mapping to an OpenGL internal format enum. Please use DepthStencil/Depth/Color, or overload `gl_internal_format(x::$T)`
@@ -29,8 +29,8 @@ function gl_internal_format(::T) where T
     ")
 end
 
-gl_attachment(::Depth) = GL_DEPTH_ATTACHMENT
-gl_attachment(::DepthStencil) = GL_DEPTH_STENCIL_ATTACHMENT
+gl_attachment(::Type{<:Depth}) = GL_DEPTH_ATTACHMENT
+gl_attachment(::Type{<:DepthStencil}) = GL_DEPTH_STENCIL_ATTACHMENT
 function gl_attachment(::T) where T
     error("$T doesn't have a valid mapping to an OpenGL attachment enum. Please use DepthStencil/Depth, or overload `gl_attachment(x::$T)`
     to return the correct OpenGL depth attachment.
@@ -83,7 +83,7 @@ FrameBuffer(fb_size::Tuple{<: Integer, <: Integer}, texture_types...) = FrameBuf
 function create_attachment(T, dimensions, lastcolor)
     tex = Texture(T, dimensions, minfilter = :nearest, x_repeat = :clamp_to_edge)
     # textures will be color attachments right now. Otherwise we'd need to check for detph attachments
-    lastcolor + 1
+    tex, lastcolor + 1
 end
 create_attachment(::Type{T}, dimensions, lastcolor) where T <: DepthFormat = (RenderBuffer(T, dimensions), lastcolor)
 
@@ -95,18 +95,18 @@ function FrameBuffer(fb_size::Tuple{<: Integer, <: Integer}, texture_types::NTup
     max_ca = glGetIntegerv(GL_MAX_COLOR_ATTACHMENTS)
 
     invalid_types = filter(x -> !(x <: DepthFormat || x <: GLArrayEltypes), texture_types)
-    @assert length(invalid_types) "Types $invalid_types are not valid, supported types are:\n  $GLArrayEltypes\n  DepthFormat."
+    @assert isempty(invalid_types) "Types $invalid_types are not valid, supported types are:\n  $GLArrayEltypes\n  DepthFormat."
     if N > max_ca
         error("The length of texture types exceeds the maximum amount of framebuffer color attachments! Found: $N, allowed: $max_ca")
     end
-    if length(filter(x-> x <: DepthFormat, texture_types)) > 1
+    if length(collect(filter(x-> x <: DepthFormat, texture_types))) > 1
         error("The amount of DepthFormat types in texture types exceeds the maximum of 1.")
     end
 
     _attachments = []
-    i = 1
+    color_id = -1
     for T in texture_types
-        attachment, color_id = create_attachment(T, dimensions)
+        attachment, color_id = create_attachment(T, dimensions, color_id)
         attach2framebuffer(attachment, gl_color_attachment(color_id))
         push!(_attachments, attachment)
     end
