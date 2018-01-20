@@ -13,7 +13,7 @@ struct DepthStencil{DT, ST} <: DepthFormat
     depth::DT
     stencil::ST
 end
-Base.getproperty(x::DepthStencil, field::Symbol) = field == :depth ? Float32(x.depth) : x.stencil
+#0.7: Base.getproperty(x::DepthStencil, field::Symbol) = field == :depth ? Float32(x.depth) : x.stencil #I actually do want to support v0.6 for now
 
 """
 Float24 storage type for depth

@@ -4,7 +4,7 @@ const window = create_glcontext("Compute Shader", resolution = (512, 512))
 
 # In order to write to a texture, we have to introduce it as image2D.
 # local_size_x/y/z layout variables define the work group size.
-# gl_GlobalInvocationID is a uvec3 variable giving the global ID of the thread,
+# gl_GlobalInvocationID is a uvec3 variable giving the global GLid of the thread,
 # gl_LocalInvocationID is the local index within the work group, and
 # gl_WorkGroupID is the work group's index
 const shader = comp"""
@@ -57,7 +57,7 @@ const roll = const_lift(every(0.1)) do x
     i::Float32 += 0.01f0
 end
 const tex = Texture(Float32, (512, 512))
-glBindImageTexture(0, tex.id, 0, GL_FALSE, 0, GL_WRITE_ONLY, tex.internalformat);
+glBindImageTexture(0, tex.GLid, 0, GL_FALSE, 0, GL_WRITE_ONLY, tex.internalformat);
 
 data = Dict(
     :roll => roll,

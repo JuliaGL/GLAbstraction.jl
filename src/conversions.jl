@@ -87,7 +87,6 @@ gl_convert(x::SMatrix{N, M, T}) where {N, M, T} = map(gl_promote(T), x)
 gl_convert(a::Vector{T}) where {T <: Face} = indexbuffer(s)
 # gl_convert(a::Vector{T}) where T = convert(Vector{gl_promote(T)}, a)
 
-gl_convert(::Type{T}, a::NATIVE_TYPES; kw_args...) where {T <: NATIVE_TYPES} = a
 function gl_convert(::Type{T}, a::Array{X, N}; kw_args...) where {T <: GPUArray, X, N}
     T(map(gl_promote(X), a); kw_args...)
 end

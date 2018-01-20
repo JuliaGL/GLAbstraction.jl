@@ -1,12 +1,10 @@
-VERSION >= v"0.4.0-dev+6521" && __precompile__(true)
+VERSION >= v"0.4.0-dev+6521" && __precompile__()
 module GLAbstraction
 
 using StaticArrays
 using ModernGL
 using FixedPointNumbers
 using ColorTypes
-using FileIO
-using GLFW
 
 import FileIO: load, save
 

@@ -79,9 +79,9 @@ ro = std_renderobject(bufferdict,
                       LazyShader(vertex_shader, fragment_shader))
 
 prog = ro.vertexarray.program
-yperiod_loc = glGetUniformLocation(prog.id, "yperiod")
-phase_loc = glGetUniformLocation(prog.id, "phase")
-amplitude_loc = glGetUniformLocation(prog.id, "amplitude")
+yperiod_loc = glGetUniformLocation(prog.GLid, "yperiod")
+phase_loc = glGetUniformLocation(prog.GLid, "phase")
+amplitude_loc = glGetUniformLocation(prog.GLid, "amplitude")
 
 # Draw until we receive a close event
 while !GLFW.WindowShouldClose(window)

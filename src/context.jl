@@ -1,4 +1,3 @@
-# abstract type AbstractContext end
 
 const Context = Symbol
 #=
