@@ -1,27 +1,83 @@
-function getinfolog(obj::GLuint)
-    # Return the info log for obj, whether it be a shader or a program.
-    isShader = glIsShader(obj)
-    getiv = isShader == GL_TRUE ? glGetShaderiv : glGetProgramiv
-    get_log = isShader == GL_TRUE ? glGetShaderInfoLog : glGetProgramInfoLog
+islinked(program::GLuint) = glGetProgramiv(program, GL_LINK_STATUS) == GL_TRUE
 
-    # Get the maximum possible length for the descriptive error message
-    maxlength = GLint[0]
-    getiv(obj, GL_INFO_LOG_LENGTH, maxlength)
-    maxlength = first(maxlength)
-    # Return the text of the message if there is any
-    if maxlength > 0
-        buffer = zeros(GLchar, maxlength)
-        sizei = GLsizei[0]
-        get_log(obj, maxlength, sizei, buffer)
-        length = first(sizei)
-        return unsafe_string(pointer(buffer), length)
-    else
-        return "success"
+mutable struct Program
+    id          ::GLuint
+    shaders     ::Vector{Shader}
+    nametype    ::Dict{Symbol, GLenum}
+    uniformloc  ::Dict{Symbol, Tuple}
+    context     ::Context
+    function Program(id::GLuint, shaders::Vector{Shader}, nametype::Dict{Symbol, GLenum}, uniformloc::Dict{Symbol, Tuple})
+        program = new(id, shaders, nametype, uniformloc, current_context())
+        program
     end
 end
 
+function Program(shaders, fragdatalocation)
+    # Remove old shaders
+    program = glCreateProgram()::GLuint
+    @assert program > 0 "couldn't create program. Most likely, opengl context is not active"
+    glUseProgram(program)
+    #attach new ones
+    foreach(shaders) do shader
+        glAttachShader(program, shader.id)
+    end
 
-function getUniformsInfo(p::GLProgram)
+    #Bind frag data
+    for (location, name) in fragdatalocation
+        glBindFragDataLocation(program, location, ascii(name))
+    end
+
+    #link program
+    glLinkProgram(program)
+    if !islinked(program)
+        for shader in shaders
+            write(STDOUT, shader.source)
+            println("---------------------------")
+        end
+        error(
+            "program $program not linked. Error in: \n",
+            join(map(x-> string(x.name), shaders), " or "), "\n", getinfolog(program)
+        )
+    end
+    # Can be deleted, as they will still be linked to Program and released after program gets released
+    # foreach(glDeleteShader, shader_ids)
+    
+    # generate the link locations
+    nametypedict = uniform_name_type(program)
+    uniformlocationdict = uniformlocations(nametypedict, program)
+    Program(program, shaders, nametypedict, uniformlocationdict)
+end
+
+####################################################################################
+# freeing
+
+# OpenGL has the annoying habit of reusing id's when creating a new context
+# We need to make sure to only free the current one
+function free(x::GLProgram)
+    if !is_current_context(x.context)
+        return # don't free from other context
+    end
+    try
+        glDeleteProgram(x.id)
+    catch e
+        free_handle_error(e)
+    end
+    return
+end
+
+function Base.show(io::IO, p::GLProgram)
+    println(io, "GLProgram: $(p.id)")
+    println(io, "Shaders:")
+    for shader in p.shader
+        println(io, shader)
+    end
+    println(io, "uniforms:")
+    for (name, typ) in p.nametype
+        println(io, "   ", name, "::", GLENUM(typ).name)
+    end
+end
+
+function getUniformsInfo(p::Program)
     program = p.id
     # Get uniforms info (not in named blocks)
     activeUnif = glGetProgramiv(program, GL_ACTIVE_UNIFORMS)
@@ -74,9 +130,8 @@ function getUniformsInfo(p::GLProgram)
     result
 end
 
-
 # display the values for uniforms in the default block
-function getUniformInfo(p::GLProgram, uniName::Symbol)
+function getUniformInfo(p::Program, uniName::Symbol)
     result = Dict{Symbol, Any}()
     # is it a program ?
     result[:program] = p.id
@@ -88,9 +143,8 @@ function getUniformInfo(p::GLProgram, uniName::Symbol)
     result
 end
 
-
 # display the values for a uniform in a named block
-function getUniformInBlockInfo(p::GLProgram, blockName, uniName)
+function getUniformInBlockInfo(p::Program, blockName, uniName)
     result = Dict{Symbol, Any}()
     program = p.id
 
@@ -110,9 +164,8 @@ function getUniformInBlockInfo(p::GLProgram, blockName, uniName)
     result
 end
 
-
 # display information for a program's attributes
-function getAttributesInfo(p::GLProgram)
+function getAttributesInfo(p::Program)
     program = p.id
     # how many attribs?
     activeAttr = glGetProgramiv(program, GL_ACTIVE_ATTRIBUTES)
@@ -128,9 +181,8 @@ function getAttributesInfo(p::GLProgram)
     end
 end
 
-
 # display program's information
-function getProgramInfo(p::GLProgram)
+function getProgramInfo(p::Program)
     result = Dict{Symbol, Any}()
     # check if name is really a program
     result[:program] = p.id
@@ -170,7 +222,6 @@ function uniformlocations(nametypedict::Dict{Symbol, GLenum}, program)
     return result
 end
 
-
 function uniform_name_type(program::GLuint)
     uniformLength = glGetProgramiv(program, GL_ACTIVE_UNIFORMS)
     Dict{Symbol, GLenum}(ntuple(uniformLength) do i # take size and name
@@ -183,3 +234,23 @@ function attribute_name_type(program::GLuint)
         name, typ = glGetActiveAttrib(program, i-1)
     end)
 end
+
+function getinfolog(program::Program)
+    # Get the maximum possible length for the descriptive error message
+    maxlength = GLint[0]
+    glGetProgramiv(program.id, GL_INFO_LOG_LENGTH, maxlength)
+    maxlength = first(maxlength)
+    # Return the text of the message if there is any
+    if maxlength > 0
+        buffer = zeros(GLchar, maxlength)
+        sizei = GLsizei[0]
+        glGetProgramInfoLog(program.id, maxlength, sizei, buffer)
+        length = first(sizei)
+        return unsafe_string(pointer(buffer), length)
+    else
+        return "success"
+    end
+end
+
+
+
