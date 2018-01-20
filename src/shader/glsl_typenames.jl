@@ -3,7 +3,7 @@
 const GLSL_COMPATIBLE_NUMBER_TYPES = (GLfloat, GLint, GLuint, GLdouble)
 const NATIVE_TYPES = Union{
     StaticArray, GLSL_COMPATIBLE_NUMBER_TYPES...,
-    Buffer, GPUArray, Shader, GLProgram
+    Buffer, GPUArray, Shader, Program
 }
 isa_gl_struct(x::NATIVE_TYPES) = false
 
@@ -66,4 +66,16 @@ end
 
 function glsl_variable_access(keystring, t::Any)
     error("no glsl variable calculation available for : ", keystring, " of type ", typeof(t))
+end
+
+function glsl_version_string()
+    glsl = split(unsafe_string(glGetString(GL_SHADING_LANGUAGE_VERSION)), ['.', ' '])
+    if length(glsl) >= 2
+        glsl = VersionNumber(parse(Int, glsl[1]), parse(Int, glsl[2]))
+        glsl.major == 1 && glsl.minor <= 2 && error("OpenGL shading Language version too low. Try updating graphic driver!")
+        glsl_version = string(glsl.major) * rpad(string(glsl.minor),2,"0")
+        return "#version $(glsl_version)\n"
+    else
+        error("could not parse GLSL version: $glsl")
+    end
 end

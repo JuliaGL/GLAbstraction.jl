@@ -109,4 +109,3 @@ function getinfolog(shader::Shader)
         return "success"
     end
 end
-

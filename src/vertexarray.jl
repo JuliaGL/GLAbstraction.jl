@@ -69,8 +69,8 @@ gl_face_enum{V, IT, I}(::VertexArray{V, Face{2, I}, IT}) = GL_LINES
 gl_face_enum{V, IT, I}(::VertexArray{V, Face{3, I}, IT}) = GL_TRIANGLES
 
 # gl_face_type(::Type{<: NTuple{2, <: AbstractVertex}}) = Face{2, Int}
-# gl_face_type(::Type) = Face{1, Int} # Default to Point
-# gl_face_type(::Type{T}) where T <: Face = T
+gl_face_type(::Type) = Face{1, Int} # Default to Point
+gl_face_type(::Type{T}) where T <: Face = T
 
 is_struct{T}(::Type{T}) = !(sizeof(T) != 0 && nfields(T) == 0)
 is_glsl_primitive{T <: StaticVector}(::Type{T}) = true
@@ -90,4 +90,14 @@ function free(x::VertexArray)
         free_handle_error(e)
     end
     return
+end
+function draw{V, T, IT <: Buffer}(vbo::VertexArray{V, T, IT})
+    glDrawElements(
+        gl_face_enum(vbo),
+        length(vbo.indices) * GLAbstraction.cardinality(vbo.indices),
+        GLAbstraction.julia2glenum(eltype(IT)), C_NULL
+    )
+end
+function draw{V, T}(vbo::VertexArray{V, T, DataType})
+    glDrawArrays(gl_face_enum(vbo), 0, length(vbo))
 end

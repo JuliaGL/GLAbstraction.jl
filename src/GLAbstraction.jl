@@ -48,7 +48,6 @@ include("shader/uniforms.jl")
 include("shader/shader.jl")
 include("shader/program.jl")
 include("shader/glsl_typenames.jl")
-include("shader/info.jl")
 include("conversions.jl")
 export gluniform                # wrapper of all the OpenGL gluniform functions, which call the correct gluniform function via multiple dispatch. Example: gluniform(location, x::Matrix4x4) = gluniformMatrix4fv(location, x)
 export toglsltype_string        # infers a glsl type string from a julia type. Example: Matrix4x4 -> uniform mat4
@@ -58,7 +57,6 @@ export gl_convert
 
 include("renderobject.jl")
 
-export GLProgram                # Shader/program object
 export Texture                  # Texture object, basically a 1/2/3D OpenGL data array
 export TextureParameters
 export TextureBuffer            # OpenGL texture buffer

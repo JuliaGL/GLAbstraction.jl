@@ -59,9 +59,8 @@ function RenderBuffer(depth_format, dimensions)
 end
 
 
-function bind(b::RenderBuffer)
-    glBindRenderbuffer(GL_RENDERBUFFER, b.id)
-end
+bind(b::RenderBuffer) = glBindRenderbuffer(GL_RENDERBUFFER, b.id)
+unbind(b::RenderBuffer) = glBindRenderbuffer(GL_RENDERBUFFER, b.id)
 
 function resize_nocopy!(b::RenderBuffer, dimensions)
     bind(b)
@@ -137,3 +136,9 @@ function Base.resize!(fb::FrameBuffer, dimensions)
     end
     nothing
 end
+
+bind(fb::FrameBuffer) = glBindFramebuffer(GL_FRAMEBUFFER, fb.id)
+unbind(fb::FrameBuffer) = glBindFramebuffer(GL_FRAMEBUFFER, 0)
+clear!(fb::FrameBuffer, color::RGBA) = glClearColor(color.r, color.g, color.b, color.alpha)
+clear!(fb::FrameBuffer, color::RGB) = glClearColor(color.r, color.g, color.b, GLfloat(1.0))
+clear!(fb::FrameBuffer) = glClearColor(GLfloat(1.0), GLfloat(1.0), GLfloat(1.0), GLfloat(1.0))

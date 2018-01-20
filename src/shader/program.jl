@@ -53,7 +53,7 @@ end
 
 # OpenGL has the annoying habit of reusing id's when creating a new context
 # We need to make sure to only free the current one
-function free(x::GLProgram)
+function free(x::Program)
     if !is_current_context(x.context)
         return # don't free from other context
     end
@@ -65,8 +65,8 @@ function free(x::GLProgram)
     return
 end
 
-function Base.show(io::IO, p::GLProgram)
-    println(io, "GLProgram: $(p.id)")
+function Base.show(io::IO, p::Program)
+    println(io, "Program: $(p.id)")
     println(io, "Shaders:")
     for shader in p.shader
         println(io, shader)

@@ -227,26 +227,6 @@ function glTexImage(ttype::GLenum, level::Integer, internalFormat::GLenum, w::In
     glTexImage1D(ttype, level, internalFormat, w, border, format, datatype, data)
 end
 
-function iscompiled(shader::GLuint)
-    success = Ref{GLint}(0)
-    glGetShaderiv(shader, GL_COMPILE_STATUS, success)
-    return success[] == GL_TRUE
-end
-
-function createshader(shadertype::GLenum)
-    shaderid = glCreateShader(shadertype)
-    @assert shaderid > 0 "opengl context is not active or shader type not accepted. Shadertype: $(GLENUM(shadertype).name)"
-    shaderid
-end
-
-islinked(program::GLuint) = glGetProgramiv(program, GL_LINK_STATUS) == GL_TRUE
-
-function createprogram()
-    program = glCreateProgram()
-    @assert program > 0 "couldn't create program. Most likely, opengl context is not active"
-    program
-end
-
 function compile_program(shaders::GLuint...)
     program = createprogram()
     #attach new ones
