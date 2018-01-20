@@ -139,6 +139,11 @@ end
 
 bind(fb::FrameBuffer) = glBindFramebuffer(GL_FRAMEBUFFER, fb.id)
 unbind(fb::FrameBuffer) = glBindFramebuffer(GL_FRAMEBUFFER, 0)
-clear!(fb::FrameBuffer, color::RGBA) = glClearColor(color.r, color.g, color.b, color.alpha)
-clear!(fb::FrameBuffer, color::RGB) = glClearColor(color.r, color.g, color.b, GLfloat(1.0))
-clear!(fb::FrameBuffer) = glClearColor(GLfloat(1.0), GLfloat(1.0), GLfloat(1.0), GLfloat(1.0))
+function clear!(fb::FrameBuffer, color::RGBA) 
+    bind(fb)
+    glClearColor(GLfloat(color.r), GLfloat(color.g), GLfloat(color.b), GLfloat(color.alpha))
+    glClear(GL_FRAMEBUFFER)
+    unbind(fb)
+end
+clear!(fb::FrameBuffer, color::RGB{T}) where T = clear!(fb, RGBA(color.r, color.g, color.b, T(0.0)))
+clear!(fb::FrameBuffer) = clear!(fb, RGBA(0.0, 0.0, 0.0, 0.0))
