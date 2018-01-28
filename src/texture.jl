@@ -132,7 +132,7 @@ mutable struct Texture{T <: GLArrayEltypes, NDIM} <: OpenglTexture{T, NDIM}
     format          ::GLenum
     parameters      ::TextureParameters{NDIM}
     size            ::NTuple{NDIM, Int}
-    context         ::Context
+    context         ::AbstractContext
     function Texture{T, NDIM}(
             id              ::GLuint,
             texturetype     ::GLenum,

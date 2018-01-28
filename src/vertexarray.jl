@@ -5,7 +5,7 @@ mutable struct VertexArray{Vertex, Face, IT}
     length::Int
     buffer::Vector
     indices::IT
-    context::Context
+    context::AbstractContext
     function (::Type{VertexArray{Vertex, Face}}){Vertex, Face, IT}(id, bufferlength, buffers, indices::IT)
         new{Vertex, Face, IT}(id, bufferlength, buffers, indices, current_context())
     end

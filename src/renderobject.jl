@@ -27,7 +27,7 @@ function (p::RenderObject{Vertex, N, Args}){Vertex, N, Args}(vertexarray::Vertex
 end
 
 function RenderObject{T}(
-        window::Context,
+        window::AbstractContext,
         vertexarray::AbstractArray{T},
         uniforms::Tuple,
         vertexshader::Function,
@@ -53,7 +53,7 @@ function RenderObject{T}(
 end
 
 function RenderObject(
-        window::Context,
+        window::AbstractContext,
         vertexarray::VertexArray,
         uniforms::T,
         vertexshader::Function,

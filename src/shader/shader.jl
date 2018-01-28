@@ -6,15 +6,15 @@ function iscompiled(shader::GLuint)
     return first(success) == GL_TRUE
 end
 
-#Context and current_context should be overloaded by users of the library! They are standard Symbols
-struct Shader
+abstract type AbstractShader end
+
+struct Shader <: AbstractShader
     name    ::Symbol
     source  ::Vector{UInt8} #UInt representation of the source program string,
     typ     ::GLenum
     id      ::GLuint
-    context ::Context
-    function Shader(name, source, typ, id,)
-        new(name, source, typ, id, current_context())
+    function Shader(name, source, typ, id)
+        new(name, source, typ, id)
     end
 end
 
@@ -35,6 +35,7 @@ function Shader(path::String, source_str::AbstractString)
     name = Symbol(path)
     Shader(source, typ, name)
 end
+Shader(path::File{format"GLSLShader"}) = load(path)
 
 import Base: ==
 (==)(a::Shader, b::Shader) = a.source == b.source && a.typ == b.typ && a.id == b.id && a.context == b.context
@@ -55,7 +56,14 @@ function shadertype(ext::AbstractString)
     ext == ".vert" && return GL_VERTEX_SHADER
     ext == ".frag" && return GL_FRAGMENT_SHADER
     ext == ".geom" && return GL_GEOMETRY_SHADER
-    error("$ext not a valid extension for $f")
+    error("$ext not a valid shader extension.")
+end
+function shadertype(typ::Symbol)
+    (typ == :compute  || typ == :comp) && return GL_COMPUTE_SHADER
+    (typ == :vertex   || typ == :vert) && return GL_VERTEX_SHADER
+    (typ == :fragment || typ == :frag) && return GL_FRAGMENT_SHADER
+    (typ == :geometry || typ == :geom) && return GL_GEOMETRY_SHADER
+    error("$typ not a valid shader symbol.")
 end
 
 #Implement File IO interface
@@ -93,19 +101,23 @@ macro comp_str(source::AbstractString)
     end
 end
 
-function getinfolog(shader::Shader)
+function getinfolog(id::GLuint)
     # Get the maximum possible length for the descriptive error message
     maxlength = GLint[0]
-    glGetShaderiv(shader.id, GL_INFO_LOG_LENGTH, maxlength)
+    glGetShaderiv(id, GL_INFO_LOG_LENGTH, maxlength)
     maxlength = first(maxlength)
     # Return the text of the message if there is any
     if maxlength > 0
         buffer = zeros(GLchar, maxlength)
         sizei = GLsizei[0]
-        glGetShaderInfoLog(shader.id, maxlength, sizei, buffer)
+        glGetShaderInfoLog(id, maxlength, sizei, buffer)
         length = first(sizei)
         return unsafe_string(pointer(buffer), length)
     else
         return "success"
     end
 end
+
+
+
+

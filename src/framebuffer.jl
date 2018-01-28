@@ -45,7 +45,7 @@ struct RenderBuffer
     id        ::GLuint
     format    ::GLenum
     attachment::GLenum
-    context   ::Context
+    context   ::AbstractContext
     function RenderBuffer(format::GLenum, attachment::GLenum, dimensions)
         @assert length(dimensions) == 2
         id = glGenRenderbuffers(format, attachment, dimensions)
@@ -139,9 +139,17 @@ end
 
 bind(fb::FrameBuffer) = glBindFramebuffer(GL_FRAMEBUFFER, fb.id)
 unbind(fb::FrameBuffer) = glBindFramebuffer(GL_FRAMEBUFFER, 0)
-function clear!(fb::FrameBuffer, color::RGBA) 
+function Base.clear!(fb::FrameBuffer, color::RGBA) 
     bind(fb)
     glClearColor(GLfloat(color.r), GLfloat(color.g), GLfloat(color.b), GLfloat(color.alpha))
+    color_attachments = GLuint[]
+    println(eltype(fb))
+    for typ in eltype(fb)[1]
+        if !(typeof(typ) <: DepthFormat)
+            push!(color_attachments, gl_color_attachment(length(color_attachments)))
+        end
+    end
+    glDrawBuffers(GLuint(length(color_attachments)), color_attachments)
     glClear(GL_COLOR_BUFFER_BIT)
     glClear(GL_DEPTH_BUFFER_BIT)
     unbind(fb)
