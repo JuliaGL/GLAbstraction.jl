@@ -1,4 +1,3 @@
-const GLArrayEltypes = Union{Colorant, FixedPoint, StaticVector, Real}
 
 macro gputime(codeblock)
     quote
@@ -42,3 +41,4 @@ Returns the cardinality of a type. falls back to length
 cardinality(x) = length(x)
 cardinality(x::Number) = 1
 cardinality(x::Type{T}) where {T <: Number} = 1
+glasserteltype(::Type{T}) where T = @assert isdefined(length(T)) "Error only types with well defined lengths are allowed"

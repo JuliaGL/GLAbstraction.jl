@@ -11,59 +11,59 @@ function default_texturetype(ndim::Integer)
     error("Dimensionality: $(ndim), not supported for OpenGL texture")
 end
 
-function default_colorformat_sym(colordim::Integer, isinteger::Bool, colororder::AbstractString)
-    colordim > 4 && error("no colors with dimension > 4 allowed. Dimension given: ", colordim)
-    sym = "GL_"
-    # Handle that colordim == 1 => RED instead of R
-    color = colordim == 1 ? "RED" : colororder[1:colordim]
-    # Handle gray value
-    integer = isinteger ? "_INTEGER" : ""
-    sym *= color * integer
-    return Symbol(sym)
-end
+# function default_colorformat_sym(colordim::Integer, isinteger::Bool, colororder::AbstractString)
+#     colordim > 4 && error("no colors with dimension > 4 allowed. Dimension given: ", colordim)
+#     sym = "GL_"
+#     # Handle that colordim == 1 => RED instead of R
+#     color = colordim == 1 ? "RED" : colororder[1:colordim]
+#     # Handle gray value
+#     integer = isinteger ? "_INTEGER" : ""
+#     sym *= color * integer
+#     return Symbol(sym)
+# end
 
-default_colorformat_sym(::Type{T}) where {T <: Real} = default_colorformat_sym(1, T <: Integer, "RED")
-default_colorformat_sym(::Type{T}) where {T <: AbstractArray} = default_colorformat_sym(cardinality(T), eltype(T) <: Integer, "RGBA")
-default_colorformat_sym(::Type{T}) where {T <: StaticVector} = default_colorformat_sym(cardinality(T), eltype(T) <: Integer, "RGBA")
-default_colorformat_sym(::Type{T}) where {T <: Colorant} = default_colorformat_sym(cardinality(T), eltype(T) <: Integer, string(Base.typename(T).name))
+# default_colorformat_sym(::Type{T}) where {T <: Real} = default_colorformat_sym(1, T <: Integer, "RED")
+# default_colorformat_sym(::Type{T}) where {T <: AbstractArray} = default_colorformat_sym(cardinality(T), eltype(T) <: Integer, "RGBA")
+# default_colorformat_sym(::Type{T}) where {T <: StaticVector} = default_colorformat_sym(cardinality(T), eltype(T) <: Integer, "RGBA")
+# default_colorformat_sym(::Type{T}) where {T <: Colorant} = default_colorformat_sym(cardinality(T), eltype(T) <: Integer, string(Base.typename(T).name))
 
-@generated function default_colorformat(::Type{T}) where T
-    sym = default_colorformat_sym(T)
-    if !isdefined(ModernGL, sym)
-        error("$T doesn't have a propper mapping to an OpenGL format")
-    end
-    :($sym)
-end
+# @generated function default_colorformat(::Type{T}) where T
+#     sym = default_colorformat_sym(T)
+#     if !isdefined(ModernGL, sym)
+#         error("$T doesn't have a propper mapping to an OpenGL format")
+#     end
+#     :($sym)
+# end
 
-function default_internalcolorformat_sym(::Type{T}) where T
-    cdim = colordim(T)
-    if cdim > 4 || cdim < 1
-        error("$(cdim)-dimensional colors not supported")
-    end
-    eltyp = eltype(T)
-    sym = "GL_"
-    sym *= "RGBA"[1:cdim]
-    bits = sizeof(eltyp) * 8
-    sym *= bits <= 32 ? string(bits) : error("$(T) has too many bits")
-    if eltyp <: AbstractFloat
-        sym *= "F"
-    elseif eltyp <: FixedPoint
-        sym *= eltyp <: Normed ? "" : "_SNORM"
-    elseif eltyp <: Signed
-        sym *= "I"
-    elseif eltyp <: Unsigned
-        sym *= "UI"
-    end
-    Symbol(sym)
-end
+# function default_internalcolorformat_sym(::Type{T}) where T
+#     cdim = colordim(T)
+#     if cdim > 4 || cdim < 1
+#         error("$(cdim)-dimensional colors not supported")
+#     end
+#     eltyp = eltype(T)
+#     sym = "GL_"
+#     sym *= "RGBA"[1:cdim]
+#     bits = sizeof(eltyp) * 8
+#     sym *= bits <= 32 ? string(bits) : error("$(T) has too many bits")
+#     if eltyp <: AbstractFloat
+#         sym *= "F"
+#     elseif eltyp <: FixedPoint
+#         sym *= eltyp <: Normed ? "" : "_SNORM"
+#     elseif eltyp <: Signed
+#         sym *= "I"
+#     elseif eltyp <: Unsigned
+#         sym *= "UI"
+#     end
+#     Symbol(sym)
+# end
 
-@generated function default_internalcolorformat(::Type{T}) where T
-    sym = default_internalcolorformat_sym(T)
-    if !isdefined(ModernGL, sym)
-        error("$T doesn't have a propper mapping to an OpenGL format")
-    end
-    :($sym)
-end
+# @generated function default_internalcolorformat(::Type{T}) where T
+#     sym = default_internalcolorformat_sym(T)
+#     if !isdefined(ModernGL, sym)
+#         error("$T doesn't have a propper mapping to an OpenGL format")
+#     end
+#     :($sym)
+# end
 
 struct TextureParameters{NDim}
     minfilter    ::Symbol
@@ -124,7 +124,7 @@ end
 
 abstract type OpenglTexture{T, NDIM} <: GPUArray{T, NDIM} end
 
-mutable struct Texture{T <: GLArrayEltypes, NDIM} <: OpenglTexture{T, NDIM}
+mutable struct Texture{T, NDIM} <: OpenglTexture{T, NDIM}
     id              ::GLuint
     texturetype     ::GLenum
     pixeltype       ::GLenum
@@ -189,7 +189,8 @@ function Texture(
         texturetype::GLenum    = GL_TEXTURE_2D_ARRAY,
         format::GLenum         = default_colorformat(T),
         parameters...
-    ) where T <: GLArrayEltypes
+    ) where T 
+    glasserteltype(T)
     texparams = TextureParameters(T, 2; parameters...)
     id = glGenTextures()
 
@@ -225,8 +226,10 @@ Constructor for empty initialization with NULL pointer instead of an array with 
 You just need to pass the wanted color/vector type and the dimensions.
 To which values the texture gets initialized is driver dependent
 """
-Texture(::Type{T}, dims::NTuple{N, Int}; kw_args...) where {T <: GLArrayEltypes, N} =
+function Texture(::Type{T}, dims::NTuple{N, Int}; kw_args...) where {T, N}
+    glasserteltype(T)
     Texture(convert(Ptr{T}, C_NULL), dims; kw_args...)::Texture{T, N}
+end
 
 """
 Constructor for a normal array, with color or Abstract Arrays as elements.
@@ -234,8 +237,10 @@ So Array{Real, 2} == Texture2D with 1D Colorant dimension
 Array{Vec1/2/3/4, 2} == Texture2D with 1/2/3/4D Colorant dimension
 Colors from Colors.jl should mostly work as well
 """
-Texture(image::Array{T, NDim}; kw_args...) where {T <: GLArrayEltypes, NDim} =
+function Texture(image::Array{T, NDim}; kw_args...) where {T, NDim}
+    glasserteltype(T)
     Texture(pointer(image), size(image); kw_args...)::Texture{T, NDim}
+end
 
 #=
 Some special treatmend for types, with alpha in the First place
@@ -418,11 +423,12 @@ function free(x::Texture)
 end
 
 # for bufferSampler, aka Texture Buffer
-mutable struct TextureBuffer{T <: GLArrayEltypes} <: OpenglTexture{T, 1}
+mutable struct TextureBuffer{T} <: OpenglTexture{T, 1}
     texture::Texture{T, 1}
     buffer::Buffer{T}
 end
-function TextureBuffer(buffer::Buffer{T}) where T <: GLArrayEltypes
+function TextureBuffer(buffer::Buffer{T}) where T
+    glasserteltype(T)
     texture_type = GL_TEXTURE_BUFFER
     id = glGenTextures()
     glBindTexture(texture_type, id)
@@ -435,7 +441,8 @@ function TextureBuffer(buffer::Buffer{T}) where T <: GLArrayEltypes
     )
     TextureBuffer(tex, buffer)
 end
-function TextureBuffer(buffer::Vector{T}) where T <: GLArrayEltypes
+function TextureBuffer(buffer::Vector{T}) where T
+    glasserteltype(T)
     buff = Buffer(buffer, buffertype = GL_TEXTURE_BUFFER, usage = GL_DYNAMIC_DRAW)
     TextureBuffer(buff)
 end

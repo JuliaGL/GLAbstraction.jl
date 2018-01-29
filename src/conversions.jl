@@ -7,7 +7,6 @@ Transform julia datatypes to opengl enum type
 """
 julia2glenum(x::Type{T}) where {T <: FixedPoint} = julia2glenum(FixedPointNumbers.rawtype(x))
 # julia2glenum(x::Type{OffsetInteger{O, T}}) where {O, T} = julia2glenum(T)
-julia2glenum(x::Union{Type{T}, T}) where {T <: Union{StaticVector, Colorant}} = julia2glenum(eltype(x))
 julia2glenum(x::Type{GLubyte})  = GL_UNSIGNED_BYTE
 julia2glenum(x::Type{GLbyte})   = GL_BYTE
 julia2glenum(x::Type{GLuint})   = GL_UNSIGNED_INT
@@ -18,7 +17,8 @@ julia2glenum(x::Type{GLfloat})  = GL_FLOAT
 julia2glenum(x::Type{GLdouble}) = GL_DOUBLE
 julia2glenum(x::Type{Float16})  = GL_HALF_FLOAT
 function julia2glenum(::Type{T}) where T
-    error("Type: $T not supported as opengl number datatype")
+    glasserteltype(T)
+    julia2glenum(eltype(T))
 end
 
 gl_convert(a::T) where {T <: NATIVE_TYPES} = a
@@ -38,9 +38,6 @@ gl_promote(x::Type{T}) where {T <: Normed} = N0f32
 gl_promote(x::Type{N0f16}) = x
 gl_promote(x::Type{N0f8}) = x
 
-const Color3{T} = Colorant{T, 3}
-const Color4{T} = Colorant{T, 4}
-
 gl_promote(x::Type{Bool}) = GLboolean
 
 # This should possibly go in another package:
@@ -51,15 +48,15 @@ gl_promote(x::Type{Bool}) = GLboolean
 # gl_promote(x::Type{T}) where {T <: BGR} = BGR{gl_promote(eltype(T))}
 
 
-gl_promote(x::Type{T}) where {T <: StaticVector} = similar_type(T, gl_promote(eltype(T)))
+function gl_promote(x::Type{T}) where T
+    glasserteltype(T)
+    similar_type(T, gl_promote(eltype(T)))
+end
 
 gl_convert(x::T) where {T <: Number} = gl_promote(T)(x)
-gl_convert(x::T) where {T <: Colorant} = gl_promote(T)(x)
-gl_convert(s::Vector{Matrix{T}}) where {T<:Colorant} = Texture(s)
 gl_convert(s::Void) = s
 
 isa_gl_struct(x::Array) = false
-isa_gl_struct(x::Colorant) = false
 function isa_gl_struct(x::T) where T
     !isleaftype(T) && return false
     if T <: Tuple
@@ -80,11 +77,11 @@ end
 
 
 #i get a warning redefinition because of the NativeTypes inclusion of StaticArrays, whats that about?
-gl_convert(x::StaticVector{N, T}) where {N, T} = map(gl_promote(T), x)
-gl_convert(x::SMatrix{N, M, T}) where {N, M, T} = map(gl_promote(T), x)
+# gl_convert(x::StaticVector{N, T}) where {N, T} = map(gl_promote(T), x)
+# gl_convert(x::SMatrix{N, M, T}) where {N, M, T} = map(gl_promote(T), x)
 
 
-gl_convert(a::Vector{T}) where {T <: Face} = indexbuffer(s)
+# gl_convert(a::Vector{T}) where {T <: Face} = indexbuffer(s)
 # gl_convert(a::Vector{T}) where T = convert(Vector{gl_promote(T)}, a)
 
 function gl_convert(::Type{T}, a::Array{X, N}; kw_args...) where {T <: GPUArray, X, N}

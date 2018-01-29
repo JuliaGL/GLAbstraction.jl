@@ -15,12 +15,14 @@ function uniformfunc(typ::DataType, dims::Tuple{Int, Int})
     Symbol(string("glUniformMatrix", M == N ? "$M":"$(M)x$(N)", opengl_postfix(typ)))
 end
 
-function gluniform(location::Integer, x::FSA) where FSA <: Union{StaticArray, Colorant}
+function gluniform(location::Integer, x::FSA) where FSA
+    glasserteltype(FSA)
     xref = [x]
     gluniform(location, xref)
 end
 
-@generated function gluniform(location::Integer, x::Vector{FSA}) where FSA <: Union{StaticArray, Colorant}
+@generated function gluniform(location::Integer, x::Vector{FSA}) where FSA
+    glasserteltype(eltype(FSA))
     func = uniformfunc(eltype(FSA), _size(FSA))
     callexpr = if _ndims(FSA) == 2
         :($func(location, length(x), GL_FALSE, xref))

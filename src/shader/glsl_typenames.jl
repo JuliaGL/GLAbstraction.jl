@@ -2,7 +2,7 @@
 
 const GLSL_COMPATIBLE_NUMBER_TYPES = (GLfloat, GLint, GLuint, GLdouble)
 const NATIVE_TYPES = Union{
-    StaticArray, GLSL_COMPATIBLE_NUMBER_TYPES...,
+    GLSL_COMPATIBLE_NUMBER_TYPES...,
     Buffer, GPUArray, Shader, Program
 }
 isa_gl_struct(x::NATIVE_TYPES) = false
@@ -34,7 +34,10 @@ glsl_typename(t::Type{GLfloat})  = "float"
 glsl_typename(t::Type{GLdouble}) = "double"
 glsl_typename(t::Type{GLuint})   = "uint"
 glsl_typename(t::Type{GLint})    = "int"
-glsl_typename(t::Type{T}) where {T <: Union{StaticVector, Colorant}} = string(opengl_prefix(eltype(T)), "vec", length(T))
+function glsl_typename(t::Type{T}) where {T}
+    glasserteltype(T)
+    string(opengl_prefix(eltype(T)), "vec", length(T))
+end
 glsl_typename(t::Type{TextureBuffer{T}}) where {T} = string(opengl_prefix(eltype(T)), "samplerBuffer")
 
 function glsl_typename(t::Texture{T, D}) where {T, D}
@@ -42,11 +45,12 @@ function glsl_typename(t::Texture{T, D}) where {T, D}
     t.texturetype == GL_TEXTURE_2D_ARRAY && (str *= "Array")
     str
 end
-function glsl_typename(t::Type{T}) where T <: SMatrix
+function glsl_typename(t::Type{T}) where T <: Matrix
+
     M, N = size(t)
     string(opengl_prefix(eltype(t)), "mat", M==N ? M : string(M, "x", N))
 end
-toglsltype_string(x::T) where {T<:Union{Real, StaticArray, Texture, Colorant, TextureBuffer, Void}} = "uniform $(glsl_typename(x))"
+toglsltype_string(x::T) where {T<:Union{Real, Texture, TextureBuffer, Void}} = "uniform $(glsl_typename(x))"
 #Handle GLSL structs, which need to be addressed via single fields
 function toglsltype_string(x::T) where T
     if isa_gl_struct(x)
@@ -64,7 +68,7 @@ function glsl_variable_access(keystring, t::Texture{T, D}) where {T,D}
     end
     return string("getindex(", keystring, "index).", fields, ";")
 end
-function glsl_variable_access(keystring, ::Union{Real, Buffer, GPUVector, StaticArray, Colorant})
+function glsl_variable_access(keystring, ::Union{Real, Buffer, GPUVector})
     string(keystring, ";")
 end
 

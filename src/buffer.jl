@@ -1,6 +1,6 @@
 mutable struct Buffer{T} <: GPUArray{T, 1}
     id          ::GLuint
-    size        ::NTuple{1, Int}
+    size        ::Int
     buffertype  ::GLenum
     usage       ::GLenum
     context     ::AbstractContext
@@ -12,7 +12,7 @@ mutable struct Buffer{T} <: GPUArray{T, 1}
         glBufferData(buffertype, buff_length * sizeof(T), ptr, usage)
         glBindBuffer(buffertype, 0)
 
-        obj = new(id, (buff_length,), buffertype, usage, current_context())
+        obj = new(id, buff_length, buffertype, usage, current_context())
         obj
     end
 end
@@ -20,20 +20,23 @@ end
 function Buffer(
         buffer::DenseVector{T};
         buffertype::GLenum = GL_ARRAY_BUFFER, usage::GLenum = GL_STATIC_DRAW
-    ) where T <: GLArrayEltypes
+    ) where T
+    glasserteltype(T)
     GLBuffer{T}(pointer(buffer), length(buffer), buffertype, usage)
 end
 function Buffer(
         ::Type{T}, len::Int;
         buffertype::GLenum = GL_ARRAY_BUFFER, usage::GLenum = GL_STATIC_DRAW
-    ) where T <: GLArrayEltypes
+    ) where T 
+    glasserteltype(T)
     GLBuffer{T}(Ptr{T}(C_NULL), len, buffertype, usage)
 end
 
 function indexbuffer(
         buffer::Vector{T};
         usage::GLenum = GL_STATIC_DRAW
-    ) where T<:GLArrayEltypes
+    ) where T
+    glasserteltyp(T)
     Buffer(buffer, buffertype = GL_ELEMENT_ARRAY_BUFFER, usage=usage)
 end
 
@@ -186,3 +189,5 @@ function free(x::Buffer)
     end
     return
 end
+
+Base.length(buffer::Buffer) = buffer.size

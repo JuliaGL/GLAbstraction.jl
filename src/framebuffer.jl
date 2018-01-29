@@ -93,7 +93,8 @@ function FrameBuffer(fb_size::Tuple{<: Integer, <: Integer}, texture_types::NTup
     glBindFramebuffer(GL_FRAMEBUFFER, framebuffer)
     max_ca = glGetIntegerv(GL_MAX_COLOR_ATTACHMENTS)
 
-    invalid_types = filter(x -> !(x <: DepthFormat || x <: GLArrayEltypes), texture_types)
+    invalid_types = filter(x -> !(x <: DepthFormat), texture_types)
+    glassert.(texture_types)
     @assert isempty(invalid_types) "Types $invalid_types are not valid, supported types are:\n  $GLArrayEltypes\n  DepthFormat."
     if N > max_ca
         error("The length of texture types exceeds the maximum amount of framebuffer color attachments! Found: $N, allowed: $max_ca")
@@ -155,12 +156,11 @@ function draw(fb::FrameBuffer)
     glDrawBuffers(GLuint(length(color_attachments)), color_attachments)
 end
 
-function Base.clear!(fb::FrameBuffer, color::RGBA) 
-    glClearColor(GLfloat(color.r), GLfloat(color.g), GLfloat(color.b), GLfloat(color.alpha))
+function Base.clear!(fb::FrameBuffer, color) 
+    glClearColor(GLfloat(color[1]), GLfloat(color[2]), GLfloat(color[3]), GLfloat(color[4]))
     draw(fb)   
     glClear(GL_COLOR_BUFFER_BIT)
     glClear(GL_DEPTH_BUFFER_BIT)
 end
-clear!(fb::FrameBuffer, color::RGB{T}) where T = clear!(fb, RGBA(color.r, color.g, color.b, T(0.0)))
-clear!(fb::FrameBuffer) = clear!(fb, RGBA(0.0, 0.0, 0.0, 0.0))
+clear!(fb::FrameBuffer) = clear!(fb, (0.0, 0.0, 0.0, 0.0))
 
