@@ -1,7 +1,7 @@
 using GeometryTypes: Face
 
 
-function attach2vao(buffer::Buffer{T}, attrib_location) where T
+function attach2vao(buffer::Buffer{T}, attrib_location, instanced=false) where T
     bind(buffer)
     if !is_glsl_primitive(T)
         for i = 1:nfields(T)
@@ -12,6 +12,7 @@ function attach2vao(buffer::Buffer{T}, attrib_location) where T
                 GL_FALSE, sizeof(T), Ptr{Void}(fieldoffset(T, i))
             )
             glEnableVertexAttribArray(attrib_location)
+
             attrib_location += 1
         end
     else
@@ -22,9 +23,23 @@ function attach2vao(buffer::Buffer{T}, attrib_location) where T
             GL_FALSE, 0, C_NULL
         )
         glEnableVertexAttribArray(attrib_location)
+        if instanced
+            glVertexAttribDivisor(attrib_location, 1)
+        end
+        attrib_location += 1
     end
 end
-attach2vao(buffers::Vector{<:Buffer}, attrib_location) = attach2vao.(buffers, attrib_location)
+function attach2vao(buffers::Vector{<:Buffer}, attrib_location)
+#again I assume that the first buffer is the vertex buffer, this could be checked by vec3f0 or so but thats also not so robust
+    len = length(buffers[1])
+    for b in buffers
+        if length(b) != len
+            attach2vao(b, attrib_location, true)
+        else
+            attach2vao(b, attrib_location)
+        end
+    end
+end
 
 
 mutable struct VertexArray{Vertex, Face, IT}
@@ -85,7 +100,7 @@ function VertexArray(buffers::Vector{<:Buffer}, indices, attrib_location)
         vert_type = Tuple{eltype.((arrays...,))...}
     end
     #i assume that the first buffer has the length of vertices
-    obj = VertexArray{vert_type, face_type}(id, length(buffers[1]), indices, Symbol[])
+    obj = VertexArray{vert_type, face_type}(id, length(buffers[1]), indices, kind)
     obj
 end
 VertexArray(buffer::Buffer, args...) = VertexArray([buffer], args)
