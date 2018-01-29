@@ -12,7 +12,6 @@ function attach2vao(buffer::Buffer{T}, attrib_location, instanced=false) where T
                 GL_FALSE, sizeof(T), Ptr{Void}(fieldoffset(T, i))
             )
             glEnableVertexAttribArray(attrib_location)
-
             attrib_location += 1
         end
     else
@@ -41,18 +40,18 @@ function attach2vao(buffers::Vector{<:Buffer}, attrib_location)
     end
 end
 
-mutable struct VertexArray{Vertex, Face, IT}
+struct VertexArray{Vertex, Face, IT}
     id::GLuint
     nverts::Int
-    nprim::Int #this will be needed for instanced drawing
+    nprim::Int 
     indices::IT
-    kind::Symbol #this could change to a namedtuple on v0.7
+    kind::Symbol 
     context::AbstractContext
     function (::Type{VertexArray{Vertex, Face}}){Vertex, Face, IT}(id, bufferlength, indices::IT, kind)
         new{Vertex, Face, IT}(id, bufferlength, indices, kind, current_context())
     end
 end
-function VertexArray(buffers::Vector{<:Buffer}, indices, attrib_location)
+function VertexArray(buffers::Vector{<:Buffer}, indices, attrib_location=0)
     id = glGenVertexArrays()
     glBindVertexArray(id)
     face_type = if isa(indices, Buffer)
@@ -105,10 +104,8 @@ function VertexArray(buffers::Vector{<:Buffer}, indices, attrib_location)
 end
 VertexArray(buffer::Buffer, args...) = VertexArray([buffer], args)
 function VertexArray{T}(buffer::AbstractArray{T}, attrib_location = 0; face_type = gl_face_type(T))
-    VertexArray(Buffer(buffer), face_type, attrib_location)
+    VertexArray([Buffer(buffer)], face_type, attrib_location)
 end
-function VertexArray{T}(buffers::Vector{Buffer}, indices, attrib_location=0)
-
 
 function VertexArray{T, AT <: AbstractArray, IT <: AbstractArray}(
         view::SubArray{T, 1, AT, Tuple{IT}, false}, attrib_location = 0; face_type = nothing # TODO figure out better ways then ignoring face type

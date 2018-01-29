@@ -41,6 +41,7 @@ include("utils.jl")
 export @gputime # measures the time an OpenGL call takes on the GPU (usually OpenGL calls return immidiately)
 include("buffer.jl")
 include("texture.jl")
+include("framebuffer.jl")
 include("vertexarray.jl")
 include("uniformbuffer.jl")
 
@@ -48,6 +49,7 @@ include("shader/uniforms.jl")
 include("shader/shader.jl")
 include("shader/program.jl")
 include("shader/glsl_typenames.jl")
+include("renderpass.jl")
 include("conversions.jl")
 export gluniform                # wrapper of all the OpenGL gluniform functions, which call the correct gluniform function via multiple dispatch. Example: gluniform(location, x::Matrix4x4) = gluniformMatrix4fv(location, x)
 export toglsltype_string        # infers a glsl type string from a julia type. Example: Matrix4x4 -> uniform mat4
@@ -55,7 +57,6 @@ export toglsltype_string        # infers a glsl type string from a julia type. E
 # only difference to GLSL: first character is uppercase uppercase
 export gl_convert
 
-include("renderpass.jl")
 
 export Texture                  # Texture object, basically a 1/2/3D OpenGL data array
 export TextureParameters
@@ -81,8 +82,6 @@ export @comp_str #string macro for the different shader types.
 export @frag_str # with them you can write frag""" ..... """, returning shader object
 export @vert_str
 export @geom_str
-
-include("framebuffer.jl")
 
 dir(dirs...) = joinpath(dirname(@__FILE__), "..", dirs...)
 
