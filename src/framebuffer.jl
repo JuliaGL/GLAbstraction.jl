@@ -156,12 +156,10 @@ function draw(fb::FrameBuffer)
 end
 
 function Base.clear!(fb::FrameBuffer, color::RGBA) 
-    bind(fb)
     glClearColor(GLfloat(color.r), GLfloat(color.g), GLfloat(color.b), GLfloat(color.alpha))
     draw(fb)   
     glClear(GL_COLOR_BUFFER_BIT)
     glClear(GL_DEPTH_BUFFER_BIT)
-    unbind(fb)
 end
 clear!(fb::FrameBuffer, color::RGB{T}) where T = clear!(fb, RGBA(color.r, color.g, color.b, T(0.0)))
 clear!(fb::FrameBuffer) = clear!(fb, RGBA(0.0, 0.0, 0.0, 0.0))

@@ -9,7 +9,9 @@ end
 Pipeline(name::Symbol, rps::Vector{RenderPass}) = Pipeline(name, rps, current_context())
 
 function render(pipe::Pipeline, args...)
-    for pass in renderpasses
+    for pass in pipe.renderpasses
+        start(pass)
         pass.render(args...)
     end
+    stop(pipe.renderpasses[end])
 end

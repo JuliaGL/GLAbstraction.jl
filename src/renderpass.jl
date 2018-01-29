@@ -6,6 +6,7 @@ struct RenderPass
     program::Program
     target::FrameBuffer
     render::Function
+    override_start::Bool #might be useful if people don't want to clear their fbos or whatever
 end
 
 function RenderPass(name::Symbol, shaders::Vector{Tuple{Symbol, AbstractString}}, render_func::Function)
@@ -16,9 +17,22 @@ function RenderPass(name::Symbol, shaders::Vector{Tuple{Symbol, AbstractString}}
 
     prog   = Program(pass_shaders, Tuple{Int, String}[])
     target = contextfbo()
-    return RenderPass(name, prog, target, render_func)
+    return RenderPass(name, prog, target, render_func, false)
 end
 
+function start(rp::RenderPass)
+    if rp.override_start_stop
+        return
+    end
+    bind(rp.target)
+    clear!(rp.target)
+    bind(rp.program)
+end
+
+function stop(rp::RenderPass)
+    unbind(rp.target)
+    unbind(rp.program)
+end
 render(rp::RenderPass, args...) = rp.render(args...)
 
 

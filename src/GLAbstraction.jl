@@ -50,6 +50,7 @@ include("shader/shader.jl")
 include("shader/program.jl")
 include("shader/glsl_typenames.jl")
 include("renderpass.jl")
+include("pipeline.jl")
 include("conversions.jl")
 export gluniform                # wrapper of all the OpenGL gluniform functions, which call the correct gluniform function via multiple dispatch. Example: gluniform(location, x::Matrix4x4) = gluniformMatrix4fv(location, x)
 export toglsltype_string        # infers a glsl type string from a julia type. Example: Matrix4x4 -> uniform mat4
