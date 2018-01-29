@@ -1,28 +1,7 @@
 using GeometryTypes: Face
 
-mutable struct VertexArray{Vertex, Face, IT}
-    id::GLuint
-    length::Int
-    buffer::Vector
-    indices::IT
-    context::AbstractContext
-    function (::Type{VertexArray{Vertex, Face}}){Vertex, Face, IT}(id, bufferlength, buffers, indices::IT)
-        new{Vertex, Face, IT}(id, bufferlength, buffers, indices, current_context())
-    end
-end
-function VertexArray{T}(buffer::Buffer{T}, indices, attrib_location)
-    id = glGenVertexArrays()
-    glBindVertexArray(id)
-    face_type = if isa(indices, Buffer)
-        bind(indices)
-        eltype(indices)
-    elseif isa(indices, DataType) && indices <: Face
-        indices
-    elseif isa(indices, Integer)
-        Face{1, OffsetInteger{1, GLint}}
-    else
-        error("indices must be Int, Buffer or Face type")
-    end
+
+function attach2vao(buffer::Buffer{T}, attrib_location) where T
     bind(buffer)
     if !is_glsl_primitive(T)
         for i = 1:nfields(T)
@@ -44,13 +23,78 @@ function VertexArray{T}(buffer::Buffer{T}, indices, attrib_location)
         )
         glEnableVertexAttribArray(attrib_location)
     end
+end
+attach2vao(buffers::Vector{<:Buffer}, attrib_location) = attach2vao.(buffers, attrib_location)
+
+
+mutable struct VertexArray{Vertex, Face, IT}
+    id::GLuint
+    length::Int
+    indices::IT
+    kind::Symbol #this could change to a namedtuple on v0.7
+    context::AbstractContext
+    function (::Type{VertexArray{Vertex, Face}}){Vertex, Face, IT}(id, bufferlength, indices::IT, kind)
+        new{Vertex, Face, IT}(id, bufferlength, indices, kind, current_context())
+    end
+end
+function VertexArray(buffers::Vector{<:Buffer}, indices, attrib_location)
+    id = glGenVertexArrays()
+    glBindVertexArray(id)
+    face_type = if isa(indices, Buffer)
+        bind(indices)
+        eltype(indices)
+    elseif isa(indices, DataType) && indices <: Face
+        indices
+    # elseif isa(indices, Integer) #what is the idea behind this
+    #     Face{1, OffsetInteger{1, GLint}}
+    else
+        error("indices must be Int, Buffer or Face type")
+    end
+
+    #pretty convoluted and ugly but should work. Also I think this is robust?
+    kind = :elements
+    len1 = length(buffers[1])
+    len2 = 
+    for b in buffers
+        if len2 == 0
+            if length(b) == len
+                continue
+            else
+                len2 = length(b)
+                kind = :elements_instanced
+            end
+        else
+            if length(b) == len2
+                continue
+            else
+                error("Wrong size of buffer $b inside instanced vao of length(instances) = $len2")
+            end
+        end
+    end
+    
+    attach2vao(buffers, attrib_location) 
     glBindVertexArray(0)
-    obj = VertexArray{T, face_type}(id, length(buffer), [buffer], indices)
+
+    if length(buffers) == 1
+        if !is_glsl_primitive(eltype(buffers[1]))
+            vert_type = eltype(buffers[1])
+        else
+            vert_type = Tuple{eltype(buffers[1])}
+        end
+    else
+        vert_type = Tuple{eltype.((arrays...,))...}
+    end
+    #i assume that the first buffer has the length of vertices
+    obj = VertexArray{vert_type, face_type}(id, length(buffers[1]), indices, Symbol[])
     obj
 end
+VertexArray(buffer::Buffer, args...) = VertexArray([buffer], args)
 function VertexArray{T}(buffer::AbstractArray{T}, attrib_location = 0; face_type = gl_face_type(T))
     VertexArray(Buffer(buffer), face_type, attrib_location)
 end
+function VertexArray{T}(buffers::Vector{Buffer}, indices, attrib_location=0)
+
+
 function VertexArray{T, AT <: AbstractArray, IT <: AbstractArray}(
         view::SubArray{T, 1, AT, Tuple{IT}, false}, attrib_location = 0; face_type = nothing # TODO figure out better ways then ignoring face type
     )
@@ -79,6 +123,7 @@ is_glsl_primitive(T) = false
 
 _typeof{T}(::Type{T}) = Type{T}
 _typeof{T}(::T) = T
+
 function free(x::VertexArray)
     if !is_current_context(x.context)
         return # don't free from other context
@@ -91,11 +136,12 @@ function free(x::VertexArray)
     end
     return
 end
+
 function draw{V, T, IT <: Buffer}(vbo::VertexArray{V, T, IT})
     glDrawElements(
         gl_face_enum(vbo),
-        length(vbo.indices) * GLAbstraction.cardinality(vbo.indices),
-        GLAbstraction.julia2glenum(eltype(IT)), C_NULL
+        length(vbo.indices) * cardinality(vbo.indices),
+        julia2glenum(eltype(IT)), C_NULL
     )
 end
 function draw{V, T}(vbo::VertexArray{V, T, DataType})

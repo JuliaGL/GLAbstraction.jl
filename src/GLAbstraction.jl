@@ -55,7 +55,7 @@ export toglsltype_string        # infers a glsl type string from a julia type. E
 # only difference to GLSL: first character is uppercase uppercase
 export gl_convert
 
-include("renderobject.jl")
+include("renderpass.jl")
 
 export Texture                  # Texture object, basically a 1/2/3D OpenGL data array
 export TextureParameters

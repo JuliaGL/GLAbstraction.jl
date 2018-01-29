@@ -117,6 +117,11 @@ function FrameBuffer(fb_size::Tuple{<: Integer, <: Integer}, texture_types::NTup
     return FrameBuffer{Tuple{texture_types...}, typeof(attachments)}(framebuffer, attachments)
 end
 
+#quite possibly this should have some color attachments as well idk
+#quite possibly this should have some context as well....
+contextfbo() = FrameBuffer(GLuint(0), [])
+
+
 function attach2framebuffer(t::Texture{T, 2}, attachment) where T
     glFramebufferTexture2D(GL_FRAMEBUFFER, attachment, GL_TEXTURE_2D, t.id, 0)
 end
@@ -139,20 +144,25 @@ end
 
 bind(fb::FrameBuffer) = glBindFramebuffer(GL_FRAMEBUFFER, fb.id)
 unbind(fb::FrameBuffer) = glBindFramebuffer(GL_FRAMEBUFFER, 0)
-function Base.clear!(fb::FrameBuffer, color::RGBA) 
-    bind(fb)
-    glClearColor(GLfloat(color.r), GLfloat(color.g), GLfloat(color.b), GLfloat(color.alpha))
+
+function draw(fb::FrameBuffer)
     color_attachments = GLuint[]
-    println(eltype(fb))
     for typ in eltype(fb)[1]
         if !(typeof(typ) <: DepthFormat)
             push!(color_attachments, gl_color_attachment(length(color_attachments)))
         end
     end
     glDrawBuffers(GLuint(length(color_attachments)), color_attachments)
+end
+
+function Base.clear!(fb::FrameBuffer, color::RGBA) 
+    bind(fb)
+    glClearColor(GLfloat(color.r), GLfloat(color.g), GLfloat(color.b), GLfloat(color.alpha))
+    draw(fb)   
     glClear(GL_COLOR_BUFFER_BIT)
     glClear(GL_DEPTH_BUFFER_BIT)
     unbind(fb)
 end
 clear!(fb::FrameBuffer, color::RGB{T}) where T = clear!(fb, RGBA(color.r, color.g, color.b, T(0.0)))
 clear!(fb::FrameBuffer) = clear!(fb, RGBA(0.0, 0.0, 0.0, 0.0))
+
