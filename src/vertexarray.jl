@@ -41,10 +41,10 @@ function attach2vao(buffers::Vector{<:Buffer}, attrib_location)
     end
 end
 
-
 mutable struct VertexArray{Vertex, Face, IT}
     id::GLuint
-    length::Int
+    nverts::Int
+    nprim::Int #this will be needed for instanced drawing
     indices::IT
     kind::Symbol #this could change to a namedtuple on v0.7
     context::AbstractContext
@@ -69,9 +69,9 @@ function VertexArray(buffers::Vector{<:Buffer}, indices, attrib_location)
     #pretty convoluted and ugly but should work. Also I think this is robust?
     kind = :elements
     len1 = length(buffers[1])
-    len2 = 
+    len2 = 1
     for b in buffers
-        if len2 == 0
+        if len2 == 1
             if length(b) == len
                 continue
             else
@@ -100,7 +100,7 @@ function VertexArray(buffers::Vector{<:Buffer}, indices, attrib_location)
         vert_type = Tuple{eltype.((arrays...,))...}
     end
     #i assume that the first buffer has the length of vertices
-    obj = VertexArray{vert_type, face_type}(id, length(buffers[1]), indices, kind)
+    obj = VertexArray{vert_type, face_type}(id, len1, len2, indices, kind)
     obj
 end
 VertexArray(buffer::Buffer, args...) = VertexArray([buffer], args)
@@ -152,12 +152,15 @@ function free(x::VertexArray)
     return
 end
 
-function draw{V, T, IT <: Buffer}(vbo::VertexArray{V, T, IT})
-    glDrawElements(
-        gl_face_enum(vbo),
-        length(vbo.indices) * cardinality(vbo.indices),
-        julia2glenum(eltype(IT)), C_NULL
-    )
+function draw{V, T, IT <: Buffer}(vao::VertexArray{V, T, IT})
+    fenum    = gl_face_enum(vao)
+    totverts = vao.nverts * cardinality(vao.indices)
+    itype    = julia2glenum(eltype(IT))
+    if vao.kind == :elements_instanced
+        glDrawElementsInstanced(fenum, totverts, itype, C_NULL, vao.nprim)
+    else
+        glDrawElements(fenum, totverts, itype, C_NULL)
+    end
 end
 function draw{V, T}(vbo::VertexArray{V, T, DataType})
     glDrawArrays(gl_face_enum(vbo), 0, length(vbo))
