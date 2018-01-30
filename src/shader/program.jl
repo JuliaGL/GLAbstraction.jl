@@ -42,6 +42,14 @@ mutable struct Program <: AbstractProgram
     end
 end
 
+function Program(sh_string_typ...)
+    shaders = Shader[]
+    for (source, typ) in sh_string_typ
+        push!(shaders, Shader(gensym(), typ, Vector{UInt8}(source)))
+    end
+    Program(shaders, Tuple{Int, String}[])
+end
+    
 
 bind(program::Program) = glUseProgram(program.id)
 unbind(program::AbstractProgram) = glUseProgram(0)

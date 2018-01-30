@@ -47,14 +47,15 @@ struct VertexArray{Vertex, Kind}
     nprim::Int
     face::GLenum 
     context::AbstractContext
-    function (::Type{VertexArray{Vertex, Kind}} where {Vertex, Kind})(id, buffers, indices, nverts, nprim, face)
+    function (::Type{VertexArray{Vertex, Kind}})(id, buffers, indices, nverts, nprim, face) where {Vertex, Kind}
         new{Vertex, Kind}(id, buffers, indices, nverts, nprim, face, current_context())
     end
 end
-function VertexArray(buffers::Vector{<:Buffer}, indices::Union{Buffer{T}, Void}, face_length=1, attrib_location=0) where T
+function VertexArray(buffers::Vector{<:Buffer} where N, indices::Union{Buffer, Void}; face_length=1, attrib_location=0)
     # either integer with specified length or staticarrays
+    T = indices == nothing ? Int : eltype(indices)
     face = if T <: Integer
-        gl_face_emum(face_length)
+        gl_face_enum(face_length)
     else
         gl_face_enum(T)
     end
@@ -65,9 +66,10 @@ function VertexArray(buffers::Vector{<:Buffer}, indices::Union{Buffer{T}, Void},
     if indices == nothing
         kind = simple
     else
+        kind = elements
         for b in buffers
             if len2 == 1
-                if length(b) == len
+                if length(b) == len1
                     continue
                 else
                     len2 = length(b)
@@ -92,29 +94,41 @@ function VertexArray(buffers::Vector{<:Buffer}, indices::Union{Buffer{T}, Void},
             vert_type = Tuple{eltype(buffers[1])}
         end
     else
-        vert_type = Tuple{eltype.((arrays...,))...}
+        vert_type = Tuple{eltype.((buffers...,))...}
     end
     #i assume that the first buffer has the length of vertices
-    obj = VertexArray{vert_type, kind}(id,kind,vert_type,buffers,indices, len1, len2, face)
+    obj = VertexArray{vert_type, kind}(id, buffers, indices, len1, len2, face)
     obj
 end
-VertexArray(buffer::Buffer, args...) = VertexArray([buffer], args...)
+VertexArray(buffer::Buffer; args...) = VertexArray((buffer), nothing; args...)
+VertexArray(buffer::Buffer, indices; args...) = VertexArray((buffer), indices; args...)
+VertexArray(buffers::Vector{<:Buffer} ; args...) = VertexArray(buffers, nothing; args...)
 
-function VertexArray(data::Vector{<:AbstractArray}, indices::Vector, args...)
-    buffers = Buffer.(data)
-    ind_buffer= Buffer(indices)
-    return VertexArray(buffers, ind_buffer, args...)
+function VertexArray(data::Tuple, indices::Vector; args...)
+    if all(x-> isa(x, Vector), data)
+        gpu_data = [Buffer.(data)...]
+        gpu_inds = Buffer(indices)
+        VertexArray(gpu_data, gpu_inds; args...)
+    else
+        VertexArray([Buffer([data...])], Buffer(indices); args...)
+    end
 end
-
-VertexArray(data::Vector{<:AbstractArray}, args...) = VertexArray(Buffer.(data), nothing, args...)
-VertexArray(data::AbstractArray, args...) = VertexArray([Buffer(data)], nothing, args...)
+function VertexArray(data::Tuple; args...)
+    if all(x-> isa(x, Vector), data)
+        gpu_data = [Buffer.(data)...]
+        VertexArray(gpu_data, nothing; args...)
+    else
+        VertexArray([Buffer([data...])], nothing; args...)
+    end
+end
+VertexArray(data... ; args...) = VertexArray(data; args...)
 
 # TODO
 Base.convert(::Type{VertexArray}, x) = VertexArray(x)
 Base.convert(::Type{VertexArray}, x::VertexArray) = x
 
 function gl_face_enum(face)
-    face_length = typeof(face) <: Integer ? face : length(face)
+    facelength = typeof(face) <: Integer ? face : length(face)
     if facelength == 1
         return GL_POINTS
     elseif facelength == 2
@@ -129,7 +143,10 @@ end
 is_struct{T}(::Type{T}) = !(sizeof(T) != 0 && nfields(T) == 0)
 # is_glsl_primitive{T <: StaticVector}(::Type{T}) = true
 is_glsl_primitive{T <: Union{Float32, Int32}}(::Type{T}) = true
-is_glsl_primitive(T) = false
+function is_glsl_primitive(T)
+    glasserteltype(T)
+    true
+end
 
 _typeof{T}(::Type{T}) = Type{T}
 _typeof{T}(::T) = T
@@ -150,7 +167,18 @@ end
 glitype(vao::VertexArray) = julia2glenum(eltype(vao.indices))
 totverts(vao::VertexArray) = vao.nverts * cardinality(vao.indices)
 
+bind(vao::VertexArray) = glBindVertexArray(vao.id)
+unbind(vao::VertexArray) = glBindVertexArray(0)
+
 draw(vao::VertexArray{V, elements} where V) = glDrawElements(vao.face, totverts(vao), glitype(vao), C_NULL)
 draw(vao::VertexArray{V, elements_instanced} where V) = glDrawElementsInstanced(vao.face, totverts(vao), glitype(vao), C_NULL, vao.nprim)
 
 draw(vao::VertexArray{V, simple} where V) = glDrawArrays(vao.face, 0, totverts(vao))
+
+function Base.show(io::IO, vao::VertexArray)
+    fields = filter(x->String(x) != "buffers", fieldnames(vao))
+    for field in fields
+        show(io, getfield(vao, field))
+        println(io,"")
+    end
+end
