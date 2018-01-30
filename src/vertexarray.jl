@@ -1,3 +1,4 @@
+# the instanced ones assume that there is at least one buffer with the vertextype (=has fields, bit whishy washy) and the others are the instanced things 
 function attach2vao(buffer::Buffer{T}, attrib_location, instanced=false) where T
     bind(buffer)
     if !is_glsl_primitive(T)
@@ -6,7 +7,7 @@ function attach2vao(buffer::Buffer{T}, attrib_location, instanced=false) where T
             glVertexAttribPointer(
                 attrib_location,
                 cardinality(FT), julia2glenum(ET),
-                GL_FALSE, sizeof(T), Ptr{Void}(fieldoffset(T, i))
+                GL_FALSE, sizeof(T), Ptr{Void}(fieldoffset(T, i)) # the fieldoffset is because here we have one buffer having all the attributes
             )
             glEnableVertexAttribArray(attrib_location)
             attrib_location += 1
@@ -24,17 +25,19 @@ function attach2vao(buffer::Buffer{T}, attrib_location, instanced=false) where T
         end
         attrib_location += 1
     end
+    return attrib_location
 end
 function attach2vao(buffers::Vector{<:Buffer}, attrib_location)
-#again I assume that the first buffer is the vertex buffer, this could be checked by vec3f0 or so but thats also not so robust
+    #again I assume that the first buffer is the vertex buffer, this could be checked by vec3f0 or so but thats also not so robust
     len = length(buffers[1])
     for b in buffers
         if length(b) != len
-            attach2vao(b, attrib_location, true)
+            attrib_location = attach2vao(b, attrib_location, true)
         else
-            attach2vao(b, attrib_location)
+            attrib_location = attach2vao(b, attrib_location)
         end
     end
+    return attrib_location
 end
 
 @enum VaoKind simple elements elements_instanced
