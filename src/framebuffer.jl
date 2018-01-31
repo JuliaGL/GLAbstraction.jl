@@ -58,6 +58,18 @@ function RenderBuffer(depth_format, dimensions)
     return RenderBuffer(gl_internal_format(depth_format), gl_attachment(depth_format), dimensions)
 end
 
+function free!(rb::RenderBuffer)
+    if !is_current_context(rb.context)
+        return
+    end
+    id = [rb.id]
+    try 
+        glDeleteRenderbuffers(1, id)
+    catch e
+        free_handle_error(e)
+    end
+    return
+end
 
 Base.bind(b::RenderBuffer) = glBindRenderbuffer(GL_RENDERBUFFER, b.id)
 unbind(b::RenderBuffer) = glBindRenderbuffer(GL_RENDERBUFFER, b.id)
@@ -163,4 +175,23 @@ function Base.clear!(fb::FrameBuffer, color)
     glClear(GL_DEPTH_BUFFER_BIT)
 end
 Base.clear!(fb::FrameBuffer) = clear!(fb, (0.0, 0.0, 0.0, 0.0))
+
+function free!(fb::FrameBuffer)
+    if isempty(fb.attachments)
+        return
+    end
+    if !is_current_context(fb.attachments[1].context)
+        return # don't free from other context
+    end
+    for attachment in fb.attachments
+        free!(attachment)
+    end
+    id = [fb.id]
+    try
+        glDeleteFramebuffers(1, id)
+    catch e
+        free_handle_error(e)
+    end
+    return
+end
 

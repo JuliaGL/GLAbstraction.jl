@@ -409,7 +409,7 @@ function similar(t::Texture{T, NDim}, newdims::NTuple{NDim, Int}) where {T, NDim
     )
 end
 
-function free(x::Texture)
+function free!(x::Texture)
     if !is_current_context(x.context)
         return # don't free from other context
     end

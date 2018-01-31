@@ -183,7 +183,7 @@ end
 # OpenGL has the annoying habit of reusing id's when creating a new context
 # We need to make sure to only free the current one
 
-function free(x::Buffer)
+function free!(x::Buffer)
     if !is_current_context(x.context)
         return # don't free from other context
     end

@@ -15,3 +15,12 @@ function render(pipe::Pipeline, args...)
     end
     stop(pipe.passes[end])
 end
+
+function free!(pipe::Pipeline)
+    if !is_current_context(pipe.context)
+        return
+    end
+    for pass in pipe.passes
+        free!(pass)
+    end
+end

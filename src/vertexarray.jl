@@ -155,11 +155,17 @@ end
 _typeof{T}(::Type{T}) = Type{T}
 _typeof{T}(::T) = T
 
-function free(x::VertexArray)
+function free!(x::VertexArray)
     if !is_current_context(x.context)
         return # don't free from other context
     end
     id = [x.id]
+    for buffer in x.buffers
+        free!(buffer)
+    end
+    if x.indices != nothing
+        free!(x.indices)
+    end
     try
         glDeleteVertexArrays(1, id)
     catch e
@@ -171,12 +177,7 @@ end
 glitype(vao::VertexArray) = julia2glenum(eltype(vao.indices))
 totverts(vao::VertexArray) = vao.nverts 
 
-function Base.bind(vao::VertexArray)
-    glBindVertexArray(vao.id)
-    if vao.indices != nothing
-        bind(vao.indices)
-    end
-end
+Base.bind(vao::VertexArray) = glBindVertexArray(vao.id)
 unbind(vao::VertexArray) = glBindVertexArray(0)
 
 #does this ever work with anything aside from an unsigned int??
@@ -187,7 +188,7 @@ draw(vao::VertexArray{V, elements_instanced} where V) = glDrawElementsInstanced(
 draw(vao::VertexArray{V, simple} where V) = glDrawArrays(vao.face, 0, totverts(vao))
 
 function Base.show(io::IO, vao::VertexArray)
-    fields = filter(x->String(x) != "buffers", fieldnames(vao))
+    fields = filter(x->x != :buffers && x!=:indices, fieldnames(vao))
     for field in fields
         show(io, getfield(vao, field))
         println(io,"")
