@@ -3,15 +3,16 @@
 struct Pipeline
     name::Symbol
     passes::Vector{RenderPass}
-    context::Context
+    context::AbstractContext
 end
 
 Pipeline(name::Symbol, rps::Vector{RenderPass}) = Pipeline(name, rps, current_context())
 
 function render(pipe::Pipeline, args...)
-    for pass in pipe.renderpasses
+    for pass in pipe.passes
         start(pass)
-        pass.render(args...)
+        pass(pipe.context, args...)
     end
-    stop(pipe.renderpasses[end])
+    stop(pipe.passes[end])
+    swapbuffers(pipe.context)
 end

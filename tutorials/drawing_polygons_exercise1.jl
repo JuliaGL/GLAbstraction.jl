@@ -11,7 +11,6 @@ glBindVertexArray(vao)
 vertex_positions = Point{2,Float32}[(-0.5,  0.5),     # top-left
                                     ( 0.5,  0.5),     # top-right
                                     ( 0.0, -0.5)]     # bottom-center
-
 # The vertex shader---note the `vert` in front of """
 vertex_shader = vert"""
 #version 150

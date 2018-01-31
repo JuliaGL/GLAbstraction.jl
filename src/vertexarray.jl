@@ -54,11 +54,11 @@ struct VertexArray{Vertex, Kind}
         new{Vertex, Kind}(id, buffers, indices, nverts, nprim, face, current_context())
     end
 end
-function VertexArray(buffers::Vector{<:Buffer} where N, indices::Union{Buffer, Void}; face_length=1, attrib_location=0)
+function VertexArray(buffers::Vector{<:Buffer} where N, indices::Union{Buffer, Void}; facelength=1, attrib_location=0)
     # either integer with specified length or staticarrays
     T = indices == nothing ? Int : eltype(indices)
     face = if T <: Integer
-        gl_face_enum(face_length)
+        gl_face_enum(facelength)
     else
         gl_face_enum(T)
     end

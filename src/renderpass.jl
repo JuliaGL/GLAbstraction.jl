@@ -1,31 +1,37 @@
 
 #Do we really need the context if it is already in frambuffer and program?
-struct RenderPass
+struct RenderPass{Name}
     # id::Int
     name::Symbol
     program::Program
     target::FrameBuffer
-    render::Function
-    override_start::Bool #might be useful if people don't want to clear their fbos or whatever
+    # render::Function
 end
-
-function RenderPass(name::Symbol, shaders::Vector{Tuple{Symbol, AbstractString}}, render_func::Function)
+"RednerPass that renders directly to the current context."
+function RenderPass(name::Symbol, shaders::Vector{Tuple{Symbol, AbstractString}})
     pass_shaders = Shader[]
-    for (name, source) in shaders
-        push!(pass_shaders, Shader(name, shadertype(name), Vector{UInt8}(source)))
+    for (shname, source) in shaders
+        push!(pass_shaders, Shader(shname, shadertype(shname), Vector{UInt8}(source)))
     end
 
     prog   = Program(pass_shaders, Tuple{Int, String}[])
     target = contextfbo()
-    return RenderPass(name, prog, target, render_func, false)
+    return RenderPass{name}(name, prog, target)
+end
+function RenderPass(name::Symbol, shaders::Vector{Tuple{String, UInt32}})
+    pass_shaders = Shader[]
+    for (source, typ) in shaders
+        push!(pass_shaders, Shader(gensym(), typ, Vector{UInt8}(source)))
+    end
+
+    prog   = Program(pass_shaders, Tuple{Int, String}[])
+    target = contextfbo()
+    return RenderPass{name}(name, prog, target)
 end
 
 function start(rp::RenderPass)
-    if rp.override_start_stop
-        return
-    end
     bind(rp.target)
-    clear!(rp.target)
+    # clear!(rp.target)
     bind(rp.program)
 end
 
@@ -33,6 +39,6 @@ function stop(rp::RenderPass)
     unbind(rp.target)
     unbind(rp.program)
 end
-render(rp::RenderPass, args...) = rp.render(args...)
+# render(rp::RenderPass, args...) = rp.render(args...)
 
 
