@@ -33,7 +33,7 @@ function Shader(path::String, source_str::AbstractString)
     typ = shadertype(query(path))
     source = Vector{UInt8}(source_str)
     name = Symbol(path)
-    Shader(source, typ, name)
+    Shader(name, typ, source)
 end
 Shader(path::File{format"GLSLShader"}) = load(path)
 

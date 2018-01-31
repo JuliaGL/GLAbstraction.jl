@@ -8,15 +8,17 @@ struct RenderPass{Name}
     # render::Function
 end
 "RednerPass that renders directly to the current context."
+function RenderPass(name::Symbol, shaders::Vector{Shader})
+    prog   = Program(shaders, Tuple{Int, String}[])
+    target = contextfbo()
+    return RenderPass{name}(name, prog, target)
+end
 function RenderPass(name::Symbol, shaders::Vector{Tuple{Symbol, AbstractString}})
     pass_shaders = Shader[]
     for (shname, source) in shaders
         push!(pass_shaders, Shader(shname, shadertype(shname), Vector{UInt8}(source)))
     end
-
-    prog   = Program(pass_shaders, Tuple{Int, String}[])
-    target = contextfbo()
-    return RenderPass{name}(name, prog, target)
+    return RenderPass(name, shaders)
 end
 function RenderPass(name::Symbol, shaders::Vector{Tuple{String, UInt32}})
     pass_shaders = Shader[]

@@ -194,3 +194,5 @@ function Base.show(io::IO, vao::VertexArray)
         println(io,"")
     end
 end
+
+Base.eltype(::Type{VertexArray{ElTypes, Kind}}) where {ElTypes, Kind} = (ElTypes, Kind)
