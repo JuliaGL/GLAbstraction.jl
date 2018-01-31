@@ -99,7 +99,7 @@ function Base.setindex!{T, N}(buffer::UniformBuffer{T, N}, element::T, idx::Inte
         unsafe_copy!(dptr + offset, ptr, size)
     end
     glUnmapBuffer(buff.buffertype)
-    bind(buff, 0)
+    Base.bind(buff, 0)
     element
 end
 
@@ -148,7 +148,7 @@ extract_val(::Val{X}) where X = X
 #         pointer_from_objref(val)
 #     end
 #     buff = x.buffer
-#     bind(buff) do
+#     Base.bind(buff) do
 #         BufferSubData(buff.buffertype, x.offsets[index], sizeof(val_conv), val_ref)
 #     end
 #     x
@@ -161,7 +161,7 @@ extract_val(::Val{X}) where X = X
 #     end
 #     ET = fieldtype(T, index)
 #     val_ref = Ref{ET}()
-#     bind(x.buffer) do
+#     Base.bind(x.buffer) do
 #         glGetBufferSubData(x.buffer.buffertype, x.offsets[index], sizeof(ET), val_ref)
 #     end
 #     val_ref[]

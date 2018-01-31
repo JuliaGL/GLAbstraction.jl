@@ -51,7 +51,7 @@ function Program(sh_string_typ...)
 end
     
 
-bind(program::Program) = glUseProgram(program.id)
+Base.bind(program::Program) = glUseProgram(program.id)
 unbind(program::AbstractProgram) = glUseProgram(0)
 
 mutable struct LazyProgram <: AbstractProgram
@@ -66,9 +66,9 @@ function Program(lazy_program::LazyProgram)
     shaders = haskey(lazy_program.data, :arguments) ? Shader.(lazy_program.sources, Ref(lazy_program.data[:arguments])) : Shader.()
     return Program([shaders...], fragdatalocation)
 end
-function bind(program::LazyProgram)
+function Base.bind(program::LazyProgram)
     iscompiled_orcompile!(program)
-    bind(program.compiled_program)
+    Base.bind(program.compiled_program)
 end
 
 function iscompiled_orcompile!(program::LazyProgram)

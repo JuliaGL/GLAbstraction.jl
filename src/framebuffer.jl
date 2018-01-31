@@ -59,11 +59,11 @@ function RenderBuffer(depth_format, dimensions)
 end
 
 
-bind(b::RenderBuffer) = glBindRenderbuffer(GL_RENDERBUFFER, b.id)
+Base.bind(b::RenderBuffer) = glBindRenderbuffer(GL_RENDERBUFFER, b.id)
 unbind(b::RenderBuffer) = glBindRenderbuffer(GL_RENDERBUFFER, b.id)
 
 function resize_nocopy!(b::RenderBuffer, dimensions)
-    bind(b)
+    Base.bind(b)
     glRenderbufferStorage(GL_RENDERBUFFER, b.format, dimensions...)
 end
 
@@ -143,7 +143,7 @@ function Base.resize!(fb::FrameBuffer, dimensions)
     nothing
 end
 
-bind(fb::FrameBuffer) = glBindFramebuffer(GL_FRAMEBUFFER, fb.id)
+Base.bind(fb::FrameBuffer) = glBindFramebuffer(GL_FRAMEBUFFER, fb.id)
 unbind(fb::FrameBuffer) = glBindFramebuffer(GL_FRAMEBUFFER, 0)
 
 function draw(fb::FrameBuffer)

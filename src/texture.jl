@@ -282,14 +282,14 @@ end
 is_texturearray(t::Texture) = t.texturetype == GL_TEXTURE_2D_ARRAY
 is_texturebuffer(t::Texture) = t.texturetype == GL_TEXTURE_BUFFER
 
-bind(t::Texture) = glBindTexture(t.texturetype, t.id)
-bind(t::Texture, id) = glBindTexture(t.texturetype, id)
+Base.bind(t::Texture) = glBindTexture(t.texturetype, t.id)
+Base.bind(t::Texture, id) = glBindTexture(t.texturetype, id)
 
 function resize_nocopy!(t::Texture{T, ND}, newdims::NTuple{ND, Int}) where {T, ND}
-    bind(t)
+    Base.bind(t)
     glTexImage(t.texturetype, 0, t.internalformat, newdims..., 0, t.format, t.pixeltype, C_NULL)
     t.size = newdims
-    bind(t, 0)
+    Base.bind(t, 0)
     t
 end
 
@@ -335,9 +335,9 @@ function gpu_data(t::Texture{T, ND}) where {T, ND}
 end
 
 function Base.unsafe_copy!(dest::Array{T, N}, source::Texture{T, N}) where {T,N}
-    bind(source)
+    Base.bind(source)
     glGetTexImage(source.texturetype, 0, source.format, source.pixeltype, dest)
-    bind(source, 0)
+    Base.bind(source, 0)
     nothing
 end
 
@@ -391,11 +391,11 @@ function texparameter(t::Texture, key::GLenum, val::Float32)
     glTexParameterf(t.texturetype, key, val)
 end
 function set_parameters(t::Texture, parameters::Vector{Tuple{GLenum, Any}})
-    bind(t)
+    Base.bind(t)
     for elem in parameters
         texparameter(t, elem...)
     end
-    bind(t, 0)
+    Base.bind(t, 0)
 end
 
 function similar(t::Texture{T, NDim}, newdims::NTuple{NDim, Int}) where {T, NDim}

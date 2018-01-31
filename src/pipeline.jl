@@ -11,8 +11,7 @@ Pipeline(name::Symbol, rps::Vector{RenderPass}) = Pipeline(name, rps, current_co
 function render(pipe::Pipeline, args...)
     for pass in pipe.passes
         start(pass)
-        pass(pipe.context, args...)
+        pass(args...)
     end
     stop(pipe.passes[end])
-    swapbuffers(pipe.context)
 end

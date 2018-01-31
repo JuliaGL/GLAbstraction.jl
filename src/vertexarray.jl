@@ -1,6 +1,6 @@
 # the instanced ones assume that there is at least one buffer with the vertextype (=has fields, bit whishy washy) and the others are the instanced things 
 function attach2vao(buffer::Buffer{T}, attrib_location, instanced=false) where T
-    bind(buffer)
+    Base.bind(buffer)
     if !is_glsl_primitive(T)
         for i = 1:nfields(T)
             FT = fieldtype(T, i); ET = eltype(FT)
@@ -56,14 +56,15 @@ struct VertexArray{Vertex, Kind}
 end
 function VertexArray(buffers::Vector{<:Buffer} where N, indices::Union{Buffer, Void}; facelength=1, attrib_location=0)
     # either integer with specified length or staticarrays
-    T = indices == nothing ? Int : eltype(indices)
+    id = glGenVertexArrays()
+    glBindVertexArray(id)
+    T = indices == nothing ? Int32 : eltype(indices)
     face = if T <: Integer
         gl_face_enum(facelength)
     else
+        bind(indices)
         gl_face_enum(T)
     end
-    id = glGenVertexArrays()
-    glBindVertexArray(id)
     len1 = length(buffers[1])
     len2 = 1
     if indices == nothing
@@ -110,10 +111,10 @@ VertexArray(buffers::Vector{<:Buffer} ; args...) = VertexArray(buffers, nothing;
 function VertexArray(data::Tuple, indices::Vector; args...)
     if all(x-> isa(x, Vector), data)
         gpu_data = [Buffer.(data)...]
-        gpu_inds = Buffer(indices)
+        gpu_inds = indexbuffer(indices)
         VertexArray(gpu_data, gpu_inds; args...)
     else
-        VertexArray([Buffer([data...])], Buffer(indices); args...)
+        VertexArray([Buffer([data...])], indexbuffer(indices); args...)
     end
 end
 function VertexArray(data::Tuple; args...)
@@ -168,12 +169,19 @@ function free(x::VertexArray)
 end
 
 glitype(vao::VertexArray) = julia2glenum(eltype(vao.indices))
-totverts(vao::VertexArray) = vao.nverts * cardinality(vao.indices)
+totverts(vao::VertexArray) = vao.nverts 
 
-bind(vao::VertexArray) = glBindVertexArray(vao.id)
+function Base.bind(vao::VertexArray)
+    glBindVertexArray(vao.id)
+    if vao.indices != nothing
+        bind(vao.indices)
+    end
+end
 unbind(vao::VertexArray) = glBindVertexArray(0)
 
-draw(vao::VertexArray{V, elements} where V) = glDrawElements(vao.face, totverts(vao), glitype(vao), C_NULL)
+#does this ever work with anything aside from an unsigned int??
+draw(vao::VertexArray{V, elements} where V) = glDrawElements(vao.face, totverts(vao), GL_UNSIGNED_INT, C_NULL)
+
 draw(vao::VertexArray{V, elements_instanced} where V) = glDrawElementsInstanced(vao.face, totverts(vao), glitype(vao), C_NULL, vao.nprim)
 
 draw(vao::VertexArray{V, simple} where V) = glDrawArrays(vao.face, 0, totverts(vao))
