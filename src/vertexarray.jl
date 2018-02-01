@@ -1,4 +1,4 @@
-# the instanced ones assume that there is at least one buffer with the vertextype (=has fields, bit whishy washy) and the others are the instanced things 
+# the instanced ones assume that there is at least one buffer with the vertextype (=has fields, bit whishy washy) and the others are the instanced things
 function attach2vao(buffer::Buffer{T}, attrib_location, instanced=false) where T
     Base.bind(buffer)
     if !is_glsl_primitive(T)
@@ -48,7 +48,7 @@ struct VertexArray{Vertex, Kind}
     indices::Union{Buffer, Void}
     nverts::Int #might be redundant but whatever
     nprim::Int
-    face::GLenum 
+    face::GLenum
     context::AbstractContext
     function (::Type{VertexArray{Vertex, Kind}})(id, buffers, indices, nverts, nprim, face) where {Vertex, Kind}
         new{Vertex, Kind}(id, buffers, indices, nverts, nprim, face, current_context())
@@ -88,7 +88,7 @@ function VertexArray(buffers::Vector{<:Buffer} where N, indices::Union{Buffer, V
             end
         end
     end
-    attach2vao(buffers, attrib_location) 
+    attach2vao(buffers, attrib_location)
     glBindVertexArray(0)
 
     if length(buffers) == 1
@@ -157,7 +157,7 @@ _typeof{T}(::T) = T
 
 function free!(x::VertexArray)
     if !is_current_context(x.context)
-        return # don't free from other context
+        return x
     end
     id = [x.id]
     for buffer in x.buffers
@@ -175,7 +175,7 @@ function free!(x::VertexArray)
 end
 
 glitype(vao::VertexArray) = julia2glenum(eltype(vao.indices))
-totverts(vao::VertexArray) = vao.nverts 
+totverts(vao::VertexArray) = vao.nverts
 
 Base.bind(vao::VertexArray) = glBindVertexArray(vao.id)
 unbind(vao::VertexArray) = glBindVertexArray(0)

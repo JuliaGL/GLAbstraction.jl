@@ -33,7 +33,7 @@ end
 function Buffer(
         ::Type{T}, len::Int;
         buffertype::GLenum = GL_ARRAY_BUFFER, usage::GLenum = GL_STATIC_DRAW
-    ) where T 
+    ) where T
     glasserteltype(T)
     Buffer{T}(Ptr{T}(C_NULL), len, buffertype, usage)
 end
@@ -185,7 +185,7 @@ end
 
 function free!(x::Buffer)
     if !is_current_context(x.context)
-        return # don't free from other context
+        return x
     end
     id = [x.id]
     try

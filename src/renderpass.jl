@@ -43,7 +43,9 @@ function stop(rp::RenderPass)
 end
 # render(rp::RenderPass, args...) = rp.render(args...)
 
+
 function free!(rp::RenderPass)
     free!(rp.program)
     free!(rp.target)
+    return
 end

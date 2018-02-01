@@ -34,7 +34,7 @@ mutable struct Program <: AbstractProgram
                 join(map(x-> string(x.name), shaders), " or "), "\n", getinfolog(program)
             )
         end
-        
+
         # generate the link locations
         nametypedict = uniform_nametype(program)
         uniformlocationdict = uniformlocations(nametypedict, program)
@@ -49,7 +49,7 @@ function Program(sh_string_typ...)
     end
     Program(shaders, Tuple{Int, String}[])
 end
-    
+
 
 Base.bind(program::Program) = glUseProgram(program.id)
 unbind(program::AbstractProgram) = glUseProgram(0)
@@ -84,7 +84,7 @@ end
 # We need to make sure to only free the current one
 function free!(x::Program)
     if !is_current_context(x.context)
-        return # don't free from other context
+        return x
     end
     try
         glDeleteProgram(x.id)
@@ -264,7 +264,18 @@ function uniformlocations(nametypedict::Dict{Symbol, GLenum}, program)
     return result
 end
 
-
+function istexturesampler(typ::GLenum)
+    return (
+        typ == GL_SAMPLER_BUFFER || typ == GL_INT_SAMPLER_BUFFER || typ == GL_UNSIGNED_INT_SAMPLER_BUFFER ||
+    	typ == GL_IMAGE_2D ||
+        typ == GL_SAMPLER_1D || typ == GL_SAMPLER_2D || typ == GL_SAMPLER_3D ||
+        typ == GL_UNSIGNED_INT_SAMPLER_1D || typ == GL_UNSIGNED_INT_SAMPLER_2D || typ == GL_UNSIGNED_INT_SAMPLER_3D ||
+        typ == GL_INT_SAMPLER_1D || typ == GL_INT_SAMPLER_2D || typ == GL_INT_SAMPLER_3D ||
+        typ == GL_SAMPLER_1D_ARRAY || typ == GL_SAMPLER_2D_ARRAY ||
+        typ == GL_UNSIGNED_INT_SAMPLER_1D_ARRAY || typ == GL_UNSIGNED_INT_SAMPLER_2D_ARRAY ||
+        typ == GL_INT_SAMPLER_1D_ARRAY || typ == GL_INT_SAMPLER_2D_ARRAY
+    )
+end
 
 function infolog(program::Program)
     # Get the maximum possible length for the descriptive error message
@@ -282,6 +293,3 @@ function infolog(program::Program)
         return "success"
     end
 end
-
-
-

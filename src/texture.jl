@@ -189,7 +189,7 @@ function Texture(
         texturetype::GLenum    = GL_TEXTURE_2D_ARRAY,
         format::GLenum         = default_colorformat(T),
         parameters...
-    ) where T 
+    ) where T
     glasserteltype(T)
     texparams = TextureParameters(T, 2; parameters...)
     id = glGenTextures()
@@ -411,7 +411,7 @@ end
 
 function free!(x::Texture)
     if !is_current_context(x.context)
-        return # don't free from other context
+        return x
     end
     id = [x.id]
     try

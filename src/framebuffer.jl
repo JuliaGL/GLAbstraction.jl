@@ -60,10 +60,10 @@ end
 
 function free!(rb::RenderBuffer)
     if !is_current_context(rb.context)
-        return
+        return rb
     end
     id = [rb.id]
-    try 
+    try
         glDeleteRenderbuffers(1, id)
     catch e
         free_handle_error(e)
@@ -168,9 +168,9 @@ function draw(fb::FrameBuffer)
     glDrawBuffers(GLuint(length(color_attachments)), color_attachments)
 end
 
-function Base.clear!(fb::FrameBuffer, color) 
+function Base.clear!(fb::FrameBuffer, color)
     glClearColor(GLfloat(color[1]), GLfloat(color[2]), GLfloat(color[3]), GLfloat(color[4]))
-    draw(fb)   
+    draw(fb)
     glClear(GL_COLOR_BUFFER_BIT)
     glClear(GL_DEPTH_BUFFER_BIT)
 end
@@ -181,7 +181,7 @@ function free!(fb::FrameBuffer)
         return
     end
     if !is_current_context(fb.attachments[1].context)
-        return # don't free from other context
+        return fb # don't free from other context
     end
     for attachment in fb.attachments
         free!(attachment)
@@ -194,4 +194,3 @@ function free!(fb::FrameBuffer)
     end
     return
 end
-

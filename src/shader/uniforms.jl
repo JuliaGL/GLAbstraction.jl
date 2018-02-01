@@ -23,8 +23,8 @@ end
 
 @generated function gluniform(location::Integer, x::Vector{FSA}) where FSA
     glasserteltype(eltype(FSA))
-    func = uniformfunc(eltype(FSA), _size(FSA))
-    callexpr = if _ndims(FSA) == 2
+    func = uniformfunc(eltype(FSA), size(FSA))
+    callexpr = if ndims(FSA) == 2
         :($func(location, length(x), GL_FALSE, xref))
     else
         :($func(location, length(x), xref))
