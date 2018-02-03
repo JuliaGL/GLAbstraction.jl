@@ -100,8 +100,9 @@ function VertexArray(buffers::Vector{<:Buffer} where N, indices::Union{Buffer, V
     else
         vert_type = Tuple{eltype.((buffers...,))...}
     end
+    totverts = indices == nothing ? len1 : length(indices) * cardinality(eltype(indices))
     #i assume that the first buffer has the length of vertices
-    obj = VertexArray{vert_type, kind}(id, buffers, indices, length(indices)*cardinality(eltype(indices)), len2, face)
+    obj = VertexArray{vert_type, kind}(id, buffers, indices, totverts, len2, face)
     obj
 end
 VertexArray(buffer::Buffer; args...) = VertexArray((buffer), nothing; args...)
