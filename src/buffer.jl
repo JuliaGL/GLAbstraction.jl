@@ -1,6 +1,6 @@
 mutable struct Buffer{T} <: GPUArray{T, 1}
     id          ::GLuint
-    size        ::Int
+    length        ::Int
     buffertype  ::GLenum
     usage       ::GLenum
     context     ::AbstractContext
@@ -76,7 +76,7 @@ function gpu_resize!(buffer::Buffer{T}, newdims::NTuple{1, Int}) where T
     Base.bind(buffer)
     glBufferData(buffer.buffertype, newlength*sizeof(T), C_NULL, buffer.usage)
     Base.bind(buffer, 0)
-    buffer.size = newdims
+    buffer.length = newdims
     if oldlen>0
         max_len = min(length(old_data), newlength) #might also shrink
         buffer[1:max_len] = old_data[1:max_len]
@@ -85,7 +85,7 @@ function gpu_resize!(buffer::Buffer{T}, newdims::NTuple{1, Int}) where T
     # newbuff     = similar(buffer, newdims...)
     # unsafe_copy!(buffer, 1, newbuff, 1, length(buffer))
     # buffer.id   = newbuff.id
-    # buffer.size = newbuff.size
+    # buffer.length = newbuff.length
     nothing
 end
 
@@ -120,6 +120,7 @@ function Base.done(buffer::Buffer{T}, state::Tuple{Ptr{T}, Int}) where T
     isdone
 end
 
+Base.length(buffer::Buffer) = buffer.length
 # copy between two buffers
 # could be a setindex! operation, with subarrays for buffers
 function Base.unsafe_copy!(a::Buffer{T}, readoffset::Int, b::Buffer{T}, writeoffset::Int, len::Int) where T
@@ -195,5 +196,3 @@ function free!(x::Buffer)
     end
     return
 end
-
-Base.length(buffer::Buffer) = buffer.size
