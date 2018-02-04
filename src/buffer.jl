@@ -1,3 +1,5 @@
+import Base.Iterators.Repeated
+
 mutable struct Buffer{T} <: GPUArray{T, 1}
     id          ::GLuint
     size        ::Tuple{Int}
@@ -12,7 +14,7 @@ mutable struct Buffer{T} <: GPUArray{T, 1}
         glBufferData(buffertype, buff_length * sizeof(T), ptr, usage)
         glBindBuffer(buffertype, 0)
 
-        obj = new(id, (buff_length), buffertype, usage, current_context())
+        obj = new(id, (buff_length,), buffertype, usage, current_context())
         obj
     end
 end
@@ -45,63 +47,18 @@ function indexbuffer(
     glasserteltype(T)
     Buffer(buffer, buffertype = GL_ELEMENT_ARRAY_BUFFER, usage=usage)
 end
+indexbuffer(x::Buffer) = x.buffertype == GL_ELEMENT_ARRAY_BUFFER ? x : error("Indexbuffer must be of enum GL_ELEMENT_ARRAY_BUFFER!")
+#-------------------------------- END CONSTRUCTORS -------------------------------------#
+
+cardinality(::Buffer{T}) where {T} = cardinality(T)
 
 Base.bind(buffer::Buffer) = glBindBuffer(buffer.buffertype, buffer.id)
 #used to reset buffer target
 Base.bind(buffer::Buffer, other_target) = glBindBuffer(buffer.buffertype, other_target)
 
-function similar(x::Buffer{T}, buff_length::Int) where T
-    Buffer{T}(Ptr{T}(C_NULL), buff_length, x.buffertype, x.usage)
-end
-
-cardinality(::Buffer{T}) where {T} = cardinality(T)
-
-# GPUArray interface
-function gpu_data(b::Buffer{T}) where T
-    data = Vector{T}(length(b))
-    Base.bind(b)
-    glGetBufferSubData(b.buffertype, 0, sizeof(data), data)
-    Base.bind(b, 0)
-    data
-end
-
-# Resize buffer
-function gpu_resize!(buffer::Buffer{T}, newdims::NTuple{1, Int}) where T
-    #TODO make this safe!
-    newlength = newdims[1]
-    oldlen    = length(buffer)
-    if oldlen > 0
-        old_data = gpu_data(buffer)
-    end
-    Base.bind(buffer)
-    glBufferData(buffer.buffertype, newlength*sizeof(T), C_NULL, buffer.usage)
-    Base.bind(buffer, 0)
-    buffer.length = newdims
-    if oldlen>0
-        max_len = min(length(old_data), newlength) #might also shrink
-        buffer[1:max_len] = old_data[1:max_len]
-    end
-    #probably faster, but changes the buffer ID
-    # newbuff     = similar(buffer, newdims...)
-    # unsafe_copy!(buffer, 1, newbuff, 1, length(buffer))
-    # buffer.id   = newbuff.id
-    # buffer.length = newbuff.length
-    nothing
-end
-
-function gpu_setindex!(b::Buffer{T}, value::Vector{T}, offset::Integer) where T
-    multiplicator = sizeof(T)
-    Base.bind(b)
-    glBufferSubData(b.buffertype, multiplicator*offset-1, sizeof(value), value)
-    Base.bind(b, 0)
-end
-function gpu_setindex!(b::Buffer{T}, value::Vector{T}, offset::UnitRange{Int}) where T
-    multiplicator = sizeof(T)
-    Base.bind(b)
-    glBufferSubData(b.buffertype, multiplicator*(first(offset)-1), sizeof(value), value)
-    Base.bind(b, 0)
-    return nothing
-end
+Base.convert(::Type{Buffer}, x::Buffer)   = x
+Base.convert(::Type{Buffer}, x::Array)    = Buffer(x)
+Base.convert(::Type{Buffer}, x::Repeated) = convert(Buffer, x.xs.x)
 
 function Base.start(buffer::Buffer{T}) where T
     glBindBuffer(buffer.buffertype, buffer.id)
@@ -118,6 +75,10 @@ function Base.done(buffer::Buffer{T}, state::Tuple{Ptr{T}, Int}) where T
     isdone = length(buffer) < i
     isdone && glUnmapBuffer(buffer.buffertype)
     isdone
+end
+
+function Base.similar(x::Buffer{T}, buff_length::Int) where T
+    Buffer{T}(Ptr{T}(C_NULL), buff_length, x.buffertype, x.usage)
 end
 
 # copy between two buffers
@@ -167,6 +128,56 @@ function Base.unsafe_copy!(a::Buffer{T}, readoffset::Int, b::Vector{T}, writeoff
     Base.bind(a,0)
 end
 
+#--------------------------------- END BASEOVERLOADS-----------------------------------#
+
+# GPUArray interface
+function gpu_data(b::Buffer{T}) where T
+    data = Vector{T}(length(b))
+    Base.bind(b)
+    glGetBufferSubData(b.buffertype, 0, sizeof(data), data)
+    Base.bind(b, 0)
+    data
+end
+
+# Resize buffer
+function gpu_resize!(buffer::Buffer{T}, newdims::NTuple{1, Int}) where T
+    #TODO make this safe!
+    newlength = newdims[1]
+    oldlen    = length(buffer)
+    if oldlen > 0
+        old_data = gpu_data(buffer)
+    end
+    Base.bind(buffer)
+    glBufferData(buffer.buffertype, newlength*sizeof(T), C_NULL, buffer.usage)
+    Base.bind(buffer, 0)
+    buffer.length = newdims
+    if oldlen>0
+        max_len = min(length(old_data), newlength) #might also shrink
+        buffer[1:max_len] = old_data[1:max_len]
+    end
+    #probably faster, but changes the buffer ID
+    # newbuff     = similar(buffer, newdims...)
+    # unsafe_copy!(buffer, 1, newbuff, 1, length(buffer))
+    # buffer.id   = newbuff.id
+    # buffer.length = newbuff.length
+    nothing
+end
+
+function gpu_setindex!(b::Buffer{T}, value::Vector{T}, offset::Integer) where T
+    multiplicator = sizeof(T)
+    Base.bind(b)
+    glBufferSubData(b.buffertype, multiplicator*offset-1, sizeof(value), value)
+    Base.bind(b, 0)
+end
+function gpu_setindex!(b::Buffer{T}, value::Vector{T}, offset::UnitRange{Int}) where T
+    multiplicator = sizeof(T)
+    Base.bind(b)
+    glBufferSubData(b.buffertype, multiplicator*(first(offset)-1), sizeof(value), value)
+    Base.bind(b, 0)
+    return nothing
+end
+
+
 function gpu_getindex(b::Buffer{T}, range::UnitRange) where T
     multiplicator = sizeof(T)
     offset        = first(range)-1
@@ -176,6 +187,8 @@ function gpu_getindex(b::Buffer{T}, range::UnitRange) where T
     Base.bind(b, 0)
     value
 end
+
+#--------------------------------- END GPU INTERFACE -----------------------------------------#
 
 ####################################################################################
 # freeing

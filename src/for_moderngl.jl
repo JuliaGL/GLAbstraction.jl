@@ -229,7 +229,7 @@ end
 
 function compile_program(shaders::GLuint...)
 
-    program = glCreateProgram()
+    program = glCreateProgram()::GLuint
     glUseProgram(program)
     #attach new ones
     foreach(shaders) do shader

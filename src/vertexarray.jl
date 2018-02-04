@@ -27,11 +27,10 @@ function attach2vao(buffer::Buffer{T}, attrib_location, instanced=false) where T
     end
     return attrib_location
 end
-function attach2vao(buffers::Vector{<:Buffer}, attrib_location)
-    #again I assume that the first buffer is the vertex buffer, this could be checked by vec3f0 or so but thats also not so robust
-    len = length(buffers[1])
+
+function attach2vao(buffers, attrib_location, kind)
     for b in buffers
-        if length(b) != len
+        if kind == elements_instanced
             attrib_location = attach2vao(b, attrib_location, true)
         else
             attrib_location = attach2vao(b, attrib_location)
@@ -47,48 +46,59 @@ struct VertexArray{Vertex, Kind}
     buffers::Vector{<:Buffer}
     indices::Union{Buffer, Void}
     nverts::Int #might be redundant but whatever
-    nprim::Int
+    ninst::Int
     face::GLenum
     context::AbstractContext
-    function (::Type{VertexArray{Vertex, Kind}})(id, buffers, indices, nverts, nprim, face) where {Vertex, Kind}
-        new{Vertex, Kind}(id, buffers, indices, nverts, nprim, face, current_context())
+    function (::Type{VertexArray{Vertex, Kind}})(id, buffers, indices, nverts, ninst, face) where {Vertex, Kind}
+        new{Vertex, Kind}(id, buffers, indices, nverts, ninst, face, current_context())
     end
 end
-function VertexArray(buffers::Vector{<:Buffer} where N, indices::Union{Buffer, Void}; facelength=1, attrib_location=0)
-    # either integer with specified length or staticarrays
+
+function VertexArray(arrays::Tuple, indices::Union{Void, Vector, Buffer}; facelength = 1, attrib_location=0)
     id = glGenVertexArrays()
     glBindVertexArray(id)
-    T = indices == nothing ? Int32 : eltype(indices)
-    face = if T <: Integer
-        gl_face_enum(facelength)
-    else
-        bind(indices)
-        gl_face_enum(T)
-    end
-    len1 = length(buffers[1])
-    len2 = 1
-    if indices == nothing
-        kind = simple
-    else
+
+    if indices != nothing
+        ind_buf = indexbuffer(indices)
+        bind(ind_buf)
         kind = elements
-        for b in buffers
-            if len2 == 1
-                if length(b) == len1
-                    continue
-                else
-                    len2 = length(b)
-                    kind = elements_instanced
+    else
+        kind = simple
+        ind_buf = nothing
+    end
+
+    face = eltype(indices) <: Integer ? gl_face_enum(eltype(indices)) : gl_face_enum(facelength)
+
+    ninst  = 1
+    nverts = 0
+    buffers = map(arrays) do array
+        if typeof(array) <: Repeated
+            ninst_  = length(array)
+            if kind == elements_instanced && ninst_ != ninst
+                error("Amount of instances is not equal.")
+            end
+            ninst = ninst_
+            nverts_ = length(array.xs.x)
+            kind = elements_instanced
+        else
+            if kind == elements_instanced
+                ninst_ = length(array)
+                if ninst_ != ninst
+                    error("Amount of instances is not equal.")
                 end
+                ninst = ninst_
             else
-                if length(b) == len2
-                    continue
-                else
-                    error("Wrong size of buffer $b inside instanced vao of length(instances) = $len2")
+                nverts_ = length(array)
+                if nverts != 0 && nverts != nverts_
+                    error("Amount of vertices is not equal.")
                 end
+                nverts = nverts_
             end
         end
+        convert(Buffer, array)
     end
-    attach2vao(buffers, attrib_location)
+
+    attach2vao(buffers, attrib_location, kind)
     glBindVertexArray(0)
 
     if length(buffers) == 1
@@ -100,33 +110,11 @@ function VertexArray(buffers::Vector{<:Buffer} where N, indices::Union{Buffer, V
     else
         vert_type = Tuple{eltype.((buffers...,))...}
     end
-    totverts = indices == nothing ? len1 : length(indices) * cardinality(eltype(indices))
-    #i assume that the first buffer has the length of vertices
-    obj = VertexArray{vert_type, kind}(id, buffers, indices, totverts, len2, face)
-    obj
-end
-VertexArray(buffer::Buffer; args...) = VertexArray((buffer), nothing; args...)
-VertexArray(buffer::Buffer, indices; args...) = VertexArray((buffer), indices; args...)
-VertexArray(buffers::Vector{<:Buffer} ; args...) = VertexArray(buffers, nothing; args...)
 
-function VertexArray(data::Tuple, indices::Vector; args...)
-    if all(x-> isa(x, Vector), data)
-        gpu_data = [Buffer.(data)...]
-        gpu_inds = indexbuffer(indices)
-        VertexArray(gpu_data, gpu_inds; args...)
-    else
-        VertexArray([Buffer([data...])], indexbuffer(indices); args...)
-    end
+    return VertexArray{vert_type, kind}(id, [buffers...], ind_buf, nverts, ninst, face)
 end
-function VertexArray(data::Tuple; args...)
-    if all(x-> isa(x, Vector), data)
-        gpu_data = [Buffer.(data)...]
-        VertexArray(gpu_data, nothing; args...)
-    else
-        VertexArray([Buffer([data...])], nothing; args...)
-    end
-end
-VertexArray(data... ; args...) = VertexArray(data; args...)
+VertexArray(buffers...; args...) = VertexArray(buffers, nothing; args...)
+VertexArray(buffers::Tuple; args...) = VertexArray(buffers, nothing; args...)
 
 # TODO
 Base.convert(::Type{VertexArray}, x) = VertexArray(x)
@@ -184,7 +172,7 @@ unbind(vao::VertexArray) = glBindVertexArray(0)
 #does this ever work with anything aside from an unsigned int??
 draw(vao::VertexArray{V, elements} where V) = glDrawElements(vao.face, totverts(vao), GL_UNSIGNED_INT, C_NULL)
 
-draw(vao::VertexArray{V, elements_instanced} where V) = glDrawElementsInstanced(vao.face, totverts(vao), glitype(vao), C_NULL, vao.nprim)
+draw(vao::VertexArray{V, elements_instanced} where V) = glDrawElementsInstanced(vao.face, totverts(vao), glitype(vao), C_NULL, vao.ninst)
 
 draw(vao::VertexArray{V, simple} where V) = glDrawArrays(vao.face, 0, totverts(vao))
 
