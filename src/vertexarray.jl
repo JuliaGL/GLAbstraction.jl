@@ -164,7 +164,7 @@ function free!(x::VertexArray)
 end
 
 glitype(vao::VertexArray) = julia2glenum(eltype(vao.indices))
-totverts(vao::VertexArray) = vao.nverts
+totverts(vao::VertexArray) = vao.indices == nothing ? vao.nverts : length(vao.indices) * cardinality(vao.indices)
 
 Base.bind(vao::VertexArray) = glBindVertexArray(vao.id)
 unbind(vao::VertexArray) = glBindVertexArray(0)
