@@ -1,6 +1,6 @@
 mutable struct Buffer{T} <: GPUArray{T, 1}
     id          ::GLuint
-    length        ::Int
+    size        ::Tuple{Int}
     buffertype  ::GLenum
     usage       ::GLenum
     context     ::AbstractContext
@@ -12,7 +12,7 @@ mutable struct Buffer{T} <: GPUArray{T, 1}
         glBufferData(buffertype, buff_length * sizeof(T), ptr, usage)
         glBindBuffer(buffertype, 0)
 
-        obj = new(id, buff_length, buffertype, usage, current_context())
+        obj = new(id, (buff_length), buffertype, usage, current_context())
         obj
     end
 end
@@ -120,7 +120,6 @@ function Base.done(buffer::Buffer{T}, state::Tuple{Ptr{T}, Int}) where T
     isdone
 end
 
-Base.length(buffer::Buffer) = buffer.length
 # copy between two buffers
 # could be a setindex! operation, with subarrays for buffers
 function Base.unsafe_copy!(a::Buffer{T}, readoffset::Int, b::Buffer{T}, writeoffset::Int, len::Int) where T
