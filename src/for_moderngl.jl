@@ -228,13 +228,25 @@ function glTexImage(ttype::GLenum, level::Integer, internalFormat::GLenum, w::In
 end
 
 function compile_program(shaders::GLuint...)
-    program = createprogram()
+
+    program = glCreateProgram()
+    glUseProgram(program)
     #attach new ones
     foreach(shaders) do shader
         glAttachShader(program, shader.id)
     end
     #link program
     glLinkProgram(program)
+    if !islinked(program)
+        for shader in shaders
+            write(STDOUT, shader.source)
+            println("---------------------------")
+        end
+        error(
+            "program $program not linked. Error in: \n",
+            join(map(x-> string(x.name), shaders), " or "), "\n", getinfolog(program)
+        )
+    end
     program
 end
 
