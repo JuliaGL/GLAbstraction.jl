@@ -196,11 +196,14 @@ This is amount of primitives stored in the vertex array, needed for `glDrawArray
 function length(vao::GLVertexArray)
     length(first(vao.buffers)[2]) # all buffers have same length, so first should do!
 end
+function GLVertexArray(vao::GLVertexArray)
+    GLVertexArray(vao.buffers, vao.program)
+end
 function GLVertexArray(bufferdict::Dict, program::GLProgram)
     #get the size of the first array, to assert later, that all have the same size
     indexes = -1
     len = -1
-    id  = glGenVertexArrays()
+    id = glGenVertexArrays()
     glBindVertexArray(id)
     lenbuffer = 0
     buffers = Dict{String, GLBuffer}()
@@ -208,7 +211,7 @@ function GLVertexArray(bufferdict::Dict, program::GLProgram)
         if isa(buffer, GLBuffer) && buffer.buffertype == GL_ELEMENT_ARRAY_BUFFER
             bind(buffer)
             indexes = buffer
-        elseif name == :indices
+        elseif Symbol(name) == :indices
             indexes = buffer
         else
             attribute = string(name)
@@ -228,6 +231,9 @@ function GLVertexArray(bufferdict::Dict, program::GLProgram)
         end
     end
     glBindVertexArray(0)
+    if indexes == -1
+        indexes = len
+    end
     obj = GLVertexArray{typeof(indexes)}(program, id, len, buffers, indexes)
     finalizer(obj, free)
     obj

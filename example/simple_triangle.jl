@@ -1,9 +1,8 @@
 using ModernGL, GLWindow, GLAbstraction, GLFW, GeometryTypes
 
-const window = GLWindow.create_glcontext("Example", resolution=(512, 512), debugging=true)
+window = GLWindow.create_glcontext("Example", resolution=(512, 512), debugging=true)
 
-
-const vsh = vert"""
+vsh = vert"""
 {{GLSL_VERSION}}
 in vec2 position;
 
@@ -12,7 +11,7 @@ void main(){
 }
 """
 
-const fsh = frag"""
+fsh = frag"""
 {{GLSL_VERSION}}
 out vec4 outColor;
 
@@ -21,7 +20,7 @@ void main() {
 }
 """
 
-const triangle = std_renderobject(
+triangle = std_renderobject(
     Dict{Symbol, Any}(
         :position => GLBuffer(Point2f0[(0.0, 0.5), (0.5, -0.5), (-0.5,-0.5)]),
     ),

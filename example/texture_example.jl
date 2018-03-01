@@ -1,10 +1,10 @@
 using ModernGL, GLWindow, GLAbstraction, GLFW, ColorTypes, Reactive, GeometryTypes
 import GLAbstraction: N0f8
 
-const window = create_glcontext("Example")
+window = create_glcontext("Example")
 
 
-const vert = vert"""
+vert = vert"""
 {{GLSL_VERSION}}
 
 in vec2 vertices;
@@ -19,7 +19,7 @@ void main() {
 
 # you can also load the shader from a file, which you can then edit in any editor and the changes will show up in your opengl program.
 #using FileIO; prrogram = TemplateProgram(load("path_to_frag.frag"), load("path_to_vert.vert"))
-const frag = frag"""
+frag = frag"""
 {{GLSL_VERSION}}
 
 out vec4 outColor;
