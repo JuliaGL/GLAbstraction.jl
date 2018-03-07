@@ -45,12 +45,12 @@ struct VertexArray{Vertex, Kind}
     id::GLuint
     buffers::Vector{<:Buffer}
     indices::Union{Buffer, Void}
-    nverts::Int #might be redundant but whatever
-    ninst::Int
+    nverts::Int32 #total vertices to be drawn in drawcall
+    ninst::Int32
     face::GLenum
     context::AbstractContext
     function (::Type{VertexArray{Vertex, Kind}})(id, buffers, indices, nverts, ninst, face) where {Vertex, Kind}
-        new{Vertex, Kind}(id, buffers, indices, nverts, ninst, face, current_context())
+        new{Vertex, Kind}(id, buffers, indices, Int32(nverts), Int32(ninst), face, current_context())
     end
 end
 
@@ -87,6 +87,7 @@ function VertexArray(arrays::Tuple, indices::Union{Void, Vector, Buffer}; facele
                     error("Amount of instances is not equal.")
                 end
                 ninst = ninst_
+                nverts_ = length(array.xs.x)
             else
                 nverts_ = length(array)
                 if nverts != 0 && nverts != nverts_
@@ -97,7 +98,8 @@ function VertexArray(arrays::Tuple, indices::Union{Void, Vector, Buffer}; facele
         end
         convert(Buffer, array)
     end
-
+    #TODO Cleanup
+    nverts = ind_buf == nothing ? nverts : length(ind_buf)*cardinality(ind_buf)
     attach2vao(buffers, attrib_location, kind)
     glBindVertexArray(0)
 
@@ -170,7 +172,7 @@ Base.bind(vao::VertexArray) = glBindVertexArray(vao.id)
 unbind(vao::VertexArray) = glBindVertexArray(0)
 
 #does this ever work with anything aside from an unsigned int??
-draw(vao::VertexArray{V, elements} where V) = glDrawElements(vao.face, totverts(vao), GL_UNSIGNED_INT, C_NULL)
+draw(vao::VertexArray{V, elements} where V) = glDrawElements(vao.face, vao.nverts, GL_UNSIGNED_INT, C_NULL)
 
 draw(vao::VertexArray{V, elements_instanced} where V) = glDrawElementsInstanced(vao.face, totverts(vao), glitype(vao), C_NULL, vao.ninst)
 
