@@ -8,6 +8,7 @@ using GLAbstraction, GeometryTypes, ModernGL, FileIO, GLWindow
 using ColorTypes
 using Base.Test
 import GLAbstraction: N0f8
+import Reactive: Signal
 
 
 
@@ -57,5 +58,32 @@ while isopen(window) && i < 20
     i += 1
 end
 GLFW.DestroyWindow(window)
+
+# test for type stability in translate_cam
+translate = Vec3f0([1.0, 1.0, 1.0])
+proj = Signal(Mat4{Float32}(eye(Float32,4)))
+view_test = Signal(Mat4{Float32}(eye(Float32,4)))
+window_size = Signal(SimpleRectangle(-1, -1, 1, 1)) #from DummyCamera
+prj_type = Signal(PERSPECTIVE)
+eyepos_s = Signal(Vec3f0([1.0, 0.0, 0.0]))
+lookat_s = Signal(Vec3f0([0.0, 1.0, 0.0]))
+up_s = Signal(Vec3f0([0.0, 0.0, 1.0]))
+# Record original types
+type_eyepos = typeof(eyepos_s)
+type_lookat = typeof(lookat_s)
+
+GLAbstraction.translate_cam(
+    translate,
+    proj,
+    view_test,
+    window_size,
+    prj_type,
+    eyepos_s,
+    lookat_s,
+    up_s
+)
+
+@test typeof(eyepos_s)==type_eyepos
+@test typeof(lookat_s)==type_lookat
 
 end

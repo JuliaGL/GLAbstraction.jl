@@ -392,12 +392,16 @@ function imagespace(pos, camera)
     Point2f0(pos[1], pos[2]) / pos[4]
 end
 
-
-
 function translate_cam(
-        translate, proj, view, window_size, prj_type,
-        eyepos_s, lookat_s, up_s,
-    )
+        translate::T,
+        proj::Signal{Mat4{Float32}},
+        view::Signal{Mat4{Float32}},
+        window_size::Signal{SimpleRectangle{Int}},
+        prj_type::Signal{Projection},
+        eyepos_s::Signal{T},
+        lookat_s::Signal{T},
+        up_s::Signal{T},
+    ) where T<:Vec3
     translate == Vec3f0(0) && return nothing # nothing to do
 
     lookat, eyepos, up, prjt = map(value, (lookat_s, eyepos_s, up_s, prj_type))
