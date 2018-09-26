@@ -300,8 +300,8 @@ function RenderObject(
     if !isempty(meshs)
         merge!(data, [v.data for (k,v) in meshs]...)
     end
-    buffers  = filter(p -> isa(p.second, GLBuffer) || key == :indices, data)
-    uniforms = filter(p -> !isa(p.second, GLBuffer) && key != :indices, data)
+    buffers  = filter(p -> isa(p.second, GLBuffer) || p.first == :indices, data)
+    uniforms = filter(p -> !isa(p.second, GLBuffer) && p.first != :indices, data)
     get!(data, :visible, true) # make sure, visibility is set
     merge!(data, passthrough) # in the end, we insert back the non opengl data, to keep things simple
     p = gl_convert(Reactive.value(program), data) # "compile" lazyshader
