@@ -14,6 +14,7 @@ import Base: size
 import Base: start
 import Base: next
 import Base: done
+using Serialization
 
 import GeometryTypes.SimpleRectangle
 
@@ -48,7 +49,7 @@ end
 function to_range(index)
     map(index) do val
         isa(val, Integer) && return val:val
-        isa(val, Range) && return val
+        isa(val, AbstractRange) && return val
         error("Indexing only defined for integers or ranges. Found: $val")
     end
 end
@@ -225,19 +226,19 @@ function (::Type{T})(x::Signal) where T <: GPUArray
     gpu_mem
 end
 
-const BaseSerializer = if isdefined(Base, :AbstractSerializer)
-    Base.AbstractSerializer
-elseif isdefined(Base, :SerializationState)
-    Base.SerializationState
+const BaseSerializer = if isdefined(Serialization, :AbstractSerializer)
+    Serialization.AbstractSerializer
+elseif isdefined(Serialization, :SerializationState)
+    Serialization.SerializationState
 else
     error("No Serialization type found. Probably unsupported Julia version")
 end
 
-function Base.serialize(s::BaseSerializer, t::T) where T<:GPUArray
+function serialize(s::BaseSerializer, t::T) where T<:GPUArray
     Base.serialize_type(s, T)
     serialize(s, Array(t))
 end
-function Base.deserialize(s::BaseSerializer, ::Type{T}) where T<:GPUArray
+function deserialize(s::BaseSerializer, ::Type{T}) where T<:GPUArray
     A = deserialize(s)
     T(A)
 end

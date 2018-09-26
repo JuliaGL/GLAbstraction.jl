@@ -26,7 +26,8 @@ end
 get_attribute_location(program::GLuint, name) = get_attribute_location(program, ascii(name))
 get_attribute_location(program::GLuint, name::Symbol) = get_attribute_location(program, string(name))
 function get_attribute_location(program::GLuint, name::String)
-    const location::GLint = glGetAttribLocation(program, name)
+    #const location::GLint = glGetAttribLocation(program, name)
+    location::GLint = glGetAttribLocation(program, name)
     if location == -1
         warn(
             "Named attribute (:$(name)) is not an active attribute in the specified program object or\n
@@ -65,7 +66,7 @@ function glGetActiveUniform(programID::GLuint, index::Integer)
     uniformSize    = GLint[1]
     typ            = GLenum[1]
     maxcharsize    = glGetProgramiv(programID, GL_ACTIVE_UNIFORM_MAX_LENGTH)
-    name           = Vector{GLchar}(maxcharsize)
+    name           = Vector{GLchar}(undef, maxcharsize)
 
     glGetActiveUniform(programID, index, maxcharsize, actualLength, uniformSize, typ, name)
 

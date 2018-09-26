@@ -1,5 +1,5 @@
 using GLAbstraction, GLWindow, GLFW, FixedPointNumbers, StaticArrays
-using Base.Test
+using Test
 
 struct SpriteStyle{T} <: FieldVector{2, T}
     color_id::T # lookup attribute_id for attribute texture
