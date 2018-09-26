@@ -6,7 +6,7 @@ end
 
 using GLAbstraction, GeometryTypes, ModernGL, FileIO, GLWindow
 using ColorTypes
-using Base.Test
+using Test
 import GLAbstraction: N0f8
 
 

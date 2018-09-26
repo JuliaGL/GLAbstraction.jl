@@ -66,7 +66,7 @@ function glGetActiveUniform(programID::GLuint, index::Integer)
     uniformSize    = GLint[1]
     typ            = GLenum[1]
     maxcharsize    = glGetProgramiv(programID, GL_ACTIVE_UNIFORM_MAX_LENGTH)
-    name           = Vector{GLchar}(maxcharsize)
+    name           = Vector{GLchar}(undef, maxcharsize)
 
     glGetActiveUniform(programID, index, maxcharsize, actualLength, uniformSize, typ, name)
 

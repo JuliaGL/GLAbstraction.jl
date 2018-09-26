@@ -51,7 +51,7 @@ function indexbuffer(
 end
 # GPUArray interface
 function gpu_data(b::GLBuffer{T}) where T
-    data = Vector{T}(length(b))
+    data = Vector{T}(undef, length(b))
     bind(b)
     glGetBufferSubData(b.buffertype, 0, sizeof(data), data)
     bind(b, 0)

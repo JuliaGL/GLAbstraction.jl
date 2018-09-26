@@ -81,7 +81,7 @@ mutable struct GLProgram
     context     ::GLContext
     function GLProgram(id::GLuint, shader::Vector{Shader}, nametype::Dict{Symbol, GLenum}, uniformloc::Dict{Symbol, Tuple})
         obj = new(id, shader, nametype, uniformloc, current_context())
-        finalizer(obj, free)
+        finalizer(free, obj)
         obj
     end
 end
@@ -229,7 +229,7 @@ function GLVertexArray(bufferdict::Dict, program::GLProgram)
     end
     glBindVertexArray(0)
     obj = GLVertexArray{typeof(indexes)}(program, id, len, buffers, indexes)
-    finalizer(obj, free)
+    finalizer(free, obj)
     obj
 end
 function Base.show(io::IO, vao::GLVertexArray)
@@ -296,12 +296,12 @@ function RenderObject(
         end
     end
     # handle meshes seperately, since they need expansion
-    meshs = filter((key, value) -> isa(value, NativeMesh), data)
+    meshs = filter(p -> isa(p.second, NativeMesh), data)
     if !isempty(meshs)
         merge!(data, [v.data for (k,v) in meshs]...)
     end
-    buffers  = filter((key, value) -> isa(value, GLBuffer) || key == :indices, data)
-    uniforms = filter((key, value) -> !isa(value, GLBuffer) && key != :indices, data)
+    buffers  = filter(p -> isa(p.second, GLBuffer) || key == :indices, data)
+    uniforms = filter(p -> !isa(p.second, GLBuffer) && key != :indices, data)
     get!(data, :visible, true) # make sure, visibility is set
     merge!(data, passthrough) # in the end, we insert back the non opengl data, to keep things simple
     p = gl_convert(Reactive.value(program), data) # "compile" lazyshader
