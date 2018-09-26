@@ -1,3 +1,9 @@
+using Printf
+
+is_linenumber(ex::LineNumberNode) = true	 	 
+is_linenumber(ex::Expr)           = (ex.head == :line)	 	 
+is_linenumber(ex)                 = false
+
 macro gputime(codeblock)
     quote
         local const query        = GLuint[1]
@@ -46,7 +52,7 @@ function print_with_lines(out::IO, text::AbstractString)
     end
     write(out, take!(io))
 end
-print_with_lines(text::AbstractString) = print_with_lines(STDOUT, text)
+print_with_lines(text::AbstractString) = print_with_lines(stdout, text)
 
 
 """
@@ -105,7 +111,7 @@ Needed to match the lazy gl_convert exceptions.
 matches_target(::Type{Target}, x::T) where {Target, T} = applicable(gl_convert, Target, x) || T <: Target  # it can be either converted to Target, or it's already the target
 matches_target(::Type{Target}, x::Signal{T}) where {Target, T} = applicable(gl_convert, Target, x)  || T <: Target
 matches_target(::Function, x) = true
-matches_target(::Function, x::Void) = false
+matches_target(::Function, x::Nothing) = false
 export matches_target
 
 
@@ -139,7 +145,7 @@ macro gen_defaults!(dict, args)
     push!(return_expression.args, :(doc_strings = get!($dictsym, :doc_string, Dict{Symbol, Any}()))) # exceptions for glconvert.
     # @gen_defaults can be used multiple times, so we need to reuse gl_convert_targets if already in here
     for (i, elem) in enumerate(tuple_list)
-        if Base.is_linenumber(elem)
+        if is_linenumber(elem)
             push!(return_expression.args, elem)
             continue
         end

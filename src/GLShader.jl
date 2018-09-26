@@ -212,7 +212,7 @@ end
 
 function get_view(kw_dict)
     _view = kw_dict[:view]
-    extension = is_apple() ? "" : "#extension GL_ARB_draw_instanced : enable\n"
+    extension = Sys.isapple() ? "" : "#extension GL_ARB_draw_instanced : enable\n"
     _view["GLSL_EXTENSION"] = extension*get(_view, "GLSL_EXTENSIONS", "")
     _view["GLSL_VERSION"] = glsl_version_string()
     _view

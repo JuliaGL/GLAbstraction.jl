@@ -1,3 +1,7 @@
+using Reactive
+using GeometryTypes
+import GeometryTypes.Point2f0, GeometryTypes.Vec3f0
+
 abstract type Camera{T} end
 const Q = Quaternions # save some writing!
 
