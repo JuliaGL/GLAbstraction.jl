@@ -6,35 +6,6 @@
 # here is my approach, to handle all of the uniforms with one function, namely gluniform
 # For uniforms, the Vector and Matrix types from ImmutableArrays should be used, as they map the relation almost 1:1
 
-#hack because should be in utils
-function uniformfunc(typ::DataType, dims::Tuple{Int})
-    Symbol(string("glUniform", first(dims), opengl_postfix(typ)))
-end
-function uniformfunc(typ::DataType, dims::Tuple{Int, Int})
-    M, N = dims
-    Symbol(string("glUniformMatrix", M == N ? "$M":"$(M)x$(N)", opengl_postfix(typ)))
-end
-
-function gluniform(location::Integer, x::FSA) where FSA
-    glasserteltype(FSA)
-    xref = [x]
-    gluniform(location, xref)
-end
-
-@generated function gluniform(location::Integer, x::Vector{FSA}) where FSA
-    glasserteltype(eltype(FSA))
-    func = uniformfunc(eltype(FSA), size(FSA))
-    callexpr = if ndims(FSA) == 2
-        :($func(location, length(x), GL_FALSE, xref))
-    else
-        :($func(location, length(x), xref))
-    end
-    quote
-        xref = reinterpret(eltype(FSA), x)
-        $callexpr
-    end
-end
-
 
 #Some additional uniform functions, not related to Imutable Arrays
 gluniform(location::Integer, target::Integer, t::Texture) = gluniform(GLint(location), GLint(target), t)

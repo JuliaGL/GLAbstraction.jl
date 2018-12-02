@@ -8,12 +8,8 @@ import Base: getindex
 import Base: map
 import Base: length
 import Base: eltype
-import Base: endof
 import Base: ndims
 import Base: size
-import Base: start
-import Base: next
-import Base: done
 
 abstract type GPUArray{T, NDim} <: AbstractArray{T, NDim} end
 
@@ -34,7 +30,7 @@ function to_range(index)
     map(index) do val
         isa(val, Integer) && return val:val
         isa(val, Range) && return val
-        error("Indexing only defined for integers or ranges. Found: $val")
+        @error "Indexing only defined for integers or ranges. Found: $val"
     end
 end
 setindex!(A::GPUArray{T, N}, value::Union{T, Array{T, N}}) where {T, N} = (A[1] = value)
@@ -63,7 +59,7 @@ function update!(A::GPUArray{T, N}, value::Array{T, N}) where {T, N}
         elseif isa(A, Texture) && ndims(A) == 2
             resize_nocopy!(A, size(value))
         else
-            error("Dynamic resizing not implemented for $(typeof(A))")
+            @error "Dynamic resizing not implemented for $(typeof(A))"
         end
     end
     dims = map(x->1:x, size(A))
@@ -189,29 +185,29 @@ function _copy!(a::Union{Vector, GPUArray}, a_offset::Int, b::Union{Vector, GPUA
 end
 
 # Interface:
-gpu_data(t) = error("gpu_data not implemented for: $(typeof(t)). This happens, when you call data on an array, without implementing the GPUArray interface")
-gpu_resize!(t) = error("gpu_resize! not implemented for: $(typeof(t)). This happens, when you call resize! on an array, without implementing the GPUArray interface")
-gpu_getindex(t) = error("gpu_getindex not implemented for: $(typeof(t)). This happens, when you call getindex on an array, without implementing the GPUArray interface")
-gpu_setindex!(t) = error("gpu_setindex! not implemented for: $(typeof(t)). This happens, when you call setindex! on an array, without implementing the GPUArray interface")
-max_dim(t) = error("max_dim not implemented for: $(typeof(t)). This happens, when you call setindex! on an array, without implementing the GPUArray interface")
+gpu_data(t) = @error "gpu_data not implemented for: $(typeof(t)). This happens, when you call data on an array, without implementing the GPUArray interface"
+gpu_resize!(t) = @error "gpu_resize! not implemented for: $(typeof(t)). This happens, when you call resize! on an array, without implementing the GPUArray interface"
+gpu_getindex(t) = @error "gpu_getindex not implemented for: $(typeof(t)). This happens, when you call getindex on an array, without implementing the GPUArray interface"
+gpu_setindex!(t) = @error "gpu_setindex! not implemented for: $(typeof(t)). This happens, when you call setindex! on an array, without implementing the GPUArray interface"
+max_dim(t) = @error "max_dim not implemented for: $(typeof(t)). This happens, when you call setindex! on an array, without implementing the GPUArray interface"
 
 
-const BaseSerializer = if isdefined(Base, :AbstractSerializer)
-    Base.AbstractSerializer
-elseif isdefined(Base, :SerializationState)
-    Base.SerializationState
-else
-    error("No Serialization type found. Probably unsupported Julia version")
-end
+# const BaseSerializer = if isdefined(Base, :AbstractSerializer)
+#     Base.AbstractSerializer
+# elseif isdefined(Base, :SerializationState)
+#     Base.SerializationState
+# else
+#     error("No Serialization type found. Probably unsupported Julia version")
+# end
 
-function Base.serialize(s::BaseSerializer, t::T) where T<:GPUArray
-    Base.serialize_type(s, T)
-    serialize(s, Array(t))
-end
-function Base.deserialize(s::BaseSerializer, ::Type{T}) where T<:GPUArray
-    A = deserialize(s)
-    T(A)
-end
+# function Base.serialize(s::BaseSerializer, t::T) where T<:GPUArray
+#     Base.serialize_type(s, T)
+#     serialize(s, Array(t))
+# end
+# function Base.deserialize(s::BaseSerializer, ::Type{T}) where T<:GPUArray
+#     A = deserialize(s)
+#     T(A)
+# end
 
 
 export data

@@ -1,13 +1,13 @@
 # the instanced ones assume that there is at least one buffer with the vertextype (=has fields, bit whishy washy) and the others are the instanced things
 function attach2vao(buffer::Buffer{T}, attrib_location, instanced=false) where T
-    Base.bind(buffer)
+    bind(buffer)
     if !is_glsl_primitive(T)
         for i = 1:nfields(T)
             FT = fieldtype(T, i); ET = eltype(FT)
             glVertexAttribPointer(
                 attrib_location,
                 cardinality(FT), julia2glenum(ET),
-                GL_FALSE, sizeof(T), Ptr{Void}(fieldoffset(T, i)) # the fieldoffset is because here we have one buffer having all the attributes
+                GL_FALSE, sizeof(T), Ptr{Nothing}(fieldoffset(T, i)) # the fieldoffset is because here we have one buffer having all the attributes
             )
             glEnableVertexAttribArray(attrib_location)
             attrib_location += 1
@@ -41,20 +41,25 @@ end
 
 @enum VaoKind simple elements elements_instanced
 
-struct VertexArray{Vertex, Kind}
+mutable struct VertexArray{Vertex, Kind}
     id::GLuint
     buffers::Vector{<:Buffer}
-    indices::Union{Buffer, Void}
+    indices::Union{Buffer, Nothing}
     nverts::Int32 #total vertices to be drawn in drawcall
     ninst::Int32
     face::GLenum
     context::AbstractContext
     function (::Type{VertexArray{Vertex, Kind}})(id, buffers, indices, nverts, ninst, face) where {Vertex, Kind}
-        new{Vertex, Kind}(id, buffers, indices, Int32(nverts), Int32(ninst), face, current_context())
+        obj = new{Vertex, Kind}(id, buffers, indices, Int32(nverts), Int32(ninst), face, current_context())
+        finalizer(free!, obj)
+        obj
     end
 end
 
-function VertexArray(arrays::Tuple, indices::Union{Void, Vector, Buffer}; facelength = 1, attrib_location=0)
+
+#TODO just improve this, basically only rely on facelength being defined...
+#     then you can still define different Vao constructors for point indices etc...
+function VertexArray(arrays::Tuple, indices::Union{Nothing, Vector, Buffer}; facelength = 1, attrib_location=0)
     id = glGenVertexArrays()
     glBindVertexArray(id)
 
@@ -67,7 +72,7 @@ function VertexArray(arrays::Tuple, indices::Union{Void, Vector, Buffer}; facele
         ind_buf = nothing
     end
 
-    face = eltype(indices) <: Integer ? gl_face_enum(eltype(indices)) : gl_face_enum(facelength)
+    face = eltype(indices) <: Integer ? face2glenum(eltype(indices)) : face2glenum(facelength)
 
     ninst  = 1
     nverts = 0
@@ -91,7 +96,7 @@ function VertexArray(arrays::Tuple, indices::Union{Void, Vector, Buffer}; facele
             else
                 nverts_ = length(array)
                 if nverts != 0 && nverts != nverts_
-                    error("Amount of vertices is not equal.")
+                    # error("Amount of vertices is not equal.")
                 end
                 nverts = nverts_
             end
@@ -112,39 +117,44 @@ function VertexArray(arrays::Tuple, indices::Union{Void, Vector, Buffer}; facele
     else
         vert_type = Tuple{eltype.((buffers...,))...}
     end
-
     return VertexArray{vert_type, kind}(id, [buffers...], ind_buf, nverts, ninst, face)
 end
 VertexArray(buffers...; args...) = VertexArray(buffers, nothing; args...)
 VertexArray(buffers::Tuple; args...) = VertexArray(buffers, nothing; args...)
-
 # TODO
 Base.convert(::Type{VertexArray}, x) = VertexArray(x)
 Base.convert(::Type{VertexArray}, x::VertexArray) = x
 
-function gl_face_enum(face)
-    facelength = typeof(face) <: Integer ? face : length(face)
-    if facelength == 1
-        return GL_POINTS
-    elseif facelength == 2
-        return GL_LINES
-    elseif facelength == 3
-        return GL_TRIANGLES
-    elseif facelength == 4
-        return GL_QUADS
-    end
+
+function face2glenum(face)
+    facelength = typeof(face) <: Integer ? face : (face <: Integer ? 1 : length(face))
+    facelength == 1 && return GL_POINTS
+    facelength == 2 && return GL_LINES
+    facelength == 3 && return GL_TRIANGLES
+    facelength == 4 && return GL_QUADS
+    facelength == 11 && return GL_LINE_STRIP_ADJACENCY
+    return GL_TRIANGLES
 end
 
-is_struct{T}(::Type{T}) = !(sizeof(T) != 0 && nfields(T) == 0)
+function glenum2face(glenum)
+    glenum == GL_POINTS    && return 1
+    glenum == GL_LINES     && return 2
+    glenum == GL_TRIANGLES && return 3
+    glenum == GL_QUADS     && return 4
+    glenum == GL_LINE_STRIP_ADJACENCY && return 11
+    return 1
+end
+
+is_struct(::Type{T}) where T = !(sizeof(T) != 0 && nfields(T) == 0)
 # is_glsl_primitive{T <: StaticVector}(::Type{T}) = true
-is_glsl_primitive{T <: Union{Float32, Int32}}(::Type{T}) = true
+is_glsl_primitive(::Type{T}) where {T <: Union{Float32, Int32}}= true
 function is_glsl_primitive(T)
     glasserteltype(T)
     true
 end
 
-_typeof{T}(::Type{T}) = Type{T}
-_typeof{T}(::T) = T
+_typeof(::Type{T}) where T = Type{T}
+_typeof(::T) where T = T
 
 function free!(x::VertexArray)
     if !is_current_context(x.context)
@@ -168,7 +178,9 @@ end
 glitype(vao::VertexArray) = julia2glenum(eltype(vao.indices))
 totverts(vao::VertexArray) = vao.indices == nothing ? vao.nverts : length(vao.indices) * cardinality(vao.indices)
 
-Base.bind(vao::VertexArray) = glBindVertexArray(vao.id)
+Base.length(vao::VertexArray) = vao.nverts
+
+bind(vao::VertexArray) = glBindVertexArray(vao.id)
 unbind(vao::VertexArray) = glBindVertexArray(0)
 
 #does this ever work with anything aside from an unsigned int??

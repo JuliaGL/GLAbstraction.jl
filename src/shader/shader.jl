@@ -25,7 +25,7 @@ function Shader(name, typ, source::Vector{UInt8})
     glCompileShader(shaderid)
     if !iscompiled(shaderid)
         print_with_lines(String(source))
-        error("shader $(name) didn't compile. \n$(getinfolog(shaderid))")
+        @error "shader $(name) didn't compile. \n$(getinfolog(shaderid))"
     end
     Shader(name, source, typ, shaderid)
 end
@@ -56,20 +56,20 @@ function shadertype(ext::AbstractString)
     ext == ".vert" && return GL_VERTEX_SHADER
     ext == ".frag" && return GL_FRAGMENT_SHADER
     ext == ".geom" && return GL_GEOMETRY_SHADER
-    error("$ext not a valid shader extension.")
+    @error "$ext not a valid shader extension."
 end
 function shadertype(typ::Symbol)
     (typ == :compute  || typ == :comp) && return GL_COMPUTE_SHADER
     (typ == :vertex   || typ == :vert) && return GL_VERTEX_SHADER
     (typ == :fragment || typ == :frag) && return GL_FRAGMENT_SHADER
     (typ == :geometry || typ == :geom) && return GL_GEOMETRY_SHADER
-    error("$typ not a valid shader symbol.")
+    @error "$typ not a valid shader symbol."
 end
 
 #Implement File IO interface
 function load(f::File{format"GLSLShader"})
     fname = filename(f)
-    source = open(readstring, fname)
+    source = read(open(fname), String)
     Shader(fname, source)
 end
 
@@ -117,7 +117,3 @@ function getinfolog(id::GLuint)
         return "success"
     end
 end
-
-
-
-

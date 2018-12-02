@@ -91,7 +91,7 @@ glGetShaderiv(vertex_shader, GL_COMPILE_STATUS, status)
 if status[] != GL_TRUE
     buffer = Array(UInt8, 512)
     glGetShaderInfoLog(vertex_shader, 512, C_NULL, buffer)
-    error(bytestring(buffer))
+    @error "$(bytestring(buffer))"
 end
 
 # Compile the fragment shader
@@ -104,7 +104,7 @@ glGetShaderiv(fragment_shader, GL_COMPILE_STATUS, status)
 if status[] != GL_TRUE
     buffer = Array(UInt8, 512)
     glGetShaderInfoLog(fragment_shader, 512, C_NULL, buffer)
-    error(bytestring(buffer))
+    @error "$(bytestring(buffer))"
 end
 
 # Connect the shaders by combining them into a program

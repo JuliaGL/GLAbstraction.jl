@@ -26,13 +26,10 @@ mutable struct Program <: AbstractProgram
         glLinkProgram(program)
         if !islinked(program)
             for shader in shaders
-                write(STDOUT, shader.source)
+                write(stdout, shader.source)
                 println("---------------------------")
             end
-            error(
-                "program $program not linked. Error in: \n",
-                join(map(x-> string(x.name), shaders), " or "), "\n", getinfolog(program)
-            )
+            @error "program $program not linked. Error in: \n $(join(map(x-> string(x.name), shaders))), or, \n $(getinfolog(program))"
         end
 
         # generate the link locations
@@ -51,13 +48,13 @@ function Program(sh_string_typ...)
 end
 
 
-Base.bind(program::Program) = glUseProgram(program.id)
+bind(program::Program) = glUseProgram(program.id)
 unbind(program::AbstractProgram) = glUseProgram(0)
 
 mutable struct LazyProgram <: AbstractProgram
     sources::Vector
     data::Dict
-    compiled_program::Union{Program, Void}
+    compiled_program::Union{Program, Nothing}
 end
 LazyProgram(sources...; data...) = LazyProgram(Vector(sources), Dict(data), nothing)
 
@@ -66,9 +63,9 @@ function Program(lazy_program::LazyProgram)
     shaders = haskey(lazy_program.data, :arguments) ? Shader.(lazy_program.sources, Ref(lazy_program.data[:arguments])) : Shader.()
     return Program([shaders...], fragdatalocation)
 end
-function Base.bind(program::LazyProgram)
+function bind(program::LazyProgram)
     iscompiled_orcompile!(program)
-    Base.bind(program.compiled_program)
+    bind(program.compiled_program)
 end
 
 function iscompiled_orcompile!(program::LazyProgram)

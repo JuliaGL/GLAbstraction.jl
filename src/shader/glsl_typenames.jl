@@ -8,8 +8,8 @@ const NATIVE_TYPES = Union{
 isa_gl_struct(x::NATIVE_TYPES) = false
 
 
-opengl_prefix(T)  = error("Object $T is not a supported uniform element type")
-opengl_postfix(T) = error("Object $T is not a supported uniform element type")
+opengl_prefix(T)  = @error "Object $T is not a supported uniform element type"
+opengl_postfix(T) = @error "Object $T is not a supported uniform element type"
 
 
 opengl_prefix(x::Type{T}) where {T <: Union{FixedPoint, Float32, Float16}} = ""
@@ -25,11 +25,11 @@ opengl_postfix(x::Type{Cuint})   = "uiv"
 
 #Came from GLUniforms or GLInfo.jl
 
-glsl_type{T <: AbstractFloat}(::Type{T}) = Float32
-glsl_type{T}(::UniformBuffer{T}) = T
-glsl_type{T, N}(::Texture{T, N}) = gli.GLTexture{glsl_type(T), N}
+glsl_type(::Type{T}) where {T <: AbstractFloat} = Float32
+glsl_type(::UniformBuffer{T}) where T = T
+glsl_type(::Texture) where {T, N} = gli.GLTexture{glsl_type(T), N}
 glsl_typename(x::T) where {T} = glsl_typename(T)
-glsl_typename(t::Type{Void})     = "Nothing"
+glsl_typename(t::Type{Nothing})     = "Nothing"
 glsl_typename(t::Type{GLfloat})  = "float"
 glsl_typename(t::Type{GLdouble}) = "double"
 glsl_typename(t::Type{GLuint})   = "uint"
@@ -50,13 +50,13 @@ function glsl_typename(t::Type{T}) where T <: Matrix
     M, N = size(t)
     string(opengl_prefix(eltype(t)), "mat", M==N ? M : string(M, "x", N))
 end
-toglsltype_string(x::T) where {T<:Union{Real, Texture, TextureBuffer, Void}} = "uniform $(glsl_typename(x))"
+toglsltype_string(x::T) where {T<:Union{Real, Texture, TextureBuffer, Nothing}} = "uniform $(glsl_typename(x))"
 #Handle GLSL structs, which need to be addressed via single fields
 function toglsltype_string(x::T) where T
     if isa_gl_struct(x)
         string("uniform ", T.name.name)
     else
-        error("can't splice $T into an OpenGL shader. Make sure all fields are of a concrete type and isbits(FieldType)-->true")
+        @error "can't splice $T into an OpenGL shader. Make sure all fields are of a concrete type and isbits(FieldType)-->true"
     end
 end
 toglsltype_string(t::Union{Buffer{T}, GPUVector{T}}) where {T} = string("in ", glsl_typename(T))
@@ -73,17 +73,17 @@ function glsl_variable_access(keystring, ::Union{Real, Buffer, GPUVector})
 end
 
 function glsl_variable_access(keystring, t::Any)
-    error("no glsl variable calculation available for : ", keystring, " of type ", typeof(t))
+    @error "no glsl variable calculation available for : $(keystring) of type $(typeof(t))"
 end
 
 function glsl_version_string()
     glsl = split(unsafe_string(glGetString(GL_SHADING_LANGUAGE_VERSION)), ['.', ' '])
     if length(glsl) >= 2
         glsl = VersionNumber(parse(Int, glsl[1]), parse(Int, glsl[2]))
-        glsl.major == 1 && glsl.minor <= 2 && error("OpenGL shading Language version too low. Try updating graphic driver!")
+        glsl.major == 1 && glsl.minor <= 2 && (@error "OpenGL shading Language version too low. Try updating graphic driver!")
         glsl_version = string(glsl.major) * rpad(string(glsl.minor),2,"0")
         return "#version $(glsl_version)\n"
     else
-        error("could not parse GLSL version: $glsl")
+        @error "could not parse GLSL version: $glsl"
     end
 end

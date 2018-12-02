@@ -54,7 +54,7 @@ function gl_promote(x::Type{T}) where T
 end
 
 gl_convert(x::T) where {T <: Number} = gl_promote(T)(x)
-gl_convert(s::Void) = s
+gl_convert(s::Nothing) = s
 
 isa_gl_struct(x::Array) = false
 function isa_gl_struct(x::T) where T
@@ -71,7 +71,7 @@ function gl_convert_struct(x::T, uniform_name::Symbol) where T
             (Symbol("$uniform_name.$name") => gl_convert(getfield(x, name)))
         end)
     else
-        error("can't convert $x to a OpenGL type. Make sure all fields are of a concrete type and isbits(FieldType)-->true")
+        @error "can't convert $x to a OpenGL type. Make sure all fields are of a concrete type and isbits(FieldType)-->true"
     end
 end
 

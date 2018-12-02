@@ -1,4 +1,3 @@
-VERSION >= v"0.4.0-dev+6521" && __precompile__()
 module GLAbstraction
 
 using ModernGL
@@ -8,7 +7,7 @@ import FileIO: load, save
 
 import FixedPointNumbers: N0f8, N0f16, N0f8, Normed
 
-import Base: merge, resize!, unsafe_copy!, similar, length, getindex, setindex!
+import Base: merge, resize!,  similar, length, getindex, setindex!
 
 include("context.jl")
 

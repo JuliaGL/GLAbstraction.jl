@@ -24,17 +24,17 @@ gl_internal_format(::Type{Depth{Float32}}) = GL_DEPTH_COMPONENT32F
 gl_internal_format(::Type{DepthStencil{Float24, N0f8}}) = GL_DEPTH24_STENCIL8
 
 function gl_internal_format(::T) where T
-    error("$T doesn't have a valid mapping to an OpenGL internal format enum. Please use DepthStencil/Depth/Color, or overload `gl_internal_format(x::$T)`
+    @error "$T doesn't have a valid mapping to an OpenGL internal format enum. Please use DepthStencil/Depth/Color, or overload `gl_internal_format(x::$T)`
     to return the correct OpenGL format enum.
-    ")
+    "
 end
 
 gl_attachment(::Type{<:Depth}) = GL_DEPTH_ATTACHMENT
 gl_attachment(::Type{<:DepthStencil}) = GL_DEPTH_STENCIL_ATTACHMENT
 function gl_attachment(::T) where T
-    error("$T doesn't have a valid mapping to an OpenGL attachment enum. Please use DepthStencil/Depth, or overload `gl_attachment(x::$T)`
+    @error "$T doesn't have a valid mapping to an OpenGL attachment enum. Please use DepthStencil/Depth, or overload `gl_attachment(x::$T)`
     to return the correct OpenGL depth attachment.
-    ")
+    "
 end
 #TODO talk about Contexts!
 """
@@ -71,11 +71,11 @@ function free!(rb::RenderBuffer)
     return
 end
 
-Base.bind(b::RenderBuffer) = glBindRenderbuffer(GL_RENDERBUFFER, b.id)
+bind(b::RenderBuffer) = glBindRenderbuffer(GL_RENDERBUFFER, b.id)
 unbind(b::RenderBuffer) = glBindRenderbuffer(GL_RENDERBUFFER, b.id)
 
 function resize_nocopy!(b::RenderBuffer, dimensions)
-    Base.bind(b)
+    bind(b)
     glRenderbufferStorage(GL_RENDERBUFFER, b.format, dimensions...)
 end
 
@@ -109,10 +109,10 @@ function FrameBuffer(fb_size::Tuple{<: Integer, <: Integer}, texture_types::NTup
     glassert.(texture_types)
     @assert isempty(invalid_types) "Types $invalid_types are not valid, supported types are:\n  $GLArrayEltypes\n  DepthFormat."
     if N > max_ca
-        error("The length of texture types exceeds the maximum amount of framebuffer color attachments! Found: $N, allowed: $max_ca")
+        @error "The length of texture types exceeds the maximum amount of framebuffer color attachments! Found: $N, allowed: $max_ca"
     end
     if length(collect(filter(x-> x <: DepthFormat, texture_types))) > 1
-        error("The amount of DepthFormat types in texture types exceeds the maximum of 1.")
+        @error "The amount of DepthFormat types in texture types exceeds the maximum of 1."
     end
 
     _attachments = []
@@ -142,9 +142,9 @@ function attach2framebuffer(x::RenderBuffer, attachment)
     glFramebufferRenderbuffer(GL_FRAMEBUFFER, x.attachment, GL_RENDERBUFFER, x.id)
 end
 
-Base.size(fb::FrameBuffer) = size(fb.textures[1]) # it's guaranteed that they all have the same size
+size(fb::FrameBuffer) = size(fb.textures[1]) # it's guaranteed that they all have the same size
 
-function Base.resize!(fb::FrameBuffer, dimensions)
+function resize!(fb::FrameBuffer, dimensions)
     ws = dimensions[1], dimensions[2]
     if ws != size(fb) && all(x -> x > 0, dimensions)
         dimensions = tuple(dimensions...)
@@ -155,7 +155,7 @@ function Base.resize!(fb::FrameBuffer, dimensions)
     nothing
 end
 
-Base.bind(fb::FrameBuffer) = glBindFramebuffer(GL_FRAMEBUFFER, fb.id)
+bind(fb::FrameBuffer) = glBindFramebuffer(GL_FRAMEBUFFER, fb.id)
 unbind(fb::FrameBuffer) = glBindFramebuffer(GL_FRAMEBUFFER, 0)
 
 function draw(fb::FrameBuffer)
@@ -168,13 +168,13 @@ function draw(fb::FrameBuffer)
     glDrawBuffers(GLuint(length(color_attachments)), color_attachments)
 end
 
-function Base.clear!(fb::FrameBuffer, color)
+function clear!(fb::FrameBuffer, color)
     glClearColor(GLfloat(color[1]), GLfloat(color[2]), GLfloat(color[3]), GLfloat(color[4]))
     draw(fb)
     glClear(GL_COLOR_BUFFER_BIT)
     glClear(GL_DEPTH_BUFFER_BIT)
 end
-Base.clear!(fb::FrameBuffer) = clear!(fb, (0.0, 0.0, 0.0, 0.0))
+clear!(fb::FrameBuffer) = clear!(fb, (0.0, 0.0, 0.0, 0.0))
 
 function free!(fb::FrameBuffer)
     if isempty(fb.attachments)

@@ -29,7 +29,7 @@ function print_with_lines(out::IO, text::AbstractString)
     write(out, take!(io))
 end
 
-print_with_lines(text::AbstractString) = print_with_lines(STDOUT, text)
+print_with_lines(text::AbstractString) = print_with_lines(stdout, text)
 function free_handle_error(e)
     #ignore, since freeing is not needed if context is not available
     isa(e, ContextNotAvailable) && return
@@ -40,13 +40,15 @@ Returns the cardinality of a type. falls back to length
 """
 cardinality(x) = length(x)
 cardinality(x::Number) = 1
-cardinality(::Void) = 1
+cardinality(::Nothing) = 1
 cardinality(x::Type{T}) where {T <: Number} = 1
 
-function glasserteltype(::Type{T}) where T 
+Base.length(::Type{<:Number}) = 1
+
+function glasserteltype(::Type{T}) where T
     try
         length(T)
-    except
-        error("Error only types with well defined lengths are allowed")
+    catch
+        @error "Error only types with well defined lengths are allowed"
     end
 end

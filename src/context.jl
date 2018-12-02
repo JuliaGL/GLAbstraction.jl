@@ -32,10 +32,10 @@ end
 
 function exists_context()
     if current_context().id == :none
-        error("Couldn't find valid OpenGL Context. OpenGL Context active?")
+        @error "Couldn't find valid OpenGL Context. OpenGL Context active?"
     end
 end
 
 #These have to get overloaded for the pipeline to work!
 swapbuffers(c::AbstractContext) = return
-Base.clear!(c::AbstractContext) = return
+clear!(c::AbstractContext) = return

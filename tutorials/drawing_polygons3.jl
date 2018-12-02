@@ -68,7 +68,7 @@ glGetShaderiv(vertex_shader, GL_COMPILE_STATUS, status)
 if status[] != GL_TRUE
     buffer = Array(UInt8, 512)
     glGetShaderInfoLog(vertex_shader, 512, C_NULL, buffer)
-    error(bytestring(buffer))
+    @error "$(bytestring(buffer))"
 end
 
 # Compile the fragment shader
@@ -81,7 +81,7 @@ glGetShaderiv(fragment_shader, GL_COMPILE_STATUS, status)
 if status[] != GL_TRUE
     buffer = Array(UInt8, 512)
     glGetShaderInfoLog(fragment_shader, 512, C_NULL, buffer)
-    error(bytestring(buffer))
+    @error "$(bytestring(buffer))"
 end
 
 # Connect the shaders by combining them into a program
@@ -102,7 +102,7 @@ glVertexAttribPointer(pos_attribute, 2,
 col_attribute = glGetAttribLocation(shader_program, "color")
 glEnableVertexAttribArray(col_attribute)
 glVertexAttribPointer(col_attribute, 3,
-                      GL_FLOAT, GL_FALSE, 5*sizeof(Float32), Ptr{Void}(2*sizeof(Float32)))
+                      GL_FLOAT, GL_FALSE, 5*sizeof(Float32), Ptr{Nothing}(2*sizeof(Float32)))
 
 # Draw while waiting for a close event
 glClearColor(0,0,0,0)

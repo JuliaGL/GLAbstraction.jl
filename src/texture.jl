@@ -8,7 +8,7 @@ function default_texturetype(ndim::Integer)
     ndim == 1 && return GL_TEXTURE_1D
     ndim == 2 && return GL_TEXTURE_2D
     ndim == 3 && return GL_TEXTURE_3D
-    error("Dimensionality: $(ndim), not supported for OpenGL texture")
+    @error "Dimensionality: $(ndim), not supported for OpenGL texture"
 end
 
 # function default_colorformat_sym(colordim::Integer, isinteger::Bool, colororder::AbstractString)
@@ -80,7 +80,7 @@ function TextureParameters(T, NDim;
         z_repeat    = x_repeat, #wrap_r
         anisotropic = 1f0
     )
-    T <: Integer && (minfilter == :linear || magfilter == :linear) && error("Wrong Texture Parameter: Integer texture can't interpolate. Try :nearest")
+    T <: Integer && (minfilter == :linear || magfilter == :linear) && (@error "Wrong Texture Parameter: Integer texture can't interpolate. Try :nearest")
     repeat = (x_repeat, y_repeat, z_repeat)
     swizzle_mask = if T <: Gray
         GLenum[GL_RED, GL_RED, GL_RED, GL_ONE]
@@ -111,7 +111,7 @@ function map_texture_paramers(s::Symbol)
     s == :nearest_mipmap_linear && return GL_NEAREST_MIPMAP_LINEAR
     s == :linear_mipmap_linear && return GL_LINEAR_MIPMAP_LINEAR
 
-    error("$s is not a valid texture parameter")
+    @error "$s is not a valid texture parameter"
 end
 
 #This is used in the construction of Textures
@@ -282,14 +282,14 @@ end
 is_texturearray(t::Texture) = t.texturetype == GL_TEXTURE_2D_ARRAY
 is_texturebuffer(t::Texture) = t.texturetype == GL_TEXTURE_BUFFER
 
-Base.bind(t::Texture) = glBindTexture(t.texturetype, t.id)
-Base.bind(t::Texture, id) = glBindTexture(t.texturetype, id)
+bind(t::Texture) = glBindTexture(t.texturetype, t.id)
+bind(t::Texture, id) = glBindTexture(t.texturetype, id)
 
 function resize_nocopy!(t::Texture{T, ND}, newdims::NTuple{ND, Int}) where {T, ND}
-    Base.bind(t)
+    bind(t)
     glTexImage(t.texturetype, 0, t.internalformat, newdims..., 0, t.format, t.pixeltype, C_NULL)
     t.size = newdims
-    Base.bind(t, 0)
+    bind(t, 0)
     t
 end
 
@@ -334,10 +334,10 @@ function gpu_data(t::Texture{T, ND}) where {T, ND}
     return result
 end
 
-function Base.unsafe_copy!(dest::Array{T, N}, source::Texture{T, N}) where {T,N}
-    Base.bind(source)
+function Base.unsafe_copyto!(dest::Array{T, N}, source::Texture{T, N}) where {T,N}
+    bind(source)
     glGetTexImage(source.texturetype, 0, source.format, source.pixeltype, dest)
-    Base.bind(source, 0)
+    bind(source, 0)
     nothing
 end
 
@@ -391,11 +391,11 @@ function texparameter(t::Texture, key::GLenum, val::Float32)
     glTexParameterf(t.texturetype, key, val)
 end
 function set_parameters(t::Texture, parameters::Vector{Tuple{GLenum, Any}})
-    Base.bind(t)
+    bind(t)
     for elem in parameters
         texparameter(t, elem...)
     end
-    Base.bind(t, 0)
+    bind(t, 0)
 end
 
 function similar(t::Texture{T, NDim}, newdims::NTuple{NDim, Int}) where {T, NDim}
@@ -451,18 +451,18 @@ Base.size(t::TextureBuffer, i::Integer) = size(t.buffer, i)
 Base.length(t::TextureBuffer) = length(t.buffer)
 
 # GPUArray interface:
-function Base.unsafe_copy!(a::Vector{T}, readoffset::Int, b::TextureBuffer{T}, writeoffset::Int, len::Int) where T
+function Base.unsafe_copyto!(a::Vector{T}, readoffset::Int, b::TextureBuffer{T}, writeoffset::Int, len::Int) where T
     copy!(a, readoffset, b.buffer, writeoffset, len)
     glBindTexture(b.texture.texturetype, b.texture.id)
     glTexBuffer(b.texture.texturetype, b.texture.internalformat, b.buffer.id) # update texture
 end
 
-function Base.unsafe_copy!(a::TextureBuffer{T}, readoffset::Int, b::Vector{T}, writeoffset::Int, len::Int) where T
+function Base.unsafe_copyto!(a::TextureBuffer{T}, readoffset::Int, b::Vector{T}, writeoffset::Int, len::Int) where T
     copy!(a.buffer, readoffset, b, writeoffset, len)
     glBindTexture(a.texture.texturetype, a.texture.id)
     glTexBuffer(a.texture.texturetype, a.texture.internalformat, a.buffer.id) # update texture
 end
-function Base.unsafe_copy!(a::TextureBuffer{T}, readoffset::Int, b::TextureBuffer{T}, writeoffset::Int, len::Int) where T
+function Base.unsafe_copyto!(a::TextureBuffer{T}, readoffset::Int, b::TextureBuffer{T}, writeoffset::Int, len::Int) where T
     unsafe_copy!(a.buffer, readoffset, b.buffer, writeoffset, len)
 
     glBindTexture(a.texture.texturetype, a.texture.id)
@@ -497,9 +497,9 @@ function gpu_resize!(t::TextureBuffer{T}, newdims::NTuple{1, Int}) where T
     t
 end
 
-Base.start(t::TextureBuffer{T}) where {T} = start(t.buffer)
-Base.next(t::TextureBuffer{T}, state::Tuple{Ptr{T}, Int}) where {T} = next(t.buffer, state)
-function Base.done(t::TextureBuffer{T}, state::Tuple{Ptr{T}, Int}) where T
+start(t::TextureBuffer{T}) where {T} = start(t.buffer)
+next(t::TextureBuffer{T}, state::Tuple{Ptr{T}, Int}) where {T} = next(t.buffer, state)
+function done(t::TextureBuffer{T}, state::Tuple{Ptr{T}, Int}) where T
     isdone = done(t.buffer, state)
     if isdone
         glBindTexture(t.texturetype, t.id)

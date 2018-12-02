@@ -3,7 +3,7 @@ const GLSLScalarTypes = Union{Float32, Int32, UInt32}
 """
 Returns the alignment of the `Type` of T as assumed in https://khronos.org/registry/OpenGL/specs/gl/glspec45.core.pdf#page=159,
 returning a tuple with the first element being the 'base' alignment, and the second the total size inside memory.
-""" 
+"""
 function glsl_alignement_size(T)
     function ceil4(i)
         while i%4 != 0
@@ -25,10 +25,10 @@ function glsl_alignement_size(T)
     if T <: Vector
         return ceil4(length(T)) * N, length(T) * N
     end
-    error("Struct $T not supported yet. Please help by implementing all rules from https://khronos.org/registry/OpenGL/specs/gl/glspec45.core.pdf#page=159")
+    @error "Struct $T not supported yet. Please help by implementing all rules from https://khronos.org/registry/OpenGL/specs/gl/glspec45.core.pdf#page=159"
 end
 
-function std140_offsets{T}(::Type{T})
+function std140_offsets(::Type{T}) where T
     elementsize = 0
     offsets = if T <: GLSLScalarTypes
         elementsize = sizeof(T)
@@ -56,17 +56,18 @@ Statically sized uniform buffer.
 Supports push!, but with fixed memory, so it will error after reaching
 it's preallocated length.
 """
-type UniformBuffer{T, N}
+struct UniformBuffer{T, N}
     buffer::Buffer{T}
     offsets::NTuple{N, Int}
     elementsize::Int
     length::Int
 end
+
 """
     Pre allocates an empty buffer with `max_batch_size` size
     which can be used to store multiple uniform blocks of type T
 """
-function UniformBuffer{T}(::Type{T}, max_batch_size = 1024, mode = GL_STATIC_DRAW)
+function UniformBuffer(::Type{T}, max_batch_size = 1024, mode = GL_STATIC_DRAW) where T
     offsets, elementsize = std140_offsets(T)
     buffer = Buffer{T}(
         max_batch_size,
@@ -78,7 +79,7 @@ end
 """
     Creates an Uniform buffer with the contents of `data`
 """
-function UniformBuffer{T}(data::T, mode = GL_STATIC_DRAW)
+function UniformBuffer{T}(data::T, mode = GL_STATIC_DRAW) where T
     buffer = UniformBuffer(T, 1, mode)
     push!(buffer, data)
     buffer
@@ -86,9 +87,9 @@ end
 
 Base.convert(::Type{UniformBuffer}, x) = UniformBuffer(x)
 Base.convert(::Type{UniformBuffer}, x::UniformBuffer) = x
-Base.eltype{T, N}(::UniformBuffer{T, N}) = T
+Base.eltype(::UniformBuffer{T}) where T = T
 
-function Base.setindex!{T, N}(buffer::UniformBuffer{T, N}, element::T, idx::Integer)
+function Base.setindex!(buffer::UniformBuffer{T}, element::T, idx::Integer) where T
     if idx > length(buffer.buffer)
         throw(BoundsError(buffer, idx))
     end
@@ -99,11 +100,11 @@ function Base.setindex!{T, N}(buffer::UniformBuffer{T, N}, element::T, idx::Inte
         unsafe_copy!(dptr + offset, ptr, size)
     end
     glUnmapBuffer(buff.buffertype)
-    Base.bind(buff, 0)
+    bind(buff, 0)
     element
 end
 
-function Base.push!{T, N}(buffer::UniformBuffer{T, N}, element::T)
+function Base.push!(buffer::UniformBuffer{T}, element::T) where T
     buffer.length += 1
     buffer[buffer.length] = element
     buffer
@@ -123,7 +124,7 @@ end
 _getfield(x::GLSLScalarTypes, i) = x
 _getfield(x, i) = getfield(x, i)
 
-function iterate_fields{T, N}(buffer::UniformBuffer{T, N}, x, index)
+function iterate_fields(buffer::UniformBuffer{T, N}, x, index) where {T, N}
     offset = buffer.elementsize * (index - 1)
     x_ref = isimmutable(x) ? Ref(x) : x
     base_ptr = Ptr{UInt8}(pointer_from_objref(x_ref))
@@ -141,14 +142,14 @@ extract_val(::Val{X}) where X = X
 #     end
 #     val_conv = convert(fieldtype(T, index), val)
 #     val_ref = if isbits(val)
-#         Base.RefValue(val)
+#         Base.Ref(val)
 #     elseif isimmutable(val)
 #         error("Struct $TF contains pointers and can't be transferred to GPU")
 #     else
 #         pointer_from_objref(val)
 #     end
 #     buff = x.buffer
-#     Base.bind(buff) do
+#     bind(buff) do
 #         BufferSubData(buff.buffertype, x.offsets[index], sizeof(val_conv), val_ref)
 #     end
 #     x
@@ -161,7 +162,7 @@ extract_val(::Val{X}) where X = X
 #     end
 #     ET = fieldtype(T, index)
 #     val_ref = Ref{ET}()
-#     Base.bind(x.buffer) do
+#     bind(x.buffer) do
 #         glGetBufferSubData(x.buffer.buffertype, x.offsets[index], sizeof(ET), val_ref)
 #     end
 #     val_ref[]

@@ -32,9 +32,9 @@ function RenderPass(name::Symbol, shaders::Vector{Tuple{String, UInt32}})
 end
 
 function start(rp::RenderPass)
-    Base.bind(rp.target)
+    bind(rp.target)
     # clear!(rp.target)
-    Base.bind(rp.program)
+    bind(rp.program)
 end
 
 function stop(rp::RenderPass)
