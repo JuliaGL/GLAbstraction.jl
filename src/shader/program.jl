@@ -35,7 +35,9 @@ mutable struct Program <: AbstractProgram
         # generate the link locations
         nametypedict = uniform_nametype(program)
         uniformlocationdict = uniformlocations(nametypedict, program)
-        new(program, shaders, nametypedict, uniformlocationdict, current_context())
+        prog = new(program, shaders, nametypedict, uniformlocationdict, current_context())
+        finalizer(free!, prog)
+        prog
     end
 end
 

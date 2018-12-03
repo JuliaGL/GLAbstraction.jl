@@ -1,42 +1,39 @@
 # the instanced ones assume that there is at least one buffer with the vertextype (=has fields, bit whishy washy) and the others are the instanced things
+
 function attach2vao(buffer::Buffer{T}, attrib_location, instanced=false) where T
     bind(buffer)
     if !is_glsl_primitive(T)
+        # This is for a buffer that holds all the attributes in a OpenGL defined way.
+        # This requires us to find the fieldoffset
         for i = 1:nfields(T)
             FT = fieldtype(T, i); ET = eltype(FT)
-            glVertexAttribPointer(
-                attrib_location,
-                cardinality(FT), julia2glenum(ET),
-                GL_FALSE, sizeof(T), Ptr{Nothing}(fieldoffset(T, i)) # the fieldoffset is because here we have one buffer having all the attributes
-            )
+            glVertexAttribPointer(attrib_location,
+                                  cardinality(FT), julia2glenum(ET),
+                                  GL_FALSE, sizeof(T), Ptr{Void}(fieldoffset(T, i)))
             glEnableVertexAttribArray(attrib_location)
-            attrib_location += 1
         end
     else
+        # This is for when the buffer holds a single attribute, no need to
+        # calculate fieldoffsets and stuff like that.
         FT = T; ET = eltype(FT)
-        glVertexAttribPointer(
-            attrib_location,
-            cardinality(FT), julia2glenum(ET),
-            GL_FALSE, 0, C_NULL
-        )
+        glVertexAttribPointer(attrib_location,
+                              cardinality(FT), julia2glenum(ET),
+                              GL_FALSE, 0, C_NULL)
         glEnableVertexAttribArray(attrib_location)
         if instanced
             glVertexAttribDivisor(attrib_location, 1)
         end
-        attrib_location += 1
     end
-    return attrib_location
 end
 
-function attach2vao(buffers, attrib_location, kind)
-    for b in buffers
+function attach2vao(buffers::Vector{<:Buffer}, attrib_location::Vector{Int}, kind)
+    for (b, loc) in zip(buffers, attrib_location)
         if kind == elements_instanced
-            attrib_location = attach2vao(b, attrib_location, true)
+            attach2vao(b, loc, true)
         else
-            attrib_location = attach2vao(b, attrib_location)
+            attach2vao(b, loc)
         end
     end
-    return attrib_location
 end
 
 @enum VaoKind simple elements elements_instanced
@@ -59,7 +56,7 @@ end
 
 #TODO just improve this, basically only rely on facelength being defined...
 #     then you can still define different Vao constructors for point indices etc...
-function VertexArray(arrays::Tuple, indices::Union{Nothing, Vector, Buffer}; facelength = 1, attrib_location=0)
+function VertexArray(buffers::Vector{<:Buffer}, attriblocs::Vector{<:Integer}, indices::Union{Nothing, Vector, Buffer}; facelength = 1, instances=1)
     id = glGenVertexArrays()
     glBindVertexArray(id)
 
@@ -72,42 +69,33 @@ function VertexArray(arrays::Tuple, indices::Union{Nothing, Vector, Buffer}; fac
         ind_buf = nothing
     end
 
-    face = eltype(indices) <: Integer ? face2glenum(eltype(indices)) : face2glenum(facelength)
-
-    ninst  = 1
-    nverts = 0
-    buffers = map(arrays) do array
-        if typeof(array) <: Repeated
-            ninst_  = length(array)
-            if kind == elements_instanced && ninst_ != ninst
-                error("Amount of instances is not equal.")
-            end
-            ninst = ninst_
-            nverts_ = length(array.xs.x)
-            kind = elements_instanced
-        else
-            if kind == elements_instanced
-                ninst_ = length(array)
-                if ninst_ != ninst
-                    error("Amount of instances is not equal.")
-                end
-                ninst = ninst_
-                nverts_ = length(array.xs.x)
-            else
-                nverts_ = length(array)
-                if nverts != 0 && nverts != nverts_
-                    # error("Amount of vertices is not equal.")
-                end
-                nverts = nverts_
-            end
-        end
-        convert(Buffer, array)
+    if facelength == 1
+        face = eltype(indices) <: Integer ? face2glenum(eltype(indices)) : face2glenum(facelength)
+    else
+        face = face2glenum(facelength)
     end
-    #TODO Cleanup
-    nverts = ind_buf == nothing ? nverts : length(ind_buf)*cardinality(ind_buf)
-    attach2vao(buffers, attrib_location, kind)
-    glBindVertexArray(0)
+    if instances != 1
+        kind = elements_instanced
+    end
+    #check such that all buffers have the same amount of vertices
+    nverts = 0
+    for b in buffers
+        nverts_ = length(b)
+        if nverts != 0 && nverts != nverts_
+            error("Amount of vertices is not equal.")
+        end
+        nverts = nverts_
+    end
+    if ind_buf != nothing
+        nverts = length(ind_buf)*cardinality(ind_buf)
+    end
+    if kind == elements_instanced #TODO we definitely need to fix this mess
+        attach2vao(buffers, attriblocs, elements)
+    else
+        attach2vao(buffers, attriblocs, kind)
+    end
 
+    glBindVertexArray(0)
     if length(buffers) == 1
         if !is_glsl_primitive(eltype(buffers[1]))
             vert_type = eltype(buffers[1])
@@ -117,14 +105,16 @@ function VertexArray(arrays::Tuple, indices::Union{Nothing, Vector, Buffer}; fac
     else
         vert_type = Tuple{eltype.((buffers...,))...}
     end
-    return VertexArray{vert_type, kind}(id, [buffers...], ind_buf, nverts, ninst, face)
+    return VertexArray{vert_type, kind}(id, buffers, ind_buf, nverts, instances, face)
 end
-VertexArray(buffers...; args...) = VertexArray(buffers, nothing; args...)
-VertexArray(buffers::Tuple; args...) = VertexArray(buffers, nothing; args...)
+
+VertexArray(buffers::Vector{Pair{Buffer, Int64}}, args...;kwargs...) =
+    VertexArray(first.(buffers), last.(buffers), args... ; kwargs...)
+VertexArray(buffers::Buffer...; args...) = VertexArray(buffers, nothing; args...)
+VertexArray(buffers::NTuple{N, Buffer} where N; args...) = VertexArray(buffers, nothing; args...)
 # TODO
 Base.convert(::Type{VertexArray}, x) = VertexArray(x)
 Base.convert(::Type{VertexArray}, x::VertexArray) = x
-
 
 function face2glenum(face)
     facelength = typeof(face) <: Integer ? face : (face <: Integer ? 1 : length(face))

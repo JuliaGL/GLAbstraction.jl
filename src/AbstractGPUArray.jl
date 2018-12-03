@@ -97,12 +97,6 @@ size(v::GPUVector)              = v.size
 size(v::GPUVector, i::Integer)  = v.size[i]
 ndims(::GPUVector)              = 1
 eltype(::GPUVector{T}) where {T}       = T
-endof(A::GPUVector)             = length(A)
-
-
-start(b::GPUVector)             = start(b.buffer)
-next(b::GPUVector, state)       = next(b.buffer, state)
-done(b::GPUVector, state)       = done(b.buffer, state)
 
 gpu_data(A::GPUVector)          = A.buffer[1:length(A)]
 

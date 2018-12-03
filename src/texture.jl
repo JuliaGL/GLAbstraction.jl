@@ -497,7 +497,6 @@ function gpu_resize!(t::TextureBuffer{T}, newdims::NTuple{1, Int}) where T
     t
 end
 
-start(t::TextureBuffer{T}) where {T} = start(t.buffer)
 next(t::TextureBuffer{T}, state::Tuple{Ptr{T}, Int}) where {T} = next(t.buffer, state)
 function done(t::TextureBuffer{T}, state::Tuple{Ptr{T}, Int}) where T
     isdone = done(t.buffer, state)
