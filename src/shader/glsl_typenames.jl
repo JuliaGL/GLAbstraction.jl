@@ -59,7 +59,6 @@ function toglsltype_string(x::T) where T
         @error "can't splice $T into an OpenGL shader. Make sure all fields are of a concrete type and isbits(FieldType)-->true"
     end
 end
-toglsltype_string(t::Union{Buffer{T}, GPUVector{T}}) where {T} = string("in ", glsl_typename(T))
 # Gets used to access a
 function glsl_variable_access(keystring, t::Texture{T, D}) where {T,D}
     fields = SubString("rgba", 1, length(T))
@@ -67,9 +66,6 @@ function glsl_variable_access(keystring, t::Texture{T, D}) where {T,D}
         return string("texelFetch(", keystring, "index).", fields, ";")
     end
     return string("getindex(", keystring, "index).", fields, ";")
-end
-function glsl_variable_access(keystring, ::Union{Real, Buffer, GPUVector})
-    string(keystring, ";")
 end
 
 function glsl_variable_access(keystring, t::Any)

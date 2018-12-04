@@ -76,93 +76,12 @@ function getindex(A::GPUArray{T, N}, ranges::UnitRange...) where {T, N}
     gpu_getindex(A, ranges...)
 end
 
-mutable struct GPUVector{T} <: GPUArray{T, 1}
-    buffer
-    size
-    real_length
-end
-GPUVector(x::GPUArray) = GPUVector{eltype(x)}(x, size(x), length(x))
-
-function update!(A::GPUVector{T}, value::Vector{T}) where T
-    if isa(A, Buffer) && (length(A) != length(value))
-        resize!(A, length(value))
-    end
-    dims = map(x->1:x, size(A))
-    A.buffer[dims...] = value
-    nothing
-end
-
-length(v::GPUVector)            = prod(size(v))
-size(v::GPUVector)              = v.size
-size(v::GPUVector, i::Integer)  = v.size[i]
-ndims(::GPUVector)              = 1
-eltype(::GPUVector{T}) where {T}       = T
-
-gpu_data(A::GPUVector)          = A.buffer[1:length(A)]
-
-getindex(v::GPUVector, index::Int)       = v.buffer[index]
-getindex(v::GPUVector, index::UnitRange) = v.buffer[index]
-setindex!(v::GPUVector{T}, value::T, index::Int) where {T} = v.buffer[index] = value
-setindex!(v::GPUVector{T}, value::T, index::UnitRange) where {T} = v.buffer[index] = value
-
-
-function grow_dimensions(real_length::Int, _size::Int, additonal_size::Int, growfactor::Real=1.5)
-    new_dim = round(Int, real_length*growfactor)
-    return max(new_dim, additonal_size+_size)
-end
-function Base.push!(v::GPUVector{T}, x::Vector{T}) where T
-    lv, lx = length(v), length(x)
-    if (v.real_length < lv+lx)
-        resize!(v.buffer, grow_dimensions(v.real_length, lv, lx))
-    end
-    v.buffer[lv+1:(lv+lx)] = x
-    v.real_length          = length(v.buffer)
-    v.size                 = (lv+lx,)
-    v
-end
-push!(v::GPUVector{T}, x::T) where {T} = push!(v, [x])
-push!(v::GPUVector{T}, x::T...) where {T} = push!(v, [x...])
-append!(v::GPUVector{T}, x::Vector{T}) where {T} = push!(v, x)
-
 resize!(A::GPUArray{T, NDim}, dims::Int...) where {T, NDim} = resize!(A, dims)
 function resize!(A::GPUArray{T, NDim}, newdims::NTuple{NDim, Int}) where {T, NDim}
     newdims == size(A) && return A
     gpu_resize!(A, newdims)
     A
 end
-
-function resize!(v::GPUVector, newlength::Int)
-    if v.real_length >= newlength # is still big enough
-        v.size = (max(0, newlength),)
-        return v
-    end
-    resize!(v.buffer, grow_dimensions(v.real_length, length(v),  newlength-length(v)))
-    v.size        = (newlength,)
-    v.real_length = length(v.buffer)
-end
-function grow_at(v::GPUVector, index::Int, amount::Int)
-    resize!(v, length(v)+amount)
-    copy!(v, index, v, index+amount, amount)
-end
-
-function splice!(v::GPUVector{T}, index::UnitRange, x::Vector=T[]) where T
-    lenv = length(v)
-    elements_to_grow = length(x)-length(index) # -1
-    buffer           = similar(v.buffer, length(v)+elements_to_grow)
-    copy!(v.buffer, 1, buffer, 1, first(index)-1) # copy first half
-    copy!(v.buffer, last(index)+1, buffer, first(index)+length(x), lenv-last(index)) # shift second half
-    v.buffer      = buffer
-    v.real_length = length(buffer)
-    v.size        = (v.real_length,)
-    copy!(x, 1, buffer, first(index), length(x)) # copy contents of insertion vector
-    nothing
-end
-splice!(v::GPUVector{T}, index::Int, x::T) where {T} = v[index] = x
-splice!(v::GPUVector{T}, index::Int, x::Vector=T[]) where {T} = splice!(v, index:index, map(T, x))
-
-
-copy!(a::GPUVector, a_offset::Int, b::Vector, b_offset::Int, amount::Int)   = copy!(a.buffer, a_offset, b,        b_offset, amount)
-copy!(a::GPUVector, a_offset::Int, b::GPUVector, b_offset::Int, amount::Int)= copy!(a.buffer, a_offset, b.buffer, b_offset, amount)
 
 
 copy!(a::GPUArray, a_offset::Int, b::Vector,   b_offset::Int, amount::Int) = _copy!(a, a_offset, b, b_offset, amount)
@@ -207,7 +126,6 @@ max_dim(t) = @error "max_dim not implemented for: $(typeof(t)). This happens, wh
 export data
 export resize
 export GPUArray
-export GPUVector
 
 export update!
 

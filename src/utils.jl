@@ -1,4 +1,9 @@
 
+function getfirst(f, A)
+    id = findfirst(f, A)
+    return id == nothing ? nothing : A[id]
+end
+
 macro gputime(codeblock)
     quote
         local const query        = GLuint[1]
@@ -51,4 +56,17 @@ function glasserteltype(::Type{T}) where T
     catch
         @error "Error only types with well defined lengths are allowed"
     end
+end
+
+function istexturesampler(typ::GLenum)
+    return (
+        typ == GL_SAMPLER_BUFFER || typ == GL_INT_SAMPLER_BUFFER || typ == GL_UNSIGNED_INT_SAMPLER_BUFFER ||
+    	typ == GL_IMAGE_2D ||
+        typ == GL_SAMPLER_1D || typ == GL_SAMPLER_2D || typ == GL_SAMPLER_3D ||
+        typ == GL_UNSIGNED_INT_SAMPLER_1D || typ == GL_UNSIGNED_INT_SAMPLER_2D || typ == GL_UNSIGNED_INT_SAMPLER_3D ||
+        typ == GL_INT_SAMPLER_1D || typ == GL_INT_SAMPLER_2D || typ == GL_INT_SAMPLER_3D ||
+        typ == GL_SAMPLER_1D_ARRAY || typ == GL_SAMPLER_2D_ARRAY ||
+        typ == GL_UNSIGNED_INT_SAMPLER_1D_ARRAY || typ == GL_UNSIGNED_INT_SAMPLER_2D_ARRAY ||
+        typ == GL_INT_SAMPLER_1D_ARRAY || typ == GL_INT_SAMPLER_2D_ARRAY
+    )
 end

@@ -8,14 +8,14 @@
 
 
 #Some additional uniform functions, not related to Imutable Arrays
-gluniform(location::Integer, target::Integer, t::Texture) = gluniform(GLint(location), GLint(target), t)
-gluniform(location::Integer, target::Integer, t::GPUVector) = gluniform(GLint(location), GLint(target), t.buffer)
-gluniform(location::Integer, target::Integer, t::TextureBuffer) = gluniform(GLint(location), GLint(target), t.texture)
-function gluniform(location::GLint, target::GLint, t::Texture)
-    activeTarget = GL_TEXTURE0 + UInt32(target)
-    glActiveTexture(activeTarget)
+# gluniform(location::Integer, target::Integer, t::Texture) = gluniform(GLint(location), GLint(target), t)
+# gluniform(location::Integer, target::Integer, t::GPUVector) = gluniform(GLint(location), GLint(target), t.buffer)
+# gluniform(location::Integer, target::Integer, t::TextureBuffer) = gluniform(GLint(location), GLint(target), t.texture)
+gluniform(location::Integer, t::TextureBuffer) = gluniform(GLint(location), GLint(target), t.texture)
+function gluniform(location::GLint, t::Texture)
+    glActiveTexture(t.id)
     glBindTexture(t.texturetype, t.id)
-    gluniform(location, target)
+    gluniform(location, t.id)
 end
 gluniform(location::Integer, x::Enum) = gluniform(GLint(location), GLint(x))
 gluniform(location::Integer, x::Union{GLubyte, GLushort, GLuint}) = glUniform1ui(GLint(location), x)

@@ -27,11 +27,11 @@ function attach2vao(buffer::Buffer{T}, attrib_location, instanced=false) where T
 end
 
 function attach2vao(buffers::Vector{<:Buffer}, attrib_location::Vector{Int}, kind)
-    for (b, loc) in zip(buffers, attrib_location)
+    for (b, location) in zip(buffers, attrib_location)
         if kind == elements_instanced
-            attach2vao(b, loc, true)
+            attach2vao(b, location, true)
         else
-            attach2vao(b, loc)
+            attach2vao(b, location)
         end
     end
 end
@@ -180,8 +180,8 @@ draw(vao::VertexArray{V, elements_instanced} where V) = glDrawElementsInstanced(
 
 draw(vao::VertexArray{V, simple} where V) = glDrawArrays(vao.face, 0, totverts(vao))
 
-function Base.show(io::IO, vao::VertexArray)
-    fields = filter(x->x != :buffers && x!=:indices, fieldnames(vao))
+function Base.show(io::IO, vao::T) where T<:VertexArray
+    fields = filter(x->x != :buffers && x!=:indices, [fieldnames(T)...])
     for field in fields
         show(io, getfield(vao, field))
         println(io,"")
