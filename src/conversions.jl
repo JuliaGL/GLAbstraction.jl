@@ -40,14 +40,6 @@ gl_promote(x::Type{N0f8}) = x
 
 gl_promote(x::Type{Bool}) = GLboolean
 
-# This should possibly go in another package:
-# gl_promote(x::Type{T}) where {T <: Gray} = Gray{gl_promote(eltype(T))}
-# gl_promote(x::Type{T}) where {T <: Color3} = RGB{gl_promote(eltype(T))}
-# gl_promote(x::Type{T}) where {T <: Color4} = RGBA{gl_promote(eltype(T))}
-# gl_promote(x::Type{T}) where {T <: BGRA} = BGRA{gl_promote(eltype(T))}
-# gl_promote(x::Type{T}) where {T <: BGR} = BGR{gl_promote(eltype(T))}
-
-
 function gl_promote(x::Type{T}) where T
     glasserteltype(T)
     similar_type(T, gl_promote(eltype(T)))
@@ -74,15 +66,6 @@ function gl_convert_struct(x::T, uniform_name::Symbol) where T
         @error "can't convert $x to a OpenGL type. Make sure all fields are of a concrete type and isbits(FieldType)-->true"
     end
 end
-
-
-#i get a warning redefinition because of the NativeTypes inclusion of StaticArrays, whats that about?
-# gl_convert(x::StaticVector{N, T}) where {N, T} = map(gl_promote(T), x)
-# gl_convert(x::SMatrix{N, M, T}) where {N, M, T} = map(gl_promote(T), x)
-
-
-# gl_convert(a::Vector{T}) where {T <: Face} = indexbuffer(s)
-# gl_convert(a::Vector{T}) where T = convert(Vector{gl_promote(T)}, a)
 
 function gl_convert(::Type{T}, a::Array{X, N}; kw_args...) where {T <: GPUArray, X, N}
     T(map(gl_promote(X), a); kw_args...)

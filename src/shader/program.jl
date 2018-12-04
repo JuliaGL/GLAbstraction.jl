@@ -8,7 +8,8 @@ function setup_uniforms(program::GLuint)
     nuniforms = glGetProgramiv(program, GL_ACTIVE_UNIFORMS)
     for i=1:nuniforms
         name, typ, size = glGetActiveUniform(program, i-1)
-        push!(info, (name = name, location = GLint(i-1), T = typ, size = size))
+        loc = glGetUniformLocation(program, name)
+        push!(info, (name = name, location = loc, T = typ, size = size))
     end
     return info
 end
@@ -18,7 +19,8 @@ function setup_attributes(program::GLuint)
     nattribs = glGetProgramiv(program, GL_ACTIVE_ATTRIBUTES)
     for i=1:nattribs
         name, typ, size = glGetActiveAttrib(program, i-1)
-        push!(info, (name = name, location = GLint(i-1), T = typ, size = size))
+        loc = glGetAttribLocation(program, name)
+        push!(info, (name = name, location = loc, T = typ, size = size))
     end
     return info
 end
