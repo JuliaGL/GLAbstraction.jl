@@ -28,7 +28,7 @@ mutable struct Program <: AbstractProgram
     id        ::GLuint
     shaders   ::Vector{Shader}
     uniforms  ::Vector{UniformTuple}
-    attributes::Vector{UniformTuple}
+    attributes::Vector{AttributeTuple}
     context   ::AbstractContext
     function Program(shaders::Vector{Shader}, fragdatalocation::Vector{Tuple{Int, String}})
         # Remove old shaders
@@ -127,6 +127,10 @@ function Base.show(io::IO, p::Program)
     println(io, "Shaders:")
     for shader in p.shaders
         println(io, shader)
+    end
+    println(io, "attributes:")
+    for a in p.attributes
+        println(io, "   ", a.name, "::", GLENUM(a.T).name)
     end
     println(io, "uniforms:")
     for u in p.uniforms
