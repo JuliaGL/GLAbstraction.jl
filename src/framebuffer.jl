@@ -89,7 +89,7 @@ and to one of either a GL_DEPTH_ATTACHMENT or GL_DEPTH_STENCIL_ATTACHMENT.
 mutable struct FrameBuffer{ElementTypes, Internal}
     id::GLuint
     attachments::Internal
-    function FrameBuffer{ElementTypes, Internal}(id, attachments) where {ElementTypes, Interal}
+    function FrameBuffer{ElementTypes, Internal}(id, attachments) where {ElementTypes, Internal}
         obj = new{ElementTypes, Internal}(id, attachments)
         finalizer(free!, obj)
     end
