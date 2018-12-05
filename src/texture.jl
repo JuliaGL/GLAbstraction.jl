@@ -11,60 +11,6 @@ function default_texturetype(ndim::Integer)
     @error "Dimensionality: $(ndim), not supported for OpenGL texture"
 end
 
-# function default_colorformat_sym(colordim::Integer, isinteger::Bool, colororder::AbstractString)
-#     colordim > 4 && error("no colors with dimension > 4 allowed. Dimension given: ", colordim)
-#     sym = "GL_"
-#     # Handle that colordim == 1 => RED instead of R
-#     color = colordim == 1 ? "RED" : colororder[1:colordim]
-#     # Handle gray value
-#     integer = isinteger ? "_INTEGER" : ""
-#     sym *= color * integer
-#     return Symbol(sym)
-# end
-
-# default_colorformat_sym(::Type{T}) where {T <: Real} = default_colorformat_sym(1, T <: Integer, "RED")
-# default_colorformat_sym(::Type{T}) where {T <: AbstractArray} = default_colorformat_sym(cardinality(T), eltype(T) <: Integer, "RGBA")
-# default_colorformat_sym(::Type{T}) where {T <: StaticVector} = default_colorformat_sym(cardinality(T), eltype(T) <: Integer, "RGBA")
-# default_colorformat_sym(::Type{T}) where {T <: Colorant} = default_colorformat_sym(cardinality(T), eltype(T) <: Integer, string(Base.typename(T).name))
-
-# @generated function default_colorformat(::Type{T}) where T
-#     sym = default_colorformat_sym(T)
-#     if !isdefined(ModernGL, sym)
-#         error("$T doesn't have a propper mapping to an OpenGL format")
-#     end
-#     :($sym)
-# end
-
-# function default_internalcolorformat_sym(::Type{T}) where T
-#     cdim = colordim(T)
-#     if cdim > 4 || cdim < 1
-#         error("$(cdim)-dimensional colors not supported")
-#     end
-#     eltyp = eltype(T)
-#     sym = "GL_"
-#     sym *= "RGBA"[1:cdim]
-#     bits = sizeof(eltyp) * 8
-#     sym *= bits <= 32 ? string(bits) : error("$(T) has too many bits")
-#     if eltyp <: AbstractFloat
-#         sym *= "F"
-#     elseif eltyp <: FixedPoint
-#         sym *= eltyp <: Normed ? "" : "_SNORM"
-#     elseif eltyp <: Signed
-#         sym *= "I"
-#     elseif eltyp <: Unsigned
-#         sym *= "UI"
-#     end
-#     Symbol(sym)
-# end
-
-# @generated function default_internalcolorformat(::Type{T}) where T
-#     sym = default_internalcolorformat_sym(T)
-#     if !isdefined(ModernGL, sym)
-#         error("$T doesn't have a propper mapping to an OpenGL format")
-#     end
-#     :($sym)
-# end
-
 struct TextureParameters{NDim}
     minfilter    ::Symbol
     magfilter    ::Symbol # magnification
@@ -95,31 +41,29 @@ function TextureParameters(T, NDim;
     )
 end
 
-
 map_texture_paramers(s::NTuple{N, Symbol}) where {N} = map(map_texture_paramers, s)
 
 function map_texture_paramers(s::Symbol)
 
-    s == :clamp_to_edge && return GL_CLAMP_TO_EDGE
-    s == :mirrored_repeat && return GL_MIRRORED_REPEAT
-    s == :repeat && return GL_REPEAT
-
-    s == :linear && return GL_LINEAR
-    s == :nearest && return GL_NEAREST
+    s == :clamp_to_edge          && return GL_CLAMP_TO_EDGE
+    s == :mirrored_repeat        && return GL_MIRRORED_REPEAT
+    s == :repeat                 && return GL_REPEAT
+    s == :linear                 && return GL_LINEAR
+    s == :nearest                && return GL_NEAREST
     s == :nearest_mipmap_nearest && return GL_NEAREST_MIPMAP_NEAREST
-    s == :linear_mipmap_nearest && return GL_LINEAR_MIPMAP_NEAREST
-    s == :nearest_mipmap_linear && return GL_NEAREST_MIPMAP_LINEAR
-    s == :linear_mipmap_linear && return GL_LINEAR_MIPMAP_LINEAR
+    s == :linear_mipmap_nearest  && return GL_LINEAR_MIPMAP_NEAREST
+    s == :nearest_mipmap_linear  && return GL_NEAREST_MIPMAP_LINEAR
+    s == :linear_mipmap_linear   && return GL_LINEAR_MIPMAP_LINEAR
 
     @error "$s is not a valid texture parameter"
 end
 
 #This is used in the construction of Textures
 function set_packing_alignment(a) # at some point we should specialize to array/ptr a
-    glPixelStorei(GL_UNPACK_ALIGNMENT, 1)
-    glPixelStorei(GL_UNPACK_ROW_LENGTH, 0)
+    glPixelStorei(GL_UNPACK_ALIGNMENT,   1)
+    glPixelStorei(GL_UNPACK_ROW_LENGTH,  0)
     glPixelStorei(GL_UNPACK_SKIP_PIXELS, 0)
-    glPixelStorei(GL_UNPACK_SKIP_ROWS, 0)
+    glPixelStorei(GL_UNPACK_SKIP_ROWS,   0)
 end
 
 abstract type OpenglTexture{T, NDIM} <: GPUArray{T, NDIM} end
@@ -152,6 +96,7 @@ mutable struct Texture{T, NDIM} <: OpenglTexture{T, NDIM}
             size,
             current_context()
         )
+        finalizer(free!, tex)
         tex
     end
 end
@@ -241,25 +186,6 @@ function Texture(image::Array{T, NDim}; kw_args...) where {T, NDim}
     glasserteltype(T)
     Texture(pointer(image), size(image); kw_args...)::Texture{T, NDim}
 end
-
-#=
-Some special treatmend for types, with alpha in the First place
-
-function Texture{T <: Real, NDim}(image::Array{ARGB{T}, NDim}, texture_properties::Vector{(Symbol, Any)})
-    data = map(image) do colorvalue
-        AlphaColorValue(colorvalue.c, colorvalue.alpha)
-    end
-    Texture(pointer(data), [size(data)...], texture_properties)
-end
-=#
-
-#=
-Creates a texture from an Image
-=#
-##function Texture(image::Image, texture_properties::Vector{(Symbol, Any)})
-#    data = image.data
-#    Texture(mapslices(reverse, data, ndims(data)), texture_properties)
-#end
 
 width(t::Texture)  = size(t, 1)
 height(t::Texture) = size(t, 2)

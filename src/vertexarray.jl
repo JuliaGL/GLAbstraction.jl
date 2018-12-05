@@ -1,40 +1,3 @@
-# the instanced ones assume that there is at least one buffer with the vertextype (=has fields, bit whishy washy) and the others are the instanced things
-
-function attach2vao(buffer::Buffer{T}, attrib_location, instanced=false) where T
-    bind(buffer)
-    if !is_glsl_primitive(T)
-        # This is for a buffer that holds all the attributes in a OpenGL defined way.
-        # This requires us to find the fieldoffset
-        for i = 1:nfields(T)
-            FT = fieldtype(T, i); ET = eltype(FT)
-            glVertexAttribPointer(attrib_location,
-                                  cardinality(FT), julia2glenum(ET),
-                                  GL_FALSE, sizeof(T), Ptr{Void}(fieldoffset(T, i)))
-            glEnableVertexAttribArray(attrib_location)
-        end
-    else
-        # This is for when the buffer holds a single attribute, no need to
-        # calculate fieldoffsets and stuff like that.
-        FT = T; ET = eltype(FT)
-        glVertexAttribPointer(attrib_location,
-                              cardinality(FT), julia2glenum(ET),
-                              GL_FALSE, 0, C_NULL)
-        glEnableVertexAttribArray(attrib_location)
-        if instanced
-            glVertexAttribDivisor(attrib_location, 1)
-        end
-    end
-end
-
-function attach2vao(buffers::Vector{<:Buffer}, attrib_location::Vector{Int}, kind)
-    for (b, location) in zip(buffers, attrib_location)
-        if kind == elements_instanced
-            attach2vao(b, location, true)
-        else
-            attach2vao(b, location)
-        end
-    end
-end
 
 @enum VaoKind simple elements elements_instanced
 
@@ -52,7 +15,6 @@ mutable struct VertexArray{Vertex, Kind}
         obj
     end
 end
-
 
 #TODO just improve this, basically only rely on facelength being defined...
 #     then you can still define different Vao constructors for point indices etc...
@@ -112,6 +74,44 @@ VertexArray(buffers::Vector{Pair{Buffer, Int64}}, args...;kwargs...) =
     VertexArray(first.(buffers), last.(buffers), args... ; kwargs...)
 VertexArray(buffers::Buffer...; args...) = VertexArray(buffers, nothing; args...)
 VertexArray(buffers::NTuple{N, Buffer} where N; args...) = VertexArray(buffers, nothing; args...)
+# the instanced ones assume that there is at least one buffer with the vertextype (=has fields, bit whishy washy) and the others are the instanced things
+
+function attach2vao(buffer::Buffer{T}, attrib_location, instanced=false) where T
+    bind(buffer)
+    if !is_glsl_primitive(T)
+        # This is for a buffer that holds all the attributes in a OpenGL defined way.
+        # This requires us to find the fieldoffset
+        for i = 1:nfields(T)
+            FT = fieldtype(T, i); ET = eltype(FT)
+            glVertexAttribPointer(attrib_location,
+                                  cardinality(FT), julia2glenum(ET),
+                                  GL_FALSE, sizeof(T), Ptr{Void}(fieldoffset(T, i)))
+            glEnableVertexAttribArray(attrib_location)
+        end
+    else
+        # This is for when the buffer holds a single attribute, no need to
+        # calculate fieldoffsets and stuff like that.
+        FT = T; ET = eltype(FT)
+        glVertexAttribPointer(attrib_location,
+                              cardinality(FT), julia2glenum(ET),
+                              GL_FALSE, 0, C_NULL)
+        glEnableVertexAttribArray(attrib_location)
+        if instanced
+            glVertexAttribDivisor(attrib_location, 1)
+        end
+    end
+end
+
+function attach2vao(buffers::Vector{<:Buffer}, attrib_location::Vector{Int}, kind)
+    for (b, location) in zip(buffers, attrib_location)
+        if kind == elements_instanced
+            attach2vao(b, location, true)
+        else
+            attach2vao(b, location)
+        end
+    end
+end
+
 # TODO
 Base.convert(::Type{VertexArray}, x) = VertexArray(x)
 Base.convert(::Type{VertexArray}, x::VertexArray) = x

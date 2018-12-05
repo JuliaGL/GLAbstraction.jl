@@ -41,7 +41,7 @@ end
 Holds the id, format and attachment of an OpenGL RenderBuffer.
 RenderBuffers cannot be read by Shaders.
 """
-struct RenderBuffer
+mutable struct RenderBuffer
     id        ::GLuint
     format    ::GLenum
     attachment::GLenum
@@ -49,7 +49,9 @@ struct RenderBuffer
     function RenderBuffer(format::GLenum, attachment::GLenum, dimensions)
         @assert length(dimensions) == 2
         id = glGenRenderbuffers(format, attachment, dimensions)
-        new(id, format, attachment, current_context())
+        obj = new(id, format, attachment, current_context())
+        finalizer(free!, obj)
+        obj
     end
 end
 
@@ -79,24 +81,19 @@ function resize_nocopy!(b::RenderBuffer, dimensions)
     glRenderbufferStorage(GL_RENDERBUFFER, b.format, dimensions...)
 end
 
-
 """
 A FrameBuffer holds all the data related to the usual OpenGL FrameBufferObjects.
 The `attachments` field gets mapped to the different possible GL_COLOR_ATTACHMENTs, which is bound by GL_MAX_COLOR_ATTACHMENTS,
 and to one of either a GL_DEPTH_ATTACHMENT or GL_DEPTH_STENCIL_ATTACHMENT.
 """
-struct FrameBuffer{ElementTypes, Internal}
+mutable struct FrameBuffer{ElementTypes, Internal}
     id::GLuint
     attachments::Internal
+    function FrameBuffer{ElementTypes, Internal}(id, attachments) where {ElementTypes, Interal}
+        obj = new{ElementTypes, Internal}(id, attachments)
+        finalizer(free!, obj)
+    end
 end
-FrameBuffer(fb_size::Tuple{<: Integer, <: Integer}, texture_types...) = FrameBuffer(fb_size, texture_types)
-
-function create_attachment(T, dimensions, lastcolor)
-    tex = Texture(T, dimensions, minfilter = :nearest, x_repeat = :clamp_to_edge)
-    # textures will be color attachments right now. Otherwise we'd need to check for detph attachments
-    tex, lastcolor + 1
-end
-create_attachment(::Type{T}, dimensions, lastcolor) where T <: DepthFormat = (RenderBuffer(T, dimensions), lastcolor)
 
 function FrameBuffer(fb_size::Tuple{<: Integer, <: Integer}, texture_types::NTuple{N, Any}) where N
     dimensions = Int.(fb_size)
@@ -129,6 +126,14 @@ function FrameBuffer(fb_size::Tuple{<: Integer, <: Integer}, texture_types::NTup
     glBindFramebuffer(GL_FRAMEBUFFER, 0)
     return FrameBuffer{Tuple{texture_types...}, typeof(attachments)}(framebuffer, attachments)
 end
+FrameBuffer(fb_size::Tuple{<: Integer, <: Integer}, texture_types...) = FrameBuffer(fb_size, texture_types)
+
+function create_attachment(T, dimensions, lastcolor)
+    tex = Texture(T, dimensions, minfilter = :nearest, x_repeat = :clamp_to_edge)
+    # textures will be color attachments right now. Otherwise we'd need to check for detph attachments
+    tex, lastcolor + 1
+end
+create_attachment(::Type{T}, dimensions, lastcolor) where T <: DepthFormat = (RenderBuffer(T, dimensions), lastcolor)
 
 #quite possibly this should have some color attachments as well idk
 #quite possibly this should have some context as well....

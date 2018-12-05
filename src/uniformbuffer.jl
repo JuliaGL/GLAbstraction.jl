@@ -1,10 +1,44 @@
 const GLSLScalarTypes = Union{Float32, Int32, UInt32}
 
 """
+Statically sized uniform buffer.
+Supports push!, but with fixed memory, so it will error after reaching
+it's preallocated length.
+"""
+struct UniformBuffer{T, N}
+    buffer::Buffer{T}
+    offsets::NTuple{N, Int}
+    elementsize::Int
+    length::Int
+end
+
+"""
+    Pre allocates an empty buffer with `max_batch_size` size
+    which can be used to store multiple uniform blocks of type T
+"""
+function UniformBuffer(::Type{T}, max_batch_size = 1024, mode = GL_STATIC_DRAW) where T
+    offsets, elementsize = std140_offsets(T)
+    buffer = Buffer{T}(
+        max_batch_size,
+        elementsize * max_batch_size,
+        GL_UNIFORM_BUFFER, mode
+    )
+    UniformBuffer(buffer, offsets, elementsize, 0)
+end
+"""
+    Creates an Uniform buffer with the contents of `data`
+"""
+function UniformBuffer{T}(data::T, mode = GL_STATIC_DRAW) where T
+    buffer = UniformBuffer(T, 1, mode)
+    push!(buffer, data)
+    buffer
+end
+
+"""
 Returns the alignment of the `Type` of T as assumed in https://khronos.org/registry/OpenGL/specs/gl/glspec45.core.pdf#page=159,
 returning a tuple with the first element being the 'base' alignment, and the second the total size inside memory.
 """
-function glsl_alignement_size(T)
+function glsl_alignment_size(T)
     function ceil4(i)
         while i%4 != 0
             i += 1
@@ -37,7 +71,7 @@ function std140_offsets(::Type{T}) where T
         offset = 0
         offsets = ntuple(nfields(T)) do i
             ft = fieldtype(T, i)
-            alignement, sz = glsl_alignement_size(ft)
+            alignement, sz = glsl_alignment_size(ft)
             if offset % alignement != 0
                 offset = (div(offset, alignement) + 1) * alignement
             end
@@ -49,40 +83,6 @@ function std140_offsets(::Type{T}) where T
         offsets
     end
     offsets, elementsize
-end
-
-"""
-Statically sized uniform buffer.
-Supports push!, but with fixed memory, so it will error after reaching
-it's preallocated length.
-"""
-struct UniformBuffer{T, N}
-    buffer::Buffer{T}
-    offsets::NTuple{N, Int}
-    elementsize::Int
-    length::Int
-end
-
-"""
-    Pre allocates an empty buffer with `max_batch_size` size
-    which can be used to store multiple uniform blocks of type T
-"""
-function UniformBuffer(::Type{T}, max_batch_size = 1024, mode = GL_STATIC_DRAW) where T
-    offsets, elementsize = std140_offsets(T)
-    buffer = Buffer{T}(
-        max_batch_size,
-        elementsize * max_batch_size,
-        GL_UNIFORM_BUFFER, mode
-    )
-    UniformBuffer(buffer, offsets, elementsize, 0)
-end
-"""
-    Creates an Uniform buffer with the contents of `data`
-"""
-function UniformBuffer{T}(data::T, mode = GL_STATIC_DRAW) where T
-    buffer = UniformBuffer(T, 1, mode)
-    push!(buffer, data)
-    buffer
 end
 
 Base.convert(::Type{UniformBuffer}, x) = UniformBuffer(x)

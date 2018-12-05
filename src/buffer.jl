@@ -14,7 +14,8 @@ mutable struct Buffer{T} <: GPUArray{T, 1}
         glBufferData(buffertype, buff_length * sizeof(T), ptr, usage)
         glBindBuffer(buffertype, 0)
 
-        obj = new(id, (buff_length,), buffertype, usage, current_context())
+        obj = new{T}(id, (buff_length,), buffertype, usage, current_context())
+        finalizer(free!, obj)
         obj
     end
 end
@@ -60,6 +61,8 @@ Base.convert(::Type{Buffer}, x::Buffer)   = x
 Base.convert(::Type{Buffer}, x::Array)    = Buffer(x)
 Base.convert(::Type{Buffer}, x::Repeated) = convert(Buffer, x.xs.x)
 
+
+#TODO: implement iteration
 function start(buffer::Buffer{T}) where T
     glBindBuffer(buffer.buffertype, buffer.id)
     ptr = Ptr{T}(glMapBuffer(buffer.buffertype, GL_READ_WRITE))

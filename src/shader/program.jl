@@ -160,11 +160,12 @@ end
 # display program's information
 function program_info(p::Program)
     result = Dict{Symbol, Any}()
+    program = p.id
     # check if name is really a program
-    result[:program] = p.id
+    result[:program] = program
     # Get the shader's name
     result[:shaders] = glGetAttachedShaders(program)
-    for shader in shaders
+    for shader in result[:shaders]
         result[Symbol("shader_type_$shader")] = GLENUM(convert(GLenum, glGetShaderiv(shader, GL_SHADER_TYPE))).name
     end
     # Get program info
