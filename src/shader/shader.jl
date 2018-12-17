@@ -18,8 +18,8 @@ struct Shader <: AbstractShader
     end
 end
 
-function Shader(name, typ, source::Vector{UInt8})
-    shaderid = glCreateShader(typ)::GLuint
+function Shader(name, shadertype, source::Vector{UInt8})
+    shaderid = glCreateShader(shadertype)::GLuint
     @assert shaderid > 0 "opengl context is not active or shader type not accepted. Shadertype: $(GLENUM(shadertype).name)"
     glShaderSource(shaderid, source)
     glCompileShader(shaderid)
@@ -27,7 +27,7 @@ function Shader(name, typ, source::Vector{UInt8})
         print_with_lines(String(source))
         @error "shader $(name) didn't compile. \n$(getinfolog(shaderid))"
     end
-    Shader(name, source, typ, shaderid)
+    Shader(name, source, shadertype, shaderid)
 end
 function Shader(path::String, source_str::AbstractString)
     typ = shadertype(query(path))

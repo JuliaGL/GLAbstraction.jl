@@ -51,11 +51,7 @@ cardinality(x::Type{T}) where {T <: Number} = 1
 Base.length(::Type{<:Number}) = 1
 
 function glasserteltype(::Type{T}) where T
-    try
-        length(T)
-    catch
-        @error "Error only types with well defined lengths are allowed"
-    end
+    @assert hasmethod(length, (T,)) "Error only types with well defined lengths are allowed"
 end
 
 function istexturesampler(typ::GLenum)

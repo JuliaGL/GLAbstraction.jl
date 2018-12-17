@@ -4,11 +4,66 @@ colordim(::Type{T}) where {T} = cardinality(T)
 colordim(::Type{T}) where {T <: Real} = 1
 
 #Supported texture modes/dimensions
-function default_texturetype(ndim::Integer)
+function texturetype_from_dimensions(ndim::Integer)
     ndim == 1 && return GL_TEXTURE_1D
     ndim == 2 && return GL_TEXTURE_2D
     ndim == 3 && return GL_TEXTURE_3D
     @error "Dimensionality: $(ndim), not supported for OpenGL texture"
+end
+
+@generated function textureformat_internal_from_type(::Type{T}) where T
+    glasserteltype(T)
+    dim = length(T)
+    @assert (dim <= 4 && dim >= 1) "No Textureformat that fits $dim-dimensional eltypes."
+
+    eltyp = eltype(T) #like Float64 in RGBA{Float64}
+    sym = "GL_"
+    sym *= "RGBA"[1:dim]
+    bits = sizeof(eltyp) * 8
+    @assert bits <= 32 "$T has too many bits ($bits)"
+    sym *= string(bits)
+
+    if eltyp <: AbstractFloat
+        sym *= "F"
+    elseif eltyp <: FixedPoint
+        sym *= eltyp <: Normed ? "" : "_SNORM"
+    elseif eltyp <: Signed
+        sym *= "I"
+    elseif eltyp <: Unsigned
+        sym *= "UI"
+    end
+    glenumsym = Symbol(sym)
+    @assert isdefined(ModernGL, glenumsym) "$T doesn't have a proper mapping to an OpenGL format."
+    return :($glenumsym)
+end
+
+function textureformat_from_type_sym(dim::Integer, isinteger::Bool, order::AbstractString)
+    @assert dim <= 4 "no colors with dimension > 4 allowed. Dimension given: $dim"
+    sym = "GL_"
+    # Handle that colordim == 1 => RED instead of R
+    color = dim == 1 ? "RED" : order[1:dim]
+    # Handle gray value
+    integer = isinteger ? "_INTEGER" : ""
+    sym *= color * integer
+    return Symbol(sym)
+end
+
+textureformat_from_type_sym(::Type{T}) where {T <: Real} = textureformat_from_type_sym(1, T <: Integer, "RED")
+textureformat_from_type_sym(::Type{T}) where {T <: AbstractArray} = textureformat_from_type_sym(cardinality(T), eltype(T) <: Integer, "RGBA")
+
+function textureformat_from_type_sym(::Type{T}) where T
+    glasserteltype(T)
+    typenamestring = string(Base.typename(T).name)
+    if typenamestring ∉ ("RGB", "BGR", "RGBA", "ARGB", "ABGR", "RGBA")
+        typenamestring = "RGBA"
+    end
+    return textureformat_from_type_sym(cardinality(T), eltype(T) <: Integer, typenamestring)
+end
+
+@generated function textureformat_from_type(::Type{T}) where T
+    sym = textureformat_from_type_sym(T)
+    @assert isdefined(ModernGL, sym) "$T doesn't have a proper mapping to an OpenGL format"
+    return :($sym)
 end
 
 struct TextureParameters{NDim}
@@ -28,9 +83,10 @@ function TextureParameters(T, NDim;
     )
     T <: Integer && (minfilter == :linear || magfilter == :linear) && (@error "Wrong Texture Parameter: Integer texture can't interpolate. Try :nearest")
     repeat = (x_repeat, y_repeat, z_repeat)
-    swizzle_mask = if T <: Gray
+    dim = length(T)
+    swizzle_mask = if dim == 3 #<: Gray
         GLenum[GL_RED, GL_RED, GL_RED, GL_ONE]
-    elseif T <: GrayA
+    elseif dim == 4 #<: GrayA
         GLenum[GL_RED, GL_RED, GL_RED, GL_ALPHA]
     else
         GLenum[]
@@ -103,9 +159,9 @@ end
 
 function Texture(
         data::Ptr{T}, dims::NTuple{NDim, Int};
-        internalformat::GLenum = default_internalcolorformat(T),
-        texturetype   ::GLenum = default_texturetype(NDim),
-        format        ::GLenum = default_colorformat(T),
+        internalformat::GLenum = textureformat_internal_from_type(T),
+        texturetype   ::GLenum = texturetype_from_dimensions(NDim),
+        format        ::GLenum = textureformat_from_type(T),
         mipmap = false,
         parameters... # rest should be texture parameters
     ) where {T, NDim}
@@ -130,9 +186,9 @@ Constructor for Array Texture
 """
 function Texture(
         data::Vector{Array{T, 2}};
-        internalformat::GLenum = default_internalcolorformat(T),
+        internalformat::GLenum = textureformat_internal_from_type(T),
         texturetype::GLenum    = GL_TEXTURE_2D_ARRAY,
-        format::GLenum         = default_colorformat(T),
+        format::GLenum         = textureformat_from_type(T),
         parameters...
     ) where T
     glasserteltype(T)
