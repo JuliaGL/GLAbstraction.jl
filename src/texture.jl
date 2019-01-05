@@ -1,3 +1,40 @@
+abstract type DepthFormat end
+
+struct Depth{DT} <: DepthFormat
+    depth::DT
+end
+
+# TODO maybe we should implement this as a 32 bit wide primitive type
+# and overload getproperty (getfield on 0.7) to implement depthstencil.depth with masking
+# since you almost always want to have depthstencil.depth::Float32
+struct DepthStencil{DT, ST} <: DepthFormat
+    depth::DT
+    stencil::ST
+end
+#0.7: Base.getproperty(x::DepthStencil, field::Symbol) = field == :depth ? Float32(x.depth) : x.stencil #I actually do want to support v0.6 for now
+
+"""
+Float24 storage type for depth
+"""
+primitive type Float24 <: AbstractFloat 24 end
+
+gl_internal_format(::Type{Depth{Float32}}) = GL_DEPTH_COMPONENT32F
+gl_internal_format(::Type{DepthStencil{Float24, N0f8}}) = GL_DEPTH24_STENCIL8
+
+function gl_internal_format(::T) where T
+    error("$T doesn't have a valid mapping to an OpenGL internal format enum. Please use DepthStencil/Depth/Color, or overload `gl_internal_format(x::$T)`
+    to return the correct OpenGL format enum.
+    ")
+end
+
+gl_attachment(::Type{<:Depth}) = GL_DEPTH_ATTACHMENT
+gl_attachment(::Type{<:DepthStencil}) = GL_DEPTH_STENCIL_ATTACHMENT
+function gl_attachment(::T) where T
+    error("$T doesn't have a valid mapping to an OpenGL attachment enum. Please use DepthStencil/Depth, or overload `gl_attachment(x::$T)`
+    to return the correct OpenGL depth attachment.
+    ")
+end
+
 const GL_TEXTURE_MAX_ANISOTROPY_EXT = GLenum(0x84FE)
 
 colordim(::Type{T}) where {T} = cardinality(T)
@@ -12,6 +49,11 @@ function texturetype_from_dimensions(ndim::Integer)
 end
 
 @generated function textureformat_internal_from_type(::Type{T}) where T
+    if T <: Depth{Float32}
+        return :GL_DEPTH_COMPONENT32F
+    elseif T <: DepthStencil{Float24, N0f8}
+        return :GL_DEPTH24_STENCIL8
+    end
     glasserteltype(T)
     dim = length(T)
     @assert (dim <= 4 && dim >= 1) "No Textureformat that fits $dim-dimensional eltypes."
@@ -54,12 +96,13 @@ textureformat_from_type_sym(::Type{T}) where {T <: AbstractArray} = textureforma
 function textureformat_from_type_sym(::Type{T}) where T
     glasserteltype(T)
     typenamestring = string(Base.typename(T).name)
-    if typenamestring ∉ ("RGB", "BGR", "RGBA", "ARGB", "ABGR", "RGBA")
+    if typenamestring ∉ ("RGB", "BGR", "RGBA", "ARGB", "ABGR", "RGBA","BGRA")
         typenamestring = "RGBA"
     end
     return textureformat_from_type_sym(cardinality(T), eltype(T) <: Integer, typenamestring)
 end
 
+textureformat_from_type_sym(::Type{<:DepthFormat}) = :GL_DEPTH_COMPONENT
 @generated function textureformat_from_type(::Type{T}) where T
     sym = textureformat_from_type_sym(T)
     @assert isdefined(ModernGL, sym) "$T doesn't have a proper mapping to an OpenGL format"
@@ -83,11 +126,11 @@ function TextureParameters(T, NDim;
     )
     T <: Integer && (minfilter == :linear || magfilter == :linear) && (@error "Wrong Texture Parameter: Integer texture can't interpolate. Try :nearest")
     repeat = (x_repeat, y_repeat, z_repeat)
-    dim = length(T)
+    dim = T <: DepthFormat ? 1 : length(T)
     swizzle_mask = if dim == 3 #<: Gray
-        GLenum[GL_RED, GL_RED, GL_RED, GL_ONE]
+        GLenum[GL_RED, GL_BLUE, GL_GREEN, GL_ONE]
     elseif dim == 4 #<: GrayA
-        GLenum[GL_RED, GL_RED, GL_RED, GL_ALPHA]
+        GLenum[GL_RED, GL_BLUE, GL_GREEN, GL_ALPHA]
     else
         GLenum[]
     end
@@ -169,7 +212,11 @@ function Texture(
     id = glGenTextures()
     glBindTexture(texturetype, id)
     set_packing_alignment(data)
-    numbertype = julia2glenum(eltype(T))
+    if T <: DepthFormat
+        numbertype = GL_FLOAT
+    else
+        numbertype = julia2glenum(eltype(T))
+    end
     glTexImage(texturetype, 0, internalformat, dims..., 0, format, numbertype, data)
     mipmap && glGenerateMipmap(texturetype)
     texture = Texture{T, NDim}(
@@ -242,18 +289,19 @@ function Texture(image::Array{T, NDim}; kw_args...) where {T, NDim}
     glasserteltype(T)
     Texture(pointer(image), size(image); kw_args...)::Texture{T, NDim}
 end
-
-width(t::Texture)  = size(t, 1)
-height(t::Texture) = size(t, 2)
-depth(t::Texture)  = size(t, 3)
-
+Base.size(t::Texture) = t.size
+width(t::Texture)     = size(t, 1)
+height(t::Texture)    = size(t, 2)
+depth(t::Texture)     = size(t, 3)
+id(t::Texture)        = t.id
 
 function Base.show(io::IO, t::Texture{T,D}) where {T,D}
     println(io, "Texture$(D)D: ")
     println(io, "                  ID: ", t.id)
-    println(io, "                Size: ", reduce("Dimensions: ", size(t)) do v0, v1
-        v0*"x"*string(v1)
-    end)
+    println(io, "                  Size: Dimensions: $(size(t))")
+    # println(io, "                Size: ", reduce("Dimensions: ", size(t)) do v0, v1
+        # v0*"x"*string(v1)
+    # end)
     println(io, "    Julia pixel type: ", T)
     println(io, "   OpenGL pixel type: ", GLENUM(t.pixeltype).name)
     println(io, "              Format: ", GLENUM(t.format).name)
@@ -359,7 +407,7 @@ function set_parameters(t::Texture{T, N}, params::TextureParameters=t.parameters
     if N >= 3 && !is_texturearray(t) # for texture arrays, third dimension can not be set
         push!(result, (GL_TEXTURE_WRAP_R, data[:repeat][3]))
     end
-    push!(result, (GL_TEXTURE_MAX_ANISOTROPY_EXT, params.anisotropic))
+    # push!(result, (GL_TEXTURE_MAX_ANISOTROPY_EXT, params.anisotropic))
     t.parameters = params
     set_parameters(t, result)
 end

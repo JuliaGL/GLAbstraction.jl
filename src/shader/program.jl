@@ -66,16 +66,20 @@ mutable struct Program <: AbstractProgram
     end
 end
 
+Program(shaders::Vector{Shader}) = Program(shaders, Tuple{Int, String}[])
+
+#REVIEW: This is a bit redundant seen as there is `load(source)` from FilIO for shaders but ok
 function Program(sh_string_typ...)
     shaders = Shader[]
     for (source, typ) in sh_string_typ
         push!(shaders, Shader(gensym(), typ, Vector{UInt8}(source)))
     end
-    Program(shaders, Tuple{Int, String}[])
+    Program(shaders)
 end
 
 attributes(program::Program) = program.attributes
 uniforms(program::Program)   = program.uniforms
+uniform_names(program::Program) = [x.name for x in program.uniforms]
 
 attribute(program::Program, name::Symbol) =
     getfirst(x -> x.name == name, program.attributes)
@@ -117,6 +121,12 @@ unbind(program::AbstractProgram) = glUseProgram(0)
 
 #REVIEW: Not sure if this is the best design decision
 #REVIEW: Naming?
+function set_uniform(program::Program, name::Symbol, vals::Tuple)
+    loc = uniform_location(program, name)
+    if loc != -1
+        gluniform(loc, vals...)
+    end
+end
 function set_uniform(program::Program, name::Symbol, val)
     loc = uniform_location(program, name)
     if loc != -1

@@ -51,7 +51,7 @@ cardinality(x::Type{T}) where {T <: Number} = 1
 Base.length(::Type{<:Number}) = 1
 
 function glasserteltype(::Type{T}) where T
-    @assert hasmethod(length, (T,)) "Error only types with well defined lengths are allowed"
+    @assert (hasmethod(length, (T,)) || T <: DepthFormat) "Error only types with well defined lengths are allowed"
 end
 
 function istexturesampler(typ::GLenum)
@@ -65,4 +65,15 @@ function istexturesampler(typ::GLenum)
         typ == GL_UNSIGNED_INT_SAMPLER_1D_ARRAY || typ == GL_UNSIGNED_INT_SAMPLER_2D_ARRAY ||
         typ == GL_INT_SAMPLER_1D_ARRAY || typ == GL_INT_SAMPLER_2D_ARRAY
     )
+end
+
+"""
+    separate(f, A)
+
+Separates the true and false part of `A`.
+Single values get passed into `f`.
+"""
+function separate(f, A)
+    trues = [f.(A)...]
+    return A[trues], A[(!).(trues)]
 end

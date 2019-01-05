@@ -11,9 +11,11 @@
 # gluniform(location::Integer, target::Integer, t::Texture) = gluniform(GLint(location), GLint(target), t)
 # gluniform(location::Integer, target::Integer, t::GPUVector) = gluniform(GLint(location), GLint(target), t.buffer)
 # gluniform(location::Integer, target::Integer, t::TextureBuffer) = gluniform(GLint(location), GLint(target), t.texture)
-gluniform(location::Integer, t::TextureBuffer) = gluniform(GLint(location), GLint(target), t.texture)
-function gluniform(location::GLint, t::Texture)
-    glActiveTexture(t.id)
+# gluniform(location::Integer, t::TextureBuffer) = gluniform(GLint(location), GLint(target), t.texture)
+#REVIEW: scary, binding and making texture active seems like something that shouldn't be in gluniform...
+function gluniform(location::GLint, texture_unit, t::Texture)
+    texture_unit = GL_TEXTURE0 + UInt32(texture_unit)
+    glActiveTexture(texture_unit)
     glBindTexture(t.texturetype, t.id)
     gluniform(location, t.id)
 end

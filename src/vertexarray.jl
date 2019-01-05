@@ -5,12 +5,12 @@ mutable struct VertexArray{Vertex, Kind}
     id::GLuint
     buffers::Vector{<:Buffer}
     indices::Union{Buffer, Nothing}
-    nverts::Int32 #total vertices to be drawn in drawcall
-    ninst::Int32
+    nverts::GLint #total vertices to be drawn in drawcall
+    ninst::GLint
     face::GLenum
     context::AbstractContext
     function (::Type{VertexArray{Vertex, Kind}})(id, buffers, indices, nverts, ninst, face) where {Vertex, Kind}
-        obj = new{Vertex, Kind}(id, buffers, indices, Int32(nverts), Int32(ninst), face, current_context())
+        obj = new{Vertex, Kind}(id, buffers, indices, nverts, ninst, face, current_context())
         finalizer(free!, obj)
         obj
     end
@@ -18,7 +18,7 @@ end
 
 #TODO just improve this, basically only rely on facelength being defined...
 #     then you can still define different Vao constructors for point indices etc...
-function VertexArray(buffers::Vector{<:Buffer}, attriblocs::Vector{<:Integer}, indices::Union{Nothing, Vector, Buffer}; facelength = 1, instances=1)
+function VertexArray(buffers::Vector{<:Buffer}, attriblocs::Vector{GLint}, indices::Union{Nothing, Vector, Buffer}; facelength = 1, instances=1)
     id = glGenVertexArrays()
     glBindVertexArray(id)
 
@@ -70,7 +70,7 @@ function VertexArray(buffers::Vector{<:Buffer}, attriblocs::Vector{<:Integer}, i
     return VertexArray{vert_type, kind}(id, buffers, ind_buf, nverts, instances, face)
 end
 
-VertexArray(buffers::Vector{Pair{Buffer, Int64}}, args...;kwargs...) =
+VertexArray(buffers::Vector{Pair{Buffer, GLint}}, args...;kwargs...) =
     VertexArray(first.(buffers), last.(buffers), args... ; kwargs...)
 VertexArray(buffers::Buffer...; args...) = VertexArray(buffers, nothing; args...)
 VertexArray(buffers::NTuple{N, Buffer} where N; args...) = VertexArray(buffers, nothing; args...)
@@ -102,7 +102,7 @@ function attach2vao(buffer::Buffer{T}, attrib_location, instanced=false) where T
     end
 end
 
-function attach2vao(buffers::Vector{<:Buffer}, attrib_location::Vector{Int}, kind)
+function attach2vao(buffers::Vector{<:Buffer}, attrib_location::Vector{GLint}, kind)
     for (b, location) in zip(buffers, attrib_location)
         if kind == elements_instanced
             attach2vao(b, location, true)
@@ -118,19 +118,21 @@ Base.convert(::Type{VertexArray}, x::VertexArray) = x
 
 function face2glenum(face)
     facelength = typeof(face) <: Integer ? face : (face <: Integer ? 1 : length(face))
-    facelength == 1 && return GL_POINTS
-    facelength == 2 && return GL_LINES
-    facelength == 3 && return GL_TRIANGLES
-    facelength == 4 && return GL_QUADS
+    facelength == 1  && return GL_POINTS
+    facelength == 2  && return GL_LINES
+    facelength == 3  && return GL_TRIANGLES
+    facelength == 4  && return GL_QUADS
+    facelength == 5  && return GL_TRIANGLE_STRIP
     facelength == 11 && return GL_LINE_STRIP_ADJACENCY
     return GL_TRIANGLES
 end
 
 function glenum2face(glenum)
-    glenum == GL_POINTS    && return 1
-    glenum == GL_LINES     && return 2
-    glenum == GL_TRIANGLES && return 3
-    glenum == GL_QUADS     && return 4
+    glenum == GL_POINTS               && return 1
+    glenum == GL_LINES                && return 2
+    glenum == GL_TRIANGLES            && return 3
+    glenum == GL_QUADS                && return 4
+    glenum == GL_TRIANGLE_STRIP       && return 5
     glenum == GL_LINE_STRIP_ADJACENCY && return 11
     return 1
 end
