@@ -128,9 +128,9 @@ function TextureParameters(T, NDim;
     repeat = (x_repeat, y_repeat, z_repeat)
     dim = T <: DepthFormat ? 1 : length(T)
     swizzle_mask = if dim == 3 #<: Gray
-        GLenum[GL_RED, GL_BLUE, GL_GREEN, GL_ONE]
+        GLenum[GL_RED,  GL_GREEN, GL_BLUE, GL_ONE]
     elseif dim == 4 #<: GrayA
-        GLenum[GL_RED, GL_BLUE, GL_GREEN, GL_ALPHA]
+        GLenum[GL_RED, GL_GREEN,  GL_BLUE, GL_ALPHA]
     else
         GLenum[]
     end
