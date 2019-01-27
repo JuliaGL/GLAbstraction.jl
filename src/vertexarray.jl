@@ -9,71 +9,58 @@ mutable struct VertexArray{Vertex, Kind}
     ninst::GLint
     face::GLenum
     context::AbstractContext
-    function (::Type{VertexArray{Vertex, Kind}})(id, buffers, indices, nverts, ninst, face) where {Vertex, Kind}
-        obj = new{Vertex, Kind}(id, buffers, indices, nverts, ninst, face, current_context())
+    function VertexArray(kind::VaoKind, attriblocs::Vector{GLint}, buffers::Vector{<:Buffer}, indices, ninst, face)
+        id = glGenVertexArrays()
+        glBindVertexArray(id)
+
+        nverts = 0
+        for b in buffers
+            nverts_ = length(b)
+            if nverts != 0 && nverts != nverts_
+                error("Amount of vertices is not equal.")
+            end
+            nverts = nverts_
+        end
+
+        if indices != nothing
+            bind(indices)
+            nverts = length(indices)*cardinality(indices)
+        end
+
+        if kind == elements_instanced #TODO we definitely need to fix this mess
+            attach2vao(buffers, attriblocs, elements)
+        else
+            attach2vao(buffers, attriblocs, kind)
+        end
+
+        glBindVertexArray(0)
+        if length(buffers) == 1
+            if !is_glsl_primitive(eltype(buffers[1]))
+                vert_type = eltype(buffers[1])
+            else
+                vert_type = Tuple{eltype(buffers[1])}
+            end
+        else
+            vert_type = Tuple{eltype.((buffers...,))...}
+        end
+
+        obj = new{vert_type, kind}(id, buffers, indices, nverts, ninst, face, current_context())
         finalizer(free!, obj)
         obj
     end
 end
 
-#TODO just improve this, basically only rely on facelength being defined...
-#     then you can still define different Vao constructors for point indices etc...
-function VertexArray(buffers::Vector{<:Buffer}, attriblocs::Vector{GLint}, indices::Union{Nothing, Vector, Buffer}; facelength = 1, instances=1)
-    id = glGenVertexArrays()
-    glBindVertexArray(id)
+VertexArray(attriblocs::Vector{GLint}, buffers::Vector{<:Buffer}, facelength::Int) =
+    VertexArray(simple, attriblocs, buffers, nothing, 1, face2glenum(facelength))
 
-    if indices != nothing
-        ind_buf = indexbuffer(indices)
-        bind(ind_buf)
-        kind = elements
-    else
-        kind = simple
-        ind_buf = nothing
-    end
+VertexArray(attriblocs::Vector{GLint}, buffers::Vector{<:Buffer}, indices::Vector{Int}, facelength::Int) =
+    VertexArray(elements, attriblocs, buffers, indexbuffer(indices), 1, face2glenum(facelength))
 
-    if facelength == 1
-        face = eltype(indices) <: Integer ? face2glenum(eltype(indices)) : face2glenum(facelength)
-    else
-        face = face2glenum(facelength)
-    end
-    if instances != 1
-        kind = elements_instanced
-    end
-    #check such that all buffers have the same amount of vertices
-    nverts = 0
-    for b in buffers
-        nverts_ = length(b)
-        if nverts != 0 && nverts != nverts_
-            error("Amount of vertices is not equal.")
-        end
-        nverts = nverts_
-    end
-    if ind_buf != nothing
-        nverts = length(ind_buf)*cardinality(ind_buf)
-    end
-    if kind == elements_instanced #TODO we definitely need to fix this mess
-        attach2vao(buffers, attriblocs, elements)
-    else
-        attach2vao(buffers, attriblocs, kind)
-    end
+VertexArray(attriblocs::Vector{GLint}, buffers::Vector{<:Buffer}, indices::Vector{F}) where F =
+    VertexArray(elements, attriblocs, buffers, indexbuffer(indices), 1, face2glenum(F))
 
-    glBindVertexArray(0)
-    if length(buffers) == 1
-        if !is_glsl_primitive(eltype(buffers[1]))
-            vert_type = eltype(buffers[1])
-        else
-            vert_type = Tuple{eltype(buffers[1])}
-        end
-    else
-        vert_type = Tuple{eltype.((buffers...,))...}
-    end
-    return VertexArray{vert_type, kind}(id, buffers, ind_buf, nverts, instances, face)
-end
-
-VertexArray(buffers::Vector{Pair{Buffer, GLint}}, args...;kwargs...) =
-    VertexArray(first.(buffers), last.(buffers), args... ; kwargs...)
-VertexArray(buffers::Buffer...; args...) = VertexArray(buffers, nothing; args...)
-VertexArray(buffers::NTuple{N, Buffer} where N; args...) = VertexArray(buffers, nothing; args...)
+VertexArray(buffers::Vector{Pair{GLint, Buffer}}, args...) =
+    VertexArray(first.(buffers), last.(buffers), args...)
 # the instanced ones assume that there is at least one buffer with the vertextype (=has fields, bit whishy washy) and the others are the instanced things
 
 function attach2vao(buffer::Buffer{T}, attrib_location, instanced=false) where T
