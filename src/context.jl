@@ -11,23 +11,23 @@ Since we can't do this via pointer identity  (OpenGL may reuse the same pointers
 We go for this slightly ugly version.
 In the future, this should probably be part of GLWindow.
 =#
-const context = Base.RefValue{Context}(Context(:none))
+const GLOBAL_CONTEXT = Base.RefValue{AbstractContext}(Context(:none))
 
 function current_context()
-    context[]
+    GLOBAL_CONTEXT[]
 end
 function is_current_context(x)
-    x == context[]
+    x == GLOBAL_CONTEXT[]
 end
 function clear_context!()
-    context[] = Context(:none)
+    GLOBAL_CONTEXT[] = Context(:none)
 end
 #this should remain here, maybe, it uses a glframebuffer
 # mutable struct Context <: AbstractContext
 #     context
 # end
 function set_context!(x)
-    context[] = x
+    GLOBAL_CONTEXT[] = x
 end
 
 function exists_context()

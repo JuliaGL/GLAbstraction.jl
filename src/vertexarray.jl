@@ -47,7 +47,6 @@ mutable struct VertexArray{Vertex, Kind}
         else
             vert_type = Tuple{eltype.(([b.buffer for b in bufferinfos]...,))...}
         end
-
         obj = new{vert_type, kind}(id, [b.buffer for b in bufferinfos], indices, nverts, ninst, face, current_context())
         finalizer(free!, obj)
         obj
@@ -67,32 +66,51 @@ VertexArray(bufferinfos::Vector{BufferAttachmentInfo}, indices::Vector{Int}, fac
     VertexArray(elements_instanced, bufferinfos, indexbuffer(indices), ninst, face2glenum(facelength))
 
 VertexArray(bufferinfos::Vector{BufferAttachmentInfo}, indices::Vector{F}, ninst::Int) where F =
-    VertexArray(elements_instanced, bufferinfos, indexbuffer(indices), 1, face2glenum(F))
+    VertexArray(elements_instanced, bufferinfos, indexbuffer(indices), ninst, face2glenum(F))
 
 # the instanced ones assume that there is at least one buffer with the vertextype (=has fields, bit whishy washy) and the others are the instanced things
-
+# It is assumed that when an attribute is longer than 4 bytes, the rest is stored in consecutive locations
 function attach2vao(bufferinfo::BufferAttachmentInfo{T}) where T
+
+    function enable_attrib(loc)
+        glEnableVertexAttribArray(loc)
+        if bufferinfo.divisor != GEOMETRY_DIVISOR
+            glVertexAttribDivisor(loc, bufferinfo.divisor)
+        end
+    end
+
     bind(bufferinfo.buffer)
     if !is_glsl_primitive(T)
         # This is for a buffer that holds all the attributes in a OpenGL defined way.
         # This requires us to find the fieldoffset
+        # TODO this is not tested
         for i = 1:nfields(T)
+            loc = bufferinfo.location + i - 1
             FT = fieldtype(T, i); ET = eltype(FT)
-            glVertexAttribPointer(bufferinfo.location,
+            glVertexAttribPointer(loc,
                                   cardinality(FT), julia2glenum(ET),
-                                  GL_FALSE, sizeof(T), Ptr{Void}(fieldoffset(T, i)))
-            glEnableVertexAttribArray(bufferinfo.location)
+                                  GL_FALSE, sizeof(T), Ptr{Nothing}(fieldoffset(T, i)))
+            enable_attrib(loc)
         end
     else
         # This is for when the buffer holds a single attribute, no need to
         # calculate fieldoffsets and stuff like that.
+        # TODO Assumes everything larger than vec4 is a matrix, is this ok?
         FT = T; ET = eltype(FT)
-        glVertexAttribPointer(bufferinfo.location,
-                              cardinality(FT), julia2glenum(ET),
-                              GL_FALSE, 0, C_NULL)
-        glEnableVertexAttribArray(bufferinfo.location)
-        if bufferinfo.divisor != GEOMETRY_DIVISOR
-            glVertexAttribDivisor(bufferinfo.location, bufferinfo.divisor)
+        cardi = cardinality(FT)
+        gltype = julia2glenum(ET)
+        if cardi > 4
+            s = size(FT)
+            loc_size = s[2]
+            for li=0:s[1]-1
+                loc = bufferinfo.location + li
+                offset = sizeof(gltype) * loc_size * li
+                glVertexAttribPointer(loc, loc_size, gltype, GL_FALSE, cardi*sizeof(gltype), Ptr{Nothing}(offset))
+                enable_attrib(loc)
+            end
+        else
+            glVertexAttribPointer(bufferinfo.location, cardi, gltype, GL_FALSE, 0, C_NULL)
+            enable_attrib(bufferinfo.location)
         end
     end
 end
@@ -135,7 +153,7 @@ _typeof(::T) where T = T
 
 function free!(x::VertexArray)
     if !is_current_context(x.context)
-        return x
+        return
     end
     id = [x.id]
     for buffer in x.buffers
@@ -153,7 +171,6 @@ function free!(x::VertexArray)
 end
 
 glitype(vao::VertexArray) = julia2glenum(eltype(vao.indices))
-totverts(vao::VertexArray) = vao.indices == nothing ? vao.nverts : length(vao.indices) * cardinality(vao.indices)
 
 Base.length(vao::VertexArray) = vao.nverts
 
@@ -163,9 +180,9 @@ unbind(vao::VertexArray) = glBindVertexArray(0)
 #does this ever work with anything aside from an unsigned int??
 draw(vao::VertexArray{V, elements} where V) = glDrawElements(vao.face, vao.nverts, GL_UNSIGNED_INT, C_NULL)
 
-draw(vao::VertexArray{V, elements_instanced} where V) = glDrawElementsInstanced(vao.face, totverts(vao), glitype(vao), C_NULL, vao.ninst)
+draw(vao::VertexArray{V, elements_instanced} where V) = glDrawElementsInstanced(vao.face, vao.nverts, GL_UNSIGNED_INT, C_NULL, vao.ninst)
 
-draw(vao::VertexArray{V, simple} where V) = glDrawArrays(vao.face, 0, totverts(vao))
+draw(vao::VertexArray{V, simple} where V) = glDrawArrays(vao.face, 0, vao.nverts)
 
 function Base.show(io::IO, vao::T) where T<:VertexArray
     fields = filter(x->x != :buffers && x!=:indices, [fieldnames(T)...])
