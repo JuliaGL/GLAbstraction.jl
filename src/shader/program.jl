@@ -2,6 +2,8 @@ islinked(program::GLuint) = glGetProgramiv(program, GL_LINK_STATUS) == GL_TRUE
 
 const AttributeTuple = NamedTuple{(:name, :location, :T, :size), Tuple{Symbol, GLint, GLenum,  GLint}}
 const UniformTuple = AttributeTuple
+const INVALID_ATTRIBUTE = GLint(-1)
+const INVALID_UNIFORM   = GLint(-1)
 
 function setup_uniforms(program::GLuint)
     info = UniformTuple[]
@@ -88,12 +90,12 @@ uniform(program::Program, name::Symbol) =
 
 function attribute_location(program::Program, name::Symbol)
     att = attribute(program, name)
-    return att != nothing ? att.location : GLint(-1)
+    return att != nothing ? att.location : INVALID_ATTRIBUTE
 end
 
 function uniform_location(program::Program, name::Symbol)
     u = uniform(program, name)
-    return u != nothing ? u.location : GLint(-1)
+    return u != nothing ? u.location : INVALID_UNIFORM
 end
 
 function attribute_type(program::Program, name::Symbol)
@@ -108,12 +110,12 @@ end
 
 function attribute_size(program::Program, name::Symbol)
     att = attribute(program, name)
-    return att != nothing ? att.size : GLint(-1)
+    return att != nothing ? att.size : INVALID_ATTRIBUTE
 end
 
 function uniform_size(program::Program, name::Symbol)
     u = uniform(program, name)
-    return u != nothing ? u.size : GLint(-1)
+    return u != nothing ? u.size : INVALID_UNIFORM
 end
 
 bind(program::Program) = glUseProgram(program.id)
@@ -123,13 +125,13 @@ unbind(program::AbstractProgram) = glUseProgram(0)
 #REVIEW: Naming?
 function set_uniform(program::Program, name::Symbol, vals::Tuple)
     loc = uniform_location(program, name)
-    if loc != -1
+    if loc != INVALID_UNIFORM
         gluniform(loc, vals...)
     end
 end
 function set_uniform(program::Program, name::Symbol, val)
     loc = uniform_location(program, name)
-    if loc != -1
+    if loc != INVALID_UNIFORM
         gluniform(loc, val)
     end
 end

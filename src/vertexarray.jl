@@ -1,6 +1,14 @@
 
 @enum VaoKind simple elements elements_instanced
 
+# buffers which are not instanced have divisor = -1
+const GEOMETRY_DIVISOR = GLint(-1)
+struct BufferAttachmentInfo{T}
+    location ::GLint
+    buffer   ::Buffer{T}
+    divisor  ::GLint
+end
+
 mutable struct VertexArray{Vertex, Kind}
     id::GLuint
     buffers::Vector{<:Buffer}
@@ -9,14 +17,14 @@ mutable struct VertexArray{Vertex, Kind}
     ninst::GLint
     face::GLenum
     context::AbstractContext
-    function VertexArray(kind::VaoKind, attriblocs::Vector{GLint}, buffers::Vector{<:Buffer}, indices, ninst, face)
+    function VertexArray(kind::VaoKind, bufferinfos::Vector{BufferAttachmentInfo}, indices, ninst, face)
         id = glGenVertexArrays()
         glBindVertexArray(id)
 
         nverts = 0
-        for b in buffers
-            nverts_ = length(b)
-            if nverts != 0 && nverts != nverts_
+        for b in bufferinfos
+            nverts_ = length(b.buffer)
+            if nverts != 0 && nverts != nverts_ && b.divisor == GEOMETRY_DIVISOR
                 error("Amount of vertices is not equal.")
             end
             nverts = nverts_
@@ -24,77 +32,67 @@ mutable struct VertexArray{Vertex, Kind}
 
         if indices != nothing
             bind(indices)
-            nverts = length(indices)*cardinality(indices)
+            nverts = length(indices) * cardinality(indices)
         end
 
-        if kind == elements_instanced #TODO we definitely need to fix this mess
-            attach2vao(buffers, attriblocs, elements)
-        else
-            attach2vao(buffers, attriblocs, kind)
-        end
+        attach2vao.(bufferinfos)
 
         glBindVertexArray(0)
-        if length(buffers) == 1
-            if !is_glsl_primitive(eltype(buffers[1]))
-                vert_type = eltype(buffers[1])
+        if length(bufferinfos) == 1
+            if !is_glsl_primitive(eltype(buffers[1].buffer))
+                vert_type = eltype(buffers[1].buffer)
             else
-                vert_type = Tuple{eltype(buffers[1])}
+                vert_type = Tuple{eltype(buffers[1].buffer)}
             end
         else
-            vert_type = Tuple{eltype.((buffers...,))...}
+            vert_type = Tuple{eltype.(([b.buffer for b in bufferinfos]...,))...}
         end
 
-        obj = new{vert_type, kind}(id, buffers, indices, nverts, ninst, face, current_context())
+        obj = new{vert_type, kind}(id, [b.buffer for b in bufferinfos], indices, nverts, ninst, face, current_context())
         finalizer(free!, obj)
         obj
     end
 end
 
-VertexArray(attriblocs::Vector{GLint}, buffers::Vector{<:Buffer}, facelength::Int) =
-    VertexArray(simple, attriblocs, buffers, nothing, 1, face2glenum(facelength))
+VertexArray(bufferinfos::Vector{BufferAttachmentInfo}, facelength::Int) =
+    VertexArray(simple, bufferinfos, nothing, 1, face2glenum(facelength))
 
-VertexArray(attriblocs::Vector{GLint}, buffers::Vector{<:Buffer}, indices::Vector{Int}, facelength::Int) =
-    VertexArray(elements, attriblocs, buffers, indexbuffer(indices), 1, face2glenum(facelength))
+VertexArray(bufferinfos::Vector{BufferAttachmentInfo}, indices::Vector{Int}, facelength::Int) =
+    VertexArray(elements, bufferinfos, indexbuffer(indices), 1, face2glenum(facelength))
 
-VertexArray(attriblocs::Vector{GLint}, buffers::Vector{<:Buffer}, indices::Vector{F}) where F =
-    VertexArray(elements, attriblocs, buffers, indexbuffer(indices), 1, face2glenum(F))
+VertexArray(bufferinfos::Vector{BufferAttachmentInfo}, indices::Vector{F}) where F =
+    VertexArray(elements, bufferinfos, indexbuffer(indices), 1, face2glenum(F))
 
-VertexArray(buffers::Vector{Pair{GLint, Buffer}}, args...) =
-    VertexArray(first.(buffers), last.(buffers), args...)
+VertexArray(bufferinfos::Vector{BufferAttachmentInfo}, indices::Vector{Int}, facelength::Int, ninst::Int) =
+    VertexArray(elements_instanced, bufferinfos, indexbuffer(indices), ninst, face2glenum(facelength))
+
+VertexArray(bufferinfos::Vector{BufferAttachmentInfo}, indices::Vector{F}, ninst::Int) where F =
+    VertexArray(elements_instanced, bufferinfos, indexbuffer(indices), 1, face2glenum(F))
+
 # the instanced ones assume that there is at least one buffer with the vertextype (=has fields, bit whishy washy) and the others are the instanced things
 
-function attach2vao(buffer::Buffer{T}, attrib_location, instanced=false) where T
-    bind(buffer)
+function attach2vao(bufferinfo::BufferAttachmentInfo{T}) where T
+    bind(bufferinfo.buffer)
     if !is_glsl_primitive(T)
         # This is for a buffer that holds all the attributes in a OpenGL defined way.
         # This requires us to find the fieldoffset
         for i = 1:nfields(T)
             FT = fieldtype(T, i); ET = eltype(FT)
-            glVertexAttribPointer(attrib_location,
+            glVertexAttribPointer(bufferinfo.location,
                                   cardinality(FT), julia2glenum(ET),
                                   GL_FALSE, sizeof(T), Ptr{Void}(fieldoffset(T, i)))
-            glEnableVertexAttribArray(attrib_location)
+            glEnableVertexAttribArray(bufferinfo.location)
         end
     else
         # This is for when the buffer holds a single attribute, no need to
         # calculate fieldoffsets and stuff like that.
         FT = T; ET = eltype(FT)
-        glVertexAttribPointer(attrib_location,
+        glVertexAttribPointer(bufferinfo.location,
                               cardinality(FT), julia2glenum(ET),
                               GL_FALSE, 0, C_NULL)
-        glEnableVertexAttribArray(attrib_location)
-        if instanced
-            glVertexAttribDivisor(attrib_location, 1)
-        end
-    end
-end
-
-function attach2vao(buffers::Vector{<:Buffer}, attrib_location::Vector{GLint}, kind)
-    for (b, location) in zip(buffers, attrib_location)
-        if kind == elements_instanced
-            attach2vao(b, location, true)
-        else
-            attach2vao(b, location)
+        glEnableVertexAttribArray(bufferinfo.location)
+        if bufferinfo.divisor != GEOMETRY_DIVISOR
+            glVertexAttribDivisor(bufferinfo.location, bufferinfo.divisor)
         end
     end
 end
