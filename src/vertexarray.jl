@@ -1,5 +1,5 @@
 
-@enum VaoKind simple elements elements_instanced
+@enum VaoKind SIMPLE ELEMENTS ELEMENTS_INSTANCED EMPTY
 
 # buffers which are not instanced have divisor = -1
 const GEOMETRY_DIVISOR = GLint(-1)
@@ -51,22 +51,35 @@ mutable struct VertexArray{Vertex, Kind}
         finalizer(free!, obj)
         obj
     end
+    function VertexArray()
+	    return new{Nothing, EMPTY}(GLuint(0),
+	                               Buffer[],
+	                               nothing,
+	                               GLint(0),
+	                               GLint(0),
+	                               GL_POINTS,
+	                               current_context())
+	end
 end
 
 VertexArray(bufferinfos::Vector{BufferAttachmentInfo}, facelength::Int) =
-    VertexArray(simple, bufferinfos, nothing, 1, face2glenum(facelength))
+    VertexArray(SIMPLE, bufferinfos, nothing, 1, face2glenum(facelength))
 
 VertexArray(bufferinfos::Vector{BufferAttachmentInfo}, indices::Vector{Int}, facelength::Int) =
-    VertexArray(elements, bufferinfos, indexbuffer(indices), 1, face2glenum(facelength))
+    VertexArray(ELEMENTS, bufferinfos, indexbuffer(indices), 1, face2glenum(facelength))
 
 VertexArray(bufferinfos::Vector{BufferAttachmentInfo}, indices::Vector{F}) where F =
-    VertexArray(elements, bufferinfos, indexbuffer(indices), 1, face2glenum(F))
+    VertexArray(ELEMENTS, bufferinfos, indexbuffer(indices), 1, face2glenum(F))
 
 VertexArray(bufferinfos::Vector{BufferAttachmentInfo}, indices::Vector{Int}, facelength::Int, ninst::Int) =
-    VertexArray(elements_instanced, bufferinfos, indexbuffer(indices), ninst, face2glenum(facelength))
+    VertexArray(ELEMENTS_INSTANCED, bufferinfos, indexbuffer(indices), ninst, face2glenum(facelength))
 
 VertexArray(bufferinfos::Vector{BufferAttachmentInfo}, indices::Vector{F}, ninst::Int) where F =
-    VertexArray(elements_instanced, bufferinfos, indexbuffer(indices), ninst, face2glenum(F))
+    VertexArray(ELEMENTS_INSTANCED, bufferinfos, indexbuffer(indices), ninst, face2glenum(F))
+
+is_null(vao::VertexArray{Nothing, EMPTY}) = true
+is_null(vao::VertexArray)                 = false
+
 
 # the instanced ones assume that there is at least one buffer with the vertextype (=has fields, bit whishy washy) and the others are the instanced things
 # It is assumed that when an attribute is longer than 4 bytes, the rest is stored in consecutive locations
@@ -178,11 +191,11 @@ bind(vao::VertexArray) = glBindVertexArray(vao.id)
 unbind(vao::VertexArray) = glBindVertexArray(0)
 
 #does this ever work with anything aside from an unsigned int??
-draw(vao::VertexArray{V, elements} where V) = glDrawElements(vao.face, vao.nverts, GL_UNSIGNED_INT, C_NULL)
+draw(vao::VertexArray{V, ELEMENTS} where V) = glDrawElements(vao.face, vao.nverts, GL_UNSIGNED_INT, C_NULL)
 
-draw(vao::VertexArray{V, elements_instanced} where V) = glDrawElementsInstanced(vao.face, vao.nverts, GL_UNSIGNED_INT, C_NULL, vao.ninst)
+draw(vao::VertexArray{V, ELEMENTS_INSTANCED} where V) = glDrawElementsInstanced(vao.face, vao.nverts, GL_UNSIGNED_INT, C_NULL, vao.ninst)
 
-draw(vao::VertexArray{V, simple} where V) = glDrawArrays(vao.face, 0, vao.nverts)
+draw(vao::VertexArray{V, SIMPLE} where V) = glDrawArrays(vao.face, 0, vao.nverts)
 
 function Base.show(io::IO, vao::T) where T<:VertexArray
     fields = filter(x->x != :buffers && x!=:indices, [fieldnames(T)...])
