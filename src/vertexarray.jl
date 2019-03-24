@@ -39,10 +39,10 @@ mutable struct VertexArray{Vertex, Kind}
 
         glBindVertexArray(0)
         if length(bufferinfos) == 1
-            if !is_glsl_primitive(eltype(buffers[1].buffer))
-                vert_type = eltype(buffers[1].buffer)
+            if !is_glsl_primitive(eltype(bufferinfos[1].buffer))
+                vert_type = eltype(bufferinfos[1].buffer)
             else
-                vert_type = Tuple{eltype(buffers[1].buffer)}
+                vert_type = Tuple{eltype(bufferinfos[1].buffer)}
             end
         else
             vert_type = Tuple{eltype.(([b.buffer for b in bufferinfos]...,))...}

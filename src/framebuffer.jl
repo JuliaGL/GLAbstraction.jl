@@ -152,7 +152,7 @@ function Base.resize!(fb::FrameBuffer, dimensions)
     nothing
 end
 
-bind(fb::FrameBuffer) = glBindFramebuffer(GL_FRAMEBUFFER, fb.id)
+bind(fb::FrameBuffer, target=GL_FRAMEBUFFER) = glBindFramebuffer(target, fb.id)
 unbind(fb::FrameBuffer) = glBindFramebuffer(GL_FRAMEBUFFER, 0)
 
 
