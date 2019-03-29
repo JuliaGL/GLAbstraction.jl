@@ -157,9 +157,9 @@ proj = perspectiveprojection(Float32, 45, 600/600, 1, 10)
 ## Now render the distinct objects. Rather than always using std_renderobject,
 ## here we control the settings manually.
 # The cube
-bufferdict_cube = Dict(:position=>GLBuffer(vertex_positions),
-                       :texcoord=>GLBuffer(vertex_texcoords),
-                       :color=>GLBuffer(vertex_colors),
+bufferdict_cube = Dict(:position=>Buffer(vertex_positions),
+                       :texcoord=>Buffer(vertex_texcoords),
+                       :color=>Buffer(vertex_colors),
                        :texKitten=>Texture(data(kitten)),
                        :texPuppy=>Texture(data(puppy)),
                        :overrideColor=>Vec3f0((1,1,1)),
@@ -177,9 +177,9 @@ ro_cube.postrenderfunction = StandardPostrender(ro_cube.vertexarray, GL_TRIANGLE
 
 # The floor. This is drawn without writing to the depth buffer, but we
 # write stencil values.
-bufferdict_floor = Dict(:position=>GLBuffer(floor_positions),
-                        :texcoord=>GLBuffer(floor_texcoords),
-                        :color=>GLBuffer(floor_colors),
+bufferdict_floor = Dict(:position=>Buffer(floor_positions),
+                        :texcoord=>Buffer(floor_texcoords),
+                        :color=>Buffer(floor_colors),
                         :texKitten=>Texture(data(kitten)), # with different shaders, wouldn't need these here
                         :texPuppy=>Texture(data(puppy)),
                         :overrideColor=>Vec3f0((1,1,1)),
@@ -203,9 +203,9 @@ ro_floor = RenderObject(
 ro_floor.postrenderfunction = StandardPostrender(ro_floor.vertexarray, GL_TRIANGLES)
 
 # The cube reflection
-bufferdict_refl = Dict(:position=>GLBuffer(vertex_positions),
-                       :texcoord=>GLBuffer(vertex_texcoords),
-                       :color=>GLBuffer(vertex_colors),
+bufferdict_refl = Dict(:position=>Buffer(vertex_positions),
+                       :texcoord=>Buffer(vertex_texcoords),
+                       :color=>Buffer(vertex_colors),
                        :texKitten=>Texture(data(kitten)),
                        :texPuppy=>Texture(data(puppy)),
                        :overrideColor=>Vec3f0((0.3,0.3,0.3)),

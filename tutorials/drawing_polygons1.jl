@@ -51,7 +51,7 @@ vertices = Point2f0[(0, 0.5), (0.5, -0.5), (-0.5, -0.5)] # note Float32
 vbo = Ref(GLuint(0))   # initial value is irrelevant, just allocate space
 glGenBuffers(1, vbo)
 glBindBuffer(GL_ARRAY_BUFFER, vbo[])
-glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW)
+BufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW)
 
 # The shaders. Here we do everything manually, but life will get
 # easier with GLAbstraction. See drawing_polygons5.jl for such an
@@ -91,7 +91,7 @@ glGetShaderiv(vertex_shader, GL_COMPILE_STATUS, status)
 if status[] != GL_TRUE
     buffer = Array(UInt8, 512)
     glGetShaderInfoLog(vertex_shader, 512, C_NULL, buffer)
-    error(bytestring(buffer))
+    @error "$(bytestring(buffer))"
 end
 
 # Compile the fragment shader
@@ -104,7 +104,7 @@ glGetShaderiv(fragment_shader, GL_COMPILE_STATUS, status)
 if status[] != GL_TRUE
     buffer = Array(UInt8, 512)
     glGetShaderInfoLog(fragment_shader, 512, C_NULL, buffer)
-    error(bytestring(buffer))
+    @error "$(bytestring(buffer))"
 end
 
 # Connect the shaders by combining them into a program

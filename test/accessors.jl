@@ -38,7 +38,7 @@ push!(TEST_2D, Point{4, Int8}[rand(Point{4, Int8}) for i=1:N,j=1:N])
 test_data = Dict(
     TEST_1D => map(Texture, TEST_1D),
     TEST_1D => map(TextureBuffer, TEST_1D),
-    TEST_1D => map(GLBuffer, TEST_1D),
+    TEST_1D => map(Buffer, TEST_1D),
     TEST_2D => map(Texture, TEST_2D)
 )
 

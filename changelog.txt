@@ -1,4 +1,4 @@
-* GLBuffer:
+* Buffer:
 	* Full Indexing (Range, Single)
 	* More array like (Implemented methods from abstract array)
 	

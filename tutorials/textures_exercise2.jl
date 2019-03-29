@@ -68,8 +68,8 @@ void main()
 
 # Link everything together, using the corresponding shader variable as
 # the Dict key
-bufferdict = Dict(:position=>GLBuffer(vertex_positions),
-                  :texcoord=>GLBuffer(vertex_texcoords),
+bufferdict = Dict(:position=>Buffer(vertex_positions),
+                  :texcoord=>Buffer(vertex_texcoords),
                   :tex=>Texture(data(img)),
                   :indexes=>indexbuffer(elements)) # special for element buffers
 

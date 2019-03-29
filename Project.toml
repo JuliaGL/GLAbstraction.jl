@@ -1,0 +1,8 @@
+name = "GLAbstraction"
+uuid = "ca6e7d0a-b0c9-59ca-8aba-aebf11497e1c"
+repo = "https://github.com/JuliaGL/GLAbstraction.jl.git"
+
+[deps]
+FixedPointNumbers = "53c48c17-4a7d-5ca2-90c5-79b7896eea93"
+ModernGL = "66fc600b-dfda-50eb-8b99-91cfa97b1301"
+FileIO   = "5789e2e9-d7fb-5bc7-8068-2c6fae9b9549"

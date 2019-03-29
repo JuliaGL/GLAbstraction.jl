@@ -70,8 +70,8 @@ void main()
 
 # Link everything together, using the corresponding shader variable as
 # the Dict key
-bufferdict = Dict(:position=>GLBuffer(vertex_positions),
-                  :texcoord=>GLBuffer(vertex_texcoords),
+bufferdict = Dict(:position=>Buffer(vertex_positions),
+                  :texcoord=>Buffer(vertex_texcoords),
                   :tex=>Texture(data(img), x_repeat=:repeat),
                   :indexes=>indexbuffer(elements)) # special for element buffers
 
@@ -79,9 +79,9 @@ ro = std_renderobject(bufferdict,
                       LazyShader(vertex_shader, fragment_shader))
 
 prog = ro.vertexarray.program
-yperiod_loc = glGetUniformLocation(prog.id, "yperiod")
-phase_loc = glGetUniformLocation(prog.id, "phase")
-amplitude_loc = glGetUniformLocation(prog.id, "amplitude")
+yperiod_loc = glGetUniformLocation(prog.GLid, "yperiod")
+phase_loc = glGetUniformLocation(prog.GLid, "phase")
+amplitude_loc = glGetUniformLocation(prog.GLid, "amplitude")
 
 # Draw until we receive a close event
 while !GLFW.WindowShouldClose(window)

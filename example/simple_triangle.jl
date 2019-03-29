@@ -23,7 +23,7 @@ void main() {
 
 const triangle = std_renderobject(
     Dict{Symbol, Any}(
-        :position => GLBuffer(Point2f0[(0.0, 0.5), (0.5, -0.5), (-0.5,-0.5)]),
+        :position => Buffer(Point2f0[(0.0, 0.5), (0.5, -0.5), (-0.5,-0.5)]),
     ),
     LazyShader(vsh, fsh)
 )
