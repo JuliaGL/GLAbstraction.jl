@@ -14,10 +14,10 @@
 # gluniform(location::Integer, t::TextureBuffer) = gluniform(GLint(location), GLint(target), t.texture)
 #REVIEW: scary, binding and making texture active seems like something that shouldn't be in gluniform...
 function gluniform(location::GLint, texture_unit, t::Texture)
-    texture_unit = GL_TEXTURE0 + UInt32(texture_unit)
-    glActiveTexture(texture_unit)
+    tu = GL_TEXTURE0 + UInt32(texture_unit)
+    glActiveTexture(tu)
     glBindTexture(t.texturetype, t.id)
-    gluniform(location, t.id)
+    gluniform(location, texture_unit)
 end
 gluniform(location::Integer, x::Enum)                                = gluniform(GLint(location), GLint(x))
 gluniform(location::Integer, x::Union{GLubyte, GLushort, GLuint})    = glUniform1ui(GLint(location), x)
