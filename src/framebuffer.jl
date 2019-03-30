@@ -60,7 +60,7 @@ and to one of either a GL_DEPTH_ATTACHMENT or GL_DEPTH_STENCIL_ATTACHMENT.
 mutable struct FrameBuffer{ElementTypes, Internal}
     id::GLuint
     attachments::Internal
-    function FrameBuffer(fb_size::Tuple{<: Integer, <: Integer}, attachment_types::NTuple{N, Any}, depth_textures=false) where N
+    function FrameBuffer(fb_size::Tuple{<: Integer, <: Integer}, attachment_types::NTuple{N, Any}, depth_as_textures::Bool=false) where N
         dimensions = Int.(fb_size)
 
         depth_types, other_types = separate(x -> x <: DepthFormat, attachment_types)
@@ -88,7 +88,7 @@ mutable struct FrameBuffer{ElementTypes, Internal}
         end
 
         for T in depth_types
-            attachment = create_attachment(T, dimensions, depth_textures)
+            attachment = create_attachment(T, dimensions, depth_as_textures)
             attach2framebuffer(attachment)
             push!(_attachments, attachment)
         end
@@ -107,7 +107,21 @@ mutable struct FrameBuffer{ElementTypes, Internal}
         return obj
     end
 end
-FrameBuffer(fb_size::Tuple{<: Integer, <: Integer}, texture_types...) = FrameBuffer(fb_size, texture_types)
+
+FrameBuffer(fb_size::Tuple{<: Integer, <: Integer}, texture_types::DataType...) = FrameBuffer(fb_size, texture_types)
+
+# Constructor that takes care of creating the FBO with the specified types and then filling in the data
+# Might be a bit stupid not to just put this into the main constructor
+function FrameBuffer(fb_size::Tuple{<: Integer, <: Integer}, texture_types, texture_data::Vector{<:Matrix})
+	fbo = FrameBuffer(fb_size, texture_types)
+	for (data, attachment) in zip(texture_data, fbo.attachments)
+		xrange = 1:size(data)[1]
+		yrange = 1:size(data)[2]
+		gpu_setindex!(attachment, data, xrange, yrange)
+	end
+	return fbo
+end
+
 context_framebuffer() = FrameBuffer(Val(0))
 
 #quite possibly this should have some color attachments as well idk

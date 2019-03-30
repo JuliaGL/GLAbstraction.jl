@@ -17,7 +17,7 @@ function gluniform(location::GLint, texture_unit, t::Texture)
     texture_unit = GL_TEXTURE0 + UInt32(texture_unit)
     glActiveTexture(texture_unit)
     glBindTexture(t.texturetype, t.id)
-    gluniform(location, texture_unit)
+    gluniform(location, t.id)
 end
 gluniform(location::Integer, x::Enum)                                = gluniform(GLint(location), GLint(x))
 gluniform(location::Integer, x::Union{GLubyte, GLushort, GLuint})    = glUniform1ui(GLint(location), x)
