@@ -8,7 +8,6 @@ Transform julia datatypes to opengl enum type
 julia2glenum(x::Type{T}) where {T <: FixedPoint} = julia2glenum(FixedPointNumbers.rawtype(x))
 # julia2glenum(x::Type{OffsetInteger{O, T}}) where {O, T} = julia2glenum(T)
 julia2glenum(::Type{GLubyte})  = GL_UNSIGNED_BYTE
-julia2glenum(::Type{GLubyte})  = GL_UNSIGNED_BYTE
 julia2glenum(::Type{GLbyte})   = GL_BYTE
 julia2glenum(::Type{GLuint})   = GL_UNSIGNED_INT
 julia2glenum(::Type{GLushort}) = GL_UNSIGNED_SHORT

@@ -6,14 +6,11 @@ mutable struct Buffer{T} <: GPUArray{T, 1}
     buffertype  ::GLenum
     usage       ::GLenum
     context     ::AbstractContext
-    function Buffer{T}(ptr::Ptr{T}, buff_length::Int, buffertype::GLenum, usage::GLenum) where T
+    function Buffer{T}(cpu_data_ptr::Ptr{T}, buff_length::Int, buffertype::GLenum, usage::GLenum) where T
         id = glGenBuffers()
-        glBindBuffer(buffertype, id)
-        # size of 0 can segfault it seems
-        buff_length = buff_length == 0 ? 1 : buff_length
-        glBufferData(buffertype, buff_length * sizeof(T), ptr, usage)
-        glBindBuffer(buffertype, 0)
-
+	    # size of 0 can segfault it seems
+	    buff_length = buff_length == 0 ? 1 : buff_length
+        upload_buffer_data(id, cpu_data_ptr, buff_length * sizeof(T), buffertype, usage)
         obj = new{T}(id, (buff_length,), buffertype, usage, current_context())
         finalizer(free!, obj)
         obj
@@ -51,11 +48,24 @@ end
 indexbuffer(x::Buffer) = x.buffertype == GL_ELEMENT_ARRAY_BUFFER ? x : @error "Indexbuffer must be of enum GL_ELEMENT_ARRAY_BUFFER!"
 #-------------------------------- END CONSTRUCTORS -------------------------------------#
 
+function upload_buffer_data(id::GLuint, cpu_data_ptr::Ptr, data_length::Int, buffertype::GLenum, usage::GLenum)
+    glBindBuffer(buffertype, id)
+    glBufferData(buffertype, data_length, cpu_data_ptr, usage)
+    glBindBuffer(buffertype, 0)
+end
+
+function upload_buffer_data!(buf::Buffer{T}, new_data::Vector{T}) where {T}
+	bind(buf)
+    glBufferData(buf.buffertype, length(new_data) * sizeof(T), pointer(new_data), buf.usage)
+    unbind(buf)
+end
+
 cardinality(::Buffer{T}) where {T} = cardinality(T)
 
 bind(buffer::Buffer) = glBindBuffer(buffer.buffertype, buffer.id)
 #used to reset buffer target
 bind(buffer::Buffer, other_target) = glBindBuffer(buffer.buffertype, other_target)
+unbind(buffer::Buffer) = glBindBuffer(buffer.buffertype, buffer.id)
 
 Base.convert(::Type{Buffer}, x::Buffer)   = x
 Base.convert(::Type{Buffer}, x::Array)    = Buffer(x)
@@ -63,23 +73,6 @@ Base.convert(::Type{Buffer}, x::Repeated) = convert(Buffer, x.xs.x)
 
 
 #TODO: implement iteration
-function start(buffer::Buffer{T}) where T
-    glBindBuffer(buffer.buffertype, buffer.id)
-    ptr = Ptr{T}(glMapBuffer(buffer.buffertype, GL_READ_WRITE))
-    (ptr, 1)
-end
-function next(buffer::Buffer{T}, state::Tuple{Ptr{T}, Int}) where T
-    ptr, i = state
-    val = unsafe_load(ptr, i)
-    (val, (ptr, i+1))
-end
-function done(buffer::Buffer{T}, state::Tuple{Ptr{T}, Int}) where T
-    ptr, i = state
-    isdone = length(buffer) < i
-    isdone && glUnmapBuffer(buffer.buffertype)
-    isdone
-end
-
 function Base.similar(x::Buffer{T}, buff_length::Int) where T
     Buffer{T}(Ptr{T}(C_NULL), buff_length, x.buffertype, x.usage)
 end

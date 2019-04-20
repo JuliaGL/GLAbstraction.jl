@@ -4,19 +4,22 @@
 # buffers which are not instanced have divisor = -1
 const GEOMETRY_DIVISOR = GLint(-1)
 struct BufferAttachmentInfo{T}
+	name     ::Symbol
     location ::GLint
     buffer   ::Buffer{T}
     divisor  ::GLint
 end
 
+Base.eltype(b::BufferAttachmentInfo{T}) where T = T
+
 mutable struct VertexArray{Vertex, Kind}
-    id::GLuint
-    buffers::Vector{<:Buffer}
-    indices::Union{Buffer, Nothing}
-    nverts::GLint #total vertices to be drawn in drawcall
-    ninst::GLint
-    face::GLenum
-    context::AbstractContext
+    id         ::GLuint
+    bufferinfos::Vector{BufferAttachmentInfo}
+    indices    ::Union{Buffer, Nothing}
+    nverts     ::GLint #total vertices to be drawn in drawcall
+    ninst      ::GLint
+    face       ::GLenum
+    context    ::AbstractContext
     function VertexArray(kind::VaoKind, bufferinfos::Vector{BufferAttachmentInfo}, indices, ninst, face)
         id = glGenVertexArrays()
         glBindVertexArray(id)
@@ -45,9 +48,9 @@ mutable struct VertexArray{Vertex, Kind}
                 vert_type = Tuple{eltype(bufferinfos[1].buffer)}
             end
         else
-            vert_type = Tuple{eltype.(([b.buffer for b in bufferinfos]...,))...}
+            vert_type = Tuple{eltype.(bufferinfos)...}
         end
-        obj = new{vert_type, kind}(id, [b.buffer for b in bufferinfos], indices, nverts, ninst, face, current_context())
+        obj = new{vert_type, kind}(id, bufferinfos, indices, nverts, ninst, face, current_context())
         finalizer(free!, obj)
         obj
     end
@@ -80,6 +83,7 @@ VertexArray(bufferinfos::Vector{BufferAttachmentInfo}, indices::Vector{F}, ninst
 is_null(vao::VertexArray{Nothing, EMPTY}) = true
 is_null(vao::VertexArray)                 = false
 
+bufferinfo(vao::VertexArray, name::Symbol) = vao.bufferinfos[findfirst(x->x.name == name, vao.bufferinfos)]
 
 # the instanced ones assume that there is at least one buffer with the vertextype (=has fields, bit whishy washy) and the others are the instanced things
 # It is assumed that when an attribute is longer than 4 bytes, the rest is stored in consecutive locations
