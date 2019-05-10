@@ -14,13 +14,13 @@ Base.eltype(b::BufferAttachmentInfo{T}) where T = T
 
 mutable struct VertexArray{Vertex, Kind}
     id         ::GLuint
-    bufferinfos::Vector{BufferAttachmentInfo}
+    bufferinfos::Vector{<:BufferAttachmentInfo}
     indices    ::Union{Buffer, Nothing}
     nverts     ::GLint #total vertices to be drawn in drawcall
     ninst      ::GLint
     face       ::GLenum
     context    ::AbstractContext
-    function VertexArray(kind::VaoKind, bufferinfos::Vector{BufferAttachmentInfo}, indices, ninst, face)
+    function VertexArray(kind::VaoKind, bufferinfos::Vector{<:BufferAttachmentInfo}, indices, ninst, face)
         id = glGenVertexArrays()
         glBindVertexArray(id)
 
@@ -65,19 +65,20 @@ mutable struct VertexArray{Vertex, Kind}
 	end
 end
 
-VertexArray(bufferinfos::Vector{BufferAttachmentInfo}, facelength::Int) =
+VertexArray(bufferinfos::Vector{<:BufferAttachmentInfo}, facelength::Union{GLenum, Int}) =
     VertexArray(SIMPLE, bufferinfos, nothing, 1, face2glenum(facelength))
 
-VertexArray(bufferinfos::Vector{BufferAttachmentInfo}, indices::Vector{Int}, facelength::Int) =
+VertexArray(bufferinfos::Vector{<:BufferAttachmentInfo}, indices::Vector{<:Integer}, facelength::Union{GLenum, Int}) =
+    VertexArray(ELEMENTS, bufferinfos, indexbuffer(GLint.(indices)), 1, face2glenum(facelength))
+
+#TODO this is messy
+VertexArray(bufferinfos::Vector{<:BufferAttachmentInfo}, indices::Vector{F}; facelength=F) where F =
     VertexArray(ELEMENTS, bufferinfos, indexbuffer(indices), 1, face2glenum(facelength))
 
-VertexArray(bufferinfos::Vector{BufferAttachmentInfo}, indices::Vector{F}) where F =
-    VertexArray(ELEMENTS, bufferinfos, indexbuffer(indices), 1, face2glenum(F))
+VertexArray(bufferinfos::Vector{<:BufferAttachmentInfo}, indices::Vector{<:Integer}, facelength::Union{GLenum, Int}, ninst::Int) =
+    VertexArray(ELEMENTS_INSTANCED, bufferinfos, indexbuffer(GLint.(indices)), ninst, face2glenum(facelength))
 
-VertexArray(bufferinfos::Vector{BufferAttachmentInfo}, indices::Vector{Int}, facelength::Int, ninst::Int) =
-    VertexArray(ELEMENTS_INSTANCED, bufferinfos, indexbuffer(indices), ninst, face2glenum(facelength))
-
-VertexArray(bufferinfos::Vector{BufferAttachmentInfo}, indices::Vector{F}, ninst::Int) where F =
+VertexArray(bufferinfos::Vector{<:BufferAttachmentInfo}, indices::Vector{F}, ninst::Int) where F =
     VertexArray(ELEMENTS_INSTANCED, bufferinfos, indexbuffer(indices), ninst, face2glenum(F))
 
 is_null(vao::VertexArray{Nothing, EMPTY}) = true
@@ -143,6 +144,7 @@ function face2glenum(face)
     facelength == 3  && return GL_TRIANGLES
     facelength == 4  && return GL_QUADS
     facelength == 5  && return GL_TRIANGLE_STRIP
+    facelength == 10 && return GL_LINES_ADJACENCY
     facelength == 11 && return GL_LINE_STRIP_ADJACENCY
     return GL_TRIANGLES
 end
@@ -153,6 +155,7 @@ function glenum2face(glenum)
     glenum == GL_TRIANGLES            && return 3
     glenum == GL_QUADS                && return 4
     glenum == GL_TRIANGLE_STRIP       && return 5
+    glenum == GL_LINES_ADJACENCY      && return 10
     glenum == GL_LINE_STRIP_ADJACENCY && return 11
     return 1
 end
@@ -173,17 +176,7 @@ function free!(x::VertexArray)
         return
     end
     id = [x.id]
-    for buffer in x.buffers
-        free!(buffer)
-    end
-    if x.indices != nothing
-        free!(x.indices)
-    end
-    try
-        glDeleteVertexArrays(1, id)
-    catch e
-        free_handle_error(e)
-    end
+    glDeleteVertexArrays(1, id)
     return
 end
 
