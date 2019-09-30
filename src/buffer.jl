@@ -60,6 +60,12 @@ function upload_buffer_data!(buf::Buffer{T}, new_data::Vector{T}) where {T}
     unbind(buf)
 end
 
+function reupload_buffer_data!(buf::Buffer{T}, new_data::Vector{T}, offset=0) where {T}
+	bind(buf)
+    glBufferSubData(buf.buffertype, offset, length(new_data) * sizeof(T), pointer(new_data))
+    unbind(buf)
+end
+
 cardinality(::Buffer{T}) where {T} = cardinality(T)
 
 bind(buffer::Buffer) = glBindBuffer(buffer.buffertype, buffer.id)
