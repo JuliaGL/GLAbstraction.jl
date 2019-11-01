@@ -2,7 +2,7 @@ import Base.Iterators.Repeated
 
 mutable struct Buffer{T} <: GPUArray{T, 1}
     id          ::GLuint
-    size        ::Tuple{Int}
+    len        ::Int
     buffertype  ::GLenum
     usage       ::GLenum
     context     ::AbstractContext
@@ -10,8 +10,8 @@ mutable struct Buffer{T} <: GPUArray{T, 1}
         id = glGenBuffers()
 	    # size of 0 can segfault it seems
 	    buff_length = buff_length == 0 ? 1 : buff_length
-        upload_buffer_data(id, cpu_data_ptr, buff_length * sizeof(T), buffertype, usage)
-        obj = new{T}(id, (buff_length,), buffertype, usage, current_context())
+        upload_data(id, cpu_data_ptr, buff_length * sizeof(T), buffertype, usage)
+        obj = new{T}(id, buff_length, buffertype, usage, current_context())
         finalizer(free!, obj)
         obj
     end
@@ -48,19 +48,25 @@ end
 indexbuffer(x::Buffer) = x.buffertype == GL_ELEMENT_ARRAY_BUFFER ? x : @error "Indexbuffer must be of enum GL_ELEMENT_ARRAY_BUFFER!"
 #-------------------------------- END CONSTRUCTORS -------------------------------------#
 
-function upload_buffer_data(id::GLuint, cpu_data_ptr::Ptr, data_length::Int, buffertype::GLenum, usage::GLenum)
+Base.length(x::Buffer) = x.len
+
+function upload_data(id::GLuint, cpu_data_ptr::Ptr, data_length::Int, buffertype::GLenum, usage::GLenum)
     glBindBuffer(buffertype, id)
     glBufferData(buffertype, data_length, cpu_data_ptr, usage)
     glBindBuffer(buffertype, 0)
 end
 
-function upload_buffer_data!(buf::Buffer{T}, new_data::Vector{T}) where {T}
+function upload_data!(buf::Buffer{T}, new_data::Vector{T}) where {T}
 	bind(buf)
-    glBufferData(buf.buffertype, length(new_data) * sizeof(T), pointer(new_data), buf.usage)
+	if length(new_data) == length(buf)
+        glBufferSubData(buf.buffertype, 0, length(new_data) * sizeof(T), pointer(new_data))
+    else
+        glBufferData(buf.buffertype, length(new_data) * sizeof(T), pointer(new_data), buf.usage)
+    end
     unbind(buf)
 end
 
-function reupload_buffer_data!(buf::Buffer{T}, new_data::Vector{T}, offset=0) where {T}
+function reupload_data!(buf::Buffer{T}, new_data::Vector{T}, offset=0) where {T}
 	bind(buf)
     glBufferSubData(buf.buffertype, offset, length(new_data) * sizeof(T), pointer(new_data))
     unbind(buf)

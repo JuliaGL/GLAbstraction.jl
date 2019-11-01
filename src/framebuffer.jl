@@ -60,7 +60,7 @@ and to one of either a GL_DEPTH_ATTACHMENT or GL_DEPTH_STENCIL_ATTACHMENT.
 mutable struct FrameBuffer{ElementTypes, Internal}
     id::GLuint
     attachments::Internal
-    function FrameBuffer(fb_size::Tuple{<: Integer, <: Integer}, attachment_types::NTuple{N, Any}, depth_as_textures::Bool=false) where N
+    function FrameBuffer(fb_size::Tuple{<: Integer, <: Integer}, attachment_types::NTuple{N, Any}, depth_as_textures::Bool=false; kwargs...) where N
         dimensions = Int.(fb_size)
 
         depth_types, other_types = separate(x -> x <: DepthFormat, attachment_types)
@@ -82,13 +82,13 @@ mutable struct FrameBuffer{ElementTypes, Internal}
         _attachments = []
         color_id = -1
         for T in texture_types
-            attachment, color_id = create_attachment(T, dimensions, color_id)
+            attachment, color_id = create_attachment(T, dimensions, color_id; kwargs...)
             attach2framebuffer(attachment, GL_COLOR_ATTACHMENT(color_id))
             push!(_attachments, attachment)
         end
 
         for T in depth_types
-            attachment = create_attachment(T, dimensions, depth_as_textures)
+            attachment = create_attachment(T, dimensions, depth_as_textures; kwargs...)
             attach2framebuffer(attachment)
             push!(_attachments, attachment)
         end
@@ -108,12 +108,12 @@ mutable struct FrameBuffer{ElementTypes, Internal}
     end
 end
 
-FrameBuffer(fb_size::Tuple{<: Integer, <: Integer}, texture_types::DataType...) = FrameBuffer(fb_size, texture_types)
+FrameBuffer(fb_size::Tuple{<: Integer, <: Integer}, texture_types::DataType...;kwargs...) = FrameBuffer(fb_size, texture_types;kwargs...)
 
 # Constructor that takes care of creating the FBO with the specified types and then filling in the data
 # Might be a bit stupid not to just put this into the main constructor
-function FrameBuffer(fb_size::Tuple{<: Integer, <: Integer}, texture_types, texture_data::Vector{<:Matrix})
-	fbo = FrameBuffer(fb_size, texture_types)
+function FrameBuffer(fb_size::Tuple{<: Integer, <: Integer}, texture_types, texture_data::Vector{<:Matrix}; kwargs...)
+	fbo = FrameBuffer(fb_size, texture_types; kwargs...)
 	for (data, attachment) in zip(texture_data, fbo.attachments)
 		xrange = 1:size(data)[1]
 		yrange = 1:size(data)[2]
@@ -126,13 +126,13 @@ context_framebuffer() = FrameBuffer(Val(0))
 
 #quite possibly this should have some color attachments as well idk
 #quite possibly this should have some context as well....
-function create_attachment(T, dimensions, lastcolor)
-    tex = Texture(T, dimensions, minfilter = :nearest)
+function create_attachment(T, dimensions, lastcolor; kwargs...)
+    tex = Texture(T, dimensions; minfilter = :nearest, kwargs...)
     tex, lastcolor + 1
 end
 
-create_attachment(::Type{T}, dimensions, depth_texture=false) where T <: DepthFormat =
-    depth_texture ? Texture(T, dimensions, minfilter=:nearest) : RenderBuffer(T, dimensions)
+create_attachment(::Type{T}, dimensions, depth_texture=false; kwargs...) where T <: DepthFormat =
+    depth_texture ? Texture(T, dimensions; minfilter=:nearest, kwargs...) : RenderBuffer(T, dimensions)
 
 function attach2framebuffer(t::Texture{T, 2}, attachment) where T
     glFramebufferTexture2D(GL_FRAMEBUFFER, attachment, GL_TEXTURE_2D, t.id, 0)

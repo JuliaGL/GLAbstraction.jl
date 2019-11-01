@@ -65,11 +65,11 @@ mutable struct VertexArray{Vertex, Kind}
 	end
 end
 
-VertexArray(bufferinfos::Vector{<:BufferAttachmentInfo}, facelength::Union{GLenum, Int}) =
-    VertexArray(SIMPLE, bufferinfos, nothing, 1, face2glenum(facelength))
+VertexArray(bufferinfos::Vector{<:BufferAttachmentInfo}, face::GLenum) =
+    VertexArray(SIMPLE, bufferinfos, nothing, 1, face)
 
-VertexArray(bufferinfos::Vector{<:BufferAttachmentInfo}, indices::Vector{<:Integer}, facelength::Union{GLenum, Int}) =
-    VertexArray(ELEMENTS, bufferinfos, indexbuffer(GLint.(indices)), 1, face2glenum(facelength))
+VertexArray(bufferinfos::Vector{<:BufferAttachmentInfo}, indices::Vector{<:Integer}, face::GLenum) =
+    VertexArray(ELEMENTS, bufferinfos, indexbuffer(GLint.(indices)), 1, face)
 
 #TODO this is messy
 VertexArray(bufferinfos::Vector{<:BufferAttachmentInfo}, indices::Vector{F}; facelength=F) where F =
