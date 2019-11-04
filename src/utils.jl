@@ -49,6 +49,7 @@ cardinality(::Nothing) = 1
 cardinality(x::Type{T}) where {T <: Number} = 1
 
 Base.length(::Type{<:Number}) = 1
+Base.length(::Type{<:NTuple{N}}) where {N} = N
 
 function glasserteltype(::Type{T}) where T
     @assert (hasmethod(length, (T,)) || T <: DepthFormat) "Error only types with well defined lengths are allowed"

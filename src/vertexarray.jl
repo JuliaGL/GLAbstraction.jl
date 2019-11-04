@@ -3,6 +3,8 @@
 
 # buffers which are not instanced have divisor = -1
 const GEOMETRY_DIVISOR = GLint(-1)
+const UNIFORM_DIVISOR = GLint(1)
+
 struct BufferAttachmentInfo{T}
 	name     ::Symbol
     location ::GLint
@@ -203,3 +205,15 @@ function Base.show(io::IO, vao::T) where T<:VertexArray
 end
 
 Base.eltype(::Type{VertexArray{ElTypes, Kind}}) where {ElTypes, Kind} = (ElTypes, Kind)
+
+#This could also be done just with the symbols, not needing new bufferattachment infos
+function upload!(vao::VertexArray; name_buffers...)
+    for (n, b) in name_buffers
+        existing_b = findfirst(x -> x.name == n, vao.bufferinfos)
+        upload_data!(vao.bufferinfos[existing_b].buffer, b)
+    end
+end
+
+
+
+
