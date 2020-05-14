@@ -123,16 +123,10 @@ unbind(program::AbstractProgram) = glUseProgram(0)
 
 #REVIEW: Not sure if this is the best design decision
 #REVIEW: Naming?
-function set_uniform(program::Program, name::Symbol, vals::Tuple)
+function set_uniform(program::Program, name::Symbol, vals...)
     loc = uniform_location(program, name)
     if loc != INVALID_UNIFORM
         gluniform(loc, vals...)
-    end
-end
-function set_uniform(program::Program, name::Symbol, val)
-    loc = uniform_location(program, name)
-    if loc != INVALID_UNIFORM
-        gluniform(loc, val)
     end
 end
 

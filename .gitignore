@@ -1,3 +1,5 @@
 *~
 tutorials/images
 *.jl.*.mem
+
+Manifest\.toml

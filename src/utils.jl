@@ -29,7 +29,7 @@ end
 function print_with_lines(out::IO, text::AbstractString)
     io = IOBuffer()
     for (i,line) in enumerate(split(text, "\n"))
-        println(io, Base.Printf.@sprintf("%-4d: %s", i, line))
+        println(io, Printf.@sprintf("%-4d: %s", i, line))
     end
     write(out, take!(io))
 end
