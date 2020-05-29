@@ -1,9 +1,13 @@
 # Another "low-level" example, this one incorporating "Uniforms"
-# Here we also introduce the use of GLWindow to simplify context creation.
-using ModernGL, GeometryTypes, GLAbstraction, GLWindow
+using ModernGL, GeometryTypes, GLAbstraction, GLFW
+
+# GLWindow.jl is out of date, this small file replaces the functionality we
+# need for these tutorials.
+include(joinpath(@__DIR__, "GLWindow.jl"))
+using .GLWindow
 
 # Create the window. This sets all the hints and makes the context current.
-window = create_glcontext("Drawing polygons 2", resolution=(800,600))
+window = create_glcontext("Drawing polygons 2", resolution=(800, 600))
 
 # Create the Vertex Array Object (VAO) and make it current
 # Note that while the tutorial describes this after the attributes (below),
@@ -21,7 +25,7 @@ vertices = Point2f0[(0, 0.5), (0.5, -0.5), (-0.5, -0.5)] # note Float32
 vbo = Ref(GLuint(0))   # initial value is irrelevant, just allocate space
 glGenBuffers(1, vbo)
 glBindBuffer(GL_ARRAY_BUFFER, vbo[])
-BufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW)
+glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW)
 
 # The shaders. Here we do everything manually, but life will get
 # easier with GLAbstraction. See drawing_polygons5.jl for such an
