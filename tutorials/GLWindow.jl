@@ -1,3 +1,11 @@
+"""
+GLWindow was/is a package by Simon Danisch et al that wrapped some functionality of
+GLFW. I think it's obsoleted now? This little module reimplements only those parts
+required to get the tutorials working again.
+
+https://github.com/JuliaGL/GLWindow.jl
+
+"""
 module GLWindow
 
 import GLFW
