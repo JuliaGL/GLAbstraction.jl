@@ -1,0 +1,7 @@
+[deps]
+FileIO = "5789e2e9-d7fb-5bc7-8068-2c6fae9b9549"
+GLAbstraction = "ca6e7d0a-b0c9-59ca-8aba-aebf11497e1c"
+GLFW = "f7f18e0c-5ee9-5ccd-a5bf-e8befd85ed98"
+GeometryTypes = "4d00f742-c7ba-57c2-abde-4428a4b178cb"
+Images = "916415d5-f1e6-5110-898d-aaa5f9f070e0"
+ModernGL = "66fc600b-dfda-50eb-8b99-91cfa97b1301"
