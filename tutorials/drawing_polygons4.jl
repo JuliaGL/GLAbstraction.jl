@@ -1,6 +1,11 @@
 # Another "low-level" example, this one incorporating per-vertex color
 # and element arrays
-using ModernGL, GeometryTypes, GLAbstraction, GLWindow
+using ModernGL, GeometryTypes, GLAbstraction, GLFW
+
+# GLWindow.jl is out of date, this small file replaces the functionality we
+# need for these tutorials.
+include(joinpath(@__DIR__, "GLWindow.jl"))
+using .GLWindow
 
 # Create the window. This sets all the hints and makes the context current.
 window = create_glcontext("Drawing polygons 4", resolution=(800,600))
@@ -26,13 +31,13 @@ elements = Vec{3,GLuint}[(0,1,2),          # the first triangle
 vbo = Ref(GLuint(0))   # initial value is irrelevant, just allocate space
 glGenBuffers(1, vbo)
 glBindBuffer(GL_ARRAY_BUFFER, vbo[])
-BufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW)
+glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW)
 
 # Create the Element Buffer Object (EBO)
 ebo = Ref(GLuint(0))
 glGenBuffers(1, ebo)
 glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ebo[])
-BufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(elements), elements, GL_STATIC_DRAW)
+glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(elements), elements, GL_STATIC_DRAW)
 
 # The shaders. Here we do everything manually, but life will get
 # easier with GLAbstraction. See drawing_polygons5.jl for such an
