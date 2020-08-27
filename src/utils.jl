@@ -52,7 +52,7 @@ Base.length(::Type{<:Number}) = 1
 Base.length(::Type{<:NTuple{N}}) where {N} = N
 
 function glasserteltype(::Type{T}) where T
-    @assert (hasmethod(length, (T,)) || T <: DepthFormat) "Error only types with well defined lengths are allowed"
+    # @assert (hasmethod(length, (T,)) || T <: DepthFormat) "Error only types with well defined lengths are allowed.\nSolution define Base.length(::Type{$T})."
 end
 
 function istexturesampler(typ::GLenum)

@@ -86,7 +86,7 @@ VertexArray(bufferinfos::Vector{<:BufferAttachmentInfo}, indices::Vector{F}, nin
 is_null(vao::VertexArray{Nothing, EMPTY}) = true
 is_null(vao::VertexArray)                 = false
 
-bufferinfo(vao::VertexArray, name::Symbol) = vao.bufferinfos[findfirst(x->x.name == name, vao.bufferinfos)]
+bufferinfo(vao::VertexArray, name::Symbol) = (id =findfirst(x->x.name == name, vao.bufferinfos); id !== nothing ? vao.bufferinfos[id] : id)
 
 # the instanced ones assume that there is at least one buffer with the vertextype (=has fields, bit whishy washy) and the others are the instanced things
 # It is assumed that when an attribute is longer than 4 bytes, the rest is stored in consecutive locations
