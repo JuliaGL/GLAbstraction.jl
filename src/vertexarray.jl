@@ -14,6 +14,24 @@ end
 
 Base.eltype(b::BufferAttachmentInfo{T}) where T = T
 
+function generate_buffers(program::Program, divisor::GLint; name_buffers...)
+	buflen  = 0
+    buffers = BufferAttachmentInfo[]
+    for (name, val) in pairs(name_buffers)
+        loc = attribute_location(program, name)
+        if loc != INVALID_ATTRIBUTE
+	        buflen = buflen == 0 ? length(val) : buflen 
+            vallen = length(val)
+            if vallen == buflen
+                push!(buffers, BufferAttachmentInfo(name, loc, Buffer(val, usage=GL_DYNAMIC_DRAW), divisor))
+            elseif !isa(val, Vector)
+                push!(buffers, BufferAttachmentInfo(name, loc, Buffer(fill(val, buflen), usage=GL_DYNAMIC_DRAW), divisor))
+            end
+        end
+    end
+    return buffers
+end
+
 mutable struct VertexArray{Vertex, Kind}
     id         ::GLuint
     bufferinfos::Vector{<:BufferAttachmentInfo}
