@@ -1,18 +1,26 @@
-using ModernGL, GeometryTypes, GLAbstraction, GLWindow, Images, FileIO
+using ModernGL, GeometryTypes, GLAbstraction, GLFW, Images, FileIO, Reactive, LinearAlgebra
 
-# Load our textures. See "downloads.jl" to get the images.
+const GLA = GLAbstraction
+
 kitten = load(GLAbstraction.dir("tutorials", "images", "kitten.png"))
 puppy  = load(GLAbstraction.dir("tutorials", "images", "puppy.png"))
 
-# create_glcontext creates a "bare" window with no depth or stencil
-# buffer. So we set window hints to override this.
-windowhints = [(GLFW.DEPTH_BITS, 32), (GLFW.STENCIL_BITS, 8)]
-window = create_glcontext("Depth and stencils 1",
-                          resolution=(600,600),
-                          windowhints=windowhints)
+# Create the window. This sets all the hints and makes the context current.
+window = GLFW.Window(name="Depth and Stencils 1", resolution=(800,600),
+                     windowhints=[(GLFW.DEPTH_BITS,32), (GLFW.STENCIL_BITS, 8)])
+                     
+struct OurContext <: GLA.AbstractContext
+    id::Int
+    native_window::GLFW.Window
+    function OurContext(id, nw)
+        out = new(id, nw)
+        GLFW.MakeContextCurrent(nw)
+        GLA.set_context!(out)
+        return out
+    end
+end
 
-vao = glGenVertexArrays()
-glBindVertexArray(vao)
+ctx = OurContext(1, window)
 
 # The cube. This could be more efficiently represented using indexes,
 # but the tutorial doesn't do it that way.
@@ -103,9 +111,9 @@ vertex_texcoords = Vec2f0[
                           (0.0f0, 0.0f0),
                           (0.0f0, 1.0f0)]
 
-vertex_colors = fill(Vec3f0(1,1,1), 36)
+vertex_colors = fill(Vec3{Float32}(1,1,1), 36)
 
-vertex_shader = vert"""
+vertex_shader = GLA.vert"""
 #version 150
 
 in vec3 position;
@@ -128,29 +136,85 @@ void main()
 """
 fragment_shader = load(joinpath(dirname(@__FILE__), "shaders", "puppykitten_color.frag"))
 
-model = eye(Mat{4,4,Float32})
-view = lookat(Vec3((1.2f0, 1.2f0, 1.2f0)), Vec3((0f0, 0f0, 0f0)), Vec3((0f0, 0f0, 1f0)))
-proj = perspectiveprojection(Float32, 45, 800/600, 1, 10)
+prog = GLA.Program(GLA.Shader(vertex_shader), fragment_shader)
 
-# Link everything together, using the corresponding shader variable as
-# the Dict key
-bufferdict = Dict(:position=>Buffer(vertex_positions),
-                  :texcoord=>Buffer(vertex_texcoords),
-                  :color=>Buffer(vertex_colors),
-                  :texKitten=>Texture(kitten'),
-                  :texPuppy=>Texture(puppy'),
-                  :model=>model,
-                  :view=>view,
-                  :proj=>proj)
+buffers = GLA.generate_buffers(prog, GLA.GEOMETRY_DIVISOR, position = vertex_positions,
+                                                           color = vertex_colors,
+                                                           texcoord=vertex_texcoords)
 
-ro = std_renderobject(bufferdict,
-                      LazyShader(vertex_shader, fragment_shader))
+vao  = GLA.VertexArray(buffers, GL_TRIANGLES)
 
-# Do the rendering: note that GLAbstraction automatically sets GL_DEPTH_TEST
+# Define the rotation matrix (could also use rotationmatrix_z)
+function rotmat_z(angle::T) where T
+    T0, T1 = zero(T), one(T)
+    Mat{4}(
+        cos(angle), sin(angle), T0, T0,
+        -sin(angle), cos(angle),  T0, T0,
+        T0, T0, T1, T0,
+        T0, T0, T0, T1
+    )
+end
+
+# By wrapping it in a Signal, we can easily update it.
+trans = Signal(rotmat_z(0f0))
+
+# Now we define the lookat and perspective projections
+function lookat(eyePos, lookAt, up)
+    z  = normalize(eyePos-lookAt)
+    x  = normalize(cross(up, z))
+    y  = normalize(cross(z, x))
+    T0 = 0.0f0
+    return Mat4{Float32}(
+        x[1], y[1], z[1], T0,
+        x[2], y[2], z[2], T0,
+        x[3], y[3], z[3], T0,
+        -dot(x,eyePos),-dot(y,eyePos),-dot(z,eyePos),1.0f0
+    )
+end
+
+function perspectiveprojection(fovy, aspect, znear::T, zfar::T) where T
+    h = T(tan(deg2rad(fovy)) * znear)
+    w = T(h * aspect)
+    bottom = -h
+    top = h
+    left = -w
+    right = w
+       
+    (right == left || bottom == top || znear == zfar) && return Mat4{T}(I)
+    T0, T1, T2 = zero(T), one(T), T(2)
+    return Mat4{T}(
+        T2 * znear / (right - left), T0, T0, T0,
+        T0, T2 * znear / (top - bottom), T0, T0,
+        (right + left) / (right - left), (top + bottom) / (top - bottom), -(zfar + znear) / (zfar - znear), -T1,
+        T0, T0, -(T2 * znear * zfar) / (zfar - znear), T0
+    )
+end
+
+
+model = Signal(rotmat_z(0f0))
+view = lookat(Vec3((1.2, 1.2, 1.2)), Vec3((0, 0, 0)), Vec3((0, 0, 1)))
+proj = perspectiveprojection(45f0, 800f0/600f0, 1f0, 10f0)
+
+tex_kitten = GLA.Texture(collect(kitten'))
+tex_puppy  = GLA.Texture(collect(puppy'))
+
+# Enable the depth testing
+glEnable(GL_DEPTH_TEST)
+glDepthFunc(GL_LEQUAL)
+
 glClearColor(0,0,0,1)
 while !GLFW.WindowShouldClose(window)
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
-    GLAbstraction.render(ro)
+    push!(model, rotmat_z(time()*deg2rad(180)))
+    Reactive.run_till_now()
+    GLA.bind(prog)
+    GLA.gluniform(prog, :texKitten, 0, tex_kitten) #first texture sampler
+    GLA.gluniform(prog, :texPuppy, 1, tex_puppy) # second texture sampler
+    GLA.gluniform(prog, :model, value(model))
+    GLA.gluniform(prog, :view, view) 
+    GLA.gluniform(prog, :proj, proj) 
+    GLA.bind(vao)
+    GLA.draw(vao) 
     GLFW.SwapBuffers(window)
     GLFW.PollEvents()
     if GLFW.GetKey(window, GLFW.KEY_ESCAPE) == GLFW.PRESS

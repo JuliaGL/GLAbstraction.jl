@@ -1,20 +1,36 @@
-using ModernGL, GeometryTypes, GLAbstraction, GLWindow, Images
+using ModernGL, GeometryTypes, GLAbstraction, GLFW, Images
+const GLA = GLAbstraction
 
-# Load our textures. See "downloads.jl" to get the images.
+# Load our texture. See "downloads.jl" to get the images.
 kitten = load(GLAbstraction.dir("tutorials", "images", "kitten.png"))
 puppy  = load(GLAbstraction.dir("tutorials", "images", "puppy.png"))
 
 # Create the window. This sets all the hints and makes the context current.
-window = create_glcontext("Textures 2", resolution=(800,600))
+window = GLFW.Window(name="Textures 1", resolution=(800,600))
+struct OurContext <: GLA.AbstractContext
+    id::Int
+    native_window::GLFW.Window
+    function OurContext(id, nw)
+        out = new(id, nw)
+        GLFW.MakeContextCurrent(nw)
+        GLA.set_context!(out)
+        return out
+    end
+end
 
-vao = glGenVertexArrays()
-glBindVertexArray(vao)
+ctx = OurContext(1, window)
 
 # The positions of the vertices in our rectangle
 vertex_positions = Point{2,Float32}[(-0.5,  0.5),     # top-left
                                     ( 0.5,  0.5),     # top-right
                                     ( 0.5, -0.5),     # bottom-right
                                     (-0.5, -0.5)]     # bottom-left
+
+# The colors assigned to each vertex
+vertex_colors = Vec3f0[(1, 0, 0),                     # top-left
+                       (0, 1, 0),                     # top-right
+                       (0, 0, 1),                     # bottom-right
+                       (1, 1, 1)]                     # bottom-left
 
 # The texture coordinates of each vertex
 vertex_texcoords = Vec2f0[(0, 0),
@@ -28,11 +44,11 @@ vertex_texcoords = Vec2f0[(0, 0),
 # specifying faces in terms of julia's 1-based indexing, you should set
 # O=0. (If you instead number the vertices starting with 0, set
 # O=-1.)
-elements = Face{3,UInt32,-1}[(0,1,2),          # the first triangle
-                             (2,3,0)]          # the second triangle
+elements = Face{3,UInt32}[(0,1,2),          # the first triangle
+                          (2,3,0)]          # the second triangle
 
 # The vertex shader---note the `vert` in front of """
-vertex_shader = vert"""
+vertex_shader = GLA.vert"""
 #version 150
 
 in vec2 position;
@@ -48,7 +64,7 @@ void main()
 """
 
 # The fragment shader
-fragment_shader = frag"""
+fragment_shader = GLA.frag"""
 # version 150
 
 in vec3 Color;
@@ -66,22 +82,23 @@ void main()
     outColor = mix(colKitten, colPuppy, 0.5);
 }
 """
+prog = GLA.Program(vertex_shader, fragment_shader)
 
-# Link everything together, using the corresponding shader variable as
-# the Dict key
-bufferdict = Dict(:position=>Buffer(vertex_positions),
-                  :texcoord=>Buffer(vertex_texcoords),
-                  :texKitten=>Texture(kitten'),
-                  :texPuppy=>Texture(puppy'),
-                  :indexes=>indexbuffer(elements)) # special for element buffers
+buffers = GLA.generate_buffers(prog, GLA.GEOMETRY_DIVISOR, position = vertex_positions,
+                                                           color = vertex_colors,
+                                                           texcoord=vertex_texcoords)
 
-ro = std_renderobject(bufferdict,
-                      LazyShader(vertex_shader, fragment_shader))
-
+vao  = GLA.VertexArray(buffers, elements)
+tex_kitten = GLA.Texture(collect(kitten'))
+tex_puppy  = GLA.Texture(collect(puppy'))
 # Draw until we receive a close event
 while !GLFW.WindowShouldClose(window)
     glClear(GL_COLOR_BUFFER_BIT)
-    GLAbstraction.render(ro)
+    GLA.bind(prog)
+    GLA.gluniform(prog, :texKitten, 0, tex_kitten) #first texture sampler
+    GLA.gluniform(prog, :texPuppy, 1, tex_puppy) # second texture sampler
+    GLA.bind(vao)
+    GLA.draw(vao) 
     GLFW.SwapBuffers(window)
     GLFW.PollEvents()
     if GLFW.GetKey(window, GLFW.KEY_ESCAPE) == GLFW.PRESS

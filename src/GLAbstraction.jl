@@ -3,6 +3,7 @@ module GLAbstraction
 using ModernGL
 using FixedPointNumbers
 using Printf
+using StaticArrays
 
 import FileIO: load, save
 

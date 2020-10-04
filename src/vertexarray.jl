@@ -85,7 +85,7 @@ mutable struct VertexArray{Vertex, Kind}
 	end
 end
 
-VertexArray(bufferinfos::Vector{<:BufferAttachmentInfo}, face::GLenum) =
+VertexArray(bufferinfos::Vector{<:BufferAttachmentInfo}, face::GLenum=GL_TRIANGLES) =
     VertexArray(SIMPLE, bufferinfos, nothing, 1, face)
 
 VertexArray(bufferinfos::Vector{<:BufferAttachmentInfo}, indices::Vector{<:Integer}, face::GLenum) =

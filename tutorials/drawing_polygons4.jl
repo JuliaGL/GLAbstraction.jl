@@ -3,7 +3,7 @@
 using ModernGL, GeometryTypes, GLAbstraction, GLFW
 
 # Create the window. This sets all the hints and makes the context current.
-window = GLFW.Window(name="Drawing polygons 5", resolution=(800,600))
+window = GLFW.Window(name="Drawing polygons 4", resolution=(800,600))
 
 # Create the Vertex Array Object (VAO) and make it current
 # Note that while the tutorial describes this after the attributes (below),
@@ -78,7 +78,7 @@ glGetShaderiv(vertex_shader, GL_COMPILE_STATUS, status)
 if status[] != GL_TRUE
     buffer = Array(UInt8, 512)
     glGetShaderInfoLog(vertex_shader, 512, C_NULL, buffer)
-    @error "$(bytestring(buffer))"
+    @error "$(unsafe_string(pointer(buffer), 512))"
 end
 
 # Compile the fragment shader
@@ -91,7 +91,7 @@ glGetShaderiv(fragment_shader, GL_COMPILE_STATUS, status)
 if status[] != GL_TRUE
     buffer = Array(UInt8, 512)
     glGetShaderInfoLog(fragment_shader, 512, C_NULL, buffer)
-    @error "$(bytestring(buffer))"
+    @error "$(unsafe_string(pointer(buffer), 512))"
 end
 
 # Connect the shaders by combining them into a program

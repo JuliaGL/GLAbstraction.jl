@@ -9,40 +9,40 @@ end
 abstract type AbstractShader end
 
 struct Shader <: AbstractShader
-    name    ::Symbol
-    source  ::Vector{UInt8} #UInt representation of the source program string,
-    typ     ::GLenum
     id      ::GLuint
-    function Shader(name, source, typ, id)
-        new(name, source, typ, id)
+    typ     ::GLenum
+    source  ::Vector{UInt8} #UInt representation of the source program string,
+    function Shader(id, typ, source)
+        new(id, typ, source)
     end
 end
 
-function Shader(name, shadertype, source::Vector{UInt8})
-    shaderid = glCreateShader(shadertype)::GLuint
-    @assert shaderid > 0 "opengl context is not active or shader type not accepted. Shadertype: $(GLENUM(shadertype).name)"
-    glShaderSource(shaderid, source)
-    glCompileShader(shaderid)
-    if !iscompiled(shaderid)
-        print_with_lines(String(source))
-        @error "shader $(name) didn't compile. \n$(getinfolog(shaderid))"
+function Shader(typ, source)
+    id = glCreateShader(typ)::GLuint
+    @assert id > 0 "opengl context is not active or shader type not accepted. Shadertype: $(GLENUM(typ).name)"
+    s = Vector{UInt8}(source)
+    glShaderSource(id, s)
+    glCompileShader(id)
+    if !iscompiled(id)
+        print_with_lines(String(s))
+        @error "shader id $(id) of type $(typ) didn't compile. \n$(getinfolog(id))"
     end
-    Shader(name, source, shadertype, shaderid)
+    Shader(id, typ, s)
 end
 function Shader(path::String, source_str::AbstractString)
     typ = shadertype(query(path))
     source = Vector{UInt8}(source_str)
-    name = Symbol(path)
-    Shader(name, typ, source)
+    Shader(typ, source)
 end
 Shader(path::File{format"GLSLShader"}) = load(path)
+Shader(tup::Tuple) = Shader(tup...)
 
 import Base: ==
 (==)(a::Shader, b::Shader) = a.source == b.source && a.typ == b.typ && a.id == b.id && a.context == b.context
 Base.hash(s::Shader, h::UInt64) = hash((s.source, s.typ, s.id, s.context), h)
 
 function Base.show(io::IO, shader::Shader)
-    println(io, GLENUM(shader.typ).name, " shader: $(shader.name))")
+    println(io, GLENUM(shader.typ).name)
     println(io, "source:")
     print_with_lines(io, String(shader.source))
 end
@@ -82,22 +82,22 @@ end
 # Different shader string literals- usage: e.g. frag" my shader code"
 macro frag_str(source::AbstractString)
     quote
-        ($source, GL_FRAGMENT_SHADER)
+        (GL_FRAGMENT_SHADER, $source)
     end
 end
 macro vert_str(source::AbstractString)
     quote
-        ($source, GL_VERTEX_SHADER)
+        (GL_VERTEX_SHADER, $source)
     end
 end
 macro geom_str(source::AbstractString)
     quote
-        ($source, GL_GEOMETRY_SHADER)
+        (GL_GEOMETRY_SHADER, $source)
     end
 end
 macro comp_str(source::AbstractString)
     quote
-        ($source, GL_COMPUTE_SHADER)
+        (GL_COMPUTE_SHADER, $source)
     end
 end
 

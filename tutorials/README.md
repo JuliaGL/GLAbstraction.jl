@@ -22,9 +22,7 @@ with `drawing_polygons2.jl`, we illustrate the use of
 [GLWindow](https://github.com/JuliaGL/GLWindow.jl) for simplifying
 window/context creation.  Starting with `drawing_polygons5.jl`, more
 of the "julian" conveniences available in GLAbstraction are
-introduced. With `transformations1.jl`, we start making limited use of
-[Reactive.jl](https://github.com/JuliaLang/Reactive.jl) for
-animations.
+introduced.
 
 Some of the files require external resources; it's recommended that
 you first `include("downloads.jl")` to download all the relevant
