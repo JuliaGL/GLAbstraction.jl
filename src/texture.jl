@@ -295,7 +295,7 @@ height(t::Texture)    = size(t, 2)
 depth(t::Texture)     = size(t, 3)
 id(t::Texture)        = t.id
 
-function Base.show(io::IO, t::Texture{T,D}) where {T,D}
+function Base.display(io, t::Texture{T,D}) where {T,D}
     println(io, "Texture$(D)D: ")
     println(io, "                  ID: ", t.id)
     println(io, "                  Size: Dimensions: $(size(t))")
@@ -527,13 +527,13 @@ function gpu_resize!(t::TextureBuffer{T}, newdims::NTuple{1, Int}) where T
     t
 end
 
-next(t::TextureBuffer{T}, state::Tuple{Ptr{T}, Int}) where {T} = next(t.buffer, state)
-function done(t::TextureBuffer{T}, state::Tuple{Ptr{T}, Int}) where T
-    isdone = done(t.buffer, state)
-    if isdone
-        glBindTexture(t.texturetype, t.id)
-        glTexBuffer(t.texturetype, t.internalformat, t.buffer.id)
-        glBindTexture(t.texturetype, 0)
-    end
-    isdone
-end
+# next(t::TextureBuffer{T}, state::Tuple{Ptr{T}, Int}) where {T} = next(t.buffer, state)
+# function done(t::TextureBuffer{T}, state::Tuple{Ptr{T}, Int}) where T
+#     isdone = done(t.buffer, state)
+#     if isdone
+#         glBindTexture(t.texturetype, t.id)
+#         glTexBuffer(t.texturetype, t.internalformat, t.buffer.id)
+#         glBindTexture(t.texturetype, 0)
+#     end
+#     isdone
+# end

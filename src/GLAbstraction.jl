@@ -3,6 +3,7 @@ module GLAbstraction
 using ModernGL
 using FixedPointNumbers
 using Printf
+using StaticArrays
 
 import FileIO: load, save
 
@@ -39,13 +40,12 @@ include("utils.jl")
 include("buffer.jl")
 include("texture.jl")
 include("framebuffer.jl")
-include("vertexarray.jl")
 include("uniformbuffer.jl")
-
 include("shader/uniforms.jl")
 include("shader/shader.jl")
 include("shader/program.jl")
 include("shader/glsl_typenames.jl")
+include("vertexarray.jl")
 include("conversions.jl")
 include("for_moderngl.jl")
 dir(dirs...) = joinpath(dirname(@__FILE__), "..", dirs...)
