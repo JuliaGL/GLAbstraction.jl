@@ -59,10 +59,10 @@ prog = GLA.Program(vertex_shader, fragment_shader)
 
 # Now we define the geometry that we will render
 # The positions of the vertices in our rectangle
-vertex_positions = Point{3,Float32}[(-0.5,  0.5, 0.0),     # top-left
-                                    ( 0.5,  0.5, 0.0),     # top-right
-                                    ( 0.5, -0.5, 0.0),     # bottom-right
-                                    (-0.5, -0.5, 0.0)]     # bottom-left
+vertex_positions = Point{2,Float32}[(-0.5,  0.5),     # top-left
+                                    ( 0.5,  0.5),     # top-right
+                                    ( 0.5, -0.5),     # bottom-right
+                                    (-0.5, -0.5)]     # bottom-left
 
 # The colors assigned to each vertex
 vertex_colors = Vec3f0[(1, 0, 0),                     # top-left
@@ -94,15 +94,15 @@ vao = GLA.VertexArray(buffers, elements)
 glClearColor(0,0,0,0)
 while !GLFW.WindowShouldClose(window)
     glClear(GL_COLOR_BUFFER_BIT)
+    GLA.bind(prog)
     GLA.bind(vao)
     GLA.draw(vao)
-    # GLA.unbind(vao)
+    GLA.unbind(vao) #optional in this case
+    GLA.unbind(prog) #optional in this case
     GLFW.SwapBuffers(window)
     GLFW.PollEvents()
     if GLFW.GetKey(window, GLFW.KEY_ESCAPE) == GLFW.PRESS
         GLFW.SetWindowShouldClose(window, true)
     end
 end
-GLFW.SetWindowShouldClose(window, false)
-
 GLFW.DestroyWindow(window)  # needed if you're running this from the REPL
