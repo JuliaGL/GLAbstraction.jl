@@ -1,11 +1,24 @@
-using ModernGL, GLWindow, GLAbstraction, GLFW, ColorTypes, Reactive, GeometryTypes
+using ModernGL, GLFW, GLAbstraction, GLFW, ColorTypes, Reactive, GeometryTypes
 import GLAbstraction: N0f8
+const GLA = GLAbstraction
+const window = GLFW.Window(name="Example")
+struct OurContext <: GLA.AbstractContext
+    id::Int
+    native_window::GLFW.Window
+    function OurContext(id, nw)
+        out = new(id, nw)
+        GLFW.MakeContextCurrent(nw)
+        GLA.set_context!(out)
+        return out
+    end
+end
 
-const window = create_glcontext("Example")
+ctx = OurContext(1, window)
 
 
-const vert = vert"""
-{{GLSL_VERSION}}
+
+const vert = GLA.vert"""
+#version 150
 
 in vec2 vertices;
 in vec2 texturecoordinates; // must be this name, because collect_for_gl assumes them
@@ -19,8 +32,8 @@ void main() {
 
 # you can also load the shader from a file, which you can then edit in any editor and the changes will show up in your opengl program.
 #using FileIO; prrogram = TemplateProgram(load("path_to_frag.frag"), load("path_to_vert.vert"))
-const frag = frag"""
-{{GLSL_VERSION}}
+const frag = GLA.frag"""
+#version 150
 
 out vec4 outColor;
 uniform sampler2D image;
@@ -31,23 +44,25 @@ void main() {
     outColor = texture(image, f_uv);
 }
 """
-program = LazyShader(vert, frag)
+program = GLA.Program(vert, frag)
 
-tex = Texture([RGBA{N0f8}(x,y,sin(x*pi), 1.0) for x=0:0.1:1., y=0:0.1:1.]) #automatically creates the correct texture
-data = merge(Dict(
-    :image => tex,
-    :primitive => GLUVMesh2D(SimpleRectangle{Float32}(-1,-1,2,2))
-)) # Transforms the rectangle into a 2D mesh with uv coordinates and then extracts the buffers for the shader
+tex = GLA.Texture([RGBA{N0f8}(x,y,sin(x*pi), 1.0) for x=0:0.1:1., y=0:0.1:1.]) #automatically creates the correct texture
 
-robj = std_renderobject(data, program) # creates a renderable object from the shader and the data.
+mesh = GLUVMesh2D(SimpleRectangle{Float32}(-1,-1,2,2))
+vao = GLA.VertexArray(GLA.generate_buffers(program, vertices=mesh.vertices, GLA.GEOMETRY_DIVISOR, texturecoordinates = Vec2{Float32}.(mesh.texturecoordinates)), mesh.faces)
 
 glClearColor(0, 0, 0, 1)
 
-
-while isopen(window)
+while !GLFW.WindowShouldClose(window)
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
-    render(robj)
-    swapbuffers(window)
-    poll_glfw()
+    GLA.bind(program)
+    GLA.gluniform(program, :image, 0, tex)
+    GLA.bind(vao)
+    GLA.draw(vao)
+    GLFW.SwapBuffers(window)
+    GLFW.PollEvents()
+    if GLFW.GetKey(window, GLFW.KEY_ESCAPE) == GLFW.PRESS
+        GLFW.SetWindowShouldClose(window, true)
+    end
 end
 GLFW.DestroyWindow(window)

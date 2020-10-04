@@ -1,10 +1,22 @@
-using ModernGL, GLWindow, GLAbstraction, GLFW, GeometryTypes
+using ModernGL, GLAbstraction, GLFW, GeometryTypes
 
-const window = GLWindow.create_glcontext("Example", resolution=(512, 512), debugging=true)
+const GLA = GLAbstraction
+const window = GLFW.Window(name="Example")
+struct OurContext <: GLA.AbstractContext
+    id::Int
+    native_window::GLFW.Window
+    function OurContext(id, nw)
+        out = new(id, nw)
+        GLFW.MakeContextCurrent(nw)
+        GLA.set_context!(out)
+        return out
+    end
+end
 
+ctx = OurContext(1, window)
 
-const vsh = vert"""
-{{GLSL_VERSION}}
+const vsh = GLA.vert"""
+#version 150
 in vec2 position;
 
 void main(){
@@ -12,28 +24,27 @@ void main(){
 }
 """
 
-const fsh = frag"""
-{{GLSL_VERSION}}
+const fsh = GLA.frag"""
+#version 150
 out vec4 outColor;
 
 void main() {
     outColor = vec4(1.0, 1.0, 1.0, 1.0);
 }
 """
-
-const triangle = std_renderobject(
-    Dict{Symbol, Any}(
-        :position => Buffer(Point2f0[(0.0, 0.5), (0.5, -0.5), (-0.5,-0.5)]),
-    ),
-    LazyShader(vsh, fsh)
-)
+prog = GLA.Program(vsh, fsh)
+const triangle = GLA.VertexArray(GLA.generate_buffers(prog, GLA.GEOMETRY_DIVISOR, position=Point2f0[(0.0, 0.5), (0.5, -0.5), (-0.5,-0.5)]))
 
 glClearColor(0, 0, 0, 1)
-
-while isopen(window)
+GLA.bind(prog)
+while !GLFW.WindowShouldClose(window)
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
-    render(triangle)
-    swapbuffers(window)
-    poll_glfw()
+    GLA.bind(triangle)
+    GLA.draw(triangle)
+    GLFW.SwapBuffers(window)
+    GLFW.PollEvents()
+    if GLFW.GetKey(window, GLFW.KEY_ESCAPE) == GLFW.PRESS
+        GLFW.SetWindowShouldClose(window, true)
+    end
 end
 GLFW.DestroyWindow(window)

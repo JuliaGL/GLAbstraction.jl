@@ -1,7 +1,22 @@
-using GLAbstraction, GLWindow, GeometryTypes, ColorTypes, GLFW, Reactive, ModernGL
+using GLAbstraction, GeometryTypes, ColorTypes, GLFW, Reactive, ModernGL
+const GLA = GLAbstraction
 
-const vert = vert"""
-{{GLSL_VERSION}}
+const window = GLFW.Window(name="Example Geometry Shader")
+struct OurContext <: GLA.AbstractContext
+    id::Int
+    native_window::GLFW.Window
+    function OurContext(id, nw)
+        out = new(id, nw)
+        GLFW.MakeContextCurrent(nw)
+        GLA.set_context!(out)
+        return out
+    end
+end
+
+ctx = OurContext(1, window)
+
+const vert = GLA.vert"""
+#version 330
 in vec2 pos;
 out vec2 g_position;
 
@@ -10,8 +25,8 @@ void main() {
 }
 """
 
-const frag = frag"""
-{{GLSL_VERSION}}
+const frag = GLA.frag"""
+#version 330
 
 out vec4 outColor;
 
@@ -20,9 +35,8 @@ void main() {
 }
 """
 
-const geom = geom"""
-
-{{GLSL_VERSION}}
+const geom = GLA.geom"""
+#version 330
 
 layout(points) in;
 layout(triangle_strip, max_vertices = 4) out;
@@ -30,8 +44,7 @@ in vec2 g_position[];
 
 void main(void)
 {
-  // get the four vertices passed to the shader:
-  vec2 p0 = g_position[0];   // start of previous segment
+  vec2 p0 = g_position[0];   
 
   gl_Position = vec4(p0, 0, 1);
   EmitVertex();
@@ -50,25 +63,22 @@ void main(void)
 }
 """
 
-const window = GLWindow.create_glcontext("Geometry Shader")
-
 const b = Point2f0[(-0.5,0),(0.0, 0.0),(0.4, 0.3)]
 
-data = Dict{Symbol, Any}(
-    :pos => Buffer(b),
-)
-
-program = GLAbstraction.LazyShader(vert, geom, frag)
-robj = std_renderobject(data, program, Signal(AABB(Vec3f0(0), Vec3f0(1))), GL_POINTS)
+program = GLA.Program(vert, geom, frag)
+robj = GLA.VertexArray(GLA.generate_buffers(program, GLA.GEOMETRY_DIVISOR, pos=b))
 
 glClearColor(0,0,0,1)
-glClearColor(0, 0, 0, 1)
 
-
-while isopen(window)
+GLA.bind(program)
+while !GLFW.WindowShouldClose(window)
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
-    render(robj)
-    swapbuffers(window)
-    poll_glfw()
+    GLA.bind(robj)
+    GLA.draw(robj)
+    GLFW.SwapBuffers(window)
+    GLFW.PollEvents()
+    if GLFW.GetKey(window, GLFW.KEY_ESCAPE) == GLFW.PRESS
+        GLFW.SetWindowShouldClose(window, true)
+    end
 end
 GLFW.DestroyWindow(window)
