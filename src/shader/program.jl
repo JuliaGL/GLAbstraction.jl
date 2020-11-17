@@ -120,9 +120,9 @@ unbind(program::AbstractProgram) = glUseProgram(0)
 #REVIEW: Not sure if this is the best design decision
 #REVIEW: Naming?
 function gluniform(program::Program, name::Symbol, vals...)
-    u = uniform(program, name)
+    u = uniform_location(program, name)
     if u != INVALID_UNIFORM
-        gluniform(u.location, vals...)
+        gluniform(u, vals...)
     end
 end
 
