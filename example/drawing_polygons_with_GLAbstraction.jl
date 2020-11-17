@@ -1,7 +1,7 @@
 # Here, we illustrate a "julian" implementation that leverages
 # some of the advantages of GLAbstraction over basic ModernGL usage
 
-using ModernGL, GeometryTypes, GLAbstraction, GLFW
+using ModernGL, ColorTypes, GeometryTypes, GLAbstraction, GLFW
 
 const GLA = GLAbstraction
 
@@ -23,7 +23,7 @@ struct OurContext <: GLA.AbstractContext
 end
 
 ctx = OurContext(1, window)
-
+GLA.FrameBuffer((1024,1024),(RGBA{Float32}, RGBA{Float32}, GLA.Depth{Float32}), true)  
 # The vertex shader---note the `vert` in front of """
 vertex_shader = GLA.vert"""
 #version 150
