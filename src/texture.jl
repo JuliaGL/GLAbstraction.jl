@@ -48,20 +48,20 @@ function texturetype_from_dimensions(ndim::Integer)
     @error "Dimensionality: $(ndim), not supported for OpenGL texture"
 end
 
-function textureformat_internal_from_type(::Type{T}) where T
+@generated function textureformat_internal_from_type(::Type{T}, ::Type{T2}) where {T, T2}
     if T <: Depth{Float32}
         return :GL_DEPTH_COMPONENT32F
     elseif T <: DepthStencil{Float24, N0f8}
         return :GL_DEPTH24_STENCIL8
     end
     glasserteltype(T)
-    dim = length(T)
+    dim = Core._apply_pure(length,(T,))
     @assert (dim <= 4 && dim >= 1) "No Textureformat that fits $dim-dimensional eltypes."
 
-    eltyp = eltype(T) #like Float64 in RGBA{Float64}
+    eltyp = T2 #like Float64 in RGBA{Float64}
     sym = "GL_"
     sym *= "RGBA"[1:dim]
-    bits = sizeof(eltyp) * 8
+    bits = sizeof(T2) * 8
     @assert bits <= 32 "$T has too many bits ($bits)"
     sym *= string(bits)
 
@@ -76,7 +76,7 @@ function textureformat_internal_from_type(::Type{T}) where T
     end
     glenumsym = Symbol(sym)
     @assert isdefined(ModernGL, glenumsym) "$T doesn't have a proper mapping to an OpenGL format."
-    return glenumsym
+    return :($glenumsym)
 end
 
 function textureformat_from_type_sym(dim::Integer, isinteger::Bool, order::AbstractString)
@@ -104,7 +104,7 @@ end
 
 textureformat_from_type_sym(::Type{<:DepthFormat}) = :GL_DEPTH_COMPONENT
 @generated function textureformat_from_type(::Type{T}) where T
-    sym = textureformat_from_type_sym(T)
+    sym = Core._apply_pure(textureformat_from_type_sym,(T,))
     @assert isdefined(ModernGL, sym) "$T doesn't have a proper mapping to an OpenGL format"
     return :($sym)
 end
@@ -202,7 +202,7 @@ end
 
 function Texture(
         data::Ptr{T}, dims::NTuple{NDim, Int};
-        internalformat::GLenum = textureformat_internal_from_type(T),
+        internalformat::GLenum = textureformat_internal_from_type(T, eltype(T)),
         texturetype   ::GLenum = texturetype_from_dimensions(NDim),
         format        ::GLenum = textureformat_from_type(T),
         mipmap = false,
@@ -233,7 +233,7 @@ Constructor for Array Texture
 """
 function Texture(
         data::Vector{Array{T, 2}};
-        internalformat::GLenum = textureformat_internal_from_type(T),
+        internalformat::GLenum = textureformat_internal_from_type(T, eltype(T)),
         texturetype::GLenum    = GL_TEXTURE_2D_ARRAY,
         format::GLenum         = textureformat_from_type(T),
         parameters...
