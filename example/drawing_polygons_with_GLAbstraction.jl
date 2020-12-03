@@ -10,19 +10,8 @@ window = GLFW.Window(name="Drawing polygons 5", resolution=(800,600))
 
 # We assign the created window as the "current" context in GLAbstraction to which all GL objects are "bound", this is to avoid using GL objects in the wrong context, but actually currently no real checks are made except initially that at least there is a context initialized.
 # Think of this as a way of bookkeeping.
-# Nonetheless, when using GLAbstraction, it makes sense to define our own context struct that subtypes GLAbstraction.AbstractContext and has a field `id` to distinguish between them, in our case we will use the GLFW windows as a context (GLAbstraction is agnostic to which library creates the OpenGL context), and thus declare the following:
-struct OurContext <: GLA.AbstractContext
-    id::Int
-    native_window::GLFW.Window
-    function OurContext(id, nw)
-        out = new(id, nw)
-        GLFW.MakeContextCurrent(nw)
-        GLA.set_context!(out)
-        return out
-    end
-end
-
-ctx = OurContext(1, window)
+GLFW.MakeContextCurrent(window)
+GLA.set_context!(window)
 GLA.FrameBuffer((1024,1024),(RGBA{Float32}, RGBA{Float32}, GLA.Depth{Float32}), true)  
 # The vertex shader---note the `vert` in front of """
 vertex_shader = GLA.vert"""

@@ -39,7 +39,7 @@ mutable struct VertexArray{Vertex, Kind}
     nverts     ::GLint #total vertices to be drawn in drawcall
     ninst      ::GLint
     face       ::GLenum
-    context    ::AbstractContext
+    context 
     function VertexArray(kind::VaoKind, bufferinfos::Vector{<:BufferAttachmentInfo}, indices, ninst, face)
         id = glGenVertexArrays()
         glBindVertexArray(id)
@@ -101,6 +101,9 @@ VertexArray(bufferinfos::Vector{<:BufferAttachmentInfo}, indices::Vector{<:Integ
 VertexArray(bufferinfos::Vector{<:BufferAttachmentInfo}, indices::Vector{F}, ninst::Int) where F =
     VertexArray(ELEMENTS_INSTANCED, bufferinfos, indexbuffer(indices), ninst, face2glenum(F))
 
+free!(x::VertexArray) =
+    context_command(x.context, () -> glDeleteVertexArrays(1, [x.id]))
+    
 is_null(vao::VertexArray{Nothing, EMPTY}) = true
 is_null(vao::VertexArray)                 = false
 
@@ -191,14 +194,6 @@ end
 _typeof(::Type{T}) where T = Type{T}
 _typeof(::T) where T = T
 
-function free!(x::VertexArray)
-    if !is_current_context(x.context)
-        return
-    end
-    id = [x.id]
-    glDeleteVertexArrays(1, id)
-    return
-end
 
 glitype(vao::VertexArray) = julia2glenum(eltype(vao.indices))
 

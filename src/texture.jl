@@ -178,7 +178,7 @@ mutable struct Texture{T, NDIM} <: OpenglTexture{T, NDIM}
     format          ::GLenum
     parameters      ::TextureParameters{NDIM}
     size            ::NTuple{NDIM, Int}
-    context         ::AbstractContext
+    context
     function Texture{T, NDIM}(
             id              ::GLuint,
             texturetype     ::GLenum,
@@ -292,6 +292,9 @@ function Texture(image::Array{T, NDim}; kw_args...) where {T, NDim}
     glasserteltype(T)
     Texture(pointer(image), size(image); kw_args...)::Texture{T, NDim}
 end
+
+free!(x::Texture) = context_command(x.context, () -> glDeleteTextures(x.id))
+
 Base.size(t::Texture) = t.size
 width(t::Texture)     = size(t, 1)
 height(t::Texture)    = size(t, 2)
@@ -440,19 +443,6 @@ function similar(t::Texture{T, NDim}, newdims::NTuple{NDim, Int}) where {T, NDim
         t.format,
         t.parameters
     )
-end
-
-function free!(x::Texture)
-    if !is_current_context(x.context)
-        return x
-    end
-    id = [x.id]
-    try
-        glDeleteTextures(x.id)
-    catch e
-        free_handle_error(e)
-    end
-    return
 end
 
 # for bufferSampler, aka Texture Buffer

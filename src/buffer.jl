@@ -5,7 +5,7 @@ mutable struct Buffer{T} <: GPUArray{T, 1}
     len        ::Int
     buffertype  ::GLenum
     usage       ::GLenum
-    context     ::AbstractContext
+    context
     function Buffer{T}(cpu_data_ptr::Ptr{T}, buff_length::Int, buffertype::GLenum, usage::GLenum) where T
         id = glGenBuffers()
 	    # size of 0 can segfault it seems
@@ -37,6 +37,9 @@ function Buffer(
     glasserteltype(T)
     Buffer{T}(Ptr{T}(C_NULL), len, buffertype, usage)
 end
+
+free!(x::Buffer) =
+        context_command(x.context, () -> glDeleteBuffers(1, [x.id]))
 
 function indexbuffer(
         buffer::Vector{T};
@@ -196,23 +199,3 @@ function gpu_getindex(b::Buffer{T}, range::UnitRange) where T
     value
 end
 
-#--------------------------------- END GPU INTERFACE -----------------------------------------#
-
-####################################################################################
-# freeing
-
-# OpenGL has the annoying habit of reusing id's when creating a new context
-# We need to make sure to only free the current one
-
-function free!(x::Buffer)
-    if !is_current_context(x.context)
-        return x
-    end
-    id = [x.id]
-    try
-        glDeleteBuffers(1, id)
-    catch e
-        free_handle_error(e)
-    end
-    return
-end

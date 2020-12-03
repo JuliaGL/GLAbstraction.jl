@@ -9,18 +9,8 @@ puppy  = load(GLAbstraction.dir("tutorials", "images", "puppy.png"))
 window = GLFW.Window(name="Depth and Stencils 1", resolution=(800,600),
                      windowhints=[(GLFW.DEPTH_BITS,32), (GLFW.STENCIL_BITS, 8)])
                      
-struct OurContext <: GLA.AbstractContext
-    id::Int
-    native_window::GLFW.Window
-    function OurContext(id, nw)
-        out = new(id, nw)
-        GLFW.MakeContextCurrent(nw)
-        GLA.set_context!(out)
-        return out
-    end
-end
-
-ctx = OurContext(1, window)
+GLFW.MakeContextCurrent(window)
+GLA.set_context!(window)
 
 # The cube. This could be more efficiently represented using indexes,
 # but the tutorial doesn't do it that way.

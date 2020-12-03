@@ -33,7 +33,7 @@ mutable struct Program <: AbstractProgram
     shaders   ::Vector{Shader}
     uniforms  ::Vector{UniformTuple}
     attributes::Vector{AttributeTuple}
-    context   ::AbstractContext
+    context
     function Program(shaders::Vector{Shader}, fragdatalocation::Vector{Tuple{Int, String}})
         # Remove old shaders
         exists_context()
@@ -74,6 +74,8 @@ Program(shaders::Shader...) = Program([shaders...])
 #REVIEW: This is a bit redundant seen as there is `load(source)` from FilIO for shaders but ok
 Program(sh_string_typ...) = 
     Program([map(x -> Shader(x), sh_string_typ)...])
+
+free!(x::Program) = context_command(x.context, () -> glDeleteProgram(x.id))
 
 attributes(program::Program) = program.attributes
 uniforms(program::Program)   = program.uniforms
@@ -183,18 +185,6 @@ function program_info(p::Program)
     result[:transform_feedback_buffer_mode] = glGetProgramiv(program, GL_TRANSFORM_FEEDBACK_BUFFER_MODE)
     result[:transform_feedback_varyings] = glGetProgramiv(program, GL_TRANSFORM_FEEDBACK_VARYINGS)
     result
-end
-
-function free!(x::Program)
-    if !is_current_context(x.context)
-        return x
-    end
-    try
-        glDeleteProgram(x.id)
-    catch e
-        free_handle_error(e)
-    end
-    return
 end
 
 ###############################################################################333

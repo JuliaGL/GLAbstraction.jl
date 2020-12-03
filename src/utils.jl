@@ -35,11 +35,7 @@ function print_with_lines(out::IO, text::AbstractString)
 end
 
 print_with_lines(text::AbstractString) = print_with_lines(stdout, text)
-function free_handle_error(e)
-    #ignore, since freeing is not needed if context is not available
-    isa(e, ContextNotAvailable) && return
-    rethrow(e)
-end
+
 """
 Returns the cardinality of a type. falls back to length
 """

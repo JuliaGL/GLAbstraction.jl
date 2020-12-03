@@ -7,18 +7,8 @@ puppy  = load(GLAbstraction.dir("tutorials", "images", "puppy.png"))
 
 # Create the window. This sets all the hints and makes the context current.
 window = GLFW.Window(name="Textures 1", resolution=(800,600))
-struct OurContext <: GLA.AbstractContext
-    id::Int
-    native_window::GLFW.Window
-    function OurContext(id, nw)
-        out = new(id, nw)
-        GLFW.MakeContextCurrent(nw)
-        GLA.set_context!(out)
-        return out
-    end
-end
-
-ctx = OurContext(1, window)
+GLFW.MakeContextCurrent(window)
+GLA.set_context!(window)
 
 # The positions of the vertices in our rectangle
 vertex_positions = Point{2,Float32}[(-0.5,  0.5),     # top-left

@@ -8,7 +8,7 @@ mutable struct RenderBuffer
     id        ::GLuint
     format    ::GLenum
     attachment::GLenum
-    context   ::AbstractContext
+    context
     size      ::Tuple{Int, Int}
     function RenderBuffer(format::GLenum, attachment::GLenum, dimensions)
         @assert length(dimensions) == 2
@@ -24,19 +24,8 @@ function RenderBuffer(depth_format, dimensions)
     return RenderBuffer(gl_internal_format(depth_format), gl_attachment(depth_format), dimensions)
 end
 
-function free!(rb::RenderBuffer)
-
-    if !is_current_context(rb.context)
-        return
-    end
-    id = [rb.id]
-    try
-        glDeleteRenderbuffers(1, id)
-    catch e
-        free_handle_error(e)
-    end
-    return
-end
+free!(rb::RenderBuffer) =
+    context_command(rb.context, glDeleteRenderbuffers(1, [rb.id]))
 
 bind(b::RenderBuffer) = glBindRenderbuffer(GL_RENDERBUFFER, b.id)
 unbind(b::RenderBuffer) = glBindRenderbuffer(GL_RENDERBUFFER, b.id)
@@ -60,6 +49,7 @@ and to one of either a GL_DEPTH_ATTACHMENT or GL_DEPTH_STENCIL_ATTACHMENT.
 mutable struct FrameBuffer{ElementTypes, Internal}
     id::GLuint
     attachments::Internal
+    context
     function FrameBuffer(fb_size::Tuple{<: Integer, <: Integer}, attachment_types::NTuple{N, Any}, depth_as_textures::Bool=false; kwargs...) where N
         dimensions = Int.(fb_size)
 
@@ -98,7 +88,7 @@ mutable struct FrameBuffer{ElementTypes, Internal}
 
         @assert glCheckFramebufferStatus(GL_FRAMEBUFFER) == GL_FRAMEBUFFER_COMPLETE "FrameBuffer (id $framebuffer) with attachments $attachment_types failed to be created."
         glBindFramebuffer(GL_FRAMEBUFFER, 0)
-        obj = new{Tuple{texture_types..., depth_types...}, typeof(attachments)}(framebuffer, attachments)
+        obj = new{Tuple{texture_types..., depth_types...}, typeof(attachments)}(framebuffer, attachments, current_context())
         finalizer(free!, obj)
         return obj
     end
@@ -144,6 +134,13 @@ function attach2framebuffer(x::RenderBuffer)
     glFramebufferRenderbuffer(GL_FRAMEBUFFER, x.attachment, GL_RENDERBUFFER, x.id)
 end
 
+function free!(fb::FrameBuffer)
+    for attachment in fb.attachments
+        free!(attachment)
+    end
+    context_command(fb.context, () -> glDeleteFramebuffers(1, [fb.id]))
+    return
+end
 
 Base.size(fb::FrameBuffer) = size(fb.attachments[1])
 width(fb::FrameBuffer)     = size(fb, 1)
@@ -219,21 +216,3 @@ end
 
 gpu_data(fb::FrameBuffer, i) = gpu_data(fb.attachments[i])
 
-function free!(fb::FrameBuffer)
-    if fb.attachments == [nothing] || isempty(fb.attachments)
-        return
-    end
-    if !is_current_context(fb.attachments[1].context)
-        return
-    end
-    for attachment in fb.attachments
-        free!(attachment)
-    end
-    id = [fb.id]
-    try
-        glDeleteFramebuffers(1, id)
-    catch e
-        free_handle_error(e)
-    end
-    return
-end

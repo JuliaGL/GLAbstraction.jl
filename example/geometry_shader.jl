@@ -2,18 +2,8 @@ using GLAbstraction, GeometryTypes, ColorTypes, GLFW, Reactive, ModernGL
 const GLA = GLAbstraction
 
 const window = GLFW.Window(name="Example Geometry Shader")
-struct OurContext <: GLA.AbstractContext
-    id::Int
-    native_window::GLFW.Window
-    function OurContext(id, nw)
-        out = new(id, nw)
-        GLFW.MakeContextCurrent(nw)
-        GLA.set_context!(out)
-        return out
-    end
-end
-
-ctx = OurContext(1, window)
+GLFW.MakeContextCurrent(window)
+GLA.set_context!(window)
 
 const vert = GLA.vert"""
 #version 330
