@@ -39,7 +39,7 @@ mutable struct VertexArray{Vertex, Kind}
     nverts     ::GLint #total vertices to be drawn in drawcall
     ninst      ::GLint
     face       ::GLenum
-    context 
+    context    ::Context 
     function VertexArray(kind::VaoKind, bufferinfos::Vector{<:BufferAttachmentInfo}, indices, ninst, face)
         id = glGenVertexArrays()
         glBindVertexArray(id)

@@ -1,11 +1,11 @@
 import Base.Iterators.Repeated
 
 mutable struct Buffer{T} <: GPUArray{T, 1}
-    id          ::GLuint
-    len        ::Int
-    buffertype  ::GLenum
-    usage       ::GLenum
-    context
+    id        ::GLuint
+    len       ::Int
+    buffertype::GLenum
+    usage     ::GLenum
+    context   ::Context
     function Buffer{T}(cpu_data_ptr::Ptr{T}, buff_length::Int, buffertype::GLenum, usage::GLenum) where T
         id = glGenBuffers()
 	    # size of 0 can segfault it seems

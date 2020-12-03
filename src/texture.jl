@@ -171,22 +171,22 @@ end
 abstract type OpenglTexture{T, NDIM} <: GPUArray{T, NDIM} end
 
 mutable struct Texture{T, NDIM} <: OpenglTexture{T, NDIM}
-    id              ::GLuint
-    texturetype     ::GLenum
-    pixeltype       ::GLenum
-    internalformat  ::GLenum
-    format          ::GLenum
-    parameters      ::TextureParameters{NDIM}
-    size            ::NTuple{NDIM, Int}
-    context
+    id            ::GLuint
+    texturetype   ::GLenum
+    pixeltype     ::GLenum
+    internalformat::GLenum
+    format        ::GLenum
+    parameters    ::TextureParameters{NDIM}
+    size          ::NTuple{NDIM, Int}
+    context       ::Context
     function Texture{T, NDIM}(
-            id              ::GLuint,
-            texturetype     ::GLenum,
-            pixeltype       ::GLenum,
-            internalformat  ::GLenum,
-            format          ::GLenum,
-            parameters      ::TextureParameters{NDIM},
-            size            ::NTuple{NDIM, Int}
+            id            ::GLuint,
+            texturetype   ::GLenum,
+            pixeltype     ::GLenum,
+            internalformat::GLenum,
+            format        ::GLenum,
+            parameters    ::TextureParameters{NDIM},
+            size          ::NTuple{NDIM, Int}
         )  where {T, NDIM}
         tex = new(
             id,

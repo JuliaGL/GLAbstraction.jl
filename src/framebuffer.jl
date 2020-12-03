@@ -8,7 +8,7 @@ mutable struct RenderBuffer
     id        ::GLuint
     format    ::GLenum
     attachment::GLenum
-    context
+    context   ::Context
     size      ::Tuple{Int, Int}
     function RenderBuffer(format::GLenum, attachment::GLenum, dimensions)
         @assert length(dimensions) == 2
@@ -47,9 +47,9 @@ The `attachments` field gets mapped to the different possible GL_COLOR_ATTACHMEN
 and to one of either a GL_DEPTH_ATTACHMENT or GL_DEPTH_STENCIL_ATTACHMENT.
 """
 mutable struct FrameBuffer{ElementTypes, Internal}
-    id::GLuint
+    id         ::GLuint
     attachments::Internal
-    context
+    context    ::Context
     function FrameBuffer(fb_size::Tuple{<: Integer, <: Integer}, attachment_types::NTuple{N, Any}, depth_as_textures::Bool=false; kwargs...) where N
         dimensions = Int.(fb_size)
 
