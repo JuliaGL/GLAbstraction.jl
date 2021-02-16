@@ -117,12 +117,12 @@ context_framebuffer() = FrameBuffer(Val(0))
 #quite possibly this should have some color attachments as well idk
 #quite possibly this should have some context as well....
 function create_attachment(T, dimensions, lastcolor; kwargs...)
-    tex = Texture(T, dimensions; minfilter = :nearest, kwargs...)
+    tex = Texture(T, dimensions; kwargs...)
     tex, lastcolor + 1
 end
 
 create_attachment(::Type{T}, dimensions, depth_texture=false; kwargs...) where T <: DepthFormat =
-    depth_texture ? Texture(T, dimensions; minfilter=:nearest, kwargs...) : RenderBuffer(T, dimensions)
+    depth_texture ? Texture(T, dimensions; kwargs...) : RenderBuffer(T, dimensions)
 
 function attach2framebuffer(t::Texture{T, 2}, attachment) where T
     glFramebufferTexture2D(GL_FRAMEBUFFER, attachment, GL_TEXTURE_2D, t.id, 0)
