@@ -146,7 +146,6 @@ end
 map_texture_paramers(s::NTuple{N, Symbol}) where {N} = map(map_texture_paramers, s)
 
 function map_texture_paramers(s::Symbol)
-
     s == :clamp_to_edge          && return GL_CLAMP_TO_EDGE
     s == :mirrored_repeat        && return GL_MIRRORED_REPEAT
     s == :repeat                 && return GL_REPEAT
@@ -211,6 +210,7 @@ function Texture(
         mipmap = false,
         parameters... # rest should be texture parameters
     ) where {T, NDim}
+    glasserteltype(T)
     texparams = TextureParameters(T, NDim; parameters...)
     id = glGenTextures()
     glBindTexture(texturetype, id)
@@ -293,9 +293,48 @@ function Texture(image::Array{T, NDim}; kw_args...) where {T, NDim}
     Texture(pointer(image), size(image); kw_args...)::Texture{T, NDim}
 end
 
+function set_parameters(t::Texture{T, N}, params::TextureParameters=t.parameters) where {T, N}
+    fnames    = (:minfilter, :magfilter, :repeat)
+    data      = Dict([(name, map_texture_paramers(getfield(params, name))) for name in fnames])
+    result    = Tuple{GLenum, Any}[]
+    push!(result, (GL_TEXTURE_MIN_FILTER, data[:minfilter]))
+    push!(result, (GL_TEXTURE_MAG_FILTER, data[:magfilter]))
+    push!(result, (GL_TEXTURE_WRAP_S, data[:repeat][1]))
+    if !isempty(params.swizzle_mask)
+        push!(result, (GL_TEXTURE_SWIZZLE_RGBA, params.swizzle_mask))
+    end
+    N >= 2 && push!(result, (GL_TEXTURE_WRAP_T, data[:repeat][2]))
+    if N >= 3 && !is_texturearray(t) # for texture arrays, third dimension can not be set
+        push!(result, (GL_TEXTURE_WRAP_R, data[:repeat][3]))
+    end
+    t.parameters = params
+    set_parameters(t, result)
+end
+
+function texparameter(t::Texture, key::GLenum, val::GLenum)
+    glTexParameteri(t.texturetype, key, val)
+end
+
+function texparameter(t::Texture, key::GLenum, val::Vector)
+    glTexParameteriv(t.texturetype, key, val)
+end
+
+function texparameter(t::Texture, key::GLenum, val::Float32)
+    glTexParameterf(t.texturetype, key, val)
+end
+
+function set_parameters(t::Texture, parameters::Vector{Tuple{GLenum, Any}})
+    bind(t)
+    for elem in parameters
+        texparameter(t, elem...)
+    end
+    bind(t, 0)
+end
+
 free!(x::Texture) = context_command(x.context, () -> glDeleteTextures(x.id))
 
 Base.size(t::Texture) = t.size
+Base.eltype(t::Texture{T}) where {T} = T
 width(t::Texture)     = size(t, 1)
 height(t::Texture)    = size(t, 2)
 depth(t::Texture)     = size(t, 3)
@@ -394,45 +433,6 @@ texsubimage(t::Texture{T, 3}, newvalue::Array{T, 3}, xrange::UnitRange, yrange::
     first(xrange)-1, first(yrange)-1, first(zrange)-1, length(xrange), length(yrange), length(zrange),
     t.format, t.pixeltype, newvalue
 )
-
-function TextureParameters(t::Texture{T, NDim}; kw_args...) where {T, NDim}
-    TextureParameters(T, NDim; kw_args...)
-end
-
-function set_parameters(t::Texture{T, N}, params::TextureParameters=t.parameters) where {T, N}
-    fnames    = (:minfilter, :magfilter, :repeat)
-    data      = Dict([(name, map_texture_paramers(getfield(params, name))) for name in fnames])
-    result    = Tuple{GLenum, Any}[]
-    push!(result, (GL_TEXTURE_MIN_FILTER, data[:minfilter]))
-    push!(result, (GL_TEXTURE_MAG_FILTER, data[:magfilter]))
-    push!(result, (GL_TEXTURE_WRAP_S, data[:repeat][1]))
-    if !isempty(params.swizzle_mask)
-        push!(result, (GL_TEXTURE_SWIZZLE_RGBA, params.swizzle_mask))
-    end
-    N >= 2 && push!(result, (GL_TEXTURE_WRAP_T, data[:repeat][2]))
-    if N >= 3 && !is_texturearray(t) # for texture arrays, third dimension can not be set
-        push!(result, (GL_TEXTURE_WRAP_R, data[:repeat][3]))
-    end
-    # push!(result, (GL_TEXTURE_MAX_ANISOTROPY_EXT, params.anisotropic))
-    t.parameters = params
-    set_parameters(t, result)
-end
-function texparameter(t::Texture, key::GLenum, val::GLenum)
-    glTexParameteri(t.texturetype, key, val)
-end
-function texparameter(t::Texture, key::GLenum, val::Vector)
-    glTexParameteriv(t.texturetype, key, val)
-end
-function texparameter(t::Texture, key::GLenum, val::Float32)
-    glTexParameterf(t.texturetype, key, val)
-end
-function set_parameters(t::Texture, parameters::Vector{Tuple{GLenum, Any}})
-    bind(t)
-    for elem in parameters
-        texparameter(t, elem...)
-    end
-    bind(t, 0)
-end
 
 function similar(t::Texture{T, NDim}, newdims::NTuple{NDim, Int}) where {T, NDim}
     Texture(

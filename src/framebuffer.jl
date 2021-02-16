@@ -46,49 +46,43 @@ A FrameBuffer holds all the data related to the usual OpenGL FrameBufferObjects.
 The `attachments` field gets mapped to the different possible GL_COLOR_ATTACHMENTs, which is bound by GL_MAX_COLOR_ATTACHMENTS,
 and to one of either a GL_DEPTH_ATTACHMENT or GL_DEPTH_STENCIL_ATTACHMENT.
 """
-mutable struct FrameBuffer{ElementTypes, Internal}
+mutable struct FrameBuffer{ElementTypes, T}
     id         ::GLuint
-    attachments::Internal
+    attachments::T
     context    ::Context
-    function FrameBuffer(fb_size::Tuple{<: Integer, <: Integer}, attachment_types::NTuple{N, Any}, depth_as_textures::Bool=false; kwargs...) where N
-        dimensions = Int.(fb_size)
-
-        depth_types, other_types = separate(x -> x <: DepthFormat, attachment_types)
-        texture_types, invalid_types = separate(x -> hasmethod(length, (x,)), other_types)
-        @assert isempty(invalid_types) "Types $invalid_types are not valid,\n supported types are types with a well defined length or <: DepthFormat."
-
+    function FrameBuffer(fb_size::NTuple{2, Int}, attachments::Union{Texture, RenderBuffer}...; kwargs...)
         framebuffer = glGenFramebuffers()
-
         glBindFramebuffer(GL_FRAMEBUFFER, framebuffer)
         max_ca = glGetIntegerv(GL_MAX_COLOR_ATTACHMENTS)
 
-        if N > max_ca
-            error("The length of texture types exceeds the maximum amount of framebuffer color attachments! Found: $N, allowed: $max_ca")
+        depth_attachments = Union{Texture, RenderBuffer}[]
+        for (i, a) in enumerate(attachments)
+            if eltype(a) <: DepthFormat
+                push!(depth_attachments, a)
+            else
+                attach2framebuffer(a, GL_COLOR_ATTACHMENT(i-1))
+            end
         end
-        if length(depth_types) > 1
+        
+
+        if length(depth_attachments) > 1
             error("The amount of DepthFormat types in texture types exceeds the maximum of 1.")
         end
 
-        _attachments = []
-        color_id = -1
-        for T in texture_types
-            attachment, color_id = create_attachment(T, dimensions, color_id; kwargs...)
-            attach2framebuffer(attachment, GL_COLOR_ATTACHMENT(color_id))
-            push!(_attachments, attachment)
+        if length(attachments) > max_ca
+            error("The length of texture types exceeds the maximum amount of framebuffer color attachments! Found: $N, allowed: $max_ca")
         end
+        
 
-        for T in depth_types
-            attachment = create_attachment(T, dimensions, depth_as_textures; kwargs...)
-            attach2framebuffer(attachment)
-            push!(_attachments, attachment)
-        end
+        !isempty(depth_attachments) && attach2framebuffer(depth_attachments[1])
         #this is done so it's a tuple. Not entirely sure why thats better than an
         #array?
-        attachments = (_attachments...,)
+        _attachments = (attachments...,depth_attachments...,)
 
         @assert glCheckFramebufferStatus(GL_FRAMEBUFFER) == GL_FRAMEBUFFER_COMPLETE "FrameBuffer (id $framebuffer) with attachments $attachment_types failed to be created."
         glBindFramebuffer(GL_FRAMEBUFFER, 0)
-        obj = new{Tuple{texture_types..., depth_types...}, typeof(attachments)}(framebuffer, attachments, current_context())
+        @show Tuple{eltype.(_attachments)...}
+        obj = new{Tuple{eltype.(_attachments)...}, typeof(_attachments)}(framebuffer, _attachments, current_context())
         finalizer(free!, obj)
         return obj
     end
@@ -97,8 +91,6 @@ mutable struct FrameBuffer{ElementTypes, Internal}
         return obj
     end
 end
-
-FrameBuffer(fb_size::Tuple{<: Integer, <: Integer}, texture_types::DataType...;kwargs...) = FrameBuffer(fb_size, texture_types;kwargs...)
 
 # Constructor that takes care of creating the FBO with the specified types and then filling in the data
 # Might be a bit stupid not to just put this into the main constructor
@@ -113,16 +105,6 @@ function FrameBuffer(fb_size::Tuple{<: Integer, <: Integer}, texture_types, text
 end
 
 context_framebuffer() = FrameBuffer(Val(0))
-
-#quite possibly this should have some color attachments as well idk
-#quite possibly this should have some context as well....
-function create_attachment(T, dimensions, lastcolor; kwargs...)
-    tex = Texture(T, dimensions; kwargs...)
-    tex, lastcolor + 1
-end
-
-create_attachment(::Type{T}, dimensions, depth_texture=false; kwargs...) where T <: DepthFormat =
-    depth_texture ? Texture(T, dimensions; kwargs...) : RenderBuffer(T, dimensions)
 
 function attach2framebuffer(t::Texture{T, 2}, attachment) where T
     glFramebufferTexture2D(GL_FRAMEBUFFER, attachment, GL_TEXTURE_2D, t.id, 0)
