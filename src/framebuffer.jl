@@ -81,7 +81,6 @@ mutable struct FrameBuffer{ElementTypes, T}
 
         @assert glCheckFramebufferStatus(GL_FRAMEBUFFER) == GL_FRAMEBUFFER_COMPLETE "FrameBuffer (id $framebuffer) with attachments $attachment_types failed to be created."
         glBindFramebuffer(GL_FRAMEBUFFER, 0)
-        @show Tuple{eltype.(_attachments)...}
         obj = new{Tuple{eltype.(_attachments)...}, typeof(_attachments)}(framebuffer, _attachments, current_context())
         finalizer(free!, obj)
         return obj
