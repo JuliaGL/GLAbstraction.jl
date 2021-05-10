@@ -1,8 +1,3 @@
-# THIS PACKAGE IS DEPRECATED!
-
-Have a lookt at [Makie](https://github.com/JuliaPlots/Makie.jl) and [GLMakie](https://github.com/JuliaPlots/GLMakie.jl) for similar functionality.
-GLMakie now contains GLVisualize & GLAbstraction, which isn't ideal. If there are enough people to help maintain GLAbstraction, we can try to move it out of GLMakie again!
-
 # GLAbstraction
 A simple library, which makes the use of OpenGL a little bit more convenient and Julian.
 If you have any questions, please open an issue.
