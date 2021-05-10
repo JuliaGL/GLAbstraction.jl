@@ -1,5 +1,3 @@
-import FileIO: File, filename, file_extension, @format_str, query
-
 function iscompiled(shader::GLuint)
     success = GLint[0]
     glGetShaderiv(shader, GL_COMPILE_STATUS, success)
@@ -29,13 +27,15 @@ function Shader(typ, source)
     end
     Shader(id, typ, s)
 end
-function Shader(path::String, source_str::AbstractString)
-    typ = shadertype(query(path))
+
+function Shader(path::String)
+    source_str = read(open(path), String)
+    typ = shadertype(path)
     source = Vector{UInt8}(source_str)
     Shader(typ, source)
 end
-Shader(path::File{format"GLSLShader"}) = load(path)
-Shader(tup::Tuple) = Shader(tup...)
+
+shadertype(s::Shader) = s.typ
 
 import Base: ==
 (==)(a::Shader, b::Shader) = a.source == b.source && a.typ == b.typ && a.id == b.id && a.context == b.context
@@ -47,11 +47,8 @@ function Base.show(io::IO, shader::Shader)
     print_with_lines(io, String(shader.source))
 end
 
-shadertype(s::Shader) = s.typ
-function shadertype(f::File{format"GLSLShader"})
-    shadertype(file_extension(f))
-end
-function shadertype(ext::AbstractString)
+function shadertype(path::AbstractString)
+    p, ext = splitext(path)
     ext == ".comp" && return GL_COMPUTE_SHADER
     ext == ".vert" && return GL_VERTEX_SHADER
     ext == ".frag" && return GL_FRAGMENT_SHADER
@@ -64,19 +61,6 @@ function shadertype(typ::Symbol)
     (typ == :fragment || typ == :frag) && return GL_FRAGMENT_SHADER
     (typ == :geometry || typ == :geom) && return GL_GEOMETRY_SHADER
     @error "$typ not a valid shader symbol."
-end
-
-#Implement File IO interface
-function load(f::File{format"GLSLShader"})
-    fname = filename(f)
-    source = read(open(fname), String)
-    Shader(fname, source)
-end
-
-function save(f::File{format"GLSLShader"}, data::Shader)
-    s = open(f, "w")
-    write(s, data.source)
-    close(s)
 end
 
 # Different shader string literals- usage: e.g. frag" my shader code"
