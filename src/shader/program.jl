@@ -73,7 +73,7 @@ Program(shaders::Shader...) = Program([shaders...])
 
 #REVIEW: This is a bit redundant seen as there is `load(source)` from FilIO for shaders but ok
 Program(sh_string_typ...) = 
-    Program([map(x -> Shader(x), sh_string_typ)...])
+    Program([map(x -> Shader(x...), sh_string_typ)...])
 
 free!(x::Program) = context_command(x.context, () -> glDeleteProgram(x.id))
 
