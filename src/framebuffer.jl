@@ -4,13 +4,13 @@ GL_COLOR_ATTACHMENT(i) = GLuint(GL_COLOR_ATTACHMENT0 + i)
 Holds the id, format and attachment of an OpenGL RenderBuffer.
 RenderBuffers cannot be read by Shaders.
 """
-mutable struct RenderBuffer
+mutable struct RenderBuffer{T}
     id        ::GLuint
     format    ::GLenum
     attachment::GLenum
     context   ::Context
     size      ::Tuple{Int, Int}
-    function RenderBuffer(format::GLenum, attachment::GLenum, dimensions)
+    function RenderBuffer{T}(format::GLenum, attachment::GLenum, dimensions) where {T}
         @assert length(dimensions) == 2
         id = glGenRenderbuffers(format, attachment, dimensions)
         obj = new(id, format, attachment, current_context(), dimensions)
@@ -19,9 +19,9 @@ mutable struct RenderBuffer
     end
 end
 
-"Creates a `RenderBuffer` with purpose for the `depth` component of a `FrameBuffer`."
-function RenderBuffer(depth_format, dimensions)
-    return RenderBuffer(gl_internal_format(depth_format), gl_attachment(depth_format), dimensions)
+"Creates a `RenderBuffer` with purpose for the depth component `T` of a `FrameBuffer`."
+function RenderBuffer(::Type{T}, dimensions) where  {T <: DepthFormat}
+    RenderBuffer{T}(gl_internal_format(T), gl_attachment(T), dimensions)
 end
 
 free!(rb::RenderBuffer) =
@@ -31,6 +31,7 @@ bind(b::RenderBuffer) = glBindRenderbuffer(GL_RENDERBUFFER, b.id)
 unbind(b::RenderBuffer) = glBindRenderbuffer(GL_RENDERBUFFER, b.id)
 
 Base.size(b::RenderBuffer) = b.size
+Base.eltype(r::RenderBuffer{T}) where {T} = T
 width(b::RenderBuffer)  = size(b, 1)
 height(b::RenderBuffer) = size(b, 2)
 depth(b::RenderBuffer)  = size(b, 3) #possible need to assert

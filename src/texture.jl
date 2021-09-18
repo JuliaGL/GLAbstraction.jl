@@ -18,8 +18,8 @@ Float24 storage type for depth
 """
 primitive type Float24 <: AbstractFloat 24 end
 
-gl_internal_format(::Type{Depth{Float32}}) = GL_DEPTH_COMPONENT32F
-gl_internal_format(::Type{DepthStencil{Float24, N0f8}}) = GL_DEPTH24_STENCIL8
+gl_internal_format(::Type{Depth{Float32}})::GLenum = GL_DEPTH_COMPONENT32F
+gl_internal_format(::Type{DepthStencil{Float24, N0f8}})::GLenum = GL_DEPTH24_STENCIL8
 
 function gl_internal_format(::T) where T
     error("$T doesn't have a valid mapping to an OpenGL internal format enum. Please use DepthStencil/Depth/Color, or overload `gl_internal_format(x::$T)`
