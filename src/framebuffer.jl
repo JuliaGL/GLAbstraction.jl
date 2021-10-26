@@ -69,11 +69,11 @@ mutable struct FrameBuffer{ElementTypes, T}
             error("The amount of DepthFormat types in texture types exceeds the maximum of 1.")
         end
 
-        if length(attachments) > max_ca
+        N = length(attachments)
+        if N > max_ca
             error("The length of texture types exceeds the maximum amount of framebuffer color attachments! Found: $N, allowed: $max_ca")
         end
         
-
         !isempty(depth_attachments) && attach2framebuffer(depth_attachments[1])
         #this is done so it's a tuple. Not entirely sure why thats better than an
         #array?
