@@ -44,6 +44,6 @@ function context_command(c::Context, f::Function)
     if !is_current_context(c)
         push!(c, f)
     else
-        f()
+        @tspawnat c.threadid f()
     end
 end
