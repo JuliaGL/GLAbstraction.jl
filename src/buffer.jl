@@ -18,13 +18,13 @@ mutable struct Buffer{T} <: GPUArray{T, 1}
 end
 #Function to deal with any Immutable type with Real as Subtype
 function Buffer(
-        buffer::DenseVector{T};
+        buffer::Union{DenseVector{T}, SubArray{T}};
         buffertype::GLenum = GL_ARRAY_BUFFER, usage::GLenum = GL_STATIC_DRAW
     ) where T <: Real
     Buffer{T}(pointer(buffer), length(buffer), buffertype, usage)
 end
 function Buffer(
-        buffer::DenseVector{T};
+        buffer::Union{DenseVector{T}, SubArray{T}};
         buffertype::GLenum = GL_ARRAY_BUFFER, usage::GLenum = GL_STATIC_DRAW
     ) where T
     glasserteltype(T)
