@@ -210,6 +210,12 @@ end
 
 # Implementing the GPUArray interface
 """
+    gpu_data(fb, i)
+Load data from the framebuffer attachment via its specialized implementation.
+"""
+gpu_data(fb::FrameBuffer, i) = gpu_data(fb.attachments[i])
+
+"""
     gpu_data(r, framebuffer)
 Loads the data from the renderbuffer attachment of the framebuffer via glReadPixels.
 Possibly slower than the specialized functions for textures
