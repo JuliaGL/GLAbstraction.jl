@@ -1,5 +1,6 @@
 module GLAbstraction
 
+using ColorTypes
 using ModernGL
 using FixedPointNumbers
 using Printf
