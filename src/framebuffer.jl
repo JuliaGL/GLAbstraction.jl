@@ -28,6 +28,10 @@ mutable struct RenderBuffer{T}
 end
 
 "Creates a `RenderBuffer` with purpose for the depth component `T` of a `FrameBuffer`."
+function RenderBuffer(::Type{T}, dimensions) where {T<:DepthFormat}
+    RenderBuffer{T}(gl_internal_format(T), dimensions)
+end
+
 function RenderBuffer(::Type{T}, dimensions) where {T}
     RenderBuffer{T}(textureformat_from_type(T), dimensions)
 end
