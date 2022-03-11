@@ -426,7 +426,7 @@ Copy the 3D data from the texture to the CPU using glGetTextureSubImage.
 Allows specifying the upper left corner (Julia: starting at 1).
 The size is inferred form dest.
 """
-function Base.unsafe_copyto!(dest::Array{T,3}, source::Texture{T,3}, x = 1, y = 1, z = 1) where {T}
+function Base.unsafe_copyto!(dest::Array{T,3}, source::Texture{T,3}, x::Integer = 1, y::Integer = 1, z::Integer = 1) where {T}
     width, height, depth = size(dest)
     buf_size = width * height * depth * sizeof(T)
     glGetTextureSubImage(source.id, 0, x - 1, y - 1, z - 1, width, height, depth, source.format, source.pixeltype, buf_size, dest)
@@ -439,7 +439,7 @@ Copy the 2D data from the texture to the CPU using glGetTextureSubImage.
 Allows specifying the upper left corner (Julia: starting at 1).
 The size is inferred form dest.
 """
-function Base.unsafe_copyto!(dest::Array{T,2}, source::Texture{T,2}, x = 1, y = 1) where {T}
+function Base.unsafe_copyto!(dest::Array{T,2}, source::Texture{T,2}, x::Integer = 1, y::Integer = 1) where {T}
     width, height = size(dest)
     depth = 1
     buf_size = width * height * depth * sizeof(T)
@@ -453,7 +453,7 @@ Copy the 2D data from the texture to the CPU using glGetTextureSubImage.
 Allows specifying the upper left corner (Julia: starting at 1).
 The size is inferred form dest.
 """
-function Base.unsafe_copyto!(dest::Array{T,1}, source::Texture{T,1}, x = 1) where {T}
+function Base.unsafe_copyto!(dest::Array{T,1}, source::Texture{T,1}, x::Integer = 1) where {T}
     width, height = size(dest)
     depth = height = 1
     buf_size = width * height * depth * sizeof(T)

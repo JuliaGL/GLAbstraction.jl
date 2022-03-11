@@ -232,7 +232,7 @@ Allows specifying the upper left corner (Julia: starting at 1).
 The size is inferred form dest.
 Possibly slower than the specialized functions for textures.
 """
-function Base.unsafe_copyto!(dest::Array{T}, source::RenderBuffer{T}, framebuffer::FrameBuffer, x = 1, y = 1) where {T}
+function Base.unsafe_copyto!(dest::Array{T}, source::RenderBuffer{T}, framebuffer::FrameBuffer, x::Integer = 1, y::Integer = 1) where {T}
     bind(framebuffer, GL_READ_FRAMEBUFFER)
     width, height = size(dest)
     buf_size = width * height * sizeof(T)
@@ -263,7 +263,7 @@ Allows specifying the upper left corner (Julia: starting at 1).
 The size is inferred form dest.
 Possibly slower than the specialized functions for textures.
 """
-function Base.unsafe_copyto!(dest::Array, source::FrameBuffer, x = 1, y = 1)
+function Base.unsafe_copyto!(dest::Array, source::FrameBuffer, x::Integer = 1, y::Integer = 1)
     attachment = source.attachments[1]
     if attachment isa RenderBuffer
         unsafe_copyto!(dest, attachment, source, x, y)
