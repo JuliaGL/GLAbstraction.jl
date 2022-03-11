@@ -212,12 +212,7 @@ function depthformat(fb::FrameBuffer)
     end
 end
 
-# Implementing the GPUArray interface
-"""
-    gpu_data(fb, i)
-Load data from the framebuffer attachment via its specialized implementation.
-"""
-gpu_data(fb::FrameBuffer, i) = gpu_data(fb.attachments[i])
+# Implementing the GPUArray interface for RenderBuffer
 
 """
     gpu_data(r, framebuffer)
@@ -231,42 +226,48 @@ function gpu_data(r::RenderBuffer{T}, framebuffer::FrameBuffer) where {T}
 end
 
 """
-    unsafe_copyto!(dest, source, framebuffer)
+    unsafe_copyto!(dest, source, framebuffer, x, y)
 Loads the data from the source attachment of the framebuffer via glReadPixels.
-Possibly slower than the specialized functions for textures
+Allows specifying the upper left corner (Julia: starting at 1).
+The size is inferred form dest.
+Possibly slower than the specialized functions for textures.
 """
-function Base.unsafe_copyto!(dest::Array{T}, source::RenderBuffer{T}, framebuffer::FrameBuffer) where {T}
+function Base.unsafe_copyto!(dest::Array{T}, source::RenderBuffer{T}, framebuffer::FrameBuffer, x = 1, y = 1) where {T}
     bind(framebuffer, GL_READ_FRAMEBUFFER)
     width, height = size(dest)
-    glReadPixels(0, 0, width, height, source.format, source.pixeltype, dest)
+    buf_size = width * height * sizeof(T)
+    glReadnPixels(x, y, width, height, source.format, source.pixeltype, buf_size, dest)
     unbind(framebuffer, GL_READ_FRAMEBUFFER)
     nothing
 end
 
+# Implementing the GPUArray interface for Framebuffer
+
 """
-    gpu_data(f)
+    gpu_data(source)
 Loads the data from the first attachment of the framebuffer via glReadPixels.
 """
-function gpu_data(f::FrameBuffer)
-    att = f.attachments[1]
-    if att isa RenderBuffer
-        gpu_data(att, f)
+function gpu_data(source::FrameBuffer)
+    attachment = source.attachments[1]
+    if attachment isa RenderBuffer
+        gpu_data(attachment, source)
     else
-        gpu_data(att)
+        gpu_data(attachment)
     end
 end
 
 """
-    unsafe_copyto!(dest, source)
-Loads the data from the first attachment of the framebuffer via glReadPixels.
-Possibly slower than the specialized functions for textures
+    unsafe_copyto!(dest, source, x, y)
+Loads the data from the first attachment of the framebuffer.
+Allows specifying the upper left corner (Julia: starting at 1).
+The size is inferred form dest.
+Possibly slower than the specialized functions for textures.
 """
-function Base.unsafe_copyto!(dest::Array, source::FrameBuffer)
-    att = f.attachments[1]
-    if att isa RenderBuffer
-        unsafe_copyto!(dest, source.attachments[1], source)
+function Base.unsafe_copyto!(dest::Array, source::FrameBuffer, x = 1, y = 1)
+    attachment = source.attachments[1]
+    if attachment isa RenderBuffer
+        unsafe_copyto!(dest, attachment, source, x, y)
     else
-        unsafe_copyto!(dest, source.attachments[1])
+        unsafe_copyto!(dest, attachment, x, y)
     end
 end
-

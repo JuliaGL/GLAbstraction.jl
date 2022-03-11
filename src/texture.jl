@@ -409,21 +409,61 @@ function gpu_setindex!(target::Texture{T,2}, source::Texture{T,2}, fbo = glGenFr
 end
 
 # Implementing the GPUArray interface
+# To CPU
+"""
+    gpu_data(t)
+Create a new CPU array with the size of the texture and copy the data from the gpu to it
+"""
 function gpu_data(t::Texture{T,ND}) where {T,ND}
     result = Array{T}(undef, size(t)...)
     unsafe_copyto!(result, t)
     return result
 end
 
-function Base.unsafe_copyto!(dest::Array{T,N}, source::Texture{T,N}) where {T,N}
-    bind(source)
-    glGetTexImage(source.texturetype, 0, source.format, source.pixeltype, dest)
-    bind(source, 0)
+"""
+    unsafe_copyto!(dest, source, x, y, z)
+Copy the 3D data from the texture to the CPU using glGetTextureSubImage.
+Allows specifying the upper left corner (Julia: starting at 1).
+The size is inferred form dest.
+"""
+function Base.unsafe_copyto!(dest::Array{T,3}, source::Texture{T,3}, x = 1, y = 1, z = 1) where {T}
+    width, height, depth = size(dest)
+    buf_size = width * height * depth * sizeof(T)
+    glGetTextureSubImage(source.id, 0, x - 1, y - 1, z - 1, width, height, depth, source.format, source.pixeltype, buf_size, dest)
+    nothing
+end
+
+"""
+    unsafe_copyto!(dest, source, x, y)
+Copy the 2D data from the texture to the CPU using glGetTextureSubImage.
+Allows specifying the upper left corner (Julia: starting at 1).
+The size is inferred form dest.
+"""
+function Base.unsafe_copyto!(dest::Array{T,2}, source::Texture{T,2}, x = 1, y = 1) where {T}
+    width, height = size(dest)
+    depth = 1
+    buf_size = width * height * depth * sizeof(T)
+    glGetTextureSubImage(source.id, 0, x - 1, y - 1, 0, width, height, depth, source.format, source.pixeltype, buf_size, dest)
+    nothing
+end
+
+"""
+    unsafe_copyto!(dest, source, x)
+Copy the 2D data from the texture to the CPU using glGetTextureSubImage.
+Allows specifying the upper left corner (Julia: starting at 1).
+The size is inferred form dest.
+"""
+function Base.unsafe_copyto!(dest::Array{T,1}, source::Texture{T,1}, x = 1) where {T}
+    width, height = size(dest)
+    depth = height = 1
+    buf_size = width * height * depth * sizeof(T)
+    glGetTextureSubImage(source.id, 0, x - 1, 0, 0, width, height, depth, source.format, source.pixeltype, buf_size, dest)
     nothing
 end
 
 similar(t::Texture{T,NDim}, newdims::Int...) where {T,NDim} = similar(t, newdims)
 
+# To GPU
 texsubimage(t::Texture{T,1}, newvalue::Array{T,1}, xrange::UnitRange, level = 0) where {T} = glTexSubImage1D(
     t.texturetype, level, first(xrange) - 1, length(xrange), t.format, t.pixeltype, newvalue
 )
