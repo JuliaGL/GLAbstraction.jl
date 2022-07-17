@@ -80,7 +80,7 @@ cardinality(::Buffer{T}) where {T} = cardinality(T)
 bind(buffer::Buffer) = glBindBuffer(buffer.buffertype, buffer.id)
 #used to reset buffer target
 bind(buffer::Buffer, other_target) = glBindBuffer(buffer.buffertype, other_target)
-unbind(buffer::Buffer) = glBindBuffer(buffer.buffertype, buffer.id)
+unbind(buffer::Buffer) = glBindBuffer(buffer.buffertype, 0)
 
 Base.convert(::Type{Buffer}, x::Buffer)   = x
 Base.convert(::Type{Buffer}, x::Array)    = Buffer(x)
