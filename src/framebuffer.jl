@@ -67,7 +67,7 @@ mutable struct FrameBuffer{ElementTypes,T}
         framebuffer = glGenFramebuffers()
         glBindFramebuffer(GL_FRAMEBUFFER, framebuffer)
         max_ca = glGetIntegerv(GL_MAX_COLOR_ATTACHMENTS)
-
+    
         depth_attachments = Union{Texture,RenderBuffer}[]
         for (i, a) in enumerate(attachments)
             if eltype(a) <: DepthFormat
@@ -76,25 +76,22 @@ mutable struct FrameBuffer{ElementTypes,T}
                 attach2framebuffer(a, GL_COLOR_ATTACHMENT(i - 1))
             end
         end
-
-
+    
+    
         if length(depth_attachments) > 1
             error("The amount of DepthFormat types in texture types exceeds the maximum of 1.")
         end
-
+    
         if length(attachments) > max_ca
             error("The length of texture types exceeds the maximum amount of framebuffer color attachments! Found: $N, allowed: $max_ca")
         end
-
-
+    
+    
         !isempty(depth_attachments) && attach2framebuffer(depth_attachments[1])
-        #this is done so it's a tuple. Not entirely sure why thats better than an
-        #array?
-        _attachments = (attachments..., depth_attachments...,)
-
+    
         @assert glCheckFramebufferStatus(GL_FRAMEBUFFER) == GL_FRAMEBUFFER_COMPLETE "FrameBuffer (id $framebuffer) with attachments $attachment_types failed to be created."
         glBindFramebuffer(GL_FRAMEBUFFER, 0)
-        obj = new{Tuple{eltype.(_attachments)...},typeof(_attachments)}(framebuffer, _attachments, current_context())
+        obj = new{Tuple{eltype.(attachments)...},typeof(attachments)}(framebuffer, attachments, current_context())
         finalizer(free!, obj)
         return obj
     end
