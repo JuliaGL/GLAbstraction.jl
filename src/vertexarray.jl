@@ -102,7 +102,7 @@ VertexArray(bufferinfos::Vector{<:BufferAttachmentInfo}, indices::Vector{F}, nin
     VertexArray(ELEMENTS_INSTANCED, bufferinfos, indexbuffer(indices), ninst, face2glenum(F))
 
 free!(x::VertexArray) =
-    context_command(x.context, () -> glDeleteVertexArrays(1, [x.id]))
+    context_command(() -> glDeleteVertexArrays(1, [x.id]), x.context)
     
 is_null(vao::VertexArray{Nothing, EMPTY}) = true
 is_null(vao::VertexArray)                 = false

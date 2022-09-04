@@ -75,7 +75,7 @@ Program(shaders::Shader...) = Program([shaders...])
 Program(sh_string_typ...) = 
     Program([map(x -> Shader(x), sh_string_typ)...])
 
-free!(x::Program) = context_command(x.context, () -> glDeleteProgram(x.id))
+free!(x::Program) = context_command(() -> glDeleteProgram(x.id), x.context)
 
 attributes(program::Program) = program.attributes
 uniforms(program::Program)   = program.uniforms

@@ -9,3 +9,12 @@ ModernGL = "66fc600b-dfda-50eb-8b99-91cfa97b1301"
 Printf = "de0858da-6303-5e67-8744-51eddeeeb8d7"
 StaticArrays = "90137ffa-7385-5640-81b9-e52037218182"
 ThreadPools = "b189fb0b-2eb5-4ed4-bc0c-d34c51242431"
+
+[extras]
+Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
+GeometryBasics = "5c1252a2-5f33-56bf-86c9-59e7332b4326"
+GLFW = "f7f18e0c-5ee9-5ccd-a5bf-e8befd85ed98"
+ColorTypes = "3da002f7-5984-5a60-b8a6-cbb66c0b333f"
+
+[targets]
+test = ["Test", "GeometryBasics", "GLFW", "ColorTypes"]

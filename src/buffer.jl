@@ -39,7 +39,7 @@ function Buffer(
 end
 
 free!(x::Buffer) =
-        context_command(x.context, () -> glDeleteBuffers(1, [x.id]))
+        context_command( () -> glDeleteBuffers(1, [x.id]), x.context)
 
 Base.show(io::IO, ::MIME"text/plain", b::Buffer) = show(io, b)
 
@@ -157,7 +157,7 @@ end
 
 # GPUArray interface
 function gpu_data(b::Buffer{T}) where T
-    data = Vector{T}(length(b))
+    data = Vector{T}(undef, length(b))
     bind(b)
     glGetBufferSubData(b.buffertype, 0, sizeof(data), data)
     bind(b, 0)

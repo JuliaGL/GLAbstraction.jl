@@ -25,7 +25,7 @@ function RenderBuffer(depth_format, dimensions)
 end
 
 free!(rb::RenderBuffer) =
-    context_command(rb.context, glDeleteRenderbuffers(1, [rb.id]))
+    context_command(() -> glDeleteRenderbuffers(1, [rb.id]), rb.context)
 
 bind(b::RenderBuffer) = glBindRenderbuffer(GL_RENDERBUFFER, b.id)
 unbind(b::RenderBuffer) = glBindRenderbuffer(GL_RENDERBUFFER, b.id)

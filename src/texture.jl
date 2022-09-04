@@ -331,7 +331,7 @@ function set_parameters(t::Texture, parameters::Vector{Tuple{GLenum, Any}})
     bind(t, 0)
 end
 
-free!(x::Texture) = context_command(x.context, () -> glDeleteTextures(x.id))
+free!(x::Texture) = context_command(() -> glDeleteTextures(x.id), x.context)
 
 Base.size(t::Texture) = t.size
 Base.eltype(t::Texture{T}) where {T} = T
@@ -340,7 +340,7 @@ height(t::Texture)    = size(t, 2)
 depth(t::Texture)     = size(t, 3)
 id(t::Texture)        = t.id
 
-function Base.display(io, t::Texture{T,D}) where {T,D}
+function Base.show(io::IO, t::Texture{T,D}) where {T,D}
     println(io, "Texture$(D)D: ")
     println(io, "                  ID: ", t.id)
     println(io, "                  Size: Dimensions: $(size(t))")
