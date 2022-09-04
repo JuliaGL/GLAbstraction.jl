@@ -1,5 +1,3 @@
-#!/home/ponet/bin/julia
-using Revise
 # Here, we illustrate a more "julian" implementation that leverages
 # some of the advantages of GLAbstraction
 using ModernGL, GeometryTypes, GLAbstraction, GLFW

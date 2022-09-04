@@ -8,8 +8,8 @@ mutable struct Buffer{T} <: GPUArray{T, 1}
     context   ::Context
     function Buffer{T}(cpu_data_ptr::Ptr{T}, buff_length::Int, buffertype::GLenum, usage::GLenum) where T
         id = glGenBuffers()
-	    # size of 0 can segfault it seems
-	    buff_length = buff_length == 0 ? 1 : buff_length
+        # size of 0 can segfault it seems
+        buff_length = buff_length == 0 ? 1 : buff_length
         upload_data(id, cpu_data_ptr, buff_length * sizeof(T), buffertype, usage)
         obj = new{T}(id, buff_length, buffertype, usage, current_context())
         finalizer(free!, obj)
@@ -74,8 +74,8 @@ function upload_data(id::GLuint, cpu_data_ptr::Ptr, data_length::Int, buffertype
 end
 
 function upload_data!(buf::Buffer{T}, new_data::Vector{T}) where {T}
-	bind(buf)
-	if length(new_data) == length(buf)
+    bind(buf)
+    if length(new_data) == length(buf)
         glBufferSubData(buf.buffertype, 0, length(new_data) * sizeof(T), pointer(new_data))
     else
         glBufferData(buf.buffertype, length(new_data) * sizeof(T), pointer(new_data), buf.usage)
@@ -84,7 +84,7 @@ function upload_data!(buf::Buffer{T}, new_data::Vector{T}) where {T}
 end
 
 function reupload_data!(buf::Buffer{T}, new_data::Vector{T}, offset=0) where {T}
-	bind(buf)
+    bind(buf)
     glBufferSubData(buf.buffertype, offset, length(new_data) * sizeof(T), pointer(new_data))
     unbind(buf)
 end

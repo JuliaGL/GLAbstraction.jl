@@ -14,7 +14,7 @@ end
 
 Base.eltype(b::BufferAttachmentInfo{T}) where T = T
 
-function generate_buffers(program::Program, divisor::GLint; name_buffers...)
+function generate_buffers(program::Program, divisor::GLint=GEOMETRY_DIVISOR; name_buffers...)
 	buflen  = 0
     buffers = BufferAttachmentInfo[]
     for (name, val) in pairs(name_buffers)
@@ -27,6 +27,8 @@ function generate_buffers(program::Program, divisor::GLint; name_buffers...)
             elseif !isa(val, Vector)
                 push!(buffers, BufferAttachmentInfo(name, loc, Buffer(fill(val, buflen), usage=GL_DYNAMIC_DRAW), divisor))
             end
+        else
+            error("Invalid attribute: $name.")
         end
     end
     return buffers

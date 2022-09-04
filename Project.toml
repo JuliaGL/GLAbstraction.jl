@@ -1,7 +1,7 @@
 name = "GLAbstraction"
 uuid = "ca6e7d0a-b0c9-59ca-8aba-aebf11497e1c"
 repo = "https://github.com/JuliaGL/GLAbstraction.jl.git"
-version = "0.1.0"
+version = "0.2.0"
 
 [deps]
 FixedPointNumbers = "53c48c17-4a7d-5ca2-90c5-79b7896eea93"
@@ -11,10 +11,13 @@ StaticArrays = "90137ffa-7385-5640-81b9-e52037218182"
 ThreadPools = "b189fb0b-2eb5-4ed4-bc0c-d34c51242431"
 
 [extras]
-Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
-GeometryBasics = "5c1252a2-5f33-56bf-86c9-59e7332b4326"
-GLFW = "f7f18e0c-5ee9-5ccd-a5bf-e8befd85ed98"
 ColorTypes = "3da002f7-5984-5a60-b8a6-cbb66c0b333f"
+Downloads = "f43a241f-c20a-4ad4-852c-f6b1247861c6"
+GLFW = "f7f18e0c-5ee9-5ccd-a5bf-e8befd85ed98"
+GeometryBasics = "5c1252a2-5f33-56bf-86c9-59e7332b4326"
+Images = "916415d5-f1e6-5110-898d-aaa5f9f070e0"
+LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
+Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 
 [targets]
-test = ["Test", "GeometryBasics", "GLFW", "ColorTypes"]
+test = ["Test", "GeometryBasics", "GLFW", "ColorTypes", "Images", "LinearAlgebra", "Downloads"]
