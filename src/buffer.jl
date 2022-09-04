@@ -41,6 +41,20 @@ end
 free!(x::Buffer) =
         context_command(x.context, () -> glDeleteBuffers(1, [x.id]))
 
+Base.show(io::IO, ::MIME"text/plain", b::Buffer) = show(io, b)
+
+function Base.show(io::IO, b::Buffer)
+    
+    if !get(io, :compact, false)
+        println(io, "$(b.len)-element $(typeof(b)):")
+        println(io, "\tid    = $(b.id)")
+        println(io, "\ttype  = $(GLENUM(b.buffertype).name)")
+        println(io, "\tusage = $(GLENUM(b.usage).name)")
+    else
+        print(io, "$(typeof(b))")
+    end
+end    
+
 function indexbuffer(
         buffer::Vector{T};
         usage::GLenum = GL_STATIC_DRAW

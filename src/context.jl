@@ -40,7 +40,7 @@ function exists_context()
     end
 end
 
-function context_command(c::Context, f::Function)
+function context_command(f::Function, c::Context)
     if !is_current_context(c)
         push!(c, f)
     else
