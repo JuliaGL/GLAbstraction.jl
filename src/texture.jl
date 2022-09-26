@@ -346,19 +346,17 @@ height(t::Texture) = size(t, 2)
 depth(t::Texture) = size(t, 3)
 id(t::Texture) = t.id
 
-function Base.display(io, t::Texture{T,D}) where {T,D}
+function Base.show(io::IO, t::GLAbstraction.Texture{T,D}) where {T,D}
     println(io, "Texture$(D)D: ")
     println(io, "                  ID: ", t.id)
     println(io, "                  Size: Dimensions: $(size(t))")
-    # println(io, "                Size: ", reduce("Dimensions: ", size(t)) do v0, v1
-    # v0*"x"*string(v1)
-    # end)
     println(io, "    Julia pixel type: ", T)
     println(io, "   OpenGL pixel type: ", GLENUM(t.pixeltype).name)
     println(io, "              Format: ", GLENUM(t.format).name)
     println(io, "     Internal format: ", GLENUM(t.internalformat).name)
     println(io, "          Parameters: ", t.parameters)
 end
+Base.display(t::GLAbstraction.Texture{T,D}) where {T,D} = Base.show(stdout, t)
 
 is_texturearray(t::Texture) = t.texturetype == GL_TEXTURE_2D_ARRAY
 is_texturebuffer(t::Texture) = t.texturetype == GL_TEXTURE_BUFFER

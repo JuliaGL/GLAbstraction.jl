@@ -113,6 +113,16 @@ function FrameBuffer(fb_size::Tuple{<:Integer,<:Integer}, texture_types, texture
     return fbo
 end
 
+function Base.show(io::IO, f::GLAbstraction.FrameBuffer{ET,Internals}) where {ET,Internals}
+    println(io, "Framebuffer: ")
+    println(io, "                  ID: ", f.id)
+    for a in f.attachments
+        println()
+        show(io, a)
+    end
+end
+Base.display(f::GLAbstraction.FrameBuffer{ET,Internals}) where {ET,Internals} = Base.show(stdout, f)
+
 context_framebuffer() = FrameBuffer(Val(0))
 
 function attach2framebuffer(t::Texture, attachment)
