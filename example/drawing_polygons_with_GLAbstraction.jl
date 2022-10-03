@@ -12,7 +12,7 @@ window = GLFW.Window(name="Drawing polygons 5", resolution=(800,600))
 # Think of this as a way of bookkeeping.
 GLFW.MakeContextCurrent(window)
 GLA.set_context!(window)
-GLA.FrameBuffer((1024,1024),(RGBA{Float32}, RGBA{Float32}, GLA.Depth{Float32}), true)  
+
 # The vertex shader---note the `vert` in front of """
 vertex_shader = GLA.vert"""
 #version 150
