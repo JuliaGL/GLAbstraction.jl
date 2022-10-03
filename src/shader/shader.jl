@@ -65,22 +65,22 @@ end
 # Different shader string literals- usage: e.g. frag" my shader code"
 macro frag_str(source::AbstractString)
     quote
-        (GL_FRAGMENT_SHADER, $source)
+        Shader(GL_FRAGMENT_SHADER, $source)
     end
 end
 macro vert_str(source::AbstractString)
     quote
-        (GL_VERTEX_SHADER, $source)
+        Shader(GL_VERTEX_SHADER, $source)
     end
 end
 macro geom_str(source::AbstractString)
     quote
-        (GL_GEOMETRY_SHADER, $source)
+        Shader(GL_GEOMETRY_SHADER, $source)
     end
 end
 macro comp_str(source::AbstractString)
     quote
-        (GL_COMPUTE_SHADER, $source)
+        Shader(GL_COMPUTE_SHADER, $source)
     end
 end
 
