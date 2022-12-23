@@ -126,12 +126,12 @@ struct TextureParameters{NDim}
     swizzle_mask::Vector{GLenum}
 end
 function TextureParameters(T, NDim;
-    minfilter = T <: Integer ? :nearest : :linear,
-    magfilter = minfilter, # magnification
-    x_repeat = :clamp_to_edge, #wrap_s
-    y_repeat = x_repeat, #wrap_t
-    z_repeat = x_repeat, #wrap_r
-    anisotropic = 1.0f0
+    minfilter=T <: Integer ? :nearest : :linear,
+    magfilter=minfilter, # magnification
+    x_repeat=:clamp_to_edge, #wrap_s
+    y_repeat=x_repeat, #wrap_t
+    z_repeat=x_repeat, #wrap_r
+    anisotropic=1.0f0
 )
     T <: Integer && (minfilter == :linear || magfilter == :linear) && (@error "Wrong Texture Parameter: Integer texture can't interpolate. Try :nearest")
     repeat = (x_repeat, y_repeat, z_repeat)
@@ -210,10 +210,10 @@ end
 
 function Texture(
     data::Ptr{T}, dims::NTuple{NDim,Int};
-    internalformat::GLenum = textureformat_internal_from_type(T),
-    texturetype::GLenum = texturetype_from_dimensions(NDim),
-    format::GLenum = textureformat_from_type(T),
-    mipmap = false,
+    internalformat::GLenum=textureformat_internal_from_type(T),
+    texturetype::GLenum=texturetype_from_dimensions(NDim),
+    format::GLenum=textureformat_from_type(T),
+    mipmap=false,
     parameters... # rest should be texture parameters
 ) where {T,NDim}
     glasserteltype(T)
@@ -242,9 +242,9 @@ Constructor for Array Texture
 """
 function Texture(
     data::Vector{Array{T,2}};
-    internalformat::GLenum = textureformat_internal_from_type(T),
-    texturetype::GLenum = GL_TEXTURE_2D_ARRAY,
-    format::GLenum = textureformat_from_type(T),
+    internalformat::GLenum=textureformat_internal_from_type(T),
+    texturetype::GLenum=GL_TEXTURE_2D_ARRAY,
+    format::GLenum=textureformat_from_type(T),
     parameters...
 ) where {T}
     glasserteltype(T)
@@ -299,7 +299,7 @@ function Texture(image::Array{T,NDim}; kw_args...) where {T,NDim}
     Texture(pointer(image), size(image); kw_args...)::Texture{T,NDim}
 end
 
-function set_parameters(t::Texture{T,N}, params::TextureParameters = t.parameters) where {T,N}
+function set_parameters(t::Texture{T,N}, params::TextureParameters=t.parameters) where {T,N}
     fnames = (:minfilter, :magfilter, :repeat)
     data = Dict([(name, map_texture_paramers(getfield(params, name))) for name in fnames])
     result = Tuple{GLenum,Any}[]
@@ -337,7 +337,7 @@ function set_parameters(t::Texture, parameters::Vector{Tuple{GLenum,Any}})
     bind(t, 0)
 end
 
-free!(x::Texture) = context_command(x.context, () -> glDeleteTextures(x.id))
+free!(x::Texture) = context_command(() -> glDeleteTextures(x.id), x.context)
 
 Base.size(t::Texture) = t.size
 Base.eltype(t::Texture{T}) where {T} = T
@@ -346,7 +346,7 @@ height(t::Texture) = size(t, 2)
 depth(t::Texture) = size(t, 3)
 id(t::Texture) = t.id
 
-function Base.show(io::IO, t::GLAbstraction.Texture{T,D}) where {T,D}
+function Base.show(io::IO, t::Texture{T,D}) where {T,D}
     println(io, "Texture$(D)D: ")
     println(io, "                  ID: ", t.id)
     println(io, "                  Size: Dimensions: $(size(t))")
@@ -394,7 +394,7 @@ function gpu_setindex!(t::Texture{T,N}, newvalue::Array{T,N}, indexes::Union{Uni
     glBindTexture(t.texturetype, 0)
 end
 
-function gpu_setindex!(target::Texture{T,2}, source::Texture{T,2}, fbo = glGenFramebuffers()) where {T}
+function gpu_setindex!(target::Texture{T,2}, source::Texture{T,2}, fbo=glGenFramebuffers()) where {T}
     glBindFramebuffer(GL_FRAMEBUFFER, fbo)
     glFramebufferTexture2D(GL_READ_FRAMEBUFFER, GL_COLOR_ATTACHMENT0,
         GL_TEXTURE_2D, source.id, 0)
@@ -424,7 +424,7 @@ Copy the 3D data from the texture to the CPU using glGetTextureSubImage.
 Allows specifying the upper left corner (Julia: starting at 1).
 The size is inferred form dest.
 """
-function Base.unsafe_copyto!(dest::Array{T,3}, source::Texture{T,3}, x::Integer = 1, y::Integer = 1, z::Integer = 1) where {T}
+function Base.unsafe_copyto!(dest::Array{T,3}, source::Texture{T,3}, x::Integer=1, y::Integer=1, z::Integer=1) where {T}
     width, height, depth = size(dest)
     buf_size = width * height * depth * sizeof(T)
     glGetTextureSubImage(source.id, 0, x - 1, y - 1, z - 1, width, height, depth, source.format, source.pixeltype, buf_size, dest)
@@ -437,7 +437,7 @@ Copy the 2D data from the texture to the CPU using glGetTextureSubImage.
 Allows specifying the upper left corner (Julia: starting at 1).
 The size is inferred form dest.
 """
-function Base.unsafe_copyto!(dest::Array{T,2}, source::Texture{T,2}, x::Integer = 1, y::Integer = 1) where {T}
+function Base.unsafe_copyto!(dest::Array{T,2}, source::Texture{T,2}, x::Integer=1, y::Integer=1) where {T}
     width, height = size(dest)
     depth = 1
     buf_size = width * height * depth * sizeof(T)
@@ -451,7 +451,7 @@ Copy the 2D data from the texture to the CPU using glGetTextureSubImage.
 Allows specifying the upper left corner (Julia: starting at 1).
 The size is inferred form dest.
 """
-function Base.unsafe_copyto!(dest::Array{T,1}, source::Texture{T,1}, x::Integer = 1) where {T}
+function Base.unsafe_copyto!(dest::Array{T,1}, source::Texture{T,1}, x::Integer=1) where {T}
     width, height = size(dest)
     depth = height = 1
     buf_size = width * height * depth * sizeof(T)
@@ -462,17 +462,17 @@ end
 similar(t::Texture{T,NDim}, newdims::Int...) where {T,NDim} = similar(t, newdims)
 
 # To GPU
-texsubimage(t::Texture{T,1}, newvalue::Array{T,1}, xrange::UnitRange, level = 0) where {T} = glTexSubImage1D(
+texsubimage(t::Texture{T,1}, newvalue::Array{T,1}, xrange::UnitRange, level=0) where {T} = glTexSubImage1D(
     t.texturetype, level, first(xrange) - 1, length(xrange), t.format, t.pixeltype, newvalue
 )
-function texsubimage(t::Texture{T,2}, newvalue::Array{T,2}, xrange::UnitRange, yrange::UnitRange, level = 0) where {T}
+function texsubimage(t::Texture{T,2}, newvalue::Array{T,2}, xrange::UnitRange, yrange::UnitRange, level=0) where {T}
     glTexSubImage2D(
         t.texturetype, level,
         first(xrange) - 1, first(yrange) - 1, length(xrange), length(yrange),
         t.format, t.pixeltype, newvalue
     )
 end
-texsubimage(t::Texture{T,3}, newvalue::Array{T,3}, xrange::UnitRange, yrange::UnitRange, zrange::UnitRange, level = 0) where {T} = glTexSubImage3D(
+texsubimage(t::Texture{T,3}, newvalue::Array{T,3}, xrange::UnitRange, yrange::UnitRange, zrange::UnitRange, level=0) where {T} = glTexSubImage3D(
     t.texturetype, level,
     first(xrange) - 1, first(yrange) - 1, first(zrange) - 1, length(xrange), length(yrange), length(zrange),
     t.format, t.pixeltype, newvalue
@@ -510,7 +510,7 @@ function TextureBuffer(buffer::Buffer{T}) where {T}
 end
 function TextureBuffer(buffer::Vector{T}) where {T}
     glasserteltype(T)
-    buff = Buffer(buffer, buffertype = GL_TEXTURE_BUFFER, usage = GL_DYNAMIC_DRAW)
+    buff = Buffer(buffer, buffertype=GL_TEXTURE_BUFFER, usage=GL_DYNAMIC_DRAW)
     TextureBuffer(buff)
 end
 Base.size(t::TextureBuffer) = size(t.buffer)

@@ -156,7 +156,6 @@ function glTexImage(ttype::GLenum, level::Integer, internalFormat::GLenum, w::In
     glTexImage3D(ttype, level, internalFormat, w, h, d, border, format, datatype, data)
 end
 function glTexImage(ttype::GLenum, level::Integer, internalFormat::GLenum, w::Integer, h::Integer, border::Integer, format::GLenum, datatype::GLenum, data)
-    maxsize = glGetIntegerv(GL_MAX_TEXTURE_SIZE)
     glTexImage2D(GL_PROXY_TEXTURE_2D, level, internalFormat, w, h, border, format, datatype, C_NULL)
     for l in 0:level
         result = glGetTexLevelParameteriv(GL_PROXY_TEXTURE_2D, l, GL_TEXTURE_WIDTH)

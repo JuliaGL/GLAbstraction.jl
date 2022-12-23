@@ -37,7 +37,7 @@ function RenderBuffer(::Type{T}, dimensions) where {T}
 end
 
 free!(rb::RenderBuffer) =
-    context_command(rb.context, glDeleteRenderbuffers(1, [rb.id]))
+    context_command(() -> glDeleteRenderbuffers(1, [rb.id]), rb.context)
 
 bind(b::RenderBuffer) = glBindRenderbuffer(GL_RENDERBUFFER, b.id)
 unbind(::RenderBuffer) = glBindRenderbuffer(GL_RENDERBUFFER, 0)
@@ -67,7 +67,7 @@ mutable struct FrameBuffer{ElementTypes,T}
         framebuffer = glGenFramebuffers()
         glBindFramebuffer(GL_FRAMEBUFFER, framebuffer)
         max_ca = glGetIntegerv(GL_MAX_COLOR_ATTACHMENTS)
-    
+
         depth_attachments = Union{Texture,RenderBuffer}[]
         for (i, a) in enumerate(attachments)
             if eltype(a) <: DepthFormat
@@ -76,19 +76,19 @@ mutable struct FrameBuffer{ElementTypes,T}
                 attach2framebuffer(a, GL_COLOR_ATTACHMENT(i - 1))
             end
         end
-    
-    
+
+
         if length(depth_attachments) > 1
             error("The amount of DepthFormat types in texture types exceeds the maximum of 1.")
         end
-    
-        if length(attachments) > max_ca
+
+        N = length(attachments)
+        if N > max_ca
             error("The length of texture types exceeds the maximum amount of framebuffer color attachments! Found: $N, allowed: $max_ca")
         end
-    
-    
+
         !isempty(depth_attachments) && attach2framebuffer(depth_attachments[1])
-    
+
         @assert glCheckFramebufferStatus(GL_FRAMEBUFFER) == GL_FRAMEBUFFER_COMPLETE "FrameBuffer (id $framebuffer) with attachments $attachment_types failed to be created."
         glBindFramebuffer(GL_FRAMEBUFFER, 0)
         obj = new{Tuple{eltype.(attachments)...},typeof(attachments)}(framebuffer, attachments, current_context())
@@ -168,8 +168,8 @@ function Base.resize!(fb::FrameBuffer, dimensions)
     nothing
 end
 
-bind(fb::FrameBuffer, target = GL_FRAMEBUFFER) = glBindFramebuffer(target, fb.id)
-unbind(::FrameBuffer, target = GL_FRAMEBUFFER) = glBindFramebuffer(target, 0)
+bind(fb::FrameBuffer, target=GL_FRAMEBUFFER) = glBindFramebuffer(target, fb.id)
+unbind(::FrameBuffer, target=GL_FRAMEBUFFER) = glBindFramebuffer(target, 0)
 
 
 #I think a lot could be optimized when knowing for sure whether an FBO has depth
@@ -239,7 +239,7 @@ Allows specifying the upper left corner (Julia: starting at 1).
 The size is inferred form dest.
 Possibly slower than the specialized functions for textures.
 """
-function Base.unsafe_copyto!(dest::Array{T}, source::RenderBuffer{T}, framebuffer::FrameBuffer, x::Integer = 1, y::Integer = 1) where {T}
+function Base.unsafe_copyto!(dest::Array{T}, source::RenderBuffer{T}, framebuffer::FrameBuffer, x::Integer=1, y::Integer=1) where {T}
     bind(framebuffer, GL_READ_FRAMEBUFFER)
     width, height = size(dest)
     buf_size = width * height * sizeof(T)
@@ -270,7 +270,7 @@ Allows specifying the upper left corner (Julia: starting at 1).
 The size is inferred form dest.
 Possibly slower than the specialized functions for textures.
 """
-function Base.unsafe_copyto!(dest::Array, source::FrameBuffer, x::Integer = 1, y::Integer = 1)
+function Base.unsafe_copyto!(dest::Array, source::FrameBuffer, x::Integer=1, y::Integer=1)
     attachment = source.attachments[1]
     if attachment isa RenderBuffer
         unsafe_copyto!(dest, attachment, source, x, y)

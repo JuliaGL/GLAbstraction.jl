@@ -10,9 +10,6 @@ struct Shader <: AbstractShader
     id::GLuint
     typ::GLenum
     source::Vector{UInt8} #UInt representation of the source program string,
-    function Shader(id, typ, source)
-        new(id, typ, source)
-    end
 end
 
 function Shader(typ, source)
@@ -27,6 +24,7 @@ function Shader(typ, source)
     end
     Shader(id, typ, s)
 end
+Shader(typ_source::Tuple) = Shader(typ_source...)
 
 function Shader(path::String)
     source_str = read(open(path), String)
@@ -43,6 +41,7 @@ Base.hash(s::Shader, h::UInt64) = hash((s.source, s.typ, s.id, s.context), h)
 
 function Base.show(io::IO, shader::Shader)
     println(io, GLENUM(shader.typ).name)
+    println(io, "id: $(shader.id)")
     println(io, "source:")
     print_with_lines(io, String(shader.source))
 end

@@ -8,8 +8,8 @@ mutable struct Buffer{T} <: GPUArray{T, 1}
     context   ::Context
     function Buffer{T}(cpu_data_ptr::Ptr{T}, buff_length::Int, buffertype::GLenum, usage::GLenum) where T
         id = glGenBuffers()
-	    # size of 0 can segfault it seems
-	    buff_length = buff_length == 0 ? 1 : buff_length
+        # size of 0 can segfault it seems
+        buff_length = buff_length == 0 ? 1 : buff_length
         upload_data(id, cpu_data_ptr, buff_length * sizeof(T), buffertype, usage)
         obj = new{T}(id, buff_length, buffertype, usage, current_context())
         finalizer(free!, obj)
@@ -18,13 +18,13 @@ mutable struct Buffer{T} <: GPUArray{T, 1}
 end
 #Function to deal with any Immutable type with Real as Subtype
 function Buffer(
-        buffer::DenseVector{T};
+        buffer::Union{DenseVector{T}, SubArray{T}};
         buffertype::GLenum = GL_ARRAY_BUFFER, usage::GLenum = GL_STATIC_DRAW
     ) where T <: Real
     Buffer{T}(pointer(buffer), length(buffer), buffertype, usage)
 end
 function Buffer(
-        buffer::DenseVector{T};
+        buffer::Union{DenseVector{T}, SubArray{T}};
         buffertype::GLenum = GL_ARRAY_BUFFER, usage::GLenum = GL_STATIC_DRAW
     ) where T
     glasserteltype(T)
@@ -39,7 +39,21 @@ function Buffer(
 end
 
 free!(x::Buffer) =
-        context_command(x.context, () -> glDeleteBuffers(1, [x.id]))
+        context_command( () -> glDeleteBuffers(1, [x.id]), x.context)
+
+Base.show(io::IO, ::MIME"text/plain", b::Buffer) = show(io, b)
+
+function Base.show(io::IO, b::Buffer)
+    
+    if !get(io, :compact, false)
+        println(io, "$(b.len)-element $(typeof(b)):")
+        println(io, "\tid    = $(b.id)")
+        println(io, "\ttype  = $(GLENUM(b.buffertype).name)")
+        println(io, "\tusage = $(GLENUM(b.usage).name)")
+    else
+        print(io, "$(typeof(b))")
+    end
+end    
 
 function indexbuffer(
         buffer::Vector{T};
@@ -60,8 +74,8 @@ function upload_data(id::GLuint, cpu_data_ptr::Ptr, data_length::Int, buffertype
 end
 
 function upload_data!(buf::Buffer{T}, new_data::Vector{T}) where {T}
-	bind(buf)
-	if length(new_data) == length(buf)
+    bind(buf)
+    if length(new_data) == length(buf)
         glBufferSubData(buf.buffertype, 0, length(new_data) * sizeof(T), pointer(new_data))
     else
         glBufferData(buf.buffertype, length(new_data) * sizeof(T), pointer(new_data), buf.usage)
@@ -70,7 +84,7 @@ function upload_data!(buf::Buffer{T}, new_data::Vector{T}) where {T}
 end
 
 function reupload_data!(buf::Buffer{T}, new_data::Vector{T}, offset=0) where {T}
-	bind(buf)
+    bind(buf)
     glBufferSubData(buf.buffertype, offset, length(new_data) * sizeof(T), pointer(new_data))
     unbind(buf)
 end
@@ -143,7 +157,7 @@ end
 
 # GPUArray interface
 function gpu_data(b::Buffer{T}) where T
-    data = Vector{T}(length(b))
+    data = Vector{T}(undef, length(b))
     bind(b)
     glGetBufferSubData(b.buffertype, 0, sizeof(data), data)
     bind(b, 0)

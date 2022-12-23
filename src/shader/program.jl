@@ -56,7 +56,7 @@ mutable struct Program <: AbstractProgram
                 write(stdout, shader.source)
                 println("---------------------------")
             end
-            @error "program $program not linked. Error in: \n $(join(map(x-> string(x.name), shaders))), or, \n $(getinfolog(program))"
+            @error "program $program not linked. Error in: \n $(join(map(x->x.id, shaders), " or ")), \n $(getinfolog(program))"
         end
 
         # generate the link locations
@@ -75,7 +75,7 @@ Program(shaders::Shader...) = Program([shaders...])
 Program(sh_string_typ...) = 
     Program([map(x -> Shader(x...), sh_string_typ)...])
 
-free!(x::Program) = context_command(x.context, () -> glDeleteProgram(x.id))
+free!(x::Program) = context_command(() -> glDeleteProgram(x.id), x.context)
 
 attributes(program::Program) = program.attributes
 uniforms(program::Program)   = program.uniforms
@@ -144,22 +144,7 @@ function Base.show(io::IO, p::Program)
     end
 end
 
-function infolog(program::Program)
-    # Get the maximum possible length for the descriptive error message
-    maxlength = GLint[0]
-    glGetProgramiv(program.id, GL_INFO_LOG_LENGTH, maxlength)
-    maxlength = first(maxlength)
-    # Return the text of the message if there is any
-    if maxlength > 0
-        buffer = zeros(GLchar, maxlength)
-        sizei = GLsizei[0]
-        glGetProgramInfoLog(program.id, maxlength, sizei, buffer)
-        length = first(sizei)
-        return unsafe_string(pointer(buffer), length)
-    else
-        return "success"
-    end
-end
+infolog(program::Program) = getinfolog(program.id)
 
 # display program's information
 function program_info(p::Program)
