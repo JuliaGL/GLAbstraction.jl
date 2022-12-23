@@ -7,6 +7,7 @@ using Printf
 using StaticArrays
 using ThreadPools
 using Base.Threads
+using Logging
 
 import FixedPointNumbers: N0f8, N0f16, N0f8, Normed
 

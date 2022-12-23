@@ -28,7 +28,7 @@ function generate_buffers(program::Program, divisor::GLint=GEOMETRY_DIVISOR; nam
                 push!(buffers, BufferAttachmentInfo(name, loc, Buffer(fill(val, buflen), usage=GL_DYNAMIC_DRAW), divisor))
             end
         else
-            error("Invalid attribute: $name.")
+            @warn "Invalid attribute: $name."
         end
     end
     return buffers
