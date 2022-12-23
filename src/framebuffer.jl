@@ -143,7 +143,7 @@ function free!(fb::FrameBuffer)
     for attachment in fb.attachments
         free!(attachment)
     end
-    context_command(fb.context, () -> glDeleteFramebuffers(1, [fb.id]))
+    context_command(() -> glDeleteFramebuffers(1, [fb.id]), fb.context)
     return
 end
 
