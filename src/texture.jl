@@ -173,9 +173,7 @@ function set_packing_alignment(a) # at some point we should specialize to array/
     glPixelStorei(GL_UNPACK_SKIP_ROWS, 0)
 end
 
-abstract type OpenglTexture{T,NDIM} <: GPUArray{T,NDIM} end
-
-mutable struct Texture{T,NDIM} <: OpenglTexture{T,NDIM}
+mutable struct Texture{T,NDIM}
     id::GLuint
     texturetype::GLenum
     pixeltype::GLenum
@@ -340,7 +338,7 @@ end
 free!(x::Texture) = context_command(() -> glDeleteTextures(x.id), x.context)
 
 Base.size(t::Texture) = t.size
-Base.eltype(t::Texture{T}) where {T} = T
+Base.eltype(::Texture{T}) where {T} = T
 width(t::Texture) = size(t, 1)
 height(t::Texture) = size(t, 2)
 depth(t::Texture) = size(t, 3)
@@ -488,89 +486,3 @@ function similar(t::Texture{T,NDim}, newdims::NTuple{NDim,Int}) where {T,NDim}
         t.parameters
     )
 end
-
-# for bufferSampler, aka Texture Buffer
-mutable struct TextureBuffer{T} <: OpenglTexture{T,1}
-    texture::Texture{T,1}
-    buffer::Buffer{T}
-end
-function TextureBuffer(buffer::Buffer{T}) where {T}
-    glasserteltype(T)
-    texture_type = GL_TEXTURE_BUFFER
-    id = glGenTextures()
-    glBindTexture(texture_type, id)
-    internalformat = default_internalcolorformat(T)
-    glTexBuffer(texture_type, internalformat, buffer.id)
-    tex = Texture{T,1}(
-        id, texture_type, julia2glenum(T), internalformat,
-        default_colorformat(T), TextureParameters(T, 1),
-        size(buffer)
-    )
-    TextureBuffer(tex, buffer)
-end
-function TextureBuffer(buffer::Vector{T}) where {T}
-    glasserteltype(T)
-    buff = Buffer(buffer, buffertype=GL_TEXTURE_BUFFER, usage=GL_DYNAMIC_DRAW)
-    TextureBuffer(buff)
-end
-Base.size(t::TextureBuffer) = size(t.buffer)
-Base.size(t::TextureBuffer, i::Integer) = size(t.buffer, i)
-Base.length(t::TextureBuffer) = length(t.buffer)
-
-# GPUArray interface:
-function Base.unsafe_copyto!(a::Vector{T}, readoffset::Int, b::TextureBuffer{T}, writeoffset::Int, len::Int) where {T}
-    copy!(a, readoffset, b.buffer, writeoffset, len)
-    glBindTexture(b.texture.texturetype, b.texture.id)
-    glTexBuffer(b.texture.texturetype, b.texture.internalformat, b.buffer.id) # update texture
-end
-
-function Base.unsafe_copyto!(a::TextureBuffer{T}, readoffset::Int, b::Vector{T}, writeoffset::Int, len::Int) where {T}
-    copy!(a.buffer, readoffset, b, writeoffset, len)
-    glBindTexture(a.texture.texturetype, a.texture.id)
-    glTexBuffer(a.texture.texturetype, a.texture.internalformat, a.buffer.id) # update texture
-end
-function Base.unsafe_copyto!(a::TextureBuffer{T}, readoffset::Int, b::TextureBuffer{T}, writeoffset::Int, len::Int) where {T}
-    unsafe_copy!(a.buffer, readoffset, b.buffer, writeoffset, len)
-
-    glBindTexture(a.texture.texturetype, a.texture.id)
-    glTexBuffer(a.texture.texturetype, a.texture.internalformat, a.buffer.id) # update texture
-
-    glBindTexture(b.texture.texturetype, btexture .. id)
-    glTexBuffer(b.texture.texturetype, b.texture.internalformat, b.buffer.id) # update texture
-    glBindTexture(t.texture.texturetype, 0)
-end
-function gpu_setindex!(t::TextureBuffer{T}, newvalue::Vector{T}, indexes::UnitRange{I}) where {T,I<:Integer}
-    glBindTexture(t.texture.texturetype, t.texture.id)
-    t.buffer[indexes] = newvalue # set buffer indexes
-    glTexBuffer(t.texture.texturetype, t.texture.internalformat, t.buffer.id) # update texture
-    glBindTexture(t.texture.texturetype, 0)
-end
-
-gpu_data(t::TextureBuffer{T}) where {T} = gpu_data(t.buffer)
-gpu_getindex(t::TextureBuffer{T}, i::UnitRange{Int64}) where {T} = t.buffer[i]
-
-function similar(t::TextureBuffer{T}, newdims::NTuple{1,Int}) where {T}
-    buff = similar(t.buffer, newdims...)
-    return TextureBuffer(buff)
-end
-
-# Resize Texture
-function gpu_resize!(t::TextureBuffer{T}, newdims::NTuple{1,Int}) where {T}
-    resize!(t.buffer, newdims)
-    glBindTexture(t.texture.texturetype, t.texture.id)
-    glTexBuffer(t.texture.texturetype, t.texture.internalformat, t.buffer.id) #update data in texture
-    t.texture.size = newdims
-    glBindTexture(t.texture.texturetype, 0)
-    t
-end
-
-# next(t::TextureBuffer{T}, state::Tuple{Ptr{T}, Int}) where {T} = next(t.buffer, state)
-# function done(t::TextureBuffer{T}, state::Tuple{Ptr{T}, Int}) where T
-#     isdone = done(t.buffer, state)
-#     if isdone
-#         glBindTexture(t.texturetype, t.id)
-#         glTexBuffer(t.texturetype, t.internalformat, t.buffer.id)
-#         glBindTexture(t.texturetype, 0)
-#     end
-#     isdone
-# end

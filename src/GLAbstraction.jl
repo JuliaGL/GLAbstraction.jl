@@ -11,7 +11,7 @@ using Logging
 
 import FixedPointNumbers: N0f8, N0f16, N0f8, Normed
 
-import Base: merge, resize!,  similar, length, getindex, setindex!
+import Base: merge, resize!, similar, length, getindex, setindex!
 
 include("context.jl")
 
@@ -42,7 +42,6 @@ include("utils.jl")
 include("buffer.jl")
 include("texture.jl")
 include("framebuffer.jl")
-include("uniformbuffer.jl")
 include("shader/uniforms.jl")
 include("shader/shader.jl")
 include("shader/program.jl")
