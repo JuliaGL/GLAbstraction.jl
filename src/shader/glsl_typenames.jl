@@ -26,7 +26,7 @@ opengl_postfix(x::Type{Cuint}) = "uiv"
 #Came from GLUniforms or GLInfo.jl
 
 glsl_type(::Type{T}) where {T<:AbstractFloat} = Float32
-glsl_type(::Texture) where {T,N} = gli.GLTexture{glsl_type(T),N}
+glsl_type(::Texture{T,N}) where {T,N} = gli.GLTexture{glsl_type(T),N}
 glsl_typename(x::T) where {T} = glsl_typename(T)
 glsl_typename(t::Type{Nothing}) = "Nothing"
 glsl_typename(t::Type{GLfloat}) = "float"
