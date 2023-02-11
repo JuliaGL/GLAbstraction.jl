@@ -77,7 +77,6 @@ mutable struct FrameBuffer{ElementTypes,T}
             end
         end
 
-
         if length(depth_attachments) > 1
             error("The amount of DepthFormat types in texture types exceeds the maximum of 1.")
         end
@@ -89,7 +88,7 @@ mutable struct FrameBuffer{ElementTypes,T}
 
         !isempty(depth_attachments) && attach2framebuffer(depth_attachments[1])
 
-        @assert glCheckFramebufferStatus(GL_FRAMEBUFFER) == GL_FRAMEBUFFER_COMPLETE "FrameBuffer (id $framebuffer) with attachments $attachment_types failed to be created."
+        @assert glCheckFramebufferStatus(GL_FRAMEBUFFER) == GL_FRAMEBUFFER_COMPLETE "FrameBuffer (id $framebuffer) with attachments $attachments failed to be created."
         glBindFramebuffer(GL_FRAMEBUFFER, 0)
         obj = new{Tuple{eltype.(attachments)...},typeof(attachments)}(framebuffer, attachments, current_context())
         finalizer(free!, obj)
@@ -127,6 +126,9 @@ context_framebuffer() = FrameBuffer(Val(0))
 
 function attach2framebuffer(t::Texture, attachment)
     glFramebufferTexture2D(GL_FRAMEBUFFER, attachment, GL_TEXTURE_2D, t.id, 0)
+end
+function attach2framebuffer(t::Texture{<:Any,3}, attachment)
+    glFramebufferTexture3D(GL_FRAMEBUFFER, attachment, GL_TEXTURE_3D, t.id, 0, 0)
 end
 function attach2framebuffer(x::RenderBuffer, attachment)
     glFramebufferRenderbuffer(GL_FRAMEBUFFER, attachment, GL_RENDERBUFFER, x.id)
