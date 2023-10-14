@@ -1,7 +1,7 @@
 name = "GLAbstraction"
 uuid = "ca6e7d0a-b0c9-59ca-8aba-aebf11497e1c"
 repo = "https://github.com/JuliaGL/GLAbstraction.jl.git"
-version = "0.8.0"
+version = "0.8.1"
 
 [deps]
 ColorTypes = "3da002f7-5984-5a60-b8a6-cbb66c0b333f"
