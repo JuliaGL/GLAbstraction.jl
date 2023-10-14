@@ -7,9 +7,9 @@ end
 abstract type AbstractShader end
 
 struct Shader <: AbstractShader
-    id      ::GLuint
-    typ     ::GLenum
-    source  ::Vector{UInt8} #UInt representation of the source program string,
+    id::GLuint
+    typ::GLenum
+    source::Vector{UInt8} #UInt representation of the source program string,
 end
 
 function Shader(typ, source)
@@ -55,8 +55,8 @@ function shadertype(path::AbstractString)
     @error "$ext not a valid shader extension."
 end
 function shadertype(typ::Symbol)
-    (typ == :compute  || typ == :comp) && return GL_COMPUTE_SHADER
-    (typ == :vertex   || typ == :vert) && return GL_VERTEX_SHADER
+    (typ == :compute || typ == :comp) && return GL_COMPUTE_SHADER
+    (typ == :vertex || typ == :vert) && return GL_VERTEX_SHADER
     (typ == :fragment || typ == :frag) && return GL_FRAGMENT_SHADER
     (typ == :geometry || typ == :geom) && return GL_GEOMETRY_SHADER
     @error "$typ not a valid shader symbol."
@@ -91,7 +91,7 @@ function getinfolog(id::GLuint)
     maxlength = first(maxlength)
     # Return the text of the message if there is any
     if maxlength > 0
-        buffer = zeros(GLchar, maxlength)
+        buffer = Array{GLchar}(undef, maxlength)
         sizei = GLsizei[0]
         glGetShaderInfoLog(id, maxlength, sizei, buffer)
         length = first(sizei)
